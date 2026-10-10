@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:member-governance-write-view:1.0.0",
+  "type": "object", "additionalProperties": false,
+  "required": ["actor", "tenant_id", "operation", "decision", "subject_id", "target_id", "key", "context", "body_sha256", "expected_revision"],
+  "properties": {
+    "actor": {"$ref": "urn:medical:permission-decisions:1.0.0#/$defs/Id"},
+    "tenant_id": {"$ref": "urn:medical:permission-decisions:1.0.0#/$defs/Id"},
+    "operation": {"enum": ["ID-07", "ID-09"]},
+    "decision": {"enum": ["INVITE", "GRANT", "REVOKE", "DISABLE_MEMBER"]},
+    "subject_id": {"$ref": "urn:medical:permission-decisions:1.0.0#/$defs/Id"},
+    "target_id": {"$ref": "urn:medical:permission-decisions:1.0.0#/$defs/NullableId"},
+    "key": {"$ref": "urn:medical:permission-decisions:1.0.0#/$defs/Id"},
+    "context": {"$ref": "urn:medical:permission-decisions:1.0.0#/$defs/Context"},
+    "body_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "expected_revision": {"$ref": "urn:medical:permission-decisions:1.0.0#/$defs/Revision"}
+  },
+  "allOf": [
+    {"if": {"properties": {"decision": {"const": "INVITE"}}}, "then": {"properties": {"operation": {"const": "ID-07"}, "target_id": {"type": "null"}, "expected_revision": {"const": "0"}}}, "else": {"properties": {"operation": {"const": "ID-09"}}}},
+    {"if": {"properties": {"decision": {"const": "GRANT"}}}, "then": {"properties": {"target_id": {"type": "null"}, "expected_revision": {"const": "0"}}}},
+    {"if": {"properties": {"decision": {"enum": ["REVOKE", "DISABLE_MEMBER"]}}}, "then": {"properties": {"target_id": {"$ref": "urn:medical:permission-decisions:1.0.0#/$defs/Id"}, "expected_revision": {"pattern": "^[1-9][0-9]{0,19}$"}}}}
+  ]
+}

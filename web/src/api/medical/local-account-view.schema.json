@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:local-account-view:1.0.0",
+  "$defs": {
+    "View": {
+      "type": "object", "additionalProperties": false,
+      "required": ["user_id", "username", "display_name", "platform_role", "revision"],
+      "properties": {
+        "user_id": {"$ref": "urn:medical:identity#/$defs/Id"},
+        "username": {"$ref": "urn:medical:identity#/$defs/LocalName"},
+        "display_name": {"$ref": "urn:medical:identity#/$defs/LocalName"},
+        "platform_role": {"$ref": "urn:medical:identity#/$defs/LocalRole"},
+        "revision": {"$ref": "urn:medical:identity#/$defs/Revision"}
+      }
+    },
+    "Pending": {
+      "type": "object", "additionalProperties": false, "required": ["actor", "key", "revision"],
+      "properties": {
+        "actor": {"$ref": "urn:medical:identity#/$defs/Id"},
+        "key": {"$ref": "urn:medical:identity#/$defs/Id"},
+        "revision": {"$ref": "urn:medical:identity#/$defs/Revision"}
+      }
+    }
+  }
+}

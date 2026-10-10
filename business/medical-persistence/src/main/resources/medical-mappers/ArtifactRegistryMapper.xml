@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.medical.persistence.mapper.ArtifactRegistryMapper">
+    <resultMap id="artifact" type="com.ruoyi.medical.persistence.ArtifactRegistryProtocol$ArtifactRow">
+        <constructor>
+            <arg column="tenant_id" javaType="java.lang.String"/><arg column="project_id" javaType="java.lang.String"/>
+            <arg column="artifact_id" javaType="java.lang.String"/><arg column="artifact_kind" javaType="java.lang.String"/>
+            <arg column="object_ref" javaType="java.lang.String"/><arg column="object_key" javaType="java.lang.String"/>
+            <arg column="object_version" javaType="java.lang.String"/><arg column="sha256" javaType="java.lang.String"/>
+            <arg column="size_bytes" javaType="java.math.BigInteger"/><arg column="media_type" javaType="java.lang.String"/>
+            <arg column="dependency_access_set_id" javaType="java.lang.String"/><arg column="content_sha256" javaType="java.lang.String"/>
+            <arg column="schema_version" javaType="java.lang.String"/><arg column="schema_manifest_sha256" javaType="java.lang.String"/>
+            <arg column="classification" javaType="java.lang.String"/>
+        </constructor>
+    </resultMap>
+    <resultMap id="binding" type="com.ruoyi.medical.persistence.ArtifactRegistryProtocol$BindingRow">
+        <constructor>
+            <arg column="tenant_id" javaType="java.lang.String"/><arg column="project_id" javaType="java.lang.String"/>
+            <arg column="artifact_id" javaType="java.lang.String"/><arg column="resource_kind" javaType="java.lang.String"/>
+            <arg column="resource_id" javaType="java.lang.String"/><arg column="schema_ref" javaType="java.lang.String"/>
+            <arg column="schema_document_sha256" javaType="java.lang.String"/><arg column="dependency_access_set_id" javaType="java.lang.String"/>
+            <arg column="dependency_manifest_sha256" javaType="java.lang.String"/>
+        </constructor>
+    </resultMap>
+    <resultMap id="manifest" type="com.ruoyi.medical.persistence.ArtifactRegistryProtocol$ManifestRow">
+        <constructor>
+            <arg column="tenant_id" javaType="java.lang.String"/><arg column="project_id" javaType="java.lang.String"/>
+            <arg column="access_set_id" javaType="java.lang.String"/><arg column="manifest_json" javaType="java.lang.String"/>
+            <arg column="manifest_sha256" javaType="java.lang.String"/><arg column="content_sha256" javaType="java.lang.String"/>
+            <arg column="member_count" javaType="java.math.BigInteger"/><arg column="schema_version" javaType="java.lang.String"/>
+            <arg column="schema_manifest_sha256" javaType="java.lang.String"/>
+        </constructor>
+    </resultMap>
+    <resultMap id="member" type="com.ruoyi.medical.persistence.ArtifactRegistryProtocol$MemberRow">
+        <constructor><arg column="upstream_version_id" javaType="java.lang.String"/><arg column="rights_revision" javaType="java.lang.String"/></constructor>
+    </resultMap>
+    <resultMap id="version" type="com.ruoyi.medical.persistence.ArtifactRegistryProtocol$VersionRow">
+        <constructor><arg column="version_id" javaType="java.lang.String"/><arg column="owner_project_id" javaType="java.lang.String"/>
+            <arg column="entity_kind" javaType="java.lang.String"/><arg column="content_sha256" javaType="java.lang.String"/></constructor>
+    </resultMap>
+    <select id="artifact" resultMap="artifact" useCache="false" flushCache="true">
+        SELECT tenant_id,project_id,artifact_id,artifact_kind,object_ref,object_key,object_version,sha256,size_bytes,media_type,
+               dependency_access_set_id,content_sha256,schema_version,schema_manifest_sha256,classification
+        FROM artifact a WHERE artifact_id=#{id}
+    </select>
+    <select id="binding" resultMap="binding" useCache="false" flushCache="true">
+        SELECT tenant_id,project_id,artifact_id,resource_kind,resource_id,schema_ref,schema_document_sha256,
+               dependency_access_set_id,dependency_manifest_sha256 FROM artifact_content_binding b WHERE artifact_id=#{id}
+    </select>
+    <select id="manifest" resultMap="manifest" useCache="false" flushCache="true">
+        SELECT m.tenant_id,m.project_id,m.access_set_id,m.manifest_json,m.manifest_sha256,m.content_sha256,m.member_count,
+               m.schema_version,m.schema_manifest_sha256 FROM dependency_access_manifest m
+        JOIN dependency_access_set s ON s.tenant_id=m.tenant_id AND s.project_key=m.project_key AND s.access_set_id=m.access_set_id
+            AND s.manifest_sha256=m.manifest_sha256 AND s.content_sha256=m.content_sha256
+        WHERE m.access_set_id=#{id}
+    </select>
+    <select id="members" resultMap="member" useCache="false" flushCache="true">
+        SELECT upstream_version_id,rights_revision FROM dependency_access_member m WHERE access_set_id=#{id} ORDER BY upstream_version_id
+    </select>
+    <select id="version" resultMap="version" useCache="false" flushCache="true">
+        SELECT version_id,owner_project_id,entity_kind,content_sha256 FROM version_registry v WHERE version_id=#{id}
+    </select>
+</mapper>

@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.medical.persistence.mapper.UploadIssuanceMapper">
+  <resultMap id="operation" type="com.ruoyi.medical.persistence.UploadOperationRow">
+    <constructor>
+      <arg column="tenant_id" javaType="java.lang.String"/><arg column="operation_id" javaType="java.lang.String"/>
+      <arg column="subject_id" javaType="java.lang.String"/><arg column="operation_name" javaType="java.lang.String"/>
+      <arg column="idempotency_key" javaType="java.lang.String"/><arg column="request_sha256" javaType="java.lang.String"/>
+      <arg column="state" javaType="java.lang.String"/><arg column="http_status" javaType="java.lang.Integer"/>
+      <arg column="response_ref" javaType="java.lang.String"/><arg column="target_id" javaType="java.lang.String"/>
+      <arg column="error_code" javaType="java.lang.String"/><arg column="schema_version" javaType="java.lang.String"/>
+      <arg column="schema_manifest_sha256" javaType="java.lang.String"/><arg column="created_by" javaType="java.lang.String"/>
+      <arg column="created_at" javaType="java.time.LocalDateTime"/><arg column="classification" javaType="java.lang.String"/>
+      <arg column="revision" javaType="java.math.BigInteger"/><arg column="updated_at" javaType="java.time.LocalDateTime"/>
+      <arg column="dedup_expires_at" javaType="java.time.LocalDateTime"/><arg column="dedup_policy_revision" javaType="java.lang.String"/>
+    </constructor>
+  </resultMap>
+  <select id="currentOperation" resultMap="operation" useCache="false" flushCache="true">
+    SELECT tenant_id,operation_id,subject_id,operation_name,idempotency_key,request_sha256,state,http_status,response_ref,
+           target_id,error_code,schema_version,schema_manifest_sha256,created_by,created_at,classification,revision,updated_at,
+           dedup_expires_at,dedup_policy_revision
+    FROM operation_record o WHERE subject_id=#{userId} AND operation_name='BX-03' AND idempotency_key=#{key} FOR UPDATE
+  </select>
+  <insert id="saveOperation">
+    INSERT INTO operation_record (operation_id,subject_id,operation_name,idempotency_key,request_sha256,state,http_status,response_ref,
+        target_id,error_code,schema_version,schema_manifest_sha256,created_by,created_at,classification,revision,updated_at,
+        dedup_expires_at,dedup_policy_revision)
+    VALUES (#{row.operationId},#{userId},'BX-03',#{key},#{row.requestSha256},'COMPLETED',201,#{row.responseRef},
+        #{row.targetId},NULL,'1.0.0',#{row.schemaManifestSha256},#{userId},#{row.createdAt},#{row.classification},1,#{row.updatedAt},NULL,NULL)
+  </insert>
+  <select id="audit" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT resource_ref FROM audit_event a WHERE project_id=#{projectId} AND audit_id=#{auditId} AND subject_id=#{userId}
+      AND action='upload.issued' AND result='SUCCESS' AND reason_code IS NULL AND request_id=#{requestId} AND trace_id=#{requestId}
+      AND schema_version='1.0.0' AND schema_manifest_sha256=#{manifest} AND created_by=#{userId} AND classification=#{classification}
+    FOR UPDATE
+  </select>
+  <select id="event" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT payload FROM outbox_event e WHERE event_id=#{eventId} AND aggregate_id=#{uploadId}
+      AND aggregate_revision=1 AND event_type='upload.issued' AND published_at IS NULL FOR UPDATE
+  </select>
+  <select id="documentUploadForGrant" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT upload_id FROM object_upload_session s WHERE grant_id=#{grantId} AND subject_id=#{userId}
+      AND purpose='DOCUMENT_BODY' AND created_by=#{userId} FOR UPDATE
+  </select>
+  <select id="completionOperation" resultMap="operation" useCache="false" flushCache="true">
+    SELECT tenant_id,operation_id,subject_id,operation_name,idempotency_key,request_sha256,state,http_status,response_ref,
+           target_id,error_code,schema_version,schema_manifest_sha256,created_by,created_at,classification,revision,updated_at,
+           dedup_expires_at,dedup_policy_revision
+    FROM operation_record o WHERE subject_id=#{userId} AND operation_name='BX-04' AND idempotency_key=#{key} FOR UPDATE
+  </select>
+  <insert id="startCompletionOperation">
+    INSERT INTO operation_record (operation_id,subject_id,operation_name,idempotency_key,request_sha256,state,http_status,response_ref,
+        target_id,error_code,schema_version,schema_manifest_sha256,created_by,created_at,classification,revision,updated_at)
+    VALUES (#{row.operationId},#{userId},'BX-04',#{key},#{row.requestSha256},'PROCESSING',NULL,NULL,
+        #{row.targetId},NULL,'1.0.0',#{row.schemaManifestSha256},#{userId},#{row.createdAt},#{row.classification},1,#{row.updatedAt})
+  </insert>
+  <update id="completeCompletionOperation">
+    UPDATE operation_record o SET state='COMPLETED',http_status=200,response_ref=#{response},revision=2,updated_at=#{now}
+    WHERE subject_id=#{userId} AND operation_name='BX-04' AND idempotency_key=#{key} AND operation_id=#{operationId}
+      AND request_sha256=#{requestHash} AND target_id=#{uploadId} AND state='PROCESSING' AND revision=1
+  </update>
+  <insert id="saveArtifactVersion">
+    INSERT INTO version_registry (version_id,owner_project_id,entity_kind,content_sha256)
+    VALUES (#{artifactId},#{projectId},'ARTIFACT',#{reference.sha256})
+  </insert>
+  <insert id="saveArtifact">
+    INSERT INTO artifact (project_id,artifact_id,run_id,document_revision,artifact_kind,object_ref,object_key,object_version,
+        sha256,size_bytes,media_type,dependency_access_set_id,content_sha256,schema_version,schema_manifest_sha256,created_by,created_at,classification)
+    VALUES (#{projectId},#{artifactId},NULL,NULL,'DOCUMENT_BODY',#{storedObject},#{reference.objectKey},#{reference.objectVersion},
+        #{reference.sha256},#{size},#{reference.mediaType},#{binding.dependencyAccessSetId},#{reference.sha256},'1.0.0',
+        #{artifactManifest},#{userId},#{now},#{binding.classification})
+  </insert>
+  <insert id="saveContentBinding">
+    INSERT INTO artifact_content_binding (project_id,artifact_id,resource_kind,resource_id,schema_ref,schema_document_sha256,
+        dependency_access_set_id,dependency_manifest_sha256,created_by,created_at,classification)
+    VALUES (#{projectId},#{artifactId},'DOCUMENT',#{binding.documentId},#{schemaRef},#{binding.schemaDocumentSha256},
+        #{binding.dependencyAccessSetId},#{binding.dependencyManifestSha256},#{userId},#{now},#{binding.classification})
+  </insert>
+  <insert id="saveArtifactLineage">
+    INSERT INTO lineage_edge (consumer_version_id,upstream_version_id,relation_kind,actor_id,decision_ref,created_at)
+    VALUES (#{artifactId},#{upstreamId},'DOCUMENT_BODY_INPUT',#{userId},NULL,#{now})
+  </insert>
+  <update id="completeGrant">
+    UPDATE artifact_upload_grant g SET status='COMPLETED',artifact_id=#{artifactId},object_version=#{reference.objectVersion},
+        object_identity_sha256=#{objectIdentitySha256},revision=revision+1,updated_at=#{now}
+    WHERE grant_id=#{grantId} AND subject_id=#{userId} AND purpose='DOCUMENT_BODY' AND revision=#{grantRevision}
+      AND status IN ('ISSUED','UPLOADING') AND expires_at&gt;#{now}
+      AND object_key=#{reference.objectKey} AND sha256=#{reference.sha256} AND size_bytes=#{size}
+  </update>
+  <select id="completionAudit" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT resource_ref FROM audit_event a WHERE project_id=#{projectId} AND audit_id=#{auditId} AND subject_id=#{userId}
+      AND action='document.upload.completed' AND result='SUCCESS' AND reason_code IS NULL AND request_id=#{requestId}
+      AND trace_id=#{requestId} AND schema_version='1.0.0' AND schema_manifest_sha256=#{manifest}
+      AND created_by=#{userId} AND classification=#{classification} FOR UPDATE
+  </select>
+  <select id="completionEvent" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT payload FROM outbox_event e WHERE event_id=#{eventId} AND aggregate_id=#{artifactId}
+      AND aggregate_revision=1 AND event_type='document.upload.completed' AND published_at IS NULL FOR UPDATE
+  </select>
+  <resultMap id="chunk" type="com.ruoyi.medical.persistence.DocumentBodyDomainAuthority$Chunk">
+    <constructor><arg column="locator" javaType="java.lang.String"/><arg column="quote_hash" javaType="java.lang.String"/>
+      <arg column="raw_text" javaType="java.lang.String"/></constructor>
+  </resultMap>
+  <select id="sourceChunk" resultMap="chunk" useCache="false" flushCache="true">
+    SELECT locator,quote_hash,raw_text FROM source_chunk c
+    WHERE source_version=#{sourceVersion} AND parse_version=#{parseVersion} AND chunk_id=#{chunkId}
+  </select>
+</mapper>

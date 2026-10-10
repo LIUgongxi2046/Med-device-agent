@@ -1,0 +1,6 @@
+{
+  "name": "medical-agent-profile",
+  "private": true,
+  "dependencies": {"@medical-agent/professional-executor": "link:../.."},
+  "dsh": {"profile": {"bundles": ["@medical-agent/professional-executor"]}}
+}

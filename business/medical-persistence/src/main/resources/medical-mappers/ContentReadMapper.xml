@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.medical.persistence.mapper.ContentReadMapper">
+    <resultMap id="headerRow" type="com.ruoyi.medical.persistence.ContentReadProtocol$HeaderRow">
+        <constructor>
+            <arg column="tenant_id" javaType="java.lang.String"/><arg column="project_id" javaType="java.lang.String"/>
+            <arg column="read_receipt_id" javaType="java.lang.String"/><arg column="resource_id" javaType="java.lang.String"/>
+            <arg column="artifact_id" javaType="java.lang.String"/><arg column="subject_id" javaType="java.lang.String"/>
+            <arg column="run_id" javaType="java.lang.String"/><arg column="step_id" javaType="java.lang.String"/>
+            <arg column="lease_generation" javaType="java.math.BigInteger"/><arg column="selection_sha256" javaType="java.lang.String"/>
+            <arg column="delivered_sha256" javaType="java.lang.String"/><arg column="content_sha256" javaType="java.lang.String"/>
+            <arg column="auth_epoch" javaType="java.math.BigInteger"/><arg column="governance_epoch" javaType="java.math.BigInteger"/>
+            <arg column="read_at" javaType="java.time.LocalDateTime"/><arg column="created_by" javaType="java.lang.String"/>
+            <arg column="created_at" javaType="java.time.LocalDateTime"/><arg column="classification" javaType="java.lang.String"/>
+        </constructor>
+    </resultMap>
+    <resultMap id="rangeRow" type="com.ruoyi.medical.persistence.ContentReadProtocol$RangeRow">
+        <constructor>
+            <arg column="tenant_id" javaType="java.lang.String"/><arg column="project_id" javaType="java.lang.String"/>
+            <arg column="read_receipt_id" javaType="java.lang.String"/><arg column="artifact_id" javaType="java.lang.String"/>
+            <arg column="resource_kind" javaType="java.lang.String"/><arg column="resource_id" javaType="java.lang.String"/>
+            <arg column="schema_ref" javaType="java.lang.String"/><arg column="schema_document_sha256" javaType="java.lang.String"/>
+            <arg column="dependency_access_set_id" javaType="java.lang.String"/><arg column="dependency_manifest_sha256" javaType="java.lang.String"/>
+            <arg column="object_ref_sha256" javaType="java.lang.String"/><arg column="start_byte" javaType="java.math.BigInteger"/>
+            <arg column="end_byte" javaType="java.math.BigInteger"/><arg column="size_bytes" javaType="java.math.BigInteger"/>
+            <arg column="chunk_sha256" javaType="java.lang.String"/><arg column="purpose" javaType="java.lang.String"/>
+            <arg column="authorization_sha256" javaType="java.lang.String"/><arg column="context_revision" javaType="java.math.BigInteger"/>
+            <arg column="created_by" javaType="java.lang.String"/><arg column="created_at" javaType="java.time.LocalDateTime"/>
+            <arg column="classification" javaType="java.lang.String"/>
+        </constructor>
+    </resultMap>
+    <resultMap id="auditRow" type="com.ruoyi.medical.persistence.ContentReadProtocol$AuditRow">
+        <constructor>
+            <arg column="tenant_id" javaType="java.lang.String"/><arg column="project_id" javaType="java.lang.String"/>
+            <arg column="audit_id" javaType="java.lang.String"/><arg column="subject_id" javaType="java.lang.String"/>
+            <arg column="action" javaType="java.lang.String"/><arg column="resource_ref" javaType="java.lang.String"/>
+            <arg column="result" javaType="java.lang.String"/><arg column="reason_code" javaType="java.lang.String"/>
+            <arg column="request_id" javaType="java.lang.String"/><arg column="trace_id" javaType="java.lang.String"/>
+            <arg column="schema_version" javaType="java.lang.String"/><arg column="schema_manifest_sha256" javaType="java.lang.String"/>
+            <arg column="created_by" javaType="java.lang.String"/><arg column="created_at" javaType="java.time.LocalDateTime"/>
+            <arg column="classification" javaType="java.lang.String"/>
+        </constructor>
+    </resultMap>
+    <select id="databaseTime" resultType="java.time.LocalDateTime" useCache="false" flushCache="true">SELECT UTC_TIMESTAMP(6)</select>
+    <select id="header" resultMap="headerRow" useCache="false" flushCache="true">
+        SELECT tenant_id,project_id,read_receipt_id,resource_id,artifact_id,subject_id,run_id,step_id,lease_generation,
+               selection_sha256,delivered_sha256,content_sha256,auth_epoch,governance_epoch,read_at,created_by,created_at,classification
+        FROM content_read_receipt h WHERE read_receipt_id=#{receiptId} AND subject_id=#{userId}
+    </select>
+    <select id="range" resultMap="rangeRow" useCache="false" flushCache="true">
+        SELECT r.tenant_id,r.project_id,r.read_receipt_id,r.artifact_id,r.resource_kind,r.resource_id,r.schema_ref,
+               r.schema_document_sha256,r.dependency_access_set_id,r.dependency_manifest_sha256,r.object_ref_sha256,
+               r.start_byte,r.end_byte,r.size_bytes,r.chunk_sha256,r.purpose,r.authorization_sha256,r.context_revision,
+               r.created_by,r.created_at,r.classification
+        FROM content_read_range r JOIN content_read_receipt h
+          ON h.tenant_id=r.tenant_id AND h.project_key=r.project_key AND h.read_receipt_id=r.read_receipt_id
+         AND h.artifact_id=r.artifact_id AND h.resource_id=r.resource_id
+        WHERE r.read_receipt_id=#{receiptId} AND h.subject_id=#{userId}
+    </select>
+    <select id="audit" resultMap="auditRow" useCache="false" flushCache="true">
+        SELECT tenant_id,project_id,audit_id,subject_id,action,resource_ref,result,reason_code,request_id,trace_id,
+               schema_version,schema_manifest_sha256,created_by,created_at,classification
+        FROM audit_event a WHERE audit_id=#{auditId} AND subject_id=#{userId}
+    </select>
+    <insert id="saveHeader">
+        INSERT INTO content_read_receipt (project_id,read_receipt_id,resource_id,artifact_id,subject_id,run_id,step_id,
+            lease_generation,selection_sha256,delivered_sha256,content_sha256,auth_epoch,governance_epoch,
+            read_at,created_by,created_at,classification)
+        VALUES (#{header.projectId},#{header.receiptId},#{header.resourceId},#{header.artifactId},#{userId},#{header.runId},
+            #{header.stepId},#{header.leaseGeneration},#{header.selectionSha256},#{header.deliveredSha256},#{header.contentSha256},
+            #{header.authEpoch},#{header.governanceEpoch},#{header.readAt},#{userId},#{header.createdAt},#{header.classification})
+    </insert>
+    <insert id="saveRange">
+        INSERT INTO content_read_range (project_id,read_receipt_id,artifact_id,resource_kind,resource_id,schema_ref,
+            schema_document_sha256,dependency_access_set_id,dependency_manifest_sha256,object_ref_sha256,start_byte,
+            end_byte,size_bytes,chunk_sha256,purpose,authorization_sha256,context_revision,created_by,created_at,classification)
+        VALUES (#{range.projectId},#{range.receiptId},#{range.artifactId},#{range.resourceKind},#{range.resourceId},#{range.schemaRef},
+            #{range.schemaDocumentSha256},#{range.accessSetId},#{range.dependencyManifestSha256},#{range.objectRefSha256},
+            #{range.startByte},#{range.endByte},#{range.sizeBytes},#{range.chunkSha256},#{range.purpose},#{range.authorizationSha256},
+            #{range.contextRevision},#{userId},#{range.createdAt},#{range.classification})
+    </insert>
+    <insert id="saveAudit">
+        INSERT INTO audit_event (project_id,audit_id,subject_id,action,resource_ref,result,reason_code,request_id,trace_id,
+            schema_version,schema_manifest_sha256,created_by,created_at,classification)
+        VALUES (#{audit.projectId},#{audit.auditId},#{userId},#{audit.action},#{audit.resource},#{audit.result},#{audit.reasonCode},
+            #{audit.requestId},#{audit.traceId},#{audit.schemaVersion},#{audit.schemaManifest},#{userId},#{audit.createdAt},#{audit.classification})
+    </insert>
+</mapper>

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.medical.identity.mapper.LocalAccountMapper">
+  <resultMap id="Account" type="com.ruoyi.medical.identity.LocalAccountProtocol$AccountItem">
+    <constructor>
+      <arg column="user_id" javaType="java.lang.String"/>
+      <arg column="username" javaType="java.lang.String"/>
+      <arg column="display_name" javaType="java.lang.String"/>
+      <arg column="status" javaType="java.lang.String"/>
+      <arg column="platform_role" javaType="java.lang.String"/>
+      <arg column="revision" javaType="java.lang.String"/>
+      <arg column="credential_revision" javaType="java.lang.String"/>
+    </constructor>
+  </resultMap>
+  <select id="selectAccounts" resultMap="Account" useCache="false" flushCache="true">
+    SELECT user_id,username,display_name,status,platform_role,revision,credential_revision
+    FROM platform_local_account
+    <where><if test="cursor != null">user_id &gt; #{cursor}</if></where>
+    ORDER BY user_id
+  </select>
+</mapper>

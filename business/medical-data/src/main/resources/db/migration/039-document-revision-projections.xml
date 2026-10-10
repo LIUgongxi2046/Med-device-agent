@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.31.xsd"
+    logicalFilePath="medical-agent/db/migration/039-document-revision-projections.xml">
+  <changeSet id="1.0.0-253-field-definition-identity" author="medical-agent" dbms="mysql" runInTransaction="false" failOnError="true">
+    <preConditions onFail="HALT" onError="HALT">
+      <foreignKeyConstraintExists foreignKeyTableName="field_value" foreignKeyName="field_value_ibfk_2"/>
+    </preConditions>
+    <addColumn tableName="field_value"><column name="field_definition_id" type="CHAR(36)"/></addColumn>
+    <sql>UPDATE field_value SET field_definition_id=field_id</sql>
+    <dropForeignKeyConstraint baseTableName="field_value" constraintName="field_value_ibfk_2"/>
+    <sql>ALTER TABLE field_value MODIFY field_definition_id CHAR(36) CHARACTER SET ascii NOT NULL</sql>
+    <addForeignKeyConstraint baseTableName="field_value" baseColumnNames="tenant_id,template_version,field_definition_id"
+      referencedTableName="field_definition" referencedColumnNames="tenant_id,template_version,field_id" constraintName="fk_field_value_definition"/>
+  </changeSet>
+  <changeSet id="1.0.0-254-document-evidence-projection" author="medical-agent" dbms="mysql" runInTransaction="false" failOnError="true">
+    <sql>CREATE TABLE document_evidence_projection (
+      tenant_id CHAR(36) CHARACTER SET ascii NOT NULL, project_id CHAR(36) CHARACTER SET ascii NOT NULL,
+      document_revision CHAR(36) CHARACTER SET ascii NOT NULL, link_id CHAR(36) CHARACTER SET ascii NOT NULL,
+      node_id CHAR(36) CHARACTER SET ascii NOT NULL, evidence_id CHAR(36) CHARACTER SET ascii NOT NULL,
+      claim_id CHAR(36) CHARACTER SET ascii NOT NULL, value_json JSON NOT NULL,
+      schema_version VARCHAR(32) NOT NULL, schema_manifest_sha256 CHAR(64) CHARACTER SET ascii NOT NULL,
+      created_by CHAR(36) CHARACTER SET ascii NOT NULL, created_at DATETIME(6) NOT NULL, classification VARCHAR(24) NOT NULL,
+      PRIMARY KEY (tenant_id,project_id,document_revision,link_id,node_id),
+      UNIQUE KEY uq_document_evidence_identity (tenant_id,project_id,evidence_id),
+      FOREIGN KEY (tenant_id,project_id,document_revision,node_id) REFERENCES document_node (tenant_id,project_id,document_revision,node_id),
+      FOREIGN KEY (tenant_id,project_id,document_revision,evidence_id) REFERENCES evidence_link (tenant_id,project_id,document_revision,evidence_id),
+      FOREIGN KEY (tenant_id,project_id,document_revision,claim_id) REFERENCES claim (tenant_id,project_id,document_revision,claim_id),
+      FOREIGN KEY (tenant_id,created_by) REFERENCES tenant_member (tenant_id,user_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_as_cs</sql>
+  </changeSet>
+</databaseChangeLog>

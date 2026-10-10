@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent><groupId>com.ruoyi</groupId><artifactId>ruoyi</artifactId><version>3.9.2</version></parent>
+    <artifactId>medical-contracts</artifactId>
+    <description>医疗器械平台共享 Schema 校验与跨语言表示</description>
+    <dependencies>
+        <dependency><groupId>com.networknt</groupId><artifactId>json-schema-validator</artifactId><version>1.5.9</version></dependency>
+        <dependency><groupId>com.fasterxml.jackson.core</groupId><artifactId>jackson-databind</artifactId></dependency>
+        <dependency><groupId>com.fasterxml.jackson.dataformat</groupId><artifactId>jackson-dataformat-yaml</artifactId></dependency>
+        <dependency><groupId>io.github.erdtman</groupId><artifactId>java-json-canonicalization</artifactId><version>1.1</version></dependency>
+        <dependency><groupId>org.junit.jupiter</groupId><artifactId>junit-jupiter</artifactId><scope>test</scope></dependency>
+    </dependencies>
+    <build>
+        <resources>
+            <resource>
+                <directory>${project.basedir}/../../</directory>
+                <includes>
+                    <include>contracts/catalogue.json</include>
+                    <include>data-design/dataset.schema.json</include>
+                    <include>backend-design/interfaces.schema.yaml</include>
+                    <include>backend-design/resource-details.schema.yaml</include>
+                    <include>agent-design/artifacts.schema.json</include>
+                    <include>agent-design/model-stream.schema.json</include>
+                    <include>business/medical-persistence/src/main/resources/templates.schema.json</include>
+                    <include>business/medical-persistence/src/main/resources/template-operations.schema.json</include>
+                    <include>business/medical-persistence/src/main/resources/tasks.schema.json</include>
+                    <include>business/medical-persistence/src/main/resources/collections.schema.json</include>
+                    <include>business/medical-persistence/src/main/resources/rule-expressions.schema.json</include>
+                    <include>business/medical-persistence/src/main/resources/template-applicability.schema.json</include>
+                    <include>business/medical-persistence/src/main/resources/agent-release.schema.json</include>
+                    <include>business/medical-persistence/src/main/resources/task-plan-view.schema.json</include>
+                </includes>
+            </resource>
+        </resources>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId><artifactId>maven-surefire-plugin</artifactId><version>3.5.5</version>
+                <configuration>
+                    <systemPropertyVariables><medical.projectRoot>${project.basedir}/../..</medical.projectRoot></systemPropertyVariables>
+                    <argLine>${medical.testJvmMemory} -Dfile.encoding=UTF-8 -Djava.io.tmpdir=${project.basedir}/../../.implementation-work/java-temp</argLine>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>

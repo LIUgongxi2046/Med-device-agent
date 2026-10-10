@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:budget-write-view:1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["actor", "tenant_id", "operation", "budget_id", "project_id", "key", "context", "body_sha256", "expected_revision", "based_on_budget_revision", "currency"],
+  "properties": {
+    "actor": {"$ref": "urn:medical:budgets:1.0.0#/$defs/Id"},
+    "tenant_id": {"$ref": "urn:medical:budgets:1.0.0#/$defs/Id"},
+    "operation": {"enum": ["BD-02", "BD-04"]},
+    "budget_id": {"$ref": "urn:medical:budgets:1.0.0#/$defs/NullableId"},
+    "project_id": {"$ref": "urn:medical:budgets:1.0.0#/$defs/NullableId"},
+    "key": {"type": "string", "minLength": 16, "maxLength": 128, "pattern": "^[\\x21-\\x7e]+$"},
+    "context": {"$ref": "urn:medical:budgets:1.0.0#/$defs/Context"},
+    "body_sha256": {"$ref": "urn:medical:budgets:1.0.0#/$defs/Hash"},
+    "expected_revision": {"anyOf": [{"$ref": "urn:medical:budgets:1.0.0#/$defs/Revision"}, {"type": "null"}]},
+    "based_on_budget_revision": {"$ref": "urn:medical:budgets:1.0.0#/$defs/NullableId"},
+    "currency": {"$ref": "urn:medical:budgets:1.0.0#/$defs/Currency"}
+  },
+  "oneOf": [
+    {"properties": {"operation": {"const": "BD-02"}, "budget_id": {"type": "null"}, "expected_revision": {"type": "null"}, "based_on_budget_revision": {"type": "null"}}},
+    {"properties": {"operation": {"const": "BD-04"}, "budget_id": {"type": "string"}, "expected_revision": {"type": "string"}, "based_on_budget_revision": {"type": "string"}}}
+  ]
+}

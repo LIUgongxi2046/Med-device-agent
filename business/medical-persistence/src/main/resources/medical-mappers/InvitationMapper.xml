@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.medical.persistence.mapper.InvitationMapper">
+    <resultMap id="origin" type="com.ruoyi.medical.persistence.EnterpriseRoleProtocol$GrantOrigin">
+        <constructor><arg column="grant_id" javaType="java.lang.String"/><arg column="role_version" javaType="java.lang.String"/>
+            <arg column="invitation_id" javaType="java.lang.String"/></constructor>
+    </resultMap>
+    <select id="roleHead" resultMap="com.ruoyi.medical.persistence.mapper.EnterpriseRoleMapper.head" useCache="false" flushCache="true">
+        SELECT role_id,current_version,revision FROM enterprise_role_head h WHERE role_id=#{roleId} FOR UPDATE
+    </select>
+    <insert id="insertOrigin">
+        INSERT INTO member_role_grant (grant_id,role_version,invitation_id,created_by,created_at,classification,revision,updated_at)
+        VALUES (#{grantId},#{roleVersion},#{invitationId},#{userId},UTC_TIMESTAMP(6),#{classification},1,UTC_TIMESTAMP(6))
+    </insert>
+    <select id="origins" resultMap="origin" useCache="false" flushCache="true">
+        SELECT grant_id,role_version,invitation_id FROM member_role_grant r WHERE invitation_id=#{invitationId} ORDER BY grant_id FOR UPDATE
+    </select>
+    <resultMap id="role" type="com.ruoyi.medical.persistence.InvitationProtocol$RoleRow">
+        <constructor>
+            <arg column="version_id" javaType="java.lang.String"/><arg column="role_id" javaType="java.lang.String"/>
+            <arg column="definition" javaType="java.lang.String"/><arg column="status" javaType="java.lang.String"/>
+            <arg column="approved_by" javaType="java.lang.String"/><arg column="approved_at" javaType="java.time.LocalDateTime"/>
+            <arg column="valid_from" javaType="java.time.LocalDateTime"/><arg column="valid_to" javaType="java.time.LocalDateTime"/>
+            <arg column="schema_version" javaType="java.lang.String"/><arg column="schema_manifest_sha256" javaType="java.lang.String"/>
+            <arg column="revision" javaType="java.math.BigInteger"/>
+        </constructor>
+    </resultMap>
+    <resultMap id="invitation" type="com.ruoyi.medical.persistence.InvitationProtocol$Row">
+        <constructor>
+            <arg column="invitation_id" javaType="java.lang.String"/><arg column="user_id" javaType="java.lang.String"/>
+            <arg column="identity_id" javaType="java.lang.String"/><arg column="roles" javaType="java.lang.String"/>
+            <arg column="scope" javaType="java.lang.String"/><arg column="authorization_manifest" javaType="java.lang.String"/>
+            <arg column="basis_version" javaType="java.lang.String"/><arg column="credential_sha256" javaType="java.lang.String"/>
+            <arg column="expires_at" javaType="java.time.LocalDateTime"/><arg column="status" javaType="java.lang.String"/>
+            <arg column="created_by" javaType="java.lang.String"/><arg column="created_at" javaType="java.time.LocalDateTime"/>
+            <arg column="schema_version" javaType="java.lang.String"/><arg column="schema_manifest_sha256" javaType="java.lang.String"/>
+            <arg column="revision" javaType="java.math.BigInteger"/>
+        </constructor>
+    </resultMap>
+    <select id="role" resultMap="role" useCache="false" flushCache="true">
+        SELECT version_id,role_id,definition,status,approved_by,approved_at,valid_from,valid_to,schema_version,schema_manifest_sha256,revision
+        FROM enterprise_role_version r WHERE version_id=#{versionId}
+            AND version_id IN (SELECT version_id FROM version_registry v WHERE entity_kind='ROLE_DEFINITION') FOR UPDATE
+    </select>
+    <sql id="invitationColumns">invitation_id,user_id,identity_id,roles,scope,authorization_manifest,basis_version,credential_sha256,
+        expires_at,status,created_by,created_at,schema_version,schema_manifest_sha256,revision</sql>
+    <select id="currentInvitation" resultMap="invitation" useCache="false" flushCache="true">
+        SELECT <include refid="invitationColumns"/> FROM member_invitation i WHERE invitation_id=#{invitationId} FOR UPDATE
+    </select>
+    <select id="pending" resultMap="invitation" useCache="false" flushCache="true">
+        SELECT <include refid="invitationColumns"/> FROM member_invitation i WHERE user_id=#{targetId} AND status='PENDING' ORDER BY invitation_id FOR UPDATE
+    </select>
+    <select id="inviterDelegations" resultMap="com.ruoyi.medical.persistence.mapper.PermissionMapper.grant" useCache="false" flushCache="true">
+        SELECT grant_id,subject_id,project_id,resource_kind,resource_id,action,`condition`,status,valid_from,valid_to,
+            basis_version,schema_version,schema_manifest_sha256,revision
+        FROM permission_grant g WHERE subject_id=#{inviterId} AND action='member.manage' AND status='ACTIVE'
+            AND valid_from &lt;= UTC_TIMESTAMP(6) AND (valid_to IS NULL OR valid_to &gt; UTC_TIMESTAMP(6)) ORDER BY grant_id FOR UPDATE
+    </select>
+    <select id="currentOperation" resultMap="com.ruoyi.medical.persistence.mapper.TenantSelectionMapper.operation" useCache="false" flushCache="true">
+        SELECT operation_id,request_sha256,state,http_status,response_ref,target_id,schema_version,schema_manifest_sha256
+        FROM operation_record o WHERE subject_id=#{userId} AND operation_name=#{operation} AND idempotency_key=#{key}
+    </select>
+    <insert id="insertBinding">
+        INSERT INTO identity_binding (identity_id,user_id,mode,local_user_id,issuer,subject,status,created_by,created_at,classification,revision,updated_at)
+        VALUES (#{identityId},#{targetId},#{mode},#{localUserId},#{issuer},#{subject},'ACTIVE',#{userId},UTC_TIMESTAMP(6),#{classification},1,UTC_TIMESTAMP(6))
+    </insert>
+    <insert id="insertMember">
+        INSERT INTO tenant_member (member_id,user_id,status,valid_from,valid_to,created_by,created_at,classification,revision,updated_at)
+        VALUES (#{memberId},#{targetId},'INVITED',UTC_TIMESTAMP(6),NULL,#{userId},UTC_TIMESTAMP(6),#{classification},1,UTC_TIMESTAMP(6))
+    </insert>
+    <insert id="insertInvitation">
+        INSERT INTO member_invitation (invitation_id,user_id,identity_id,roles,scope,authorization_manifest,basis_version,credential_sha256,
+            expires_at,status,schema_version,schema_manifest_sha256,created_by,created_at,classification,revision,updated_at)
+        VALUES (#{invitationId},#{targetId},#{identityId},#{roles},#{scope},#{authorizations},#{basis},#{credentialSha256},#{expiresAt},
+            'PENDING','1.0.0',#{manifest},#{userId},UTC_TIMESTAMP(6),#{classification},1,UTC_TIMESTAMP(6))
+    </insert>
+    <update id="acceptInvitation">
+        UPDATE member_invitation SET status='ACCEPTED',accepted_by=#{targetId},accepted_at=UTC_TIMESTAMP(6),terminal_at=UTC_TIMESTAMP(6),
+            revision=revision+1,updated_at=UTC_TIMESTAMP(6)
+        WHERE invitation_id=#{id} AND user_id=#{targetId} AND revision=#{revision} AND status='PENDING' AND expires_at>UTC_TIMESTAMP(6)
+    </update>
+    <update id="activateMember">
+        UPDATE tenant_member SET status='ACTIVE',revision=revision+1,updated_at=UTC_TIMESTAMP(6)
+        WHERE member_id=#{id} AND user_id=#{targetId} AND revision=#{revision} AND status='INVITED'
+            AND valid_from &lt;= UTC_TIMESTAMP(6) AND (valid_to IS NULL OR valid_to>UTC_TIMESTAMP(6))
+    </update>
+    <update id="expire">
+        UPDATE member_invitation SET status='EXPIRED',terminal_at=UTC_TIMESTAMP(6),terminal_reason='邀请有效期结束',revision=revision+1,updated_at=UTC_TIMESTAMP(6)
+        WHERE invitation_id=#{id} AND revision=#{revision} AND status='PENDING' AND expires_at &lt;= UTC_TIMESTAMP(6)
+    </update>
+    <insert id="saveOperation">
+        INSERT INTO operation_record (operation_id,subject_id,operation_name,idempotency_key,request_sha256,state,http_status,response_ref,target_id,
+            error_code,schema_version,schema_manifest_sha256,created_by,created_at,classification,revision,updated_at)
+        VALUES (#{operationId},#{userId},#{operation},#{key},#{sha256},'COMPLETED',#{httpStatus},#{response},#{invitationId},NULL,
+            '1.0.0',#{manifest},#{userId},UTC_TIMESTAMP(6),#{classification},1,UTC_TIMESTAMP(6))
+    </insert>
+    <insert id="saveAudit">
+        INSERT INTO audit_event (project_id,audit_id,subject_id,action,resource_ref,result,reason_code,request_id,trace_id,schema_version,
+            schema_manifest_sha256,created_by,created_at,classification)
+        VALUES (#{projectId},#{auditId},#{userId},#{action},#{resource},'SUCCESS',NULL,#{requestId},#{requestId},'1.0.0',#{manifest},#{userId},UTC_TIMESTAMP(6),#{classification})
+    </insert>
+    <insert id="saveEvent">
+        INSERT INTO outbox_event (event_id,aggregate_id,aggregate_revision,event_type,payload,occurred_at,published_at)
+        VALUES (#{eventId},#{invitationId},#{revision},#{eventType},#{payload},UTC_TIMESTAMP(6),NULL)
+    </insert>
+</mapper>

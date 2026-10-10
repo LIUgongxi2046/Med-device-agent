@@ -1,0 +1,51 @@
+screen_id,asset_id,usage,required,notes
+S01,scene_document,注册文档卡片与能力说明,true,独立立体插图；完整显示
+S01,scene_quality,材料质量检查卡片与能力说明,true,独立立体插图；完整显示
+S01,scene_regulation,法规版本比较卡片与能力说明,true,独立立体插图；完整显示
+S01,scene_report,综述与报告卡片与能力说明,true,独立立体插图；完整显示
+S01,scene_translation,多语言翻译卡片与能力说明,true,独立立体插图；完整显示
+S01,scene_market,市场分析卡片与能力说明,true,独立立体插图；完整显示
+S01,scene_question,多模态问答卡片与能力说明,true,独立立体插图；完整显示
+S05,public_safety_1,真实官方原件阅读,true,转换预览第1页；保留原始Word
+S05,public_safety_2,真实官方原件阅读,true,转换预览第2页；保留原始Word
+S05,public_clinical_11,真实临床表格阅读,true,转换预览第11页；保留原始Word
+S09,public_safety_1,正文基本原则图文引用,true,固定官方版本；项目适用性待核准
+S09,public_safety_2,正文风险要求图文引用,true,固定官方版本；项目适用性待核准
+S09,public_clinical_11,正文临床对比表引用,true,固定官方版本；项目适用性待核准
+S11,public_safety_1,人工审查基本原则原表,true,固定官方版本；项目适用性待核准
+S11,public_safety_2,人工审查风险要求原表,true,固定官方版本；项目适用性待核准
+S11,public_clinical_11,人工审查临床对比原表,true,固定官方版本；项目适用性待核准
+S09,evidence_page_1,正文型号比较表,true,固定版本第1页
+S09,evidence_page_2,正文验证条件表,true,固定版本第2页
+S09,evidence_page_3,正文软件界面样稿,true,固定版本第3页
+S05,evidence_page_1,资料中心原件,true,演示证据册第1页
+S05,evidence_page_2,资料中心原件,true,演示证据册第2页
+S05,evidence_page_3,资料中心原件,true,演示证据册第3页
+S01,brand_mark_2x,侧栏系统标识,true,应用外壳品牌图形
+S02,brand_mark_2x,侧栏系统标识,true,应用外壳品牌图形
+S03,brand_mark_2x,侧栏系统标识,true,应用外壳品牌图形
+S04,brand_mark_2x,侧栏系统标识,true,应用外壳品牌图形
+S05,brand_mark_2x,侧栏系统标识,true,应用外壳品牌图形
+S06,brand_mark_2x,侧栏系统标识,true,应用外壳品牌图形
+S07,brand_mark_2x,侧栏系统标识,true,应用外壳品牌图形
+S09,brand_mark_2x,侧栏系统标识,true,应用外壳品牌图形
+S11,brand_mark_2x,侧栏系统标识,true,应用外壳品牌图形
+S13,brand_mark_2x,侧栏系统标识,true,应用外壳品牌图形
+S15,brand_mark_2x,侧栏系统标识,true,应用外壳品牌图形
+S16,brand_mark_2x,侧栏系统标识,true,应用外壳品牌图形
+S17,brand_mark_2x,侧栏系统标识,true,应用外壳品牌图形
+S18,brand_mark_2x,侧栏系统标识,true,应用外壳品牌图形
+S01,gru_avatar_master,Gru 对话助手形象,true,顶部入口与面板标题及欢迎区域和回复头像
+S02,gru_avatar_master,Gru 对话助手形象,true,顶部入口与面板标题及欢迎区域和回复头像
+S03,gru_avatar_master,Gru 对话助手形象,true,顶部入口与面板标题及欢迎区域和回复头像
+S04,gru_avatar_master,Gru 对话助手形象,true,顶部入口与面板标题及欢迎区域和回复头像
+S05,gru_avatar_master,Gru 对话助手形象,true,顶部入口与面板标题及欢迎区域和回复头像
+S06,gru_avatar_master,Gru 对话助手形象,true,顶部入口与面板标题及欢迎区域和回复头像
+S07,gru_avatar_master,Gru 对话助手形象,true,顶部入口与面板标题及欢迎区域和回复头像
+S09,gru_avatar_master,Gru 对话助手形象,true,顶部入口与面板标题及欢迎区域和回复头像
+S11,gru_avatar_master,Gru 对话助手形象,true,顶部入口与面板标题及欢迎区域和回复头像
+S13,gru_avatar_master,Gru 对话助手形象,true,顶部入口与面板标题及欢迎区域和回复头像
+S15,gru_avatar_master,Gru 对话助手形象,true,顶部入口与面板标题及欢迎区域和回复头像
+S16,gru_avatar_master,Gru 对话助手形象,true,顶部入口与面板标题及欢迎区域和回复头像
+S17,gru_avatar_master,Gru 对话助手形象,true,顶部入口与面板标题及欢迎区域和回复头像
+S18,gru_avatar_master,Gru 对话助手形象,true,顶部入口与面板标题及欢迎区域和回复头像

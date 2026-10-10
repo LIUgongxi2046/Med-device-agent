@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.medical.persistence.mapper.TenantMemberMapper">
+    <resultMap id="member" type="com.ruoyi.medical.persistence.TenantMemberRow">
+        <constructor>
+            <arg column="tenant_id" javaType="java.lang.String"/>
+            <arg column="member_id" javaType="java.lang.String"/>
+            <arg column="user_id" javaType="java.lang.String"/>
+            <arg column="status" javaType="java.lang.String"/>
+            <arg column="valid_from" javaType="java.time.LocalDateTime"/>
+            <arg column="valid_to" javaType="java.time.LocalDateTime"/>
+            <arg column="revision" javaType="java.math.BigInteger"/>
+        </constructor>
+    </resultMap>
+    <resultMap id="action" type="com.ruoyi.medical.identity.BusinessSessionProtocol$Action">
+        <constructor>
+            <arg column="action" javaType="java.lang.String"/>
+            <arg column="project_id" javaType="java.lang.String"/>
+            <arg column="resource_kind" javaType="java.lang.String"/>
+            <arg column="resource_id" javaType="java.lang.String"/>
+        </constructor>
+    </resultMap>
+    <select id="currentMember" resultMap="member" useCache="false" flushCache="true">
+        SELECT tenant_id, member_id, user_id, status, valid_from, valid_to, revision FROM tenant_member m
+        WHERE user_id=#{userId} AND member_id=#{memberId} AND status IN ('ACTIVE','INVITED')
+          AND valid_from &lt;= UTC_TIMESTAMP(6) AND (valid_to IS NULL OR valid_to &gt; UTC_TIMESTAMP(6))
+    </select>
+    <select id="currentActions" resultMap="action" useCache="false" flushCache="true">
+        SELECT action, project_id, resource_kind, resource_id FROM permission_grant g
+        WHERE subject_id=#{userId} AND status='ACTIVE'
+          AND valid_from &lt;= UTC_TIMESTAMP(6) AND (valid_to IS NULL OR valid_to &gt; UTC_TIMESTAMP(6))
+        ORDER BY grant_id
+    </select>
+</mapper>

@@ -1,0 +1,521 @@
+openapi: 3.1.0
+info:
+  title: 医疗器械企业 Agent 页面和内部接口补充
+  version: 1.0.0
+  description: 新增 BX 操作、IA 操作及 DC/RV/RN 类型补充。既有其他接口继续由 LLD-后端维护。本制品为设计，服务运行 NOT_RUN。共同权限、幂等、时限、分页和业务约束见接口补充设计.md。
+jsonSchemaDialect: https://json-schema.org/draft/2020-12/schema
+security: [{Session: []}]
+components:
+  securitySchemes:
+    Session: {type: apiKey, in: cookie, name: SESSION}
+    TaskToken: {type: http, scheme: bearer}
+    MutualTLS: {type: mutualTLS}
+  parameters:
+    Id: &id {name: id, in: path, required: true, schema: {$ref: './interfaces.schema.yaml#/$defs/Id'}}
+    Version: &version {name: X-Schema-Version, in: header, required: true, schema: {const: 1.0.0}}
+    Context: &context {name: X-Context-Revision, in: header, required: true, schema: {$ref: './interfaces.schema.yaml#/$defs/Revision'}}
+    Idempotency: &idem {name: Idempotency-Key, in: header, required: true, schema: {type: string, minLength: 16, maxLength: 128, pattern: '^[\x21-\x7e]+$'}}
+    CSRF: &csrf {name: X-CSRF-Token, in: header, required: true, schema: {type: string, minLength: 1}}
+    Page: &page {name: page, in: query, schema: {type: integer, minimum: 1, default: 1}}
+    PageSize: &size {name: page_size, in: query, schema: {type: integer, minimum: 1, maximum: 100, default: 20}}
+    Cursor: &cursor {name: cursor, in: query, schema: {type: string, minLength: 1}}
+    Limit: &limit {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 100, default: 100}}
+    Project: &project {name: project_id, in: query, schema: {$ref: './interfaces.schema.yaml#/$defs/Id'}}
+    DocumentRevision: &docrev {name: document_revision, in: query, required: true, schema: {$ref: './interfaces.schema.yaml#/$defs/Id'}}
+    Status: &status {name: status, in: query, schema: {type: string, minLength: 1}, description: 仅接受目标资源在 LLD 中定义的状态枚举，其余值返回 422。}
+    Watermark: &watermark {name: dataset_watermark, in: query, schema: {$ref: './interfaces.schema.yaml#/$defs/Revision'}}
+    After: &after {name: after, in: query, schema: {type: string, minLength: 1}, description: after 与 Last-Event-ID 至少提供一个；同时提供时必须解析为相同流和序号。}
+    LastEvent: &last {name: Last-Event-ID, in: header, schema: {type: string, minLength: 1}}
+  responses:
+    Error: &error {description: 当前权限、版本、输入、游标、限额或组件错误，HTTP 状态与语义见说明。, content: {application/json: {schema: {$ref: './interfaces.schema.yaml#/$defs/Error'}}}}
+    Page: &records {description: 授权集合，detail 指向有固定 Schema 的完整资源产物。, content: {application/json: {schema: {allOf: [{$ref: './interfaces.schema.yaml#/$defs/Envelope'}, {properties: {data: {$ref: './interfaces.schema.yaml#/$defs/RecordPage'}}}]}}}}
+    Record: &record {description: 固定资源，detail 的类型和当前授权按资源种类校验。, content: {application/json: {schema: {allOf: [{$ref: './interfaces.schema.yaml#/$defs/Envelope'}, {properties: {data: {$ref: './interfaces.schema.yaml#/$defs/Record'}}}]}}}}
+    Operation: &operation {description: 已受理，终态通过 status_url 读取。, content: {application/json: {schema: {allOf: [{$ref: './interfaces.schema.yaml#/$defs/Envelope'}, {properties: {data: {$ref: './interfaces.schema.yaml#/$defs/Operation'}}}]}}}}
+    SSE: &sse {description: 标准 SSE，每个 data 是完整 JSON；候选增量不携带 SSE id；逐帧授权。, content: {text/event-stream: {schema: {oneOf: [{$ref: './interfaces.schema.yaml#/$defs/PublicEvent'}, {$ref: './interfaces.schema.yaml#/$defs/CandidateDelta'}]}}}}
+paths:
+  /api/scenarios:
+    get:
+      operationId: scenarioCatalogue
+      description: CP-07查询当前企业中获授权的真实SCENARIO配置元数据，按configuration.read及项目读取许可过滤。规划要求独立返回，不计入配置版本数量。当前完整规格和发布准入尚未提供，task_entry保持null；文稿适用性查询返回DEPENDENCY_UNAVAILABLE。相同范围使用固定查询水位，下一页必须携带原水位。
+      parameters:
+        - *version
+        - *context
+        - *project
+        - {name: document_type, in: query, schema: {$ref: '../business/medical-persistence/src/main/resources/templates.schema.json#/$defs/DocumentType'}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 100, default: 20}}
+        - {name: after, in: query, schema: {$ref: './interfaces.schema.yaml#/$defs/Id'}}
+        - {name: dataset_watermark, in: query, schema: {$ref: './interfaces.schema.yaml#/$defs/Hash'}}
+      responses:
+        '200': {description: 当前配置版本、缺项及规划要求，resource_revision=null；未查询到获授权版本时items为空。, content: {application/json: {schema: {allOf: [{$ref: './interfaces.schema.yaml#/$defs/Envelope'}, {properties: {data: {$ref: '../business/medical-persistence/src/main/resources/scenario-catalogue.schema.json#/$defs/Page'}}}]}}}}
+        default: *error
+  /api/tasks:
+    post:
+      operationId: createTask
+      description: TK-01在同一企业事务保存固定快照、任务版本、完整输入、缺项、原响应、审计和Outbox。C06发布准入消费者或原签发文稿继续修订的保存能力缺少时返回DEPENDENCY_UNAVAILABLE。相同键与原请求返回原201响应，异参返回IDEMPOTENCY_CONFLICT。
+      parameters: [*version, *context, *idem, *csrf]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '../business/medical-persistence/src/main/resources/tasks.schema.json#/$defs/Create'}}}}
+      responses:
+        '201': {description: 保存后的固定任务创建结果。, content: {application/json: {schema: {allOf: [{$ref: './interfaces.schema.yaml#/$defs/Envelope'}, {properties: {data: {$ref: './resource-details.schema.yaml#/$defs/TaskDetail'}}}]}}}}
+        default: *error
+  /api/projects/{projectId}/task-create-operations:
+    get:
+      operationId: originalTaskCreation
+      description: 读取本人原TK-01操作。重新检查当前创建与任务读取许可，原来源使用TASK_CREATION历史读取；不存在返回200及data=null，已完成返回原201与固定TaskDetail。不得通过查询参数扩大范围。
+      parameters: [*version, *context, *idem, {name: projectId, in: path, required: true, schema: {$ref: './interfaces.schema.yaml#/$defs/Id'}}]
+      responses:
+        '200': {description: 当前本人及项目不存在该原操作。, content: {application/json: {schema: {allOf: [{$ref: './interfaces.schema.yaml#/$defs/Envelope'}, {properties: {data: {type: 'null'}}}]}}}}
+        '201': {description: 原创建结果。, content: {application/json: {schema: {allOf: [{$ref: './interfaces.schema.yaml#/$defs/Envelope'}, {properties: {data: {$ref: './resource-details.schema.yaml#/$defs/TaskDetail'}}}]}}}}
+        default: *error
+  /api/projects/{projectId}/task-creation-owners:
+    get:
+      operationId: taskCreationOwners
+      description: 查询当前企业中可承担新项目任务的有效成员。检查项目创建许可、ACTIVE项目、成员和有效身份，再核验项目任务读取许可的完整条件。有限候选页经过资格核验，空页仍可返回明确下一页游标；新任务保存时重新核验责任人员。
+      parameters:
+        - *version
+        - *context
+        - {name: projectId, in: path, required: true, schema: {$ref: './interfaces.schema.yaml#/$defs/Id'}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 100, default: 20}}
+        - {name: after, in: query, schema: {$ref: './interfaces.schema.yaml#/$defs/Id'}}
+        - {name: dataset_watermark, in: query, schema: {$ref: './interfaces.schema.yaml#/$defs/Hash'}}
+      responses:
+        '200': {description: 当前获授权责任人员及固定查询水位，resource_revision=null；继续查询必须提供原水位。, content: {application/json: {schema: {allOf: [{$ref: './interfaces.schema.yaml#/$defs/Envelope'}, {properties: {data: {$ref: '../business/medical-persistence/src/main/resources/task-creation-selection.schema.json#/$defs/Owners'}}}]}}}}
+        default: *error
+  /api/projects/{projectId}/task-creation-sources:
+    get:
+      operationId: taskCreationSources
+      description: 查询当前项目获授权的正式固定资料版本，复用任务来源的权利、核准、解析、索引及项目适用性核验。查询水位包含完整当前授权集合和当前主体范围；新任务保存时重新检查完整来源。
+      parameters:
+        - *version
+        - *context
+        - {name: projectId, in: path, required: true, schema: {$ref: './interfaces.schema.yaml#/$defs/Id'}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 100, default: 20}}
+        - {name: after, in: query, schema: {$ref: './interfaces.schema.yaml#/$defs/Id'}}
+        - {name: dataset_watermark, in: query, schema: {$ref: './interfaces.schema.yaml#/$defs/Hash'}}
+      responses:
+        '200': {description: 当前正式资料集合，resource_revision=null；没有资料返回空集合。, content: {application/json: {schema: {allOf: [{$ref: './interfaces.schema.yaml#/$defs/Envelope'}, {properties: {data: {$ref: '../business/medical-persistence/src/main/resources/task-scope-selection.schema.json#/$defs/Page'}}}]}}}}
+        default: *error
+  /api/projects/{projectId}/task-creation-collections:
+    get:
+      operationId: taskCreationCollections
+      description: 查询当前项目或企业获授权的固定资料集版本，核验完整成员和当前正式来源资格。有限查询使用当前依赖容量；下一页必须携带原查询水位，不自动采用更新版本或扩展成员范围。
+      parameters:
+        - *version
+        - *context
+        - {name: projectId, in: path, required: true, schema: {$ref: './interfaces.schema.yaml#/$defs/Id'}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 100, default: 20}}
+        - {name: after, in: query, schema: {$ref: './interfaces.schema.yaml#/$defs/Id'}}
+        - {name: dataset_watermark, in: query, schema: {$ref: './interfaces.schema.yaml#/$defs/Hash'}}
+      responses:
+        '200': {description: 当前固定资料集集合，resource_revision=null；没有资料集返回空集合。, content: {application/json: {schema: {allOf: [{$ref: './interfaces.schema.yaml#/$defs/Envelope'}, {properties: {data: {$ref: '../business/medical-persistence/src/main/resources/task-scope-selection.schema.json#/$defs/Page'}}}]}}}}
+        default: *error
+  /api/projects/{projectId}/task-create-drafts:
+    post:
+      operationId: saveTaskCreationDraft
+      description: 保存本人完整Create输入，检查当前企业、项目创建许可及当前ACTIVE项目属性。同键同参返回原201，异参返回IDEMPOTENCY_CONFLICT。完整输入保存在本人操作记录，审计及Outbox只包含身份和摘要；不创建任务或授予发布资格。
+      parameters: [*version, *context, *idem, *csrf, {name: projectId, in: path, required: true, schema: {$ref: './interfaces.schema.yaml#/$defs/Id'}}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '../business/medical-persistence/src/main/resources/tasks.schema.json#/$defs/Create'}}}}
+      responses:
+        '201': {description: 原输入草稿回执，resource_revision=null。, content: {application/json: {schema: {allOf: [{$ref: './interfaces.schema.yaml#/$defs/Envelope'}, {properties: {data: {$ref: '../business/medical-persistence/src/main/resources/task-create-draft.schema.json#/$defs/View'}}}]}}}}
+        default: *error
+    get:
+      operationId: originalTaskCreationDraft
+      description: 按原操作键读取本人完整输入草稿，重新检查当前企业及项目许可。不自动重试创建；不接受查询参数。
+      parameters: [*version, *context, *idem, {name: projectId, in: path, required: true, schema: {$ref: './interfaces.schema.yaml#/$defs/Id'}}]
+      responses:
+        '200': {description: 当前本人及项目没有该输入草稿，data=null且resource_revision=null。, content: {application/json: {schema: {allOf: [{$ref: './interfaces.schema.yaml#/$defs/Envelope'}, {properties: {data: {type: 'null'}}}]}}}}
+        '201': {description: 原输入草稿及原request_id，resource_revision=null。, content: {application/json: {schema: {allOf: [{$ref: './interfaces.schema.yaml#/$defs/Envelope'}, {properties: {data: {$ref: '../business/medical-persistence/src/main/resources/task-create-draft.schema.json#/$defs/View'}}}]}}}}
+        default: *error
+  /api/tasks/{id}/plan-decisions:
+    post:
+      operationId: TK-04
+      description: RETURN保留原任务输入和计划；CONFIRM要求当前完整发布准入，保存新任务输入及确认计划。缺少发布准入消费者返回DEPENDENCY_UNAVAILABLE。
+      parameters: [*id, *version, *context, *idem, *csrf]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '../business/medical-persistence/src/main/resources/task-plan-decision.schema.json#/$defs/Request'}}}}
+      responses:
+        '200': {description: 已保存的人工确认或退回决定；原操作返回原回执。, content: {application/json: {schema: {allOf: [{$ref: './interfaces.schema.yaml#/$defs/Envelope'}, {properties: {data: {$ref: '../business/medical-persistence/src/main/resources/task-plan-decision.schema.json#/$defs/Receipt'}}}]}}}}
+        default: *error
+  /api/tasks/{id}/plan-decision-basis:
+    get:
+      operationId: TK-PLAN-DECISION-BASIS
+      parameters: [*id, *version, *context, {name: X-Plan-Decision, in: header, required: false, schema: {type: string, enum: [RETURN, CONFIRM], default: RETURN}, description: 人工决定用途；确认依据核查完整当前准入。}]
+      responses:
+        '200': {description: 当前plan.confirm许可下的固定任务、计划与授权水位；不写入决定。, content: {application/json: {schema: {allOf: [{$ref: './interfaces.schema.yaml#/$defs/Envelope'}, {properties: {data: {$ref: '../business/medical-persistence/src/main/resources/task-plan-decision.schema.json#/$defs/Baseline'}}}]}}}}
+        default: *error
+  /api/tasks/{id}/plan-decision-operations:
+    get:
+      operationId: TK-PLAN-DECISION-ORIGINAL
+      parameters: [*id, *version, *context, *idem]
+      responses:
+        '200': {description: 本人TK-04原决定；当前授权和原固定计划重新核验，未登记返回data=null及当前任务头修订。, content: {application/json: {schema: {allOf: [{$ref: './interfaces.schema.yaml#/$defs/Envelope'}, {properties: {data: {oneOf: [{$ref: '../business/medical-persistence/src/main/resources/task-plan-decision.schema.json#/$defs/Receipt'}, {type: 'null'}]}}}]}}}}
+        default: *error
+  /api/tasks/{id}/plan-revisions:
+    get:
+      operationId: TK-PLAN-CURRENT
+      parameters: [*id, *version, *context]
+      responses:
+        '200': {description: 当前维护计划及实际任务头修订；尚未保存计划时data为null。, content: {application/json: {schema: {allOf: [{$ref: './interfaces.schema.yaml#/$defs/Envelope'}, {properties: {data: {oneOf: [{$ref: '../business/medical-persistence/src/main/resources/task-plan-view.schema.json#/$defs/View'}, {type: 'null'}]}}}]}}}}
+        default: *error
+    post:
+      operationId: TK-03
+      parameters: [*id, *version, *context, *idem, *csrf]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '../business/medical-persistence/src/main/resources/tasks.schema.json#/$defs/PlanVersionInput'}}}}
+      responses:
+        '201': {description: 完整保存的固定计划；原幂等请求返回原响应及原状态码，Location指向固定版本读取。, content: {application/json: {schema: {allOf: [{$ref: './interfaces.schema.yaml#/$defs/Envelope'}, {properties: {data: {$ref: '../business/medical-persistence/src/main/resources/task-plan-view.schema.json#/$defs/View'}}}]}}}}
+        default: *error
+  /api/tasks/{id}/plan-revisions/{planRevision}:
+    get:
+      operationId: TK-PLAN-FIXED
+      parameters: [*id, *version, *context, {name: planRevision, in: path, required: true, schema: {$ref: './interfaces.schema.yaml#/$defs/Id'}}]
+      responses:
+        '200': {description: 当前授权下重新读取的原完整计划与维护计划头；旧模板停用不修改历史内容。, content: {application/json: {schema: {allOf: [{$ref: './interfaces.schema.yaml#/$defs/Envelope'}, {properties: {data: {$ref: '../business/medical-persistence/src/main/resources/task-plan-view.schema.json#/$defs/View'}}}]}}}}
+        default: *error
+  /api/tasks/{id}/plan-edit-basis:
+    get:
+      operationId: TK-PLAN-EDIT-BASIS
+      parameters: [*id, *version, *context]
+      responses:
+        '200': {description: 当前plan.write许可下的固定任务、完整核准模板、全部适用条件及核准完成规则；依据读取不保存计划。, content: {application/json: {schema: {allOf: [{$ref: './interfaces.schema.yaml#/$defs/Envelope'}, {properties: {data: {$ref: '../business/medical-persistence/src/main/resources/task-plan-view.schema.json#/$defs/Basis'}}}]}}}}
+        default: *error
+  /api/tasks/{id}/plan-operations:
+    get:
+      operationId: TK-PLAN-ORIGINAL-RESULT
+      parameters: [*id, *version, *context, *idem]
+      responses:
+        '200': {description: 本人TK-03原保存响应，重新核查固定版本、当前任务及维护许可；不存在原操作时data为null并返回当前任务头修订。, content: {application/json: {schema: {allOf: [{$ref: './interfaces.schema.yaml#/$defs/Envelope'}, {properties: {data: {oneOf: [{$ref: '../business/medical-persistence/src/main/resources/task-plan-view.schema.json#/$defs/View'}, {type: 'null'}]}}}]}}}}
+        default: *error
+  /api/template-versions:
+    post:
+      operationId: TP-01
+      parameters: [*version, *context, *idem, *csrf]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '../business/medical-persistence/src/main/resources/templates.schema.json#/$defs/VersionInput'}}}}
+      responses:
+        '201': {description: 完整模板草稿及原操作回执。, content: {application/json: {schema: {allOf: [{$ref: './interfaces.schema.yaml#/$defs/Envelope'}, {properties: {data: {$ref: '../business/medical-persistence/src/main/resources/template-operations.schema.json#/$defs/Created'}}}]}}}}
+        default: *error
+  /api/template-versions/{id}/approval-baseline:
+    get:
+      operationId: TP-APPROVAL-BASELINE
+      parameters: [*id, *version, *context]
+      responses:
+        '200': {description: 当前人工核准权限下的完整模板和固定检查清单。, content: {application/json: {schema: {allOf: [{$ref: './interfaces.schema.yaml#/$defs/Envelope'}, {properties: {data: {$ref: '../business/medical-persistence/src/main/resources/template-approval.schema.json#/$defs/Preview'}}}]}}}}
+        default: *error
+  /api/template-versions/{id}/approval-decisions:
+    post:
+      operationId: TP-02
+      parameters: [*id, *version, *context, *idem, *csrf]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '../business/medical-persistence/src/main/resources/template-approval.schema.json#/$defs/Decide'}}}}
+      responses:
+        '200': {description: 已保存的人工决定、模板状态、治理修订和当前上下文。, content: {application/json: {schema: {allOf: [{$ref: './interfaces.schema.yaml#/$defs/Envelope'}, {properties: {data: {$ref: '../business/medical-persistence/src/main/resources/template-approval.schema.json#/$defs/Receipt'}}}]}}}}
+        default: *error
+  /api/projects/{id}/tasks:
+    get:
+      operationId: BX-01
+      x-detail-schema: './resource-details.schema.yaml#/$defs/TaskDetail'
+      parameters: [*id, *version, *context, {name: page, in: query, schema: {type: integer, minimum: 1, maximum: 2147483647, default: 1}}, *size, *watermark, {name: filter_sha256, in: query, schema: {$ref: './interfaces.schema.yaml#/$defs/Hash'}}, {name: status, in: query, schema: {enum: [NEEDS_MATERIALS, PLAN_PENDING, READY, RUNNING, REVIEW_PENDING, SIGN_PENDING, SIGNED, FAILED, RETURNED, CANCEL_REQUESTED, CANCELLED]}}, {name: owner_id, in: query, schema: {$ref: './interfaces.schema.yaml#/$defs/Id'}}, {name: updated_from, in: query, schema: {type: string, format: date-time}}, {name: updated_to, in: query, schema: {type: string, format: date-time}}]
+      responses: {'200': {description: 当前授权任务、固定元数据及分页水位；后续页需要原水位和过滤摘要。, content: {application/json: {schema: {allOf: [{$ref: './interfaces.schema.yaml#/$defs/Envelope'}, {properties: {data: {$ref: '../business/medical-persistence/src/main/resources/task-list.schema.json#/$defs/Page'}}}]}}}}, default: *error}
+  /api/documents/{id}:
+    get:
+      operationId: DC-01
+      parameters: [*id, *version, *context]
+      responses: {'200': {description: 一致性正文快照。, content: {application/json: {schema: {allOf: [{$ref: './interfaces.schema.yaml#/$defs/Envelope'}, {properties: {data: {$ref: './interfaces.schema.yaml#/$defs/DocumentSnapshot'}}}]}}}}, default: *error}
+  /api/documents/{id}/revisions/{documentRevision}:
+    get:
+      operationId: DC-01-HISTORY
+      parameters: [*id, *version, *context, {name: documentRevision, in: path, required: true, schema: {$ref: './interfaces.schema.yaml#/$defs/Id'}}]
+      responses: {'200': {description: 指定不可变正文的完整快照及当前权限；历史正文没有编辑动作。, content: {application/json: {schema: {allOf: [{$ref: './interfaces.schema.yaml#/$defs/Envelope'}, {properties: {data: {$ref: './interfaces.schema.yaml#/$defs/DocumentSnapshot'}}}]}}}}, default: *error}
+  /api/documents/{id}/dependency-access-set:
+    get:
+      operationId: DC-01-EDIT-BASIS
+      parameters: [*id, *version, *context, *docrev, {name: expected_revision, in: query, required: true, schema: {$ref: './interfaces.schema.yaml#/$defs/Revision'}}]
+      responses: {'200': {description: 当前读取与写入权限核查后的原依赖授权身份；版本变化返回冲突。, content: {application/json: {schema: {allOf: [{$ref: './interfaces.schema.yaml#/$defs/Envelope'}, {properties: {data: {$ref: './interfaces.schema.yaml#/$defs/Id'}}}]}}}}, default: *error}
+  /api/documents/{id}/body:
+    get:
+      operationId: BX-02
+      parameters: [*id, *version, *context, *docrev, *cursor, *limit, {name: node_ids, in: query, style: form, explode: true, schema: {$ref: './interfaces.schema.yaml#/$defs/Ids'}}]
+      responses: {'200': {description: 固定版本节点及完整性回执。, content: {application/json: {schema: {allOf: [{$ref: './interfaces.schema.yaml#/$defs/Envelope'}, {properties: {data: {$ref: './interfaces.schema.yaml#/$defs/BodyPage'}}}]}}}}, default: *error}
+  /api/documents/{id}/revisions:
+    post:
+      operationId: DC-02
+      parameters: [*id, *version, *context, *idem, *csrf]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: './interfaces.schema.yaml#/$defs/RevisionInput'}}}}
+      responses: {'201': {description: 已保存正文并创建检查意图。, content: {application/json: {schema: {allOf: [{$ref: './interfaces.schema.yaml#/$defs/Envelope'}, {properties: {data: {$ref: './interfaces.schema.yaml#/$defs/DocumentSnapshot'}}}]}}}}, default: *error}
+  /api/artifact-upload-grants:
+    post:
+      operationId: BX-03
+      parameters: [*version, *context, *idem, *csrf]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: './interfaces.schema.yaml#/$defs/UploadRequest'}}}}
+      responses: {'201': {description: 限定目标与摘要的上传许可。, content: {application/json: {schema: {allOf: [{$ref: './interfaces.schema.yaml#/$defs/Envelope'}, {properties: {data: {$ref: './interfaces.schema.yaml#/$defs/UploadGrant'}}}]}}}}, default: *error}
+  /api/artifact-upload-grants/{id}/completions:
+    post:
+      operationId: BX-04
+      parameters: [*id, *version, *context, *idem, *csrf]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: './interfaces.schema.yaml#/$defs/UploadCompletion'}}}}
+      responses: {'200': {description: 实际对象验证回执。, content: {application/json: {schema: {allOf: [{$ref: './interfaces.schema.yaml#/$defs/Envelope'}, {properties: {data: {$ref: './interfaces.schema.yaml#/$defs/ArtifactReceipt'}}}]}}}}, default: *error}
+  /api/document-comparisons:
+    post:
+      operationId: BX-05
+      parameters: [*version, *context, *idem, *csrf]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: './interfaces.schema.yaml#/$defs/CompareRequest'}}}}
+      responses: {'200': &comparison {description: 固定双方的完整比较产物。, content: {application/json: {schema: {allOf: [{$ref: './interfaces.schema.yaml#/$defs/Envelope'}, {properties: {data: {$ref: './interfaces.schema.yaml#/$defs/Comparison'}}}]}}}}, default: *error}
+  /api/checks/{id}:
+    get: {operationId: BX-06, x-detail-schema: './resource-details.schema.yaml#/$defs/CheckDetail', parameters: [*id, *version], responses: {'200': *record, default: *error}}
+  /api/candidates/{id}:
+    get:
+      operationId: BX-07
+      parameters: [*id, *version]
+      responses: {'200': {description: 固定候选及当前采用资格。, content: {application/json: {schema: {allOf: [{$ref: './interfaces.schema.yaml#/$defs/Envelope'}, {properties: {data: {$ref: './interfaces.schema.yaml#/$defs/CandidateView'}}}]}}}}, default: *error}
+  /api/candidate-comparisons:
+    post:
+      operationId: BX-08
+      parameters: [*version, *context, *idem, *csrf]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: './interfaces.schema.yaml#/$defs/CandidateCompareRequest'}}}}
+      responses: {'200': *comparison, default: *error}
+  /api/documents/{id}/evidence-review-decisions:
+    post:
+      operationId: BX-09
+      parameters: [*id, *version, *context, *idem, *csrf]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: './interfaces.schema.yaml#/$defs/EvidenceDecisionBatch'}}}}
+      responses: {'200': &decisions {description: 原子保存的批次和决定身份。, content: {application/json: {schema: {allOf: [{$ref: './interfaces.schema.yaml#/$defs/Envelope'}, {properties: {data: {$ref: './interfaces.schema.yaml#/$defs/DecisionBatch'}}}]}}}}, default: *error}
+    get: {operationId: BX-10, x-detail-schema: './resource-details.schema.yaml#/$defs/EvidenceDecisionDetail', parameters: [*id, *version, *docrev, *page, *size, *watermark], responses: {'200': *records, default: *error}}
+  /api/documents/{id}/annotations:
+    get: {operationId: BX-11, x-detail-schema: './resource-details.schema.yaml#/$defs/AnnotationDetail', parameters: [*id, *version, *docrev, *page, *size, *status, *watermark], responses: {'200': *records, default: *error}}
+    post:
+      operationId: RV-04
+      x-detail-schema: './resource-details.schema.yaml#/$defs/AnnotationDetail'
+      parameters: [*id, *version, *context, *idem, *csrf]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: './interfaces.schema.yaml#/$defs/AnnotationInput'}}}}
+      responses: {'201': *record, default: *error}
+  /api/annotations/{id}/replies:
+    get: {operationId: BX-12, x-detail-schema: './resource-details.schema.yaml#/$defs/ReplyDetail', parameters: [*id, *version, *page, *size, *watermark], responses: {'200': *records, default: *error}}
+  /api/documents/{id}/review-batches:
+    post:
+      operationId: BX-13
+      parameters: [*id, *version, *context, *idem, *csrf]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: './interfaces.schema.yaml#/$defs/ReviewBatch'}}}}
+      responses: {'200': *decisions, default: *error}
+  /api/reauthentication-challenges:
+    post:
+      operationId: BX-14
+      parameters: [*version, *context, *idem, *csrf]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: './interfaces.schema.yaml#/$defs/ReauthRequest'}}}}
+      responses: {'201': {description: 一次性认证挑战。, content: {application/json: {schema: {allOf: [{$ref: './interfaces.schema.yaml#/$defs/Envelope'}, {properties: {data: {$ref: './interfaces.schema.yaml#/$defs/ReauthChallenge'}}}]}}}}, default: *error}
+  /api/reauthentication-challenges/{id}/completions:
+    post:
+      operationId: BX-15
+      parameters: [*id, *version, *context, *idem, *csrf]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: './interfaces.schema.yaml#/$defs/ReauthCompletion'}}}}
+      responses: {'200': {description: 绑定主体和文稿的认证回执。, content: {application/json: {schema: {allOf: [{$ref: './interfaces.schema.yaml#/$defs/Envelope'}, {properties: {data: {$ref: './interfaces.schema.yaml#/$defs/ReauthReceipt'}}}]}}}}, default: *error}
+  /api/documents/{id}/signatures:
+    get: {operationId: BX-16, x-detail-schema: './resource-details.schema.yaml#/$defs/SignatureDetail', parameters: [*id, *version, *docrev, *page, *size, *watermark], responses: {'200': *records, default: *error}}
+  /api/conversations:
+    get: {operationId: BX-17, x-detail-schema: './interfaces.schema.yaml#/$defs/ConversationSnapshot', parameters: [*version, *project, *status, *page, *size, *watermark], responses: {'200': *records, default: *error}}
+  /api/conversations/{id}:
+    get:
+      operationId: BX-18
+      parameters: [*id, *version]
+      responses: {'200': {description: 一致性会话快照。, content: {application/json: {schema: {allOf: [{$ref: './interfaces.schema.yaml#/$defs/Envelope'}, {properties: {data: {$ref: './interfaces.schema.yaml#/$defs/ConversationSnapshot'}}}]}}}}, default: *error}
+  /api/conversations/{id}/events:
+    get: {operationId: BX-19, parameters: [*id, *version, *after, *last], responses: {'200': *sse, default: *error}}
+  /api/runs/{id}/events:
+    get: {operationId: RN-03, parameters: [*id, *version, *after, *last], responses: {'200': *sse, default: *error}}
+  /api/messages/{id}/cancel-requests:
+    post:
+      operationId: BX-20
+      parameters: [*id, *version, *context, *idem, *csrf]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: './interfaces.schema.yaml#/$defs/CancelMessage'}}}}
+      responses: {'202': *operation, default: *error}
+  /api/configuration-resources:
+    get: {operationId: BX-21, x-detail-schema: './resource-details.schema.yaml#/$defs/ConfigurationDetail', parameters: [*version, *status, *page, *size, *watermark, {name: kind, in: query, required: true, schema: {enum: [AGENT, CAPABILITY, MODEL, CONNECTOR]}}], responses: {'200': *records, default: *error}}
+  /api/configuration-resources/{id}:
+    get: {operationId: BX-22, x-detail-schema: './resource-details.schema.yaml#/$defs/ConfigurationDetail', parameters: [*id, *version, {name: kind, in: query, required: true, schema: {enum: [AGENT, CAPABILITY, MODEL, CONNECTOR]}}], responses: {'200': *record, default: *error}}
+  /api/credential-writes:
+    post:
+      operationId: BX-23
+      parameters: [*version, *context, *idem, *csrf]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: './interfaces.schema.yaml#/$defs/CredentialWrite'}}}}
+      responses: {'201': {description: 仅返回秘密引用与验证身份。, content: {application/json: {schema: {allOf: [{$ref: './interfaces.schema.yaml#/$defs/Envelope'}, {properties: {data: {$ref: './interfaces.schema.yaml#/$defs/CredentialReceipt'}}}]}}}}, default: *error}
+  /api/connection-verifications/{id}:
+    get:
+      operationId: BX-24
+      parameters: [*id, *version]
+      responses: {'200': {description: 当前配置对应的真实验证记录。, content: {application/json: {schema: {allOf: [{$ref: './interfaces.schema.yaml#/$defs/Envelope'}, {properties: {data: {$ref: './interfaces.schema.yaml#/$defs/VerificationView'}}}]}}}}, default: *error}
+  /api/management-bindings:
+    get:
+      operationId: BX-25
+      parameters: [*version]
+      responses: {'200': {description: 当前环境固定的十八模块清单。, content: {application/json: {schema: {allOf: [{$ref: './interfaces.schema.yaml#/$defs/Envelope'}, {properties: {data: {$ref: './interfaces.schema.yaml#/$defs/ManagementBindings'}}}]}}}}, default: *error}
+  /api/evaluation-batches:
+    get: {operationId: BX-26, x-detail-schema: './resource-details.schema.yaml#/$defs/EvaluationDetail', parameters: [*version, *project, *status, *page, *size, *watermark], responses: {'200': *records, default: *error}}
+  /api/evaluation-batches/{id}/scores:
+    get: {operationId: BX-27, x-detail-schema: './resource-details.schema.yaml#/$defs/ScoreDetail', parameters: [*id, *version, *page, *size, *watermark, {name: dimension, in: query, schema: {type: string}}], responses: {'200': *records, default: *error}}
+  /api/feedback:
+    get: {operationId: BX-28, x-detail-schema: './resource-details.schema.yaml#/$defs/FeedbackDetail', parameters: [*version, *project, *status, *page, *size, *watermark], responses: {'200': *records, default: *error}}
+  /api/report-exports:
+    post:
+      operationId: BX-29
+      parameters: [*version, *context, *idem, *csrf]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: './interfaces.schema.yaml#/$defs/ReportExportRequest'}}}}
+      responses: {'202': *operation, default: *error}
+  /api/report-exports/{id}:
+    get:
+      operationId: BX-30
+      parameters: [*id, *version]
+      responses: {'200': {description: 固定报表导出清单。, content: {application/json: {schema: {allOf: [{$ref: './interfaces.schema.yaml#/$defs/Envelope'}, {properties: {data: {$ref: './interfaces.schema.yaml#/$defs/ReportExportView'}}}]}}}}, default: *error}
+  /api/operations/{id}:
+    get:
+      operationId: OP-01
+      parameters: [*id, *version, *context]
+      responses: {'200': {description: 原主体或明确企业管理授权取得安全状态元数据。, content: {application/json: {schema: {allOf: [{$ref: './interfaces.schema.yaml#/$defs/Envelope'}, {properties: {data: {$ref: './interfaces.schema.yaml#/$defs/Operation'}}}]}}}}, default: *error}
+  /api/operation-lookups:
+    post:
+      operationId: BX-31
+      parameters: [*version, *context, *csrf]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: './interfaces.schema.yaml#/$defs/OperationLookup'}}}}
+      responses: {'200': {description: 原主体的幂等请求查询。, content: {application/json: {schema: {allOf: [{$ref: './interfaces.schema.yaml#/$defs/Envelope'}, {properties: {data: {$ref: './interfaces.schema.yaml#/$defs/OperationLookupResult'}}}]}}}}, default: *error}
+  /api/invocations/{id}/reconciliation-requests:
+    post:
+      operationId: BX-32
+      parameters: [*id, *version, *context, *idem, *csrf]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: './interfaces.schema.yaml#/$defs/ReconciliationRequest'}}}}
+      responses: {'202': *operation, default: *error}
+  /api/collections:
+    post:
+      operationId: KN-11
+      parameters: [*version, *context, *idem, *csrf]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '../business/medical-persistence/src/main/resources/collections.schema.json#/$defs/Create'}}}}
+      responses: {'201': {description: 固定首个资料集版本及完整成员。, content: {application/json: {schema: {allOf: [{$ref: './interfaces.schema.yaml#/$defs/Envelope'}, {properties: {data: {$ref: '../business/medical-persistence/src/main/resources/collections.schema.json#/$defs/Created'}}}]}}}}, default: *error}
+    get: {operationId: BX-33, x-detail-schema: './resource-details.schema.yaml#/$defs/CollectionDetail', parameters: [*version, *project, *page, *size, *watermark], responses: {'200': *records, default: *error}}
+  /api/collections/{id}/versions:
+    post:
+      operationId: KN-12
+      parameters: [*id, *version, *context, *idem, *csrf]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '../business/medical-persistence/src/main/resources/collections.schema.json#/$defs/VersionInput'}}}}
+      responses: {'201': {description: 固定新成员清单；旧任务引用保持原版本。, content: {application/json: {schema: {allOf: [{$ref: './interfaces.schema.yaml#/$defs/Envelope'}, {properties: {data: {$ref: '../business/medical-persistence/src/main/resources/collections.schema.json#/$defs/Created'}}}]}}}}, default: *error}
+    get:
+      operationId: KN-13
+      parameters: [*id, *version, *context, *page, *size, *watermark]
+      responses: {'200': {description: 固定水位的历史版本及逐项授权的完整成员清单。, content: {application/json: {schema: {allOf: [{$ref: './interfaces.schema.yaml#/$defs/Envelope'}, {properties: {data: {$ref: '../business/medical-persistence/src/main/resources/collections.schema.json#/$defs/Page'}}}]}}}}, default: *error}
+  /api/source-folders:
+    get: {operationId: BX-34, x-detail-schema: './resource-details.schema.yaml#/$defs/FolderDetail', parameters: [*version, *project, *page, *size, *watermark, {name: parent_id, in: query, schema: {$ref: './interfaces.schema.yaml#/$defs/Id'}}], responses: {'200': *records, default: *error}}
+  /api/template-versions/{id}:
+    get: {operationId: BX-35, x-detail-schema: './resource-details.schema.yaml#/$defs/TemplateDetail', parameters: [*id, *version], responses: {'200': *record, default: *error}}
+  /api/change-proposals/{id}:
+    get: {operationId: BX-36, x-detail-schema: './resource-details.schema.yaml#/$defs/ChangeProposalDetail', parameters: [*id, *version], responses: {'200': *record, default: *error}}
+  /api/artifacts/{id}/content:
+    get:
+      operationId: BX-37
+      parameters: [*id, *version, *cursor, *limit]
+      responses: {'200': {description: 当前授权的固定产物内容分片；完整摘要验证后使用。, content: {application/json: {schema: {allOf: [{$ref: './interfaces.schema.yaml#/$defs/Envelope'}, {properties: {data: {$ref: './interfaces.schema.yaml#/$defs/ContentChunk'}}}]}}}}, default: *error}
+  /internal/v1/agent-input-reads:
+    post:
+      operationId: IA-01
+      security: &internal [{MutualTLS: [], TaskToken: []}]
+      parameters: [*version]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: './interfaces.schema.yaml#/$defs/InputReadRequest'}}}}
+      responses: {'200': {description: 步骤范围内的固定内容及完整性回执。, content: {application/json: {schema: {$ref: './interfaces.schema.yaml#/$defs/ContentChunk'}}}}, default: *error}
+  /internal/v1/plan-candidates:
+    post:
+      operationId: IA-02
+      security: *internal
+      parameters: [*version, *idem]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: './interfaces.schema.yaml#/$defs/PlanCandidateRequest'}}}}
+      responses: {'201': {description: 候选计划回执。, content: {application/json: {schema: {$ref: './interfaces.schema.yaml#/$defs/CandidateReceipt'}}}}, default: *error}
+  /internal/v1/waiting-items:
+    post:
+      operationId: IA-03
+      security: *internal
+      parameters: [*version, *idem]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: './interfaces.schema.yaml#/$defs/WaitingRequest'}}}}
+      responses: {'201': {description: 已保存人工等待。, content: {application/json: {schema: {$ref: './interfaces.schema.yaml#/$defs/WaitingReceipt'}}}}, default: *error}
+  /internal/v1/check-results:
+    post:
+      operationId: IA-04
+      security: *internal
+      parameters: [*version, *idem]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: './interfaces.schema.yaml#/$defs/CheckResultRequest'}}}}
+      responses: {'200': {description: 检查及问题回执。, content: {application/json: {schema: {$ref: './interfaces.schema.yaml#/$defs/CheckReceipt'}}}}, default: *error}
+  /internal/v1/web-acquisitions:
+    post:
+      operationId: IA-05
+      security: *internal
+      parameters: [*version, *idem]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: './interfaces.schema.yaml#/$defs/WebAcquisitionRequest'}}}}
+      responses: {'202': {description: 获准采集已受理。, content: {application/json: {schema: {$ref: './interfaces.schema.yaml#/$defs/Operation'}}}}, default: *error}
+  /internal/v1/context-manifests:
+    post:
+      operationId: IA-06
+      security: *internal
+      parameters: [*version, *idem]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: './interfaces.schema.yaml#/$defs/ContextRequest'}}}}
+      responses: {'201': {description: 完整上下文清单。, content: {application/json: {schema: {$ref: './interfaces.schema.yaml#/$defs/ContextReceipt'}}}}, default: *error}
+  /internal/v1/model-streams:
+    post:
+      operationId: IA-07
+      security: *internal
+      parameters: [*version, *idem]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '../agent-design/model-stream.schema.json#/$defs/StreamRequest'}}}}
+      responses:
+        '200':
+          description: 首次请求返回内部模型事件；同动作重复请求返回调用状态。内部响应直接采用专业 Schema。
+          content:
+            application/json: {schema: {$ref: '../agent-design/model-stream.schema.json#/$defs/InvocationStatus'}}
+            text/event-stream: {schema: {$ref: '../agent-design/model-stream.schema.json#/$defs/StreamEvent'}}
+        default: *error
+  /internal/v1/agent-artifacts:
+    post:
+      operationId: IA-08
+      security: *internal
+      parameters: [*version, *idem]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: './interfaces.schema.yaml#/$defs/AgentArtifactRequest'}}}}
+      responses: {'201': {description: 实际内容与语义校验通过的产物。, content: {application/json: {schema: {$ref: './interfaces.schema.yaml#/$defs/ArtifactReceipt'}}}}, default: *error}
+  /internal/v1/invocation-status-reads:
+    post:
+      operationId: IA-09
+      security: *internal
+      parameters: [*version]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: './interfaces.schema.yaml#/$defs/InvocationReadRequest'}}}}
+      responses: {'200': {description: 原调用状态和结果身份。, content: {application/json: {schema: {$ref: '../agent-design/model-stream.schema.json#/$defs/InvocationStatus'}}}}, default: *error}
+  /internal/v1/invocations/{id}/cancel-requests:
+    post:
+      operationId: IA-10
+      security: *internal
+      parameters: [*id, *version, *idem]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '../agent-design/model-stream.schema.json#/$defs/CancelRequest'}}}}
+      responses: {'200': {description: 路径与请求 invocation 身份必须一致，取消状态独立核对。, content: {application/json: {schema: {$ref: '../agent-design/model-stream.schema.json#/$defs/InvocationStatus'}}}}, default: *error}
+  /internal/v1/artifact-upload-grants:
+    post:
+      operationId: IN-13
+      security: *internal
+      parameters: [*version, *idem]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: './interfaces.schema.yaml#/$defs/InternalUploadRequest'}}}}
+      responses: {'201': {description: 绑定当前步骤的内部上传许可。, content: {application/json: {schema: {$ref: './interfaces.schema.yaml#/$defs/UploadGrant'}}}}, default: *error}
+  /internal/v1/artifact-upload-grants/{id}/completions:
+    post:
+      operationId: IN-14
+      security: *internal
+      parameters: [*id, *version, *idem]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: './interfaces.schema.yaml#/$defs/InternalUploadCompletion'}}}}
+      responses: {'200': {description: 已验证内部对象，供 IA-08 登记；不授予业务采用权限。, content: {application/json: {schema: {$ref: './interfaces.schema.yaml#/$defs/ObjectRef'}}}}, default: *error}
+  /internal/v1/uploads/{id}/parts/{part_no}:
+    put:
+      operationId: IN-15
+      security: *internal
+      parameters: [*id, *version, *idem, {name: part_no, in: path, required: true, schema: {type: integer, minimum: 1}}, {name: Content-SHA256, in: header, required: true, schema: {$ref: './interfaces.schema.yaml#/$defs/Hash'}}]
+      requestBody: {required: true, content: {application/octet-stream: {schema: {type: string, format: binary, maxLength: 8388608}}}}
+      responses: {'204': {description: 片段已按摘要持久化，相同片段重复提交返回相同结果。}, default: *error}
+  /internal/v1/retrievals:
+    post:
+      operationId: IN-03
+      security: *internal
+      parameters: [*version, *idem]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: './interfaces.schema.yaml#/$defs/InternalSearchRequest'}}}}
+      responses:
+        '202': {description: 首次检索异步受理，保持原 action_id 查询，不重新发送收费动作。, content: {application/json: {schema: {$ref: './interfaces.schema.yaml#/$defs/Operation'}}}}
+        '200': {description: 已保存固定结果的当前页。, content: {application/json: {schema: {$ref: './interfaces.schema.yaml#/$defs/InternalSearchResult'}}}}
+        default: *error
+  /internal/v1/source-reads:
+    post:
+      operationId: IN-04
+      security: *internal
+      parameters: [*version]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: './interfaces.schema.yaml#/$defs/InternalSourceReadRequest'}}}}
+      responses: {'200': {description: 固定原文和逐次授权读取回执。, content: {application/json: {schema: {$ref: './interfaces.schema.yaml#/$defs/InternalSourceReadResult'}}}}, default: *error}

@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:budget-history:1.0.0",
+  "$defs": {
+    "Entry": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "tenant_id", "project_id", "budget_id", "budget_revision", "current_budget_revision", "account_revision", "currency", "approval", "content_sha256", "approver_id", "approved_at", "is_current", "allowed_actions"],
+      "properties": {
+        "schema_version": {"const": "1.0.0"},
+        "tenant_id": {"$ref": "urn:medical:budgets:1.0.0#/$defs/Id"},
+        "project_id": {"$ref": "urn:medical:budgets:1.0.0#/$defs/NullableId"},
+        "budget_id": {"$ref": "urn:medical:budgets:1.0.0#/$defs/Id"},
+        "budget_revision": {"$ref": "urn:medical:budgets:1.0.0#/$defs/Id"},
+        "current_budget_revision": {"$ref": "urn:medical:budgets:1.0.0#/$defs/Id"},
+        "account_revision": {"$ref": "urn:medical:budgets:1.0.0#/$defs/Revision"},
+        "currency": {"$ref": "urn:medical:budgets:1.0.0#/$defs/Currency"},
+        "approval": {"$ref": "urn:medical:budgets:1.0.0#/$defs/Approval"},
+        "content_sha256": {"$ref": "urn:medical:budgets:1.0.0#/$defs/Hash"},
+        "approver_id": {"$ref": "urn:medical:budgets:1.0.0#/$defs/Id"},
+        "approved_at": {"$ref": "urn:medical:budgets:1.0.0#/$defs/Time"},
+        "is_current": {"type": "boolean"},
+        "allowed_actions": {"const": ["budget.read"]}
+      }
+    },
+    "Listing": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "tenant_id", "project_id", "budget_id", "current_budget_revision", "account_revision", "approvals", "total", "next_after"],
+      "properties": {
+        "schema_version": {"const": "1.0.0"},
+        "tenant_id": {"$ref": "urn:medical:budgets:1.0.0#/$defs/Id"},
+        "project_id": {"$ref": "urn:medical:budgets:1.0.0#/$defs/NullableId"},
+        "budget_id": {"$ref": "urn:medical:budgets:1.0.0#/$defs/Id"},
+        "current_budget_revision": {"$ref": "urn:medical:budgets:1.0.0#/$defs/Id"},
+        "account_revision": {"$ref": "urn:medical:budgets:1.0.0#/$defs/Revision"},
+        "approvals": {"type": "array", "maxItems": 100, "items": {"$ref": "#/$defs/Entry"}},
+        "total": {"$ref": "urn:medical:budgets:1.0.0#/$defs/Revision"},
+        "next_after": {"$ref": "urn:medical:budgets:1.0.0#/$defs/NullableId"}
+      }
+    }
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:task-creation-selection:1.0.0",
+  "$ref": "#/$defs/Owners",
+  "$defs": {
+    "Id": {"$ref": "https://schemas.medical-agent.invalid/1.0.0/backend-design/interfaces.schema.yaml#/$defs/Id"},
+    "Revision": {"$ref": "https://schemas.medical-agent.invalid/1.0.0/backend-design/interfaces.schema.yaml#/$defs/Revision"},
+    "Hash": {"$ref": "https://schemas.medical-agent.invalid/1.0.0/backend-design/interfaces.schema.yaml#/$defs/Hash"},
+    "Query": {
+      "type": "object", "additionalProperties": false, "required": ["limit"],
+      "properties": {
+        "limit": {"type": "integer", "minimum": 1, "maximum": 100},
+        "after": {"$ref": "#/$defs/Id"}, "dataset_watermark": {"$ref": "#/$defs/Hash"}
+      },
+      "dependentRequired": {"after": ["dataset_watermark"]}
+    },
+    "Owner": {
+      "type": "object", "additionalProperties": false, "required": ["member_id", "user_id", "member_revision"],
+      "properties": {"member_id": {"$ref": "#/$defs/Id"}, "user_id": {"$ref": "#/$defs/Id"}, "member_revision": {"$ref": "#/$defs/Revision"}}
+    },
+    "Owners": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "tenant_id", "project_id", "context_revision", "auth_epoch", "governance_epoch", "limit", "items", "next_after", "dataset_watermark"],
+      "properties": {
+        "schema_version": {"const": "1.0.0"}, "tenant_id": {"$ref": "#/$defs/Id"}, "project_id": {"$ref": "#/$defs/Id"},
+        "context_revision": {"$ref": "#/$defs/Revision"}, "auth_epoch": {"$ref": "#/$defs/Revision"}, "governance_epoch": {"$ref": "#/$defs/Revision"},
+        "limit": {"type": "integer", "minimum": 1, "maximum": 100},
+        "items": {"type": "array", "maxItems": 100, "items": {"$ref": "#/$defs/Owner"}},
+        "next_after": {"oneOf": [{"$ref": "#/$defs/Id"}, {"type": "null"}]}, "dataset_watermark": {"$ref": "#/$defs/Hash"}
+      }
+    }
+  }
+}

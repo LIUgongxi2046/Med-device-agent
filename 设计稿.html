@@ -1,0 +1,905 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>医疗器械企业 Agent 平台｜界面设计稿</title>
+  <style>
+    :root{font-family:"PingFang SC","Microsoft YaHei","Noto Sans CJK SC",sans-serif;color:#303133;background:#f8f9fa;font-size:14px;--primary:#18a058;--primary-hover:#36ad6a;--primary-pale:#eaf7ef;--line:#e0e0e6;--muted:#606266;--green:#18a058;--amber:#b98212;--red:#d03050}
+    *{box-sizing:border-box}[hidden]{display:none!important}body{margin:0}button,input,select,textarea{font:inherit}button{cursor:pointer}button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--primary);outline-offset:2px}a{color:var(--primary)}.skip{position:absolute;left:-9999px}.skip:focus{left:12px;top:12px;background:white;padding:10px;z-index:20}
+    .app{display:grid;grid-template-columns:216px minmax(0,1fr);min-height:100vh}.sidebar{background:#fff;color:#303133;border-right:1px solid var(--line);padding:24px 12px;position:sticky;top:0;height:100vh;overflow:auto}.brand{display:flex;align-items:center;gap:10px;padding:2px 12px 22px;border-bottom:1px solid var(--line);font-size:16px;font-weight:700;color:#303133}.brand-mark{width:30px;height:30px;border:1px solid #18a058;border-radius:4px;display:grid;place-items:center;font-size:13px;color:#18a058}.sidebar small{display:block;margin:24px 12px 8px;color:#909399}.nav{display:grid;gap:2px}.nav button{width:100%;border:0;background:transparent;color:#606266;text-align:left;padding:11px 12px;border-radius:4px}.nav button:hover{background:#f5f7f6;color:#18a058}.nav button[aria-current="page"]{background:var(--primary-pale);color:#0f7b42;font-weight:600;box-shadow:inset 2px 0 var(--primary)}.side-note{font-size:12px;line-height:1.6;border:1px solid var(--line);border-radius:4px;padding:12px;margin-top:28px;color:#909399}
+    .main{min-width:0}.topbar{height:64px;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 26px;gap:16px}.topbar strong{font-size:14px}.topbar .context{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.chip{display:inline-flex;align-items:center;padding:4px 9px;border:1px solid var(--line);border-radius:4px;background:#fff;color:var(--muted);font-size:12px;white-space:nowrap}.chip.demo{color:#946200;border-color:#f0db9b;background:#fffae8}.avatar{width:32px;height:32px;border-radius:50%;background:var(--primary-pale);color:#0f7b42;display:grid;place-items:center;font-weight:700}
+    .workspace{max-width:1480px;margin:auto;padding:24px}.design-controls{display:flex;align-items:center;justify-content:space-between;gap:12px;background:#fff;border:1px dashed #d8ddd9;border-radius:4px;padding:12px 14px;margin-bottom:16px}.design-controls label{display:flex;align-items:center;gap:8px;font-weight:600}.design-controls select{min-height:38px;background:white;border:1px solid var(--line);border-radius:4px;padding:4px 10px;max-width:260px}.design-controls p{margin:0;color:var(--muted);font-size:12px}.screen{display:none}.screen.active{display:block}.breadcrumb{font-size:12px;color:var(--muted);margin-bottom:12px}.heading{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;margin-bottom:20px}.heading h1{font-size:24px;line-height:32px;margin:0 0 5px}.heading p{color:var(--muted);margin:0;line-height:1.6}.actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}.btn{border:1px solid var(--line);background:white;color:#303133;min-height:40px;border-radius:4px;padding:0 14px;font-weight:500}.btn:hover{color:var(--primary);border-color:#8ed4aa;background:#f6fbf8}.btn.primary{background:var(--primary);border-color:var(--primary);color:white}.btn.primary:hover{background:var(--primary-hover);border-color:var(--primary-hover);color:white}.btn.danger{color:var(--red);border-color:#f3becb}.btn:disabled{opacity:.52;cursor:not-allowed}.btn.small{min-height:32px;padding:0 10px;font-size:12px}.grid{display:grid;gap:16px}.cols-4{grid-template-columns:repeat(4,minmax(0,1fr))}.cols-3{grid-template-columns:repeat(3,minmax(0,1fr))}.cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}.split{display:grid;grid-template-columns:minmax(0,2fr) minmax(280px,1fr);gap:16px}.review-layout{display:grid;grid-template-columns:220px minmax(0,1fr) 310px;gap:12px;align-items:start}.card{background:white;border:1px solid var(--line);border-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,.025);min-width:0}.card.pad{padding:18px}.card h2{font-size:16px;line-height:24px;margin:0 0 14px}.card h3{font-size:14px;margin:0 0 10px}.card p{line-height:1.65}.metric{font-size:27px;font-weight:700;font-variant-numeric:tabular-nums;margin:5px 0 2px}.muted{color:var(--muted)}.small{font-size:12px}.overline{text-transform:uppercase;letter-spacing:.08em;font-size:11px;font-weight:700;color:#909399}.status{display:inline-flex;align-items:center;padding:3px 8px;border-radius:4px;font-size:12px;font-weight:500;white-space:nowrap}.status.info{color:#2080f0;background:#eaf3ff}.status.ok{color:#18a058;background:#eaf7ef}.status.warn{color:#b98212;background:#fff7e4}.status.error{color:#d03050;background:#fff0f3}.status.neutral{color:#606266;background:#f3f4f5}.toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:14px}.toolbar input,.toolbar select,.form input,.form select,.form textarea{border:1px solid var(--line);border-radius:4px;background:white;padding:9px 11px;color:#303133;min-height:40px}.toolbar input:focus,.toolbar select:focus,.form input:focus,.form select:focus,.form textarea:focus{border-color:var(--primary);box-shadow:0 0 0 2px rgba(24,160,88,.16)}.toolbar input{min-width:220px}.table-wrap{overflow:auto}.table{width:100%;border-collapse:collapse;min-width:620px}.table th,.table td{text-align:left;padding:12px 14px;border-bottom:1px solid #f0f0f0;vertical-align:middle}.table th{color:var(--muted);font-size:12px;font-weight:500;background:#fafafa;white-space:nowrap}.table tr:last-child td{border-bottom:0}.table td:last-child{text-align:right}.form{display:grid;gap:15px}.form.two{grid-template-columns:repeat(2,minmax(0,1fr))}.field{display:grid;gap:6px}.field label{font-weight:600}.field .hint{font-size:12px;color:var(--muted)}.field textarea{min-height:100px;resize:vertical}.wide{grid-column:1/-1}.alert{border:1px solid #f1dfb7;background:#fffaf0;color:#865d10;padding:13px 15px;border-radius:4px;line-height:1.6}.alert.error{border-color:#f5c7d2;background:#fff2f5;color:#a62040}.alert.info{border-color:#bde3ca;background:#f2faf5;color:#137947}.list{display:grid;gap:10px}.list-item{border:1px solid var(--line);border-radius:4px;padding:13px;background:white}.list-item strong{display:block;margin-bottom:5px}.list-item p{margin:5px 0;color:var(--muted);font-size:12px}.list-item .row{display:flex;justify-content:space-between;gap:12px;align-items:center}.section-item{width:100%;border:0;border-bottom:1px solid #f0f0f0;background:white;text-align:left;padding:12px}.section-item:hover,.section-item.selected{background:#f2faf5}.section-item.selected{border-left:2px solid var(--primary)}.document{font-size:14px;line-height:1.8;min-height:310px}.document p{margin:0 0 14px}.document .blank{border:1px dashed #d8ddd9;background:#fcfdfc;border-radius:4px;padding:14px;color:var(--muted)}.tabs{display:flex;gap:18px;border-bottom:1px solid var(--line);margin-bottom:16px}.tabs button{border:0;border-bottom:2px solid transparent;background:transparent;color:var(--muted);padding:10px 2px}.tabs button.active{border-color:var(--primary);color:var(--primary);font-weight:600}.steps{display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 18px}.step{border:1px solid var(--line);border-radius:4px;padding:6px 11px;color:var(--muted);background:white;font-size:12px}.step.current{border-color:#8ed4aa;background:#eaf7ef;color:#0f7b42;font-weight:600}.timeline{border-left:2px solid #cdebd7;margin-left:7px;padding-left:16px}.timeline p{margin:0 0 16px}.state-panel{display:none;max-width:760px;margin:35px auto;padding:34px;text-align:center}.state-panel h2{font-size:20px}.state-panel p{color:var(--muted);line-height:1.7}.state-panel .state-mark{font-weight:800;color:var(--primary);font-size:12px;letter-spacing:.08em}.workspace[data-state]:not([data-state="normal"]) .screen-content{display:none}.workspace[data-state]:not([data-state="normal"]) .state-panel{display:block}.notice{margin:0 0 16px}.bottom-feedback{position:fixed;bottom:18px;right:18px;max-width:400px;background:#303133;color:white;padding:12px 16px;border-radius:4px;box-shadow:0 8px 24px rgba(0,0,0,.12);display:none;z-index:30}.bottom-feedback.show{display:block}.modal-wrap{position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;align-items:center;justify-content:center;padding:16px;z-index:40}.modal-wrap.show{display:flex}.modal{background:white;border-radius:4px;width:min(100%,560px);padding:24px;box-shadow:0 8px 24px rgba(0,0,0,.12)}.modal h2{margin:0 0 12px;font-size:20px}.modal p{line-height:1.65;color:var(--muted)}.modal .actions{margin-top:20px}.footer{margin:35px 0 15px;color:var(--muted);font-size:12px}
+    .project-flow{display:none;background:#fff;border:1px solid var(--line);border-radius:4px;padding:16px 20px;margin-bottom:20px}.project-flow.visible{display:block}.project-flow-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}.project-flow-head strong{font-size:14px}.project-flow-head span{font-size:12px;color:var(--muted)}.project-flow ol{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:0;list-style:none;margin:0;padding:0}.project-flow li{position:relative;border-top:2px solid var(--line);padding:12px 6px 0 0;color:#909399;font-size:12px}.project-flow li::before{content:"";position:absolute;top:-6px;left:0;width:9px;height:9px;border:2px solid var(--line);border-radius:50%;background:#fff}.project-flow li.current{border-color:var(--primary);color:#0f7b42;font-weight:600}.project-flow li.current::before{border-color:var(--primary);background:var(--primary)}
+    .pagination{display:flex;align-items:center;justify-content:flex-end;gap:10px;flex-wrap:wrap;padding:15px 4px 2px;color:var(--muted);font-size:12px}.pagination select{min-height:32px;border:1px solid var(--line);border-radius:4px;background:#fff;padding:4px 8px;color:#303133}.pagination button{min-width:32px;height:32px;border:1px solid var(--line);border-radius:4px;background:#fff;color:#303133}.pagination button:disabled{color:#b4b7bc;background:#fafafa;cursor:not-allowed}.table-empty{text-align:center!important;color:var(--muted);padding:38px 14px!important}.admin-layout{display:grid;grid-template-columns:208px minmax(0,1fr);gap:16px;align-items:start}.admin-modules{padding:14px;max-height:calc(100vh - 190px);overflow:auto}.admin-modules h2{font-size:12px;color:#909399;margin:10px 8px 8px}.admin-modules button{width:100%;display:block;text-align:left;border:0;background:#fff;color:#606266;border-radius:4px;padding:10px 11px}.admin-modules button:hover{background:#f5f7f6;color:var(--primary)}.admin-modules button[aria-current="page"]{background:var(--primary-pale);color:#0f7b42;font-weight:600}.admin-detail{min-height:460px}.admin-detail-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:16px}.admin-detail-head h2{font-size:18px;margin:0 0 4px}.admin-detail-head p{margin:0;color:var(--muted);font-size:12px}.admin-scope{font-size:12px;color:#865d10;background:#fffaf0;border:1px solid #f1dfb7;border-radius:4px;padding:10px 12px;margin-bottom:14px}.admin-actions{display:flex;gap:8px;flex-wrap:wrap}.admin-actions .btn{min-height:34px}.admin-monitor{display:none;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:14px}.admin-monitor.visible{display:grid}.admin-monitor .card{padding:12px}.admin-monitor strong{display:block;font-size:18px;margin-top:6px}
+    .checklist{display:grid;gap:8px;margin:12px 0}.checklist>div{display:flex;justify-content:space-between;gap:12px;padding:10px 12px;border:1px solid var(--line);border-radius:4px}.checklist>div span:last-child{color:var(--amber);white-space:nowrap}.field-help{font-size:12px;color:var(--muted);line-height:1.5}.inline-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.inline-actions .btn{min-height:34px}.blocked-reason{font-size:12px;color:#865d10;margin:8px 0 0}.modal{max-height:calc(100vh - 32px);overflow:auto}.form .field input[type="file"]{padding:7px}.review-state{border:1px solid var(--line);border-radius:4px;background:#fafafa;padding:12px;line-height:1.6}.admin-scope+.review-state{margin-bottom:14px}
+    .nav-section{padding-top:16px}.nav-section+.nav-section{border-top:1px solid var(--line);margin-top:16px}.nav-title{padding:0 12px 8px;color:#909399;font-size:12px;font-weight:600}.heading h1{margin:0}.agent-entry{display:flex;flex-direction:column;align-items:flex-start;gap:9px;min-height:190px}.agent-entry h3{font-size:16px;margin:0}.agent-entry p{margin:0;color:var(--muted);font-size:12px}.agent-entry .btn{margin-top:auto}
+    @media(max-width:1200px){.review-layout{grid-template-columns:200px minmax(0,1fr)}.review-layout>.card:last-child{grid-column:1/-1}}
+    @media(max-width:900px){.app{grid-template-columns:1fr}.sidebar{position:relative;height:auto;padding:12px}.brand{padding:4px 8px 12px}.side-note{display:none}.nav{display:flex;overflow:auto}.nav button{white-space:nowrap;flex:0 0 auto}.topbar{height:auto;min-height:60px;padding:12px 16px}.workspace{padding:16px}.cols-4,.cols-3{grid-template-columns:repeat(2,minmax(0,1fr))}.split{grid-template-columns:1fr}}
+    @media(max-width:600px){.heading{display:block}.heading .actions{justify-content:flex-start;margin-top:14px}.cols-4,.cols-3,.cols-2,.form.two,.review-layout{grid-template-columns:1fr}.review-layout>.card:last-child{grid-column:auto}.topbar .context .chip:not(.demo){display:none}.toolbar input{min-width:0;width:100%}.btn,.nav button{min-height:44px}.workspace{padding:12px}.project-flow{overflow-x:auto}.project-flow ol{min-width:600px}.pagination{justify-content:flex-start}.admin-monitor.visible{grid-template-columns:1fr}}
+    @media(prefers-reduced-motion:no-preference){.btn,.nav button,.card,.toolbar input,.form input,.form select,.form textarea{transition:all .3s ease-in-out}}
+    :root{--primary:#409eff;--primary-hover:#66b1ff;--primary-pale:#263b52;--line:#dcdfe6;--muted:#606266;--green:#67c23a;--amber:#e6a23c;--red:#f56c6c;background:#f5f7fa}
+    body{background:#f5f7fa;color:#303133}.app{grid-template-columns:220px minmax(0,1fr)}
+    .sidebar{background:#304156;color:#bfcbd9;border-color:#263445;padding:18px 10px}.brand{padding:4px 10px 16px;border-color:#435466;color:#fff;font-size:15px}.brand-mark{width:36px;height:36px;display:block;padding:2px;border:0;border-radius:8px;background:#fff;object-fit:contain}
+    .nav-section{padding-top:14px}.nav-section+.nav-section{margin-top:14px;border-color:#435466}.nav-title{padding:0 10px 7px;color:#9aa8b7;font-size:12px;letter-spacing:.02em}.nav{gap:2px}.nav button{min-height:38px;padding:9px 11px;color:#bfcbd9;border-radius:4px}.nav button:hover{background:#263445;color:#fff}.nav button[aria-current="page"]{background:#263445;color:#fff;box-shadow:inset 3px 0 #409eff;font-weight:600}.side-note{border-color:#435466;color:#9aa8b7}
+    .topbar{background:#fff;border-color:#e4e7ed;box-shadow:0 1px 3px rgba(0,0,0,.035);padding:0 24px}.topbar strong{font-size:14px;font-weight:600;color:#303133}.chip{border-color:#e4e7ed;color:#606266}.chip.demo{color:#409eff;border-color:#d9ecff;background:#ecf5ff}.avatar{background:#ecf5ff;color:#409eff}
+    .workspace{padding:22px 24px}.heading{align-items:center;margin-bottom:16px}.heading h1{font-size:22px;line-height:30px;color:#303133}.card{border-color:#e4e7ed;border-radius:4px;box-shadow:0 1px 2px rgba(0,0,0,.035)}.card.pad{padding:18px}.card h2{color:#303133}
+    .btn{min-height:36px;border-color:#dcdfe6;border-radius:4px;color:#606266;padding:0 14px;background:#fff}.btn:hover{color:#409eff;border-color:#a0cfff;background:#ecf5ff}.btn.primary{color:#fff;background:#409eff;border-color:#409eff}.btn.primary:hover{background:#66b1ff;border-color:#66b1ff}.btn.danger{color:#f56c6c;border-color:#fbc4c4}.btn:disabled{color:#c0c4cc;border-color:#ebeef5;background:#fff}
+    .toolbar input,.toolbar select,.form input,.form select,.form textarea{min-height:36px;border-color:#dcdfe6;border-radius:4px}.toolbar input:focus,.toolbar select:focus,.form input:focus,.form select:focus,.form textarea:focus{border-color:#409eff;box-shadow:0 0 0 2px rgba(64,158,255,.14)}.table th{background:#f5f7fa;color:#606266}.table th,.table td{border-color:#ebeef5}.tabs{gap:22px;border-color:#e4e7ed}.tabs button.active{color:#409eff;border-color:#409eff}.status.ok{color:#67c23a;background:#f0f9eb}.status.warn{color:#e6a23c;background:#fdf6ec}.status.error{color:#f56c6c;background:#fef0f0}.status.info{color:#409eff;background:#ecf5ff}.status.neutral{color:#909399;background:#f4f4f5}
+    .alert{border-color:#f5dab1;background:#fdf6ec;color:#8b6b32}.alert.error{border-color:#fbc4c4;background:#fef0f0;color:#c45656}.alert.info{border-color:#b3d8ff;background:#ecf5ff;color:#337ecc}.project-flow{border-color:#e4e7ed;background:#fff}.project-flow li.current{border-color:#409eff;color:#337ecc}.project-flow li.current::before{border-color:#409eff;background:#409eff}.project-flow li::before{border-color:#dcdfe6}.section-item:hover,.section-item.selected{background:#ecf5ff}.section-item.selected{border-left-color:#409eff}.step.current{border-color:#a0cfff;background:#ecf5ff;color:#337ecc}
+    .pagination button{border-color:#dcdfe6;color:#606266}.pagination button:hover:not(:disabled){color:#409eff;border-color:#409eff}.pagination button:disabled{color:#c0c4cc;border-color:#ebeef5}.modal{border-radius:6px}.bottom-feedback{background:#303133;border-radius:4px}
+    @media(max-width:900px){.app{grid-template-columns:1fr}.sidebar{padding:12px}.nav-section{padding-top:10px}.nav-section+.nav-section{margin-top:10px}.nav button{min-height:40px}}
+    @media(max-width:600px){.workspace{padding:14px 12px}.topbar{padding:12px}.btn,.nav button{min-height:44px}}
+    .demo-banner{display:flex;align-items:center;gap:10px;padding:10px 14px;margin:0 0 16px;border:1px solid #c6e2ff;border-radius:6px;background:linear-gradient(110deg,#ecf5ff,#f7fbff);color:#337ecc;font-size:13px}.demo-banner strong{font-weight:700}.demo-banner .status{flex-shrink:0}
+    .agent-hero{position:relative;overflow:hidden;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:24px;align-items:center;margin:0 0 18px;padding:24px 26px;border:1px solid #d9ecff;border-radius:8px;background:linear-gradient(115deg,#f0f7ff 0%,#fff 68%);box-shadow:0 8px 24px rgba(64,158,255,.08)}.agent-hero::after{content:"";position:absolute;right:100px;top:-72px;width:220px;height:220px;border:1px solid rgba(64,158,255,.12);border-radius:50%;box-shadow:0 0 0 26px rgba(64,158,255,.035),0 0 0 54px rgba(64,158,255,.025)}.agent-hero-copy,.agent-hero-mark{position:relative;z-index:1}.agent-hero-kicker{display:flex;align-items:center;gap:8px;color:#337ecc;font-size:12px;font-weight:700;letter-spacing:.04em}.agent-hero h2{margin:8px 0 6px;font-size:22px}.agent-hero p{max-width:680px;margin:0;color:#606266;line-height:1.7}.agent-hero-meta{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}.agent-hero-mark{display:grid;place-items:center;width:76px;height:76px;border:1px solid #d9ecff;border-radius:18px;background:#fff;box-shadow:0 8px 20px rgba(48,65,86,.08)}.agent-hero-mark img{width:56px;height:56px;object-fit:contain}.agent-stepper{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px;margin:0 0 18px}.agent-step{display:flex;align-items:center;gap:9px;min-height:56px;padding:8px 10px;border:1px solid #e4e7ed;border-radius:6px;background:#fff;color:#606266;text-align:left}.agent-step:hover{border-color:#a0cfff;background:#f5faff}.agent-step[aria-current="step"]{border-color:#409eff;background:#ecf5ff;color:#337ecc}.agent-step.done .agent-step-number{background:#67c23a;color:#fff}.agent-step-number{display:grid;place-items:center;width:25px;height:25px;flex:0 0 25px;border-radius:50%;background:#f0f2f5;color:#909399;font-size:12px;font-weight:700}.agent-step[aria-current="step"] .agent-step-number{background:#409eff;color:white}.agent-step-title{font-size:12px;font-weight:600;line-height:1.35}.agent-step-subtitle{display:block;margin-top:3px;color:#909399;font-size:11px;font-weight:400}.agent-demo-note{margin:0 0 14px;padding:9px 12px;border-left:3px solid #409eff;background:#f5faff;color:#606266;font-size:12px;line-height:1.6}.demo-record{cursor:pointer}.demo-record:hover td{background:#f5faff}.agent-state{border-radius:6px}
+    @media(max-width:900px){.agent-stepper{grid-template-columns:repeat(3,minmax(0,1fr))}.agent-hero{padding:20px}}
+    @media(max-width:600px){.agent-stepper{grid-template-columns:repeat(2,minmax(0,1fr))}.agent-hero{grid-template-columns:1fr}.agent-hero-mark{display:none}.demo-banner{align-items:flex-start}}
+    .eyebrow{display:block;color:#409eff;font-size:11px;font-weight:700;letter-spacing:.09em}.panel-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px}.panel-heading h2{margin:4px 0 0}.text-action{border:0;background:transparent;padding:4px;color:#409eff;font-size:12px;white-space:nowrap;text-align:left}.text-action:hover{text-decoration:underline}.progress-track{height:7px;overflow:hidden;border-radius:10px;background:#e8eef6}.progress-track span{display:block;height:100%;border-radius:10px;background:linear-gradient(90deg,#409eff,#78c4ff)}
+    .workbench-hero{position:relative;display:grid;grid-template-columns:minmax(0,1fr) 250px;overflow:hidden;align-items:center;min-height:210px;padding:30px 34px;margin-bottom:16px;border:1px solid #d8e9fb;border-radius:9px;background:linear-gradient(115deg,#eff6ff 0%,#fff 64%);box-shadow:0 12px 30px rgba(48,65,86,.055)}.workbench-hero h2{font-size:25px;margin:10px 0 7px}.workbench-hero p{max-width:660px;line-height:1.65;color:#606266;margin:0 0 20px}.workbench-hero-visual{position:relative;height:170px}.workbench-hero-visual .orbit{position:absolute;inset:10px 26px;border:1px solid #c5ddf8;border-radius:50%;transform:rotate(-24deg)}.workbench-hero-visual .orbit-two{inset:34px 50px;transform:rotate(25deg);background:#f7fbff}.workbench-hero-visual span{position:absolute;display:grid;place-items:center;width:60px;height:60px;border:1px solid #c5ddf8;border-radius:15px;background:white;box-shadow:0 8px 22px rgba(64,158,255,.1);color:#337ecc;font-weight:700}.workbench-hero-visual span:nth-last-child(3){left:9px;top:55px}.workbench-hero-visual span:nth-last-child(2){left:98px;top:10px}.workbench-hero-visual span:last-child{right:12px;bottom:15px}.workbench-metrics .card{border-top:3px solid #84bdff}.workbench-grid{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(320px,1fr);gap:16px;margin-top:16px}.priority-panel .alert{margin-bottom:6px}.priority-item{display:flex;align-items:center;gap:12px;border-bottom:1px solid #eef1f5;padding:15px 0}.priority-item:last-child{border-bottom:0}.priority-item>div{flex:1;min-width:0}.priority-item strong{font-size:13px}.priority-item p{margin:3px 0 0;color:#909399;font-size:12px}.priority-dot{width:8px;height:8px;flex:0 0 8px;border-radius:50%}.priority-dot.red{background:#f56c6c}.priority-dot.amber{background:#e6a23c}.priority-dot.blue{background:#409eff}.pulse-title{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:18px 0 4px}.pulse-title strong{font-size:14px}.project-pulse>.progress-track{margin:20px 0 7px}.pulse-stats{display:flex;justify-content:space-between;gap:10px;color:#909399;font-size:11px}.pulse-next{display:grid;gap:3px;padding:12px;margin:17px 0;border-left:3px solid #409eff;background:#f5faff}.pulse-next span{font-size:11px;color:#909399}.recent-tasks{border-top:1px solid #eef1f5;margin-top:18px;padding-top:14px}.recent-tasks h3{margin:0 0 7px}.recent-tasks p{font-size:12px;margin:0 0 5px}
+    .project-banner{display:flex;justify-content:space-between;gap:25px;align-items:center;padding:26px 30px;border:1px solid #d6e7f8;border-radius:9px;background:linear-gradient(112deg,#edf6ff,#fff 70%);margin-bottom:16px}.project-banner-title{display:flex;align-items:center;gap:12px}.project-banner h2{font-size:21px;margin:7px 0}.project-banner p{color:#606266;margin:0 0 17px}.project-banner-actions{display:flex;gap:8px}.project-score{min-width:155px;text-align:center}.project-score strong{display:block;color:#337ecc;font-size:37px}.project-score strong span{color:#a8c7ea;font-size:20px}.project-score>span{display:block;font-size:11px;color:#909399;margin-bottom:11px}.project-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:16px}.project-kpis>div{display:grid;gap:5px;padding:15px 18px;border:1px solid #e4e7ed;border-radius:6px;background:#fff}.project-kpis span,.project-kpis small{font-size:11px;color:#909399}.project-kpis strong{font-size:20px;color:#303133}.project-layout{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(290px,1fr);gap:16px;align-items:start}.project-main,.project-aside{display:grid;gap:16px}.milestone{display:flex;align-items:center;gap:12px;min-height:67px;border-top:1px solid #edf0f5}.milestone>div{flex:1}.milestone strong{font-size:13px}.milestone p{font-size:11px;color:#909399;margin:4px 0 0}.milestone-index{width:29px;height:29px;flex:0 0 29px;display:grid;place-items:center;border:1px solid #a0cfff;border-radius:50%;color:#409eff;background:#ecf5ff;font-size:12px;font-weight:700}.milestone-index.done{background:#f0f9eb;border-color:#b6e1a2;color:#67c23a}.milestone.current{background:#f8fbff;margin:0 -18px;padding:0 18px}.project-task{display:flex;align-items:center;justify-content:space-between;gap:12px;border-top:1px solid #edf0f5;padding:14px 0}.project-task p{font-size:11px;color:#909399;margin:5px 0 0}.attention-card{border-top:1px solid #edf0f5;padding:14px 0}.attention-card p{font-size:12px;color:#909399;margin:6px 0 11px}.compact-facts{display:grid;gap:0;margin:12px 0}.compact-facts>div{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid #edf0f5;font-size:12px}.compact-facts span{color:#909399}.compact-facts strong{text-align:right;font-weight:600}
+    .knowledge-intro{display:flex;align-items:center;justify-content:space-between;gap:24px;padding:22px 28px;border:1px solid #d8e9fb;border-radius:8px;background:linear-gradient(110deg,#f0f7ff,#fff 70%);margin-bottom:16px}.knowledge-intro h2{font-size:21px;margin:7px 0}.knowledge-intro p{color:#606266;font-size:12px;margin:0;line-height:1.6}.knowledge-intro-stats{display:flex;gap:26px}.knowledge-intro-stats>div{display:grid;gap:4px;text-align:center}.knowledge-intro-stats strong{font-size:22px;color:#337ecc}.knowledge-intro-stats span{font-size:11px;color:#909399;white-space:nowrap}.knowledge-layout{display:grid;grid-template-columns:190px minmax(0,1fr) 250px;gap:14px;align-items:start}.knowledge-layout>*{min-width:0}.knowledge-sidebar{padding:12px}.knowledge-side-title{font-size:11px;font-weight:700;color:#909399;padding:9px 9px 6px}.knowledge-side-title.second{margin-top:16px;border-top:1px solid #edf0f5;padding-top:16px}.knowledge-space,.knowledge-view,.knowledge-project{display:flex;align-items:center;gap:8px;width:100%;min-height:36px;border:0;border-radius:4px;background:transparent;text-align:left;padding:7px 9px;color:#606266;font-size:12px}.knowledge-space span{font-size:16px;color:#409eff}.knowledge-space small,.knowledge-view small{margin-left:auto;color:#909399}.knowledge-space:hover,.knowledge-view:hover,.knowledge-project:hover,.knowledge-space.selected,.knowledge-view.selected{background:#ecf5ff;color:#337ecc}.knowledge-main .card{min-height:520px}.knowledge-main .table-wrap{max-width:100%;overflow:auto}.knowledge-main .table{min-width:710px}.knowledge-main .table td,.knowledge-main .table th{padding:11px 9px;font-size:11px}.knowledge-main .table td:first-child strong{font-size:12px}.knowledge-filter-note{font-size:11px;color:#909399;margin:-3px 0 10px}.knowledge-preview{position:sticky;top:16px}.knowledge-preview h2{font-size:15px;line-height:1.4;margin:7px 0 8px}.knowledge-relations{display:grid;gap:5px;margin:15px 0}.knowledge-relations h3{font-size:12px;margin:0 0 3px}.knowledge-relations button{border:0;background:#f5f8fc;border-radius:4px;padding:8px;text-align:left;color:#337ecc;font-size:11px}.knowledge-relations button:hover{background:#ecf5ff}.knowledge-preview-actions .btn{width:100%}
+    .knowledge-main .table tr.selected-record td{background:#f0f7ff}.knowledge-main .table tr[data-record]{cursor:pointer}.knowledge-detail-banner{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:16px 20px;border:1px solid #d8e9fb;border-radius:7px;background:#f5faff;margin-bottom:16px}.knowledge-detail-banner p{margin:5px 0 0;color:#606266;font-size:12px}.knowledge-detail-layout{display:grid;grid-template-columns:170px minmax(0,1fr) 280px;gap:14px;align-items:start}.knowledge-detail-nav{position:sticky;top:16px}.knowledge-detail-nav h2{font-size:13px}.knowledge-detail-nav>button{width:100%;border:0;background:transparent;padding:10px;text-align:left;color:#606266;font-size:12px;border-radius:4px}.knowledge-detail-nav>button:hover,.knowledge-detail-nav>button.selected{background:#ecf5ff;color:#337ecc}.knowledge-nav-meta{display:grid;gap:6px;border-top:1px solid #edf0f5;margin-top:12px;padding-top:15px;font-size:11px}.knowledge-nav-meta span{color:#909399}.knowledge-nav-meta strong{margin-bottom:6px}.knowledge-document,.knowledge-review-aside{display:grid;gap:14px}.paper-toolbar{display:flex;justify-content:space-between;align-items:center;color:#909399;font-size:11px;border-bottom:1px solid #edf0f5;padding-bottom:12px}.paper-sheet{width:min(100%,560px);min-height:500px;margin:20px auto;padding:38px 42px;border:1px solid #e4e7ed;box-shadow:0 8px 25px rgba(48,65,86,.06);background:#fff}.paper-overline{font-size:10px;color:#909399;letter-spacing:.09em}.paper-sheet h2{text-align:center;font-size:20px;margin:30px 0 6px}.paper-note{text-align:center;color:#909399;font-size:11px;margin-bottom:38px}.paper-field{display:flex;gap:12px;justify-content:space-between;border-bottom:1px solid #edf0f5;padding:12px 0;font-size:12px}.paper-field span{color:#909399}.paper-placeholder{border-left:3px solid #409eff;background:#f5faff;padding:14px;margin-top:35px;font-size:12px;line-height:1.8}.paper-placeholder p{margin:7px 0 0;color:#606266}.knowledge-section-panel{min-height:110px}.knowledge-section-panel p{font-size:12px;color:#606266}.knowledge-review-aside .checklist>div{display:grid;gap:5px;padding:9px}.knowledge-review-aside .checklist span:last-child{font-size:11px}.knowledge-review-aside .card>.btn{width:100%}.version-line{display:flex;justify-content:space-between;border-top:1px solid #edf0f5;padding:10px 0;font-size:11px}.version-line span{color:#909399}
+    .version-compare{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:16px}.version-compare[hidden]{display:none}.version-compare>div{padding:12px;border:1px solid #e4e7ed;border-radius:4px;background:#fafcff}.version-compare span{display:block;color:#909399;font-size:11px}.version-compare strong{display:block;margin:5px 0;color:#337ecc}.version-compare p{font-size:11px;margin:0}.version-compare>p{grid-column:1/-1;border-left:3px solid #409eff;background:#f5faff;padding:10px}
+    @media(max-width:1250px){.knowledge-layout{grid-template-columns:180px minmax(0,1fr)}.knowledge-preview{grid-column:2;position:static}.knowledge-detail-layout{grid-template-columns:160px minmax(0,1fr)}.knowledge-review-aside{grid-column:2;grid-template-columns:repeat(2,minmax(0,1fr))}.workbench-hero-visual{display:none}.workbench-hero{grid-template-columns:1fr}}
+    @media(max-width:900px){.workbench-grid,.project-layout,.knowledge-layout,.knowledge-detail-layout{grid-template-columns:1fr}.knowledge-sidebar{display:flex;flex-wrap:wrap;gap:3px}.knowledge-sidebar .knowledge-side-title{width:100%}.knowledge-space,.knowledge-view,.knowledge-project{width:auto}.knowledge-preview,.knowledge-review-aside{grid-column:auto}.knowledge-detail-nav{position:static}.knowledge-detail-nav>button{width:auto}.project-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    @media(max-width:600px){.workbench-hero,.project-banner,.knowledge-intro{padding:19px}.workbench-hero h2{font-size:21px}.project-banner,.knowledge-intro{display:block}.project-score{display:none}.project-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.priority-item{flex-wrap:wrap}.priority-item .btn{margin-left:20px}.knowledge-intro-stats{justify-content:space-between;margin-top:18px}.knowledge-review-aside{grid-template-columns:1fr}.paper-sheet{padding:22px}}
+    .agent-stepper{grid-template-columns:repeat(3,minmax(0,1fr))}.task-setup-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(320px,.9fr);gap:16px}.task-setup-layout>.card{min-height:480px}.task-setup-layout .form{margin:20px 0}.task-advanced{border-top:1px solid #ebeef5;padding:14px 0;margin:4px 0 18px}.task-advanced summary{cursor:pointer;color:#409eff;font-size:12px}.default-plan ol{list-style:none;padding:0;margin:15px 0}.default-plan li{display:flex;align-items:center;gap:12px;padding:13px 0;border-top:1px solid #ebeef5}.default-plan li>span{color:#409eff;font-weight:700}.default-plan li>div{flex:1;display:grid;gap:3px}.default-plan li strong{font-size:13px}.default-plan li small,.default-plan li em{font-size:11px;color:#909399;font-style:normal}.plan-summary{display:flex;gap:9px;align-items:center;padding:11px;background:#f5faff;font-size:11px;color:#606266}
+    .doc-editor-layout{display:grid;grid-template-columns:185px minmax(0,1fr) 265px;gap:14px;align-items:start}.doc-editor-layout>*{min-width:0}.editor-outline,.editor-side{position:sticky;top:15px}.editor-outline>button{display:flex;justify-content:space-between;gap:7px;width:100%;border:0;border-radius:4px;background:white;padding:10px 7px;text-align:left;font-size:12px;color:#606266}.editor-outline>button span{font-size:10px;color:#909399}.editor-outline>button:hover,.editor-outline>button.selected{background:#ecf5ff;color:#337ecc}.outline-foot{display:grid;gap:5px;margin-top:16px;padding-top:14px;border-top:1px solid #ebeef5;color:#909399;font-size:11px}.editor-main{background:#fff}.editor-paper-head{display:flex;align-items:center;justify-content:space-between;gap:10px;border-bottom:1px solid #ebeef5;padding-bottom:13px}.editor-main>h2,.review-paper>h2{text-align:center;font-size:22px;margin:25px 0 7px}.editor-intro{text-align:center;color:#909399;font-size:11px;margin:0 0 28px}.editor-article{max-width:700px;margin:auto}.doc-module{padding:22px 0;border-top:1px solid #eef0f3}.doc-module-head{display:flex;gap:10px;align-items:center}.doc-module-head span{display:grid;place-items:center;width:27px;height:27px;border-radius:7px;background:#ecf5ff;color:#337ecc;font-size:12px;font-weight:700}.doc-module-head h3{font-size:16px;margin:0}.doc-module [data-editable]{min-height:84px;outline:none;padding:12px 8px;margin:9px -8px;color:#303133;font-size:14px;line-height:1.9;white-space:pre-wrap}.doc-module [data-editable]:hover{background:#f9fbff}.doc-module [data-editable]:focus{background:#fff;border-radius:4px;box-shadow:0 0 0 2px #a0cfff}.source-citation{border:0;border-radius:4px;background:#f0f7ff;color:#337ecc;padding:7px 9px;font-size:11px;text-align:left}.source-citation:hover,.source-citation.selected{background:#dcebff}.doc-module>.status{margin-left:8px}.editor-end{border-top:1px solid #ebeef5;padding-top:20px;text-align:right}.editor-side{display:grid;gap:14px}.source-inspector #active-source{border-left:3px solid #409eff;background:#f5faff;padding:12px;margin:16px 0}.source-inspector #active-source p{font-size:11px;color:#606266;margin:5px 0}.editor-side #run-control-slot .toolbar{display:grid}.editor-side #run-control-slot select{width:100%;min-width:0}.editor-side #run-state{font-size:11px}.editor-side .compact-facts strong{font-size:11px}.comment-item{border-left:3px solid #e6a23c;background:#fffbf4;padding:9px;margin:9px 0;font-size:11px}.comment-item strong{display:block;overflow-wrap:anywhere}.comment-item p{margin:5px 0 0}.selection-toolbar{position:fixed;z-index:35;display:flex;gap:4px;padding:5px;border:1px solid #dcdfe6;border-radius:6px;background:#304156;box-shadow:0 7px 20px rgba(0,0,0,.16)}.selection-toolbar[hidden],.selection-panel[hidden]{display:none}.selection-toolbar button{border:0;background:transparent;color:white;padding:7px 9px;font-size:11px}.selection-toolbar button:hover{background:#445a74}.selection-panel{position:fixed;z-index:36;right:24px;bottom:24px;width:min(390px,calc(100vw - 30px));padding:16px;border:1px solid #c6ddf8;border-radius:7px;background:white;box-shadow:0 12px 32px rgba(48,65,86,.16)}.selection-panel label{display:block;font-size:13px;font-weight:700}.selection-panel textarea{width:100%;min-height:86px;margin:10px 0;padding:9px;border:1px solid #dcdfe6;border-radius:4px}.selection-panel .inline-actions{justify-content:flex-end}
+    .review-merged-layout{display:grid;grid-template-columns:minmax(0,1fr) 310px;gap:16px;align-items:start}.review-merged-layout>*{min-width:0}.review-paper{min-height:650px}.review-paper #review-document{outline:none;min-height:420px;padding:8px}.review-paper #review-document:focus{box-shadow:inset 0 0 0 2px #c6ddf8}.review-paper .doc-module{padding:15px 0}.review-merged-side{display:grid;gap:14px}.review-merged-side .btn{margin-top:9px}.review-issue{padding:12px;background:#fffaf0;border:1px solid #f5dab1;border-radius:4px}.review-issue strong{display:block;font-size:12px;margin-top:7px}.review-issue p{font-size:11px;color:#909399;margin:5px 0}.review-merged-side .inline-actions .btn{flex:1}
+    .vault-layout{display:grid;grid-template-columns:185px 315px minmax(0,1fr);gap:12px;align-items:start;min-height:620px}.vault-layout>*{min-width:0;height:calc(100vh - 160px);min-height:550px;overflow:auto}.vault-layout .knowledge-sidebar{position:relative;display:block;padding:12px}.vault-layout .knowledge-side-title{width:auto}.vault-layout .knowledge-space,.vault-layout .knowledge-view,.vault-layout .knowledge-project{width:100%}.vault-layout [data-paged-list="knowledge"]{padding:14px}.vault-layout [data-paged-list="knowledge"] .panel-heading h2{font-size:15px}.vault-layout [data-paged-list="knowledge"] .toolbar{display:flex}.vault-layout [data-paged-list="knowledge"] .toolbar input,.vault-layout [data-paged-list="knowledge"] .toolbar select{width:100%;min-width:0}.vault-layout [data-paged-list="knowledge"] .toolbar .btn{flex:1}.vault-layout [data-paged-list="knowledge"] .table-wrap{overflow:visible}.vault-layout [data-paged-list="knowledge"] table,.vault-layout [data-paged-list="knowledge"] tbody{display:block;min-width:0;width:100%}.vault-layout [data-paged-list="knowledge"] thead{display:none}.vault-layout [data-paged-list="knowledge"] tr[data-record]{display:grid;grid-template-columns:1fr auto;gap:5px;border-bottom:1px solid #ebeef5;padding:10px 6px}.vault-layout [data-paged-list="knowledge"] tr[data-record][hidden]{display:none}.vault-layout [data-paged-list="knowledge"] tr[data-record]:hover,.vault-layout [data-paged-list="knowledge"] tr.selected-record{background:#ecf5ff;border-radius:4px}.vault-layout [data-paged-list="knowledge"] tr[data-record] td{display:none;border:0;padding:0;background:transparent!important;text-align:left;font-size:11px}.vault-layout [data-paged-list="knowledge"] tr[data-record] td:nth-child(1){display:block;grid-column:1/-1}.vault-layout [data-paged-list="knowledge"] tr[data-record] td:nth-child(1) strong{font-size:12px}.vault-layout [data-paged-list="knowledge"] tr[data-record] td:nth-child(1) .status{display:none}.vault-layout [data-paged-list="knowledge"] tr[data-record] td:nth-child(4){display:block;color:#909399}.vault-layout [data-paged-list="knowledge"] tr[data-record] td:nth-child(6){display:block}.vault-layout [data-paged-list="knowledge"] tr[data-empty]{display:block}.vault-layout [data-paged-list="knowledge"] tr[data-empty][hidden]{display:none}.vault-layout [data-paged-list="knowledge"] tr[data-empty] td{display:block}.vault-layout .pagination{justify-content:flex-start}.vault-layout .knowledge-preview{position:relative;top:auto;min-height:550px;padding:23px 30px}.vault-reader-head{display:flex;align-items:center;justify-content:space-between;gap:12px}.vault-layout .knowledge-preview h2{font-size:21px;margin:20px 0 8px}.vault-tabs{display:flex;gap:20px;border-bottom:1px solid #ebeef5;margin:22px 0 18px}.vault-tabs button{border:0;border-bottom:2px solid transparent;background:transparent;padding:8px 0;color:#606266}.vault-tabs button.active{color:#409eff;border-color:#409eff}.vault-panel[hidden]{display:none}.vault-note{max-width:620px;margin:auto;min-height:310px;padding:28px;border:1px solid #ebeef5;background:#fff;box-shadow:0 8px 24px rgba(48,65,86,.05)}.vault-note h3{font-size:19px;margin:13px 0 25px}.vault-note p{line-height:1.9;font-size:13px}.vault-callout{border-left:3px solid #409eff;background:#f5faff;padding:12px;margin-top:34px;color:#606266;font-size:12px}.vault-reader-foot{border-top:1px solid #ebeef5;margin-top:18px;padding-top:15px;text-align:right}
+    .vault-folder{margin:3px 0 11px}.vault-folder summary{cursor:pointer;padding:9px 7px;font-size:12px;font-weight:700;color:#303133;list-style:none}.vault-folder summary::-webkit-details-marker{display:none}.vault-folder summary::before{content:'▸';display:inline-block;width:15px;color:#909399}.vault-folder[open] summary::before{content:'▾'}.vault-folder .knowledge-space{padding-left:22px}.vault-layout tr[data-record] td:first-child strong::before{content:'▤';margin-right:7px;color:#409eff}
+    @media(max-width:1280px){.doc-editor-layout{grid-template-columns:165px minmax(0,1fr)}.editor-side{grid-column:2;position:static;grid-template-columns:repeat(2,minmax(0,1fr))}.vault-layout{grid-template-columns:160px 260px minmax(0,1fr)}}
+    @media(max-width:950px){.task-setup-layout,.review-merged-layout{grid-template-columns:1fr}.doc-editor-layout{grid-template-columns:1fr}.editor-outline{position:static}.editor-side{grid-column:auto}.vault-layout{grid-template-columns:165px minmax(0,1fr)}.vault-layout .knowledge-preview{grid-column:2;height:auto}.vault-layout>*{height:auto;min-height:0}}
+    @media(max-width:600px){.agent-stepper{grid-template-columns:1fr}.editor-side{grid-template-columns:1fr}.vault-layout{grid-template-columns:1fr}.vault-layout .knowledge-preview{grid-column:auto}.vault-layout .knowledge-sidebar{display:flex;flex-wrap:wrap}.vault-layout .knowledge-sidebar .knowledge-side-title{width:100%}.vault-layout .knowledge-space,.vault-layout .knowledge-view,.vault-layout .knowledge-project{width:auto}.vault-note{padding:18px}.selection-panel{right:15px;bottom:15px}}
+  </style>
+</head>
+<body>
+<a class="skip" href="#content">跳转到页面内容</a>
+<div class="app">
+  <aside class="sidebar" aria-label="主导航">
+    <div class="brand"><img class="brand-mark" src="ui-delivery/assets/2x/medical-agent-brand.png" alt="医疗器械 Agent 标识"><span>医疗器械 Agent</span></div>
+    <div class="nav-section" id="core-section">
+      <div class="nav-title">核心功能</div>
+      <nav class="nav" id="navigation" aria-label="核心功能">
+        <button type="button" data-go="S01">工作台</button><button type="button" data-go="S03">项目中心</button><button type="button" data-go="S04">资料中心</button>
+      </nav>
+    </div>
+    <div class="nav-section" id="platform-section">
+      <div class="nav-title">平台管理</div>
+      <nav class="nav" id="platform-navigation" aria-label="平台管理"><button type="button" data-go="S13">Agent 管理</button><button type="button" data-go="S15">评测与运营</button></nav>
+    </div>
+    <div class="nav-section" id="system-nav">
+      <div class="nav-title" id="system-nav-title">系统管理</div>
+      <nav class="nav" id="system-navigation" aria-label="系统管理">
+        <button type="button" data-admin-module="users">用户管理</button>
+        <button type="button" data-admin-module="roles">角色管理</button>
+        <button type="button" data-admin-module="menus">菜单管理</button>
+        <button type="button" data-admin-module="departments">部门管理</button>
+        <button type="button" data-admin-module="posts">岗位管理</button>
+        <button type="button" data-admin-module="dictionaries">字典管理</button>
+        <button type="button" data-admin-module="parameters">参数管理</button>
+        <button type="button" data-admin-module="notices">通知公告</button>
+        <button type="button" data-admin-module="online">在线用户</button>
+        <button type="button" data-admin-module="jobs">定时任务</button>
+        <button type="button" data-admin-module="operationLogs">操作日志</button>
+        <button type="button" data-admin-module="loginLogs">登录日志</button>
+        <button type="button" data-admin-module="services">服务监控</button>
+        <button type="button" data-admin-module="cache">缓存监控</button>
+        <button type="button" data-admin-module="connections">连接池监视</button>
+        <button type="button" data-admin-module="codegen">代码生成</button>
+        <button type="button" data-admin-module="apis">系统接口</button>
+        <button type="button" data-admin-module="builder">表单构建器</button>
+        <button type="button" data-go="S16">企业空间与连接</button>
+      </nav>
+    </div>
+  </aside>
+  <div class="main">
+    <header class="topbar"><div class="context"><span class="chip">企业名称待配置</span><span class="chip">项目：尚未选择</span><span class="avatar" aria-label="当前用户">林</span></div></header>
+    <main class="workspace" id="content" data-state="normal">
+
+      <section class="screen active" id="S01">
+        <div class="breadcrumb">工作台</div>
+        <div class="heading"><div><h1>工作台</h1><p>查看待办、最近任务并选择获授权的场景 Agent。</p></div><div class="actions"><button class="btn primary" data-go="S03">进入项目中心</button></div></div>
+        <div class="screen-content">
+          <div class="workbench-hero"><div><span class="eyebrow">企业工作空间 · DESIGN DEMO</span><h2>今天需要处理的注册工作</h2><p>从待审问题进入具体章节，完成来源核验与人工决定。以下项目、人员及数量均为演示内容。</p><div class="inline-actions"><button class="btn primary" data-go="S11">处理人工审查</button><button class="btn" data-go="S03">查看全部项目</button></div></div><div class="workbench-hero-visual" aria-hidden="true"><div class="orbit orbit-one"></div><div class="orbit orbit-two"></div><span>资料</span><span>生成</span><span>审查</span></div></div>
+          <div class="grid cols-4 workbench-metrics"><div class="card pad"><span class="overline">授权项目</span><div class="metric">—</div><span class="muted small">当前企业空间</span></div><div class="card pad"><span class="overline">待人工处理</span><div class="metric">—</div><span class="muted small">来源与章节审查</span></div><div class="card pad"><span class="overline">运行任务</span><div class="metric">—</div><span class="muted small">显示处理进度</span></div><div class="card pad"><span class="overline">待签发</span><div class="metric">—</div><span class="muted small">核验权限与版本</span></div></div>
+          <div class="workbench-grid"><div class="card pad priority-panel"><div class="panel-heading"><div><span class="eyebrow">ACTION QUEUE</span><h2>我的待办</h2></div><span class="status warn">共 7 项</span></div><div class="alert info">演示项目共有 3 项章节审查、2 项来源核验和 1 项总稿检查。</div><div class="priority-item"><span class="priority-dot red"></span><div><strong>产品技术要求 · 章节审查</strong><p>脑电生理监测系统 · 第 3 章 · 林知远</p></div><button class="btn small" data-go="S11">开始审查</button></div><div class="priority-item"><span class="priority-dot amber"></span><div><strong>来源定位需要核验</strong><p>项目基本信息表 D-1.2 · 第 3 页</p></div><button class="btn small" data-go="S10">核验来源</button></div><div class="priority-item"><span class="priority-dot blue"></span><div><strong>总稿签发条件检查</strong><p>产品技术要求 · D-1.0 · 待确认</p></div><button class="btn small" data-go="S12">查看总稿</button></div></div><div class="card pad project-pulse"><div class="panel-heading"><div><span class="eyebrow">PROJECT PULSE</span><h2>重点项目</h2></div><button class="text-action" data-go="S03">全部项目 →</button></div><div class="pulse-title"><strong>脑电生理监测系统注册资料准备</strong><span class="status ok">进行中</span></div><p class="muted small">第二类 · 境内首次注册 · 负责人 林知远</p><div class="progress-track"><span style="width:67%"></span></div><div class="pulse-stats"><span>资料 8 项 · 2 项待审</span><span>4 / 6 个处理环节</span></div><div class="pulse-next"><span>下一项决定</span><strong>核验章节证据与产品字段</strong></div><button class="btn primary" data-go="S18">进入项目</button><div class="recent-tasks"><h3>最近任务</h3><p><span class="status info">演示任务</span> 产品技术要求 · 待人工审查 · 林知远 · D-1.0</p><button class="text-action" data-go="S06">查看任务列表 →</button></div></div></div>
+          <div id="agent-entries" style="margin-top:24px"><div class="heading"><div><h2>场景 Agent</h2><p>每个场景独立定义输入、适用知识、输出、人工审查和发布状态。</p></div></div><div class="grid cols-3">
+            <div class="card pad agent-entry"><span class="status warn">待配置</span><h3>注册文档 Agent</h3><p>准备产品技术要求及其他已定义文档；任务须选择获授权项目和已核准资料。</p><button class="btn primary" type="button" data-go="S07">进入 Agent</button></div>
+            <div class="card pad agent-entry"><span class="status neutral">规划中</span><h3>法规版本比较 Agent</h3><p>法规变化范围、适用知识和审核规则待确认。</p><button class="btn" type="button" disabled title="场景规格与发布授权尚未确认">尚未开放</button></div>
+            <div class="card pad agent-entry"><span class="status neutral">规划中</span><h3>报告生成 Agent</h3><p>目标报告、资料范围和人工责任待确认。</p><button class="btn" type="button" disabled title="场景规格与发布授权尚未确认">尚未开放</button></div>
+            <div class="card pad agent-entry"><span class="status neutral">规划中</span><h3>多语言翻译 Agent</h3><p>语言、术语和审核规则待确认。</p><button class="btn" type="button" disabled title="场景规格与发布授权尚未确认">尚未开放</button></div>
+            <div class="card pad agent-entry"><span class="status neutral">规划中</span><h3>市场分析 Agent</h3><p>市场资料、指标和来源要求待确认。</p><button class="btn" type="button" disabled title="场景规格与发布授权尚未确认">尚未开放</button></div>
+            <div class="card pad agent-entry"><span class="status neutral">规划中</span><h3>多模态问答 Agent</h3><p>资料类型、引用方式和访问范围待确认。</p><button class="btn" type="button" disabled title="场景规格与发布授权尚未确认">尚未开放</button></div>
+          </div></div>
+        </div>
+      </section>
+
+      <section class="screen" id="S02">
+        <div class="breadcrumb">系统管理 / 用户管理</div>
+        <div class="heading"><div><h1>系统管理</h1><p>从左侧菜单选择组织权限、运行监控、开发工具或企业连接。</p></div></div>
+        <div class="screen-content"><div class="card pad admin-detail">
+          <div class="admin-detail-head"><div><h2 id="admin-title">用户管理</h2></div><div class="admin-actions"><button class="btn primary" type="button" id="admin-primary" data-modal="新增用户">新增用户</button></div></div>
+          <div class="admin-monitor" id="admin-monitor"><div class="card"><span class="overline">当前状态</span><strong>未连接</strong></div><div class="card"><span class="overline">最近检查</span><strong>—</strong></div><div class="card"><span class="overline">异常记录</span><strong>—</strong></div></div>
+          <div data-paged-list="admin"><div class="toolbar"><input type="search" data-list-query aria-label="搜索系统管理记录" placeholder="按名称或标识搜索"><select data-list-status aria-label="筛选状态"><option value="">全部状态</option><option value="active">有效</option><option value="disabled">停用</option><option value="pending">待处理</option></select><button class="btn" type="button" data-list-search>查询</button><button class="btn" type="button" data-list-reset>重置</button><button class="btn" type="button" data-feedback="当前没有可导出的真实记录。">导出</button></div><div class="table-wrap"><table class="table" aria-label="系统管理记录"><thead><tr id="admin-columns"><th>用户账号</th><th>姓名</th><th>部门</th><th>角色</th><th>状态</th><th>创建时间</th><th>操作</th></tr></thead><tbody><tr data-empty><td class="table-empty" colspan="7">暂无已授权记录</td></tr></tbody></table></div><div class="pagination"><span data-total>共 0 条</span><label>每页 <select data-page-size aria-label="系统管理每页条数"><option value="10">10 条</option><option value="20">20 条</option><option value="50">50 条</option></select></label><button type="button" data-page-previous aria-label="上一页" disabled>‹</button><span data-page-info>第 1 / 1 页</span><button type="button" data-page-next aria-label="下一页" disabled>›</button></div></div>
+        </div></div>
+      </section>
+
+      <section class="screen" id="S03"><div class="breadcrumb">项目中心</div><div class="heading"><div><h1>项目中心</h1><p>按企业授权查看医疗器械项目、注册路径、资料状态和任务进度。</p></div><div class="actions"><button class="btn primary" data-modal="新建项目" data-prototype-form="project">新建项目</button></div></div><div class="screen-content"><div class="card pad" data-paged-list="projects"><div class="toolbar"><input type="search" data-list-query aria-label="搜索项目" placeholder="项目名称或产品名称"><select data-list-status aria-label="筛选项目阶段"><option value="">全部阶段</option><option value="configuring">待配置</option><option value="active">使用中</option><option value="paused">暂停</option><option value="archived">归档</option></select><button class="btn" type="button" data-list-search>查询</button><button class="btn" type="button" data-list-reset>重置</button></div><div class="table-wrap"><table class="table" aria-label="项目列表"><thead><tr><th>项目名称</th><th>产品名称</th><th>器械类别</th><th>注册路径</th><th>项目阶段</th><th>资料状态</th><th>任务进度</th><th>最近更新</th><th>操作</th></tr></thead><tbody><tr data-empty><td class="table-empty" colspan="9">暂无获授权项目。建立项目并完成授权后，此处显示项目记录。</td></tr></tbody></table></div><div class="pagination"><span data-total>共 0 条</span><label>每页 <select data-page-size aria-label="项目每页条数"><option value="10">10 条</option><option value="20">20 条</option><option value="50">50 条</option></select></label><button type="button" data-page-previous aria-label="上一页" disabled>‹</button><span data-page-info>第 1 / 1 页</span><button type="button" data-page-next aria-label="下一页" disabled>›</button></div></div><div class="inline-actions" style="margin-top:14px"><span class="muted small">选择获授权项目后进入项目详情。</span><button class="btn small" type="button" data-go="S18">查看项目详情界面</button></div></div></section>
+
+      <section class="screen" id="S18"><div class="heading"><div><h1>项目详情</h1></div><div class="actions"><button class="btn" data-go="S03">返回项目中心</button><button class="btn primary" data-go="S07">配置文档任务</button></div></div><div class="screen-content"><div class="project-banner"><div><span class="eyebrow">PROJECT COMMAND CENTER · DESIGN DEMO</span><div class="project-banner-title"><h2 id="project-banner-name">脑电生理监测系统注册资料准备</h2><span class="status ok">进行中</span></div><p id="project-banner-meta">第二类 · 境内首次注册 · 负责人 林知远 · 最近更新 2026-09-24</p><div class="project-banner-actions"><button class="btn primary" data-go="S11">处理待审问题</button><button class="btn" data-go="S04">查看项目资料</button></div></div><div class="project-score"><strong>4<span>/ 6</span></strong><span>任务处理环节</span><div class="progress-track"><span style="width:67%"></span></div></div></div><div class="project-kpis"><div><span>项目资料</span><strong>8 项</strong><small>2 项待审</small></div><div><span>文档任务</span><strong>4 项</strong><small>1 项等待人工处理</small></div><div><span>证据引用</span><strong>26 处</strong><small>2 处需要核验</small></div><div><span>当前版本</span><strong>D-1.0</strong><small>仅限设计演示</small></div></div><div class="project-layout"><div class="project-main"><div class="card pad"><div class="panel-heading"><div><span class="eyebrow">WORKFLOW</span><h2>项目办理进度</h2></div><span class="status info">当前位置 · 人工审查</span></div><div class="milestone"><span class="milestone-index done">✓</span><div><strong>项目建档</strong><p>产品属性与注册路径已登记</p></div><button class="text-action" data-modal="新建项目" data-prototype-form="project">查看信息 →</button></div><div class="milestone"><span class="milestone-index done">✓</span><div><strong>资料准备与核准</strong><p>8 项资料已登记，2 项需要人工核验</p></div><button class="text-action" data-go="S04">查看资料 →</button></div><div class="milestone"><span class="milestone-index done">✓</span><div><strong>任务与章节规划</strong><p>章节计划、来源范围与责任人已设置</p></div><button class="text-action" data-go="S08">查看计划 →</button></div><div class="milestone"><span class="milestone-index done">✓</span><div><strong>生成与来源检查</strong><p>2 处证据定位需要核验</p></div><button class="text-action" data-go="S10">核验来源 →</button></div><div class="milestone current"><span class="milestone-index">5</span><div><strong>人工审查与签发</strong><p>章节待确认，签发条件尚未完成</p></div><button class="text-action" data-go="S11">进入审查 →</button></div></div><div class="card pad"><div class="panel-heading"><h2>进行中的文档任务</h2><button class="text-action" data-go="S06">全部任务 →</button></div><div class="project-task"><div><strong>产品技术要求</strong><p>待人工审查 · 林知远 · D-1.0</p></div><button class="btn small" data-go="S11">继续处理</button></div><div class="project-task"><div><strong>注册文档目录</strong><p>运行中 · 周予安 · 章节计划确认</p></div><button class="btn small" data-go="S09">查看进度</button></div></div></div><aside class="project-aside"><div class="card pad"><span class="eyebrow">NEXT ACTION</span><h2>需要人工决定</h2><div class="attention-card"><strong>章节来源证据待核验</strong><p>核对原文位置、产品字段和引用关系。</p><button class="btn primary" data-go="S10">打开核验</button></div><div class="attention-card"><strong>总稿尚待签发</strong><p>确认关键问题、版本和岗位授权。</p><button class="btn" data-go="S12">查看条件</button></div></div><div class="card pad"><h2>项目资料与成员</h2><div class="compact-facts"><div><span>产品</span><strong id="project-product">灵析多导睡眠监测系统</strong></div><div><span>项目资料</span><strong id="project-knowledge">8 项 · 2 项待审</strong></div><div><span>项目负责人</span><strong>林知远</strong></div><div><span>审查权限</span><strong>按人员与动作核验</strong></div></div><div class="inline-actions"><button class="btn small" data-go="S04">资料中心</button><button class="btn small" data-go="S02">权限管理</button></div></div></aside></div></div></section>
+
+      <section class="screen" id="S04"><div class="heading"><div><h1>资料中心</h1></div><div class="actions"><button class="btn primary" id="knowledge-create" data-modal="上传项目资料">上传项目资料</button></div></div><div class="screen-content"><div class="knowledge-intro"><div><span class="eyebrow">KNOWLEDGE SPACE · DESIGN DEMO</span><h2>从资料找到可信依据</h2><p>按项目与资料类型浏览，查看原文、版本、适用范围及被引用的任务。资料核准需要人工决定。</p></div><div class="knowledge-intro-stats"><div><strong>13</strong><span>资料记录</span></div><div><strong>6</strong><span>待核验</span></div><div><strong>4</strong><span>关联任务</span></div></div></div><div class="knowledge-layout"><aside class="card knowledge-sidebar"><div class="knowledge-side-title">资料空间</div><button class="knowledge-space selected" type="button" data-knowledge-category="project"><span>▦</span> 项目资料 <small>4</small></button><button class="knowledge-space" type="button" data-knowledge-category="regulations"><span>§</span> 法规与标准 <small>3</small></button><button class="knowledge-space" type="button" data-knowledge-category="templates"><span>▤</span> 模板 <small>3</small></button><button class="knowledge-space" type="button" data-knowledge-category="rules"><span>◇</span> 检查规则 <small>3</small></button><div class="knowledge-side-title second">常用视图</div><button class="knowledge-view" data-knowledge-view="pending">待核验资料 <small>6</small></button><button class="knowledge-view" data-knowledge-view="approved">已核准资料 <small>6</small></button><button class="knowledge-view" data-knowledge-view="all">全部资料 <small>13</small></button><div class="knowledge-side-title second">演示项目</div><button class="knowledge-project" data-go="S18">脑电生理监测系统</button><button class="knowledge-project" data-go="S18">便携式超声诊断设备</button></aside><div class="knowledge-main"><div class="card pad" data-paged-list="knowledge"><div class="panel-heading"><div><span class="eyebrow">DOCUMENT LIBRARY</span><h2 id="knowledge-view-title">项目资料</h2></div><span class="status info">设计演示</span></div><div class="toolbar"><input type="search" data-list-query aria-label="搜索资料中心" placeholder="搜索名称、版本、来源或适用范围"><select data-list-status aria-label="筛选核准状态"><option value="">全部状态</option><option value="pending">待核验</option><option value="approved">已核准</option><option value="disabled">已停用</option></select><button class="btn" type="button" data-list-search>查询</button><button class="btn" type="button" data-list-reset>重置</button></div><div class="knowledge-filter-note">选择记录可预览关联与版本；打开详情可进行原文核验。</div><div class="table-wrap"><table class="table" aria-label="资料中心列表"><thead><tr><th>名称</th><th>类别</th><th>来源</th><th>版本</th><th>适用范围</th><th>核准状态</th><th>最近更新</th><th>操作</th></tr></thead><tbody><tr data-empty><td class="table-empty" colspan="8" id="knowledge-empty">暂无获授权项目资料。上传并核准后，此处显示资料记录。</td></tr></tbody></table></div><div class="pagination"><span data-total>共 0 条</span><label>每页 <select data-page-size aria-label="资料中心每页条数"><option value="10">10 条</option><option value="20">20 条</option><option value="50">50 条</option></select></label><button type="button" data-page-previous aria-label="上一页" disabled>‹</button><span data-page-info>第 1 / 1 页</span><button type="button" data-page-next aria-label="下一页" disabled>›</button></div></div></div><aside class="card pad knowledge-preview" aria-label="资料预览"><span class="eyebrow">CONTEXT PREVIEW</span><h2 id="knowledge-preview-title">项目基本信息表（演示）</h2><span class="status ok" id="knowledge-preview-status">演示已核验</span><div class="compact-facts"><div><span>版本</span><strong id="knowledge-preview-version">D-1.2</strong></div><div><span>来源</span><strong id="knowledge-preview-source">设计演示资料集</strong></div><div><span>适用范围</span><strong id="knowledge-preview-scope">演示项目范围</strong></div><div><span>最近更新</span><strong id="knowledge-preview-date">2026-09-24</strong></div></div><div class="knowledge-relations"><h3>关联内容</h3><button data-go="S18">↗ 脑电生理监测系统</button><button data-go="S09">↗ 产品技术要求 · 章节生成</button><button data-go="S10">↗ 来源核验 · 第 3 页</button></div><div class="knowledge-preview-actions"><button class="btn primary" data-go="S05">打开资料详情</button></div></aside></div></div></section>
+
+      <section class="screen" id="S05"><div class="heading"><div><h1 id="knowledge-detail-title">项目基本信息表（演示）</h1></div><div class="actions"><button class="btn" data-go="S04">返回资料中心</button><button class="btn primary" type="button" data-modal="核准资料版本">核准版本</button></div></div><div class="screen-content"><div class="knowledge-detail-banner"><div><span class="eyebrow">DOCUMENT REVIEW · DESIGN DEMO</span><p>每项资料保留来源、版本、适用范围、关联任务与人工决定。当前原文仅用于页面演示。</p></div><span class="status warn" id="knowledge-detail-status">待人工核验</span></div><div class="knowledge-detail-layout"><aside class="card pad knowledge-detail-nav"><h2>资料目录</h2><button class="selected" data-knowledge-section="overview">资料概览</button><button data-knowledge-section="source">原文定位</button><button data-knowledge-section="versions">版本记录</button><button data-knowledge-section="relations">关联与引用</button><button data-knowledge-section="review">核准条件</button><div class="knowledge-nav-meta"><span>当前版本</span><strong id="knowledge-detail-version">D-1.2</strong><span>来源类型</span><strong>设计演示资料集</strong></div></aside><div class="knowledge-document"><div class="card pad knowledge-paper"><div class="paper-toolbar"><span>原文预览 · 第 3 页 / 共 8 页</span><span class="status info">演示资料</span></div><div class="paper-sheet"><span class="paper-overline">项目文件 / 项目基本信息</span><h2 id="knowledge-paper-title">项目基本信息表</h2><p class="paper-note">设计演示内容 · 不含客户资料或正式法规条文</p><div class="paper-field"><span>文件来源</span><strong id="knowledge-detail-source">设计演示资料集</strong></div><div class="paper-field"><span>适用项目</span><strong id="knowledge-detail-scope">脑电生理监测系统注册资料准备</strong></div><div class="paper-field"><span>资料版本</span><strong id="knowledge-paper-version">D-1.2</strong></div><div class="paper-placeholder"><strong>原文定位 · 第 3 页 / 产品信息段落</strong><p>这里展示用于核对来源位置的演示文本。正式使用时应打开获授权原文、显示页码或条款，并记录审查人员的判断。</p></div></div></div><div class="card pad knowledge-section-panel"><div class="panel-heading"><h2 id="knowledge-section-title">资料概览</h2><span class="status info">当前选择</span></div><p id="knowledge-section-copy">核对资料名称、来源、版本与项目适用范围，确认资料可供任务引用。</p></div></div><aside class="knowledge-review-aside"><div class="card pad"><span class="eyebrow">REVIEW CHECKLIST</span><h2>人工核准条件</h2><div class="checklist"><div><span>原始来源与定位可打开</span><span>演示可查看</span></div><div><span>版本和发布日期可核查</span><span>演示版本</span></div><div><span>项目与注册环节适用</span><span>待人工确认</span></div><div><span>关联任务与历史版本已列出</span><span>演示任务 2 项</span></div></div><button class="btn primary" data-modal="核准资料版本">记录核准决定</button><button class="btn" data-modal="请求补充资料" style="margin-top:8px">请求补充资料</button><p class="blocked-reason">正式核准需确认原文和适用范围，并记录处理人、时间及决定。</p></div><div class="card pad"><h2>关联与影响</h2><div class="knowledge-relations"><button data-go="S18">↗ 脑电生理监测系统</button><button data-go="S09">↗ 产品技术要求 D-1.0</button><button data-go="S10">↗ 来源核验 · 第 3 页</button></div><h3>历史版本</h3><div class="version-line"><strong>D-1.2</strong><span>当前演示版本</span></div><div class="version-line"><strong>D-1.1</strong><span>历史演示版本</span></div><button class="text-action" data-knowledge-section="versions">查看版本比较 →</button></div></aside></div></div></section>
+
+      <section class="screen" id="S06"><div class="breadcrumb">项目 / 任务</div><div class="heading"><div><h1>项目任务列表</h1><p>查看任务状态、责任人、最近步骤和待人工处理事项。</p></div><div class="actions"><button class="btn" data-go="S18">返回项目详情</button><button class="btn primary" data-go="S07">新建任务</button></div></div><div class="screen-content card pad"><div class="toolbar"><input aria-label="搜索任务" placeholder="搜索任务编号或目标文档"><select aria-label="任务状态"><option>全部状态</option><option>待补资料</option><option>运行中</option><option>待人工审查</option><option>已退回</option></select></div><div class="table-wrap"><table class="table"><thead><tr><th>任务编号</th><th>目标文档</th><th>状态</th><th>负责人</th><th>最近步骤</th><th>待人工处理</th><th>操作</th></tr></thead><tbody><tr><td class="table-empty" colspan="7">尚无获授权任务。选择项目并完成任务输入后，此处显示任务记录。</td></tr></tbody></table></div></div></section>
+
+      <section class="screen" id="S07"><div class="breadcrumb">项目 / 任务 / 新建</div><div class="heading"><div><h1>配置文档任务</h1><p>提交前核查项目属性、已核准资料、适用知识与预算。</p></div></div><div class="screen-content split"><div class="card pad"><div class="steps"><span class="step current">1 配置输入</span><span class="step">2 核查版本</span><span class="step">3 章节计划</span></div><div class="form two"><div class="field"><label for="task-project">获授权项目</label><select id="task-project" required><option value="">请选择获授权项目</option></select><span class="field-help">项目建档与授权完成后显示可选记录。</span></div><div class="field"><label for="task-type">目标文档</label><select id="task-type"><option value="product-requirement">产品技术要求</option></select></div><div class="field"><label for="task-category">器械类别</label><select id="task-category" required><option value="">从项目记录读取</option></select></div><div class="field"><label for="task-registration">注册类型与环节</label><select id="task-registration" required><option value="">从项目记录读取</option></select></div><div class="field"><label for="task-template">模板版本</label><select id="task-template" required><option value="">请选择适用且已核准的模板</option></select></div><div class="field"><label for="task-owner">责任人</label><select id="task-owner" required><option value="">请选择获授权人员</option></select></div><div class="field wide"><label for="task-sources">资料和知识版本</label><select id="task-sources" required><option value="">请选择本项目适用且已核准的版本</option></select><span class="field-help">每项选择须记录版本、适用范围与来源状态。</span></div><div class="field wide"><label for="task-purpose">任务目标与输入范围</label><textarea id="task-purpose" required placeholder="描述目标、输入边界及需要人工核验的内容"></textarea></div></div><div class="actions" style="margin-top:18px"><button class="btn" data-go="S06">返回任务列表</button><button class="btn primary" type="button" id="task-check">核查任务输入</button></div></div><div class="card pad"><h2>缺项与处理入口</h2><div class="checklist"><div><span>项目产品属性与注册路径</span><button class="btn small" data-go="S18">查看建档</button></div><div><span>已核准模板、资料、法规与规则</span><button class="btn small" data-go="S04">查看资料</button></div><div><span>责任人与项目动作授权</span><button class="btn small" data-go="S02">查看授权</button></div><div><span>模型连接与调用预算</span><button class="btn small" data-go="S13">查看配置</button></div></div><div class="alert" id="task-check-result" role="status" aria-live="polite" style="margin-top:14px">输入未完成。核查后逐项列出缺少的资料和授权；服务端确认前不生成任务编号。</div></div></div></section>
+
+
+      <section class="screen" id="S09"><div class="breadcrumb">任务 / 长文工作区</div><div class="heading"><div><h1>长文任务工作区</h1><p>章节状态、文稿、来源及检查问题并列呈现。</p></div><div class="actions"><button class="btn" type="button" id="rewrite-preview">查看局部处理范围</button><button class="btn primary" data-go="S12">查看总稿</button></div></div><div class="screen-content"><div class="alert info notice" id="run-state">当前步骤：等待获授权任务、章节计划与资料。尚无实际运行记录。</div><div class="card pad" style="margin-bottom:16px"><h2>运行与恢复</h2><div class="grid cols-4"><div><span class="overline">最近完成步骤</span><p>—</p></div><div><span class="overline">已完成章节</span><p>—</p></div><div><span class="overline">实际费用</span><p>—</p></div><div><span class="overline">停止原因</span><p>等待任务输入</p></div></div><div class="inline-actions"><button class="btn primary" type="button" disabled title="需要获授权任务和已确认章节计划">启动运行</button><button class="btn" type="button" disabled title="没有可继续的任务尝试">继续处理</button><button class="btn" data-go="S07">补充输入</button><button class="btn" data-go="S08">查看章节计划</button></div><p class="blocked-reason">证据不足、模型超时、预算耗尽或输入超限时，应保留已完成章节、来源、人工决定和实际费用，并显示对应处理入口。</p></div><div class="review-layout"><div class="card"><div class="card pad" style="border:0;box-shadow:none"><h2>章节目录</h2></div><button class="section-item selected" type="button" data-section="章节目标" aria-current="true">01 章节目标 <span class="status warn">证据待补</span></button><button class="section-item" type="button" data-section="字段与方法">02 字段与方法 <span class="status neutral">未运行</span></button><button class="section-item" type="button" data-section="检查与审查">03 检查与审查 <span class="status neutral">未运行</span></button></div><div class="card pad"><div class="row" style="display:flex;justify-content:space-between"><div><span class="overline" id="chapter-position">章节 01</span><h2 id="chapter-title">章节目标</h2></div><span class="status warn">待补证据</span></div><div class="document"><div class="blank" id="chapter-empty">这里显示由获授权资料支持的章节草稿。当前没有真实模板、项目资料或模型结果。</div><p class="muted small">每项可核查事实关联原文、文件版本及定位；修改后须显示保存状态和新版本。</p></div><div class="actions"><button class="btn" data-go="S10">查看来源</button><button class="btn" data-go="S11">查看问题</button><button class="btn primary" type="button" disabled title="当前没有可修改的已保存章节">修改章节</button></div></div><div class="card pad"><h2>证据与问题</h2><div class="list"><div class="list-item"><strong>来源定位</strong><p>等待获授权文件、版本和页码。</p><button class="btn small" data-go="S10">打开来源面板</button></div><div class="list-item"><strong>严格字段</strong><p>权威来源、值、单位和条件待核验。</p><span class="status warn">待核验</span></div><div class="list-item"><strong>检查问题</strong><p>真实检查完成后显示类别、位置和责任人。</p><button class="btn small" data-go="S11">打开问题面板</button></div></div></div></div></div></section>
+
+
+      <section class="screen" id="S11"><div class="breadcrumb">任务 / 问题与人工审查</div><div class="heading"><div><h1>问题处理与章节审查</h1><p>查看位置、依据、责任人和历史记录后填写人工决定。</p></div><div class="actions"><button class="btn" data-go="S09">返回章节</button><button class="btn primary" type="button" disabled title="需要可审查章节、来源和已处理问题">提交审查</button></div></div><div class="screen-content split"><div class="card pad"><div class="toolbar"><select aria-label="问题类别"><option>全部类别</option><option>来源</option><option>严格字段</option><option>模板完整性</option></select><select aria-label="处理状态"><option>全部状态</option><option>待处理</option><option>已处理</option></select></div><div class="review-state">尚无已运行任务和检查问题。实际问题应显示级别、正文位置、两侧依据、责任人、处理记录及所属章节版本。</div><div class="inline-actions" style="margin-top:14px"><button class="btn" data-go="S10">查看来源核验</button><button class="btn" data-go="S09">返回文稿</button></div></div><div class="card pad"><h2>人工审查决定</h2><div class="checklist"><div><span>章节与版本</span><span>未选择</span></div><div><span>来源支持关系</span><span>待核验</span></div><div><span>关键问题处理</span><span>待检查</span></div></div><div class="actions" style="margin-top:16px"><button class="btn" data-modal="请求补充证据" data-review-action="evidence">请求补证</button><button class="btn danger" data-modal="退回章节" data-review-action="return">退回</button><button class="btn primary" type="button" disabled title="尚无已核验来源和可审查章节">确认章节</button></div><p class="blocked-reason">确认章节要求来源有效、严格字段一致且关键问题已处理。退回须记录原因、目标章节和接收人；处理记录在正式系统中关联原版本与新版本。</p></div></div></section>
+
+
+      <section class="screen" id="S13"><div class="breadcrumb">管理 / Agent 与模型</div><div class="heading"><div><h1>Agent 与模型管理</h1><p>登记用途、输入输出、授权企业、模型连接、预算、版本与调用记录。</p></div><div class="actions"><button class="btn primary" data-modal="新建 Agent 配置" data-prototype-form="agent">新建 Agent</button></div></div><div class="screen-content split"><div class="card pad"><h2>Agent 版本</h2><div class="table-wrap"><table class="table"><thead><tr><th>名称与类别</th><th>配置版本</th><th>可用企业</th><th>模型连接</th><th>预算</th><th>发布状态</th><th>操作</th></tr></thead><tbody><tr><td class="table-empty" colspan="7">尚无已登记的 Agent 版本。草稿需通过连接验证、评测与授权后才能发布。</td></tr></tbody></table></div><div class="inline-actions" style="margin-top:14px"><button class="btn" data-go="S15">查看版本评测</button><button class="btn" data-go="S02">查看授权</button></div></div><div class="card pad"><h2>发布与调用检查</h2><div class="checklist"><div><span>用途、输入输出与规则版本</span><span>待登记</span></div><div><span>模型连接与许可范围</span><span>待验证</span></div><div><span>获授权企业及调用预算</span><span>待确认</span></div><div><span>真实样本评测与批准人</span><span>待确认</span></div></div><div class="review-state">实际调用须记录任务、Agent 与模型配置版本、Token 用量、成本依据、失败步骤和恢复结果。</div><p class="blocked-reason">尚无通过检查的版本，当前没有发布入口或正式任务选择项。</p></div></div></section>
+
+
+      <section class="screen" id="S15"><div class="breadcrumb">评测与运营 / 审计</div><div class="heading"><div><h1>评测、运营与审计</h1><p>在同一组获授权任务、知识版本和评分规则下比较 Agent 版本。</p></div><div class="actions"><button class="btn" type="button" disabled title="尚无可导出的真实评测记录">导出记录</button></div></div><div class="screen-content"><div class="alert info notice">INSUFFICIENT_EVIDENCE：尚无真实样本、评分规则与审查记录，不能显示质量改善结论。</div><div class="card pad"><div class="toolbar"><select aria-label="器械类别"><option>器械类别</option></select><select aria-label="注册环节"><option>注册环节</option></select><select aria-label="Agent 版本"><option>Agent 版本</option></select><select aria-label="评分规则版本"><option>评分规则版本</option></select><button class="btn" data-feedback="当前没有可比较的获授权真实任务与评分记录。">查询</button></div><div class="grid cols-4"><div><span class="overline">真实样本数</span><div class="metric">—</div><span class="muted small">显示样本范围及统计分母</span></div><div><span class="overline">人工采纳</span><div class="metric">—</div><span class="muted small">依据审查记录</span></div><div><span class="overline">退回与误报</span><div class="metric">—</div><span class="muted small">依据问题明细</span></div><div><span class="overline">调用费用</span><div class="metric">—</div><span class="muted small">依据原始调用</span></div></div></div><div class="card pad" style="margin-top:16px"><h2>版本比较与原始记录</h2><div class="table-wrap"><table class="table"><thead><tr><th>Agent 版本</th><th>任务与知识版本</th><th>评分规则</th><th>样本数</th><th>评分人</th><th>采纳与退回</th><th>成本</th><th>原始记录</th></tr></thead><tbody><tr><td class="table-empty" colspan="8">尚无可比较的真实任务。获得授权样本后，逐项显示分子、分母及任务明细。</td></tr></tbody></table></div><p class="muted small">审计查询须按企业、项目、人员和时间限制范围，并关联任务版本、人工决定、调用与访问拒绝事件。</p></div></div></section>
+
+      <section class="screen" id="S16"><div class="breadcrumb">管理 / 企业空间与连接</div><div class="heading"><div><h1>企业空间与系统连接</h1><p>展示服务状态、企业数据范围、外部连接授权与验证结果。</p></div><div class="actions"><button class="btn primary" data-modal="配置系统连接">配置连接</button></div></div><div class="screen-content split"><div class="card pad"><h2>企业空间</h2><div class="list"><div class="list-item"><strong>企业身份</strong><p>等待企业服务资料。</p><span class="status neutral">待启用</span></div><div class="list-item"><strong>数据与导出范围</strong><p>按企业与项目授权分别核验。</p><span class="status warn">待确认</span></div></div></div><div class="card pad"><h2>外部连接</h2><div class="alert">客户现有系统接口、账号映射和文档归属规则尚未提供，连接状态为 `BLOCKED`。</div><p class="muted small">验证成功后显示同步范围、最近验证时间及错误记录。</p></div></div></section>
+
+      <section class="screen" id="S17"><div class="breadcrumb">访问与恢复</div><div class="heading"><div><h1>访问受限</h1><p>直接链接、会话失效及越权操作统一返回安全入口。</p></div></div><div class="screen-content card pad" style="max-width:680px;margin:auto;text-align:center;padding:35px"><span class="status error">权限不足</span><h2 style="margin-top:18px">当前身份无法查看此内容</h2><p class="muted">请重新登录、切换获授权企业，或联系本企业管理员申请相应项目动作。页面不展示受保护对象名称和内容。</p><div class="actions" style="justify-content:center"><button class="btn" data-feedback="设计演示：身份服务尚未连接。">重新登录</button><button class="btn primary" data-go="S01">返回工作台</button></div></div></section>
+
+      <div class="card state-panel" id="state-panel" role="status" aria-live="polite"><div class="state-mark" id="state-mark"></div><h2 id="state-title"></h2><p id="state-description"></p><div class="actions" style="justify-content:center"><button class="btn" id="state-retry" type="button">返回常规状态</button><button class="btn primary" data-go="S01" type="button">返回工作台</button></div></div>
+    </main>
+  </div>
+</div>
+<div class="bottom-feedback" id="feedback" role="status" aria-live="polite"></div>
+<div class="modal-wrap" id="modal-wrap" role="presentation"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title"><h2 id="modal-title"></h2><p id="modal-description">这里展示确认内容、当前版本、影响范围与必填理由。设计稿没有连接服务端，确认操作不会保存或签发。</p><div class="form two" id="modal-fields" hidden></div><div class="field" id="modal-reason-field"><label for="modal-reason">处理理由</label><textarea id="modal-reason" style="width:100%;min-height:75px;border:1px solid var(--line);border-radius:4px;padding:10px" placeholder="在真实系统中按权限和动作要求填写"></textarea></div><div class="actions"><button class="btn" id="modal-close" type="button">返回</button><button class="btn primary" id="modal-confirm" type="button">查看设计反馈</button></div></div></div>
+<script>
+  const screens = [...document.querySelectorAll('.screen')];
+  screens.forEach(screen=>{screen.querySelector('.breadcrumb')?.remove();screen.querySelectorAll('.heading > div > p').forEach(description=>description.remove())});
+  const workspace = document.getElementById('content');
+  const feedback = document.getElementById('feedback');
+  const modal = document.getElementById('modal-wrap');
+  const coreByScreen = {S01:'S01',S03:'S03',S04:'S04',S05:'S04',S06:'S03',S07:'S03',S08:'S03',S09:'S03',S10:'S03',S11:'S03',S12:'S03',S13:'S13',S15:'S15',S18:'S03'};
+  const routeByScreen = {S01:'workbench',S02:'system-management',S03:'projects',S04:'knowledge',S05:'knowledge-detail',S06:'tasks',S07:'task-create',S08:'chapter-plan',S09:'document-workspace',S10:'source-review',S11:'human-review',S12:'signing',S13:'agents',S15:'evaluation',S16:'enterprise-connections',S17:'access-restricted',S18:'project-detail'};
+  document.querySelector('#S13 h1').textContent='Agent 管理';
+  document.querySelector('#S15 h1').textContent='评测与运营';
+  const screenByRoute = Object.fromEntries(Object.entries(routeByScreen).map(([screen,route])=>[route,screen]));
+  const adminModules = {
+    users:{title:'用户管理',description:'配置系统用户、所属部门、岗位与角色。',columns:['用户账号','姓名','部门','岗位','角色','状态','创建时间','操作'],primary:'新增用户',scope:'企业用户和项目动作分别授权；停用后重新核验访问权限。'},
+    roles:{title:'角色管理',description:'维护菜单权限、按钮权限和数据范围。',columns:['角色名称','权限标识','数据范围','状态','更新时间','操作'],primary:'新增角色',scope:'企业角色与项目授权分别核验；角色调整不能扩大已有项目范围。'},
+    menus:{title:'菜单管理',description:'维护目录、菜单和按钮权限标识。',columns:['菜单名称','类型','上级菜单','权限标识','排序','状态','操作'],primary:'新增菜单',scope:'目录、页面与按钮权限分别配置；未授权菜单不向用户展示。'},
+    departments:{title:'部门管理',description:'维护企业、部门和小组的层级关系。',columns:['部门名称','上级部门','负责人','排序','状态','操作'],primary:'新增部门',scope:'部门数据范围由授权角色决定，企业间资料保持隔离。'},
+    posts:{title:'岗位管理',description:'配置系统用户担任的岗位。',columns:['岗位名称','岗位编码','所属部门','排序','状态','操作'],primary:'新增岗位',scope:'注册、研发、知识审核与签发岗位的具体动作仍需企业确认。'},
+    dictionaries:{title:'字典管理',description:'维护常用选项与对应值。',columns:['字典名称','字典类型','状态','更新时间','操作'],primary:'新增字典',scope:'业务字段的适用范围与历史版本须单独核验。'},
+    parameters:{title:'参数管理',description:'维护可配置的系统参数。',columns:['参数名称','参数键名','参数值','状态','更新时间','操作'],primary:'新增参数',scope:'模型预算与签发规则应保留独立授权及版本记录。'},
+    notices:{title:'通知公告',description:'维护系统通知、公告和发布状态。',columns:['标题','类型','发布状态','发布人','发布时间','操作'],primary:'新增公告',scope:'公告仅向获授权企业和人员显示。'},
+    online:{title:'在线用户',description:'查看当前会话与最近活动。',columns:['账号','企业','登录时间','最近活动','会话状态','操作'],scope:'会话查询与终止仅向获授权管理人员开放。',monitor:true},
+    jobs:{title:'定时任务',description:'维护调度任务及执行结果。',columns:['任务名称','调用目标','执行策略','状态','最近执行','操作'],primary:'新增任务',scope:'调度动作须限定在批准的企业与服务范围。',monitor:true},
+    operationLogs:{title:'操作日志',description:'查询操作结果与异常记录。',columns:['操作模块','操作人','企业','操作结果','时间','详情'],scope:'仅显示当前权限允许查询的操作记录。',monitor:true},
+    loginLogs:{title:'登录日志',description:'查询登录成功与异常记录。',columns:['登录账号','来源地址','结果','登录时间','详情'],scope:'登录来源与身份信息按最少必要范围展示。',monitor:true},
+    services:{title:'服务监控',description:'查看服务运行状态和资源信息。',columns:['服务名称','运行状态','资源摘要','最近检查','详情'],scope:'运行信息仅向平台管理人员开放。',monitor:true},
+    cache:{title:'缓存监控',description:'查询缓存信息与命令统计。',columns:['缓存名称','数量','状态','最近检查','详情'],scope:'缓存查询不能暴露其他企业的业务内容。',monitor:true},
+    connections:{title:'连接池监视',description:'查看数据库连接与运行状态。',columns:['数据源','连接状态','活跃连接','最近检查','详情'],scope:'连接信息仅向平台管理人员开放。',monitor:true},
+    codegen:{title:'代码生成',description:'从已核准数据表生成待审工程文件。',columns:['数据表','业务名称','生成状态','更新时间','操作'],primary:'导入数据表',scope:'生成代码属于开发工具，不能直接修改正式业务系统。'},
+    apis:{title:'系统接口',description:'查看服务接口文档与授权说明。',columns:['接口模块','请求路径','授权范围','状态','详情'],scope:'接口文档按管理权限展示，真实请求仍需服务端核验。'},
+    builder:{title:'表单构建器',description:'配置内部管理表单及字段。',columns:['表单名称','使用范围','维护人','状态','更新时间','操作'],primary:'创建表单',scope:'正式业务表单须经过需求、权限和版本审查。'}
+  };
+  const adminFields = {
+    users:['登录账号','用户姓名','所属部门','岗位','角色','项目范围','状态'],
+    roles:['角色名称','权限标识','菜单权限','数据范围','状态'],
+    menus:['菜单名称','上级菜单','菜单类型','路由地址','权限标识','排序','状态'],
+    departments:['部门名称','上级部门','负责人','排序','状态'],
+    posts:['岗位名称','岗位编码','排序','状态'],
+    dictionaries:['字典名称','字典类型','状态'],
+    parameters:['参数名称','参数键名','参数值','状态'],
+    notices:['公告标题','公告类型','公告内容','状态'],
+    jobs:['任务名称','任务分组','调用目标','执行表达式','状态'],
+    codegen:['数据源','数据表','业务名称','模块名称'],
+    builder:['表单名称','使用范围','字段说明']
+  };
+  const knowledgeCategories = {
+    project:{empty:'暂无获授权项目资料。上传并核准后，此处显示资料记录。',action:'上传项目资料'},
+    regulations:{empty:'暂无已核准法规与标准。核验原文及适用范围后，此处显示版本记录。',action:'登记法规与标准'},
+    templates:{empty:'暂无已核准模板。核对目录、来源要求与适用范围后，此处显示模板记录。',action:'新增模板'},
+    rules:{empty:'暂无已核准检查规则。确认适用范围及核准人后，此处显示规则记录。',action:'新增规则'}
+  };
+  const prototypeForms = {
+    project:[
+      {name:'项目名称',type:'text'},{name:'产品名称',type:'text'},{name:'器械类别',type:'select',options:['第二类','第三类']},
+      {name:'境内或进口',type:'select',options:['境内','进口']},{name:'注册类型',type:'text'},
+      {name:'注册环节',type:'text'},{name:'项目负责人',type:'text'}
+    ],
+    'knowledge-project':[
+      {name:'资料文件',type:'file'},{name:'文件类型',type:'text'},{name:'文件来源',type:'text'},
+      {name:'资料版本',type:'text'},{name:'适用项目',type:'text'},{name:'适用范围',type:'textarea'}
+    ],
+    'knowledge-regulations':[
+      {name:'法规或标准名称',type:'text'},{name:'编号',type:'text'},{name:'发布机关',type:'text'},
+      {name:'原文地址',type:'url'},{name:'发布日期',type:'date'},{name:'实施日期',type:'date'},
+      {name:'版本',type:'text'},{name:'适用范围',type:'textarea'},{name:'适用条款',type:'textarea'}
+    ],
+    'knowledge-templates':[
+      {name:'模板名称',type:'text'},{name:'模板文件',type:'file'},{name:'模板版本',type:'text'},
+      {name:'适用范围',type:'textarea'},{name:'目录与资料来源要求',type:'textarea'}
+    ],
+    'knowledge-rules':[
+      {name:'规则名称',type:'text'},{name:'规则版本',type:'text'},{name:'适用范围',type:'textarea'},
+      {name:'检查内容与核准人',type:'textarea'}
+    ],
+    agent:[
+      {name:'Agent 名称',type:'text'},{name:'类别',type:'text'},{name:'用途',type:'textarea'},
+      {name:'输入与输出',type:'textarea'},{name:'可用企业范围',type:'text'},
+      {name:'模型连接',type:'text'},{name:'调用预算',type:'text'}
+    ],
+    feedback:[
+      {name:'反馈类别',type:'select',options:['知识','检查规则']},{name:'问题位置',type:'text'},
+      {name:'相关来源版本',type:'text'},{name:'建议内容',type:'textarea'}
+    ],
+    review:[{name:'目标章节',type:'text'},{name:'接收人',type:'text'}]
+  };
+  let lastModalTrigger = null;
+  const stateCopy = {
+    loading:['正在读取页面资料','保留页面标题和当前位置，等待服务端返回状态。'],
+    empty:['当前没有可展示内容','显示创建条件、授权范围或补充资料入口。'],
+    error:['页面资料读取失败','保留最近已确认的内容与读取时间，提供重试入口。'],
+    forbidden:['当前权限无法访问','隐藏受保护内容，返回可访问的工作台。'],
+    review:['等待人工核验','展示问题位置、来源版本、责任人及可执行动作。'],
+    complete:['处理记录可查询','展示对象版本、处理人、时间与后续入口；真实结果须从服务端读取。']
+  };
+  const demoProjects = [
+    ['脑电生理监测系统注册资料准备','灵析多导睡眠监测系统','第二类','境内首次注册','active','资料 8 项 · 2 项待审','4 / 5 个环节','2026-09-24'],
+    ['便携式超声诊断设备变更','清澜便携式超声诊断仪','第二类','变更注册','active','资料 11 项 · 1 项待核验','3 / 5 个环节','2026-09-23'],
+    ['手术能量设备注册准备','安衡高频手术设备','第三类','境内首次注册','configuring','资料 4 项 · 待核验','1 / 5 个环节','2026-09-22'],
+    ['呼吸支持设备资料更新','和序无创呼吸机','第二类','延续注册','paused','资料 9 项 · 3 项待审','2 / 5 个环节','2026-09-21'],
+    ['医学影像工作站登记','云栖影像处理工作站','第二类','境内首次注册','active','资料 12 项 · 已核验','5 / 5 个环节','2026-09-20'],
+    ['输注设备产品变更','静澜智能输注泵','第三类','变更注册','configuring','资料 6 项 · 2 项待补','2 / 5 个环节','2026-09-19'],
+    ['监护设备延续注册','澄明多参数监护仪','第二类','延续注册','active','资料 10 项 · 1 项待审','4 / 5 个环节','2026-09-18'],
+    ['体外诊断设备资料准备','知衡免疫分析仪','第二类','境内首次注册','paused','资料 5 项 · 待核验','1 / 5 个环节','2026-09-17'],
+    ['康复训练系统注册项目','步云智能康复训练系统','第二类','境内首次注册','active','资料 13 项 · 已核验','5 / 5 个环节','2026-09-16'],
+    ['内窥镜系统资料更新','镜澄高清内窥镜系统','第三类','变更注册','archived','资料 7 项 · 已归档','5 / 5 个环节','2026-09-15'],
+    ['电生理设备项目资料','脉和电生理记录仪','第二类','境内首次注册','active','资料 8 项 · 1 项待审','3 / 5 个环节','2026-09-14'],
+    ['影像辅助软件资料准备','明图影像辅助软件','第二类','境内首次注册','configuring','资料 3 项 · 待核验','1 / 5 个环节','2026-09-13']
+  ];
+  const demoStatus = {active:['使用中','ok'],configuring:['待配置','warn'],paused:['暂停','neutral'],archived:['归档','neutral'],pending:['待核验','warn'],approved:['演示已核验','ok'],disabled:['已停用','neutral']};
+  function createDemoRow(tbody, values, status='active', actionLabel='查看', destination='S18'){
+    const row=document.createElement('tr');row.dataset.record='';row.dataset.status=status;row.className='demo-record';
+    values.forEach((value,index)=>{
+      const cell=document.createElement('td');
+      if(index===0){const title=document.createElement('strong');title.textContent=value;cell.append(title);const tag=document.createElement('span');tag.className='status info';tag.textContent='设计演示';cell.append(document.createTextNode(' '),tag)}
+      else if(value==='__status__'){const state=demoStatus[status]||['设计演示','info'];const tag=document.createElement('span');tag.className=`status ${state[1]}`;tag.textContent=state[0];cell.append(tag)}
+      else cell.textContent=value;
+      tbody.append(row);row.append(cell);
+    });
+    const action=document.createElement('td');const button=document.createElement('button');button.type='button';button.className='btn small';button.textContent=actionLabel;button.dataset.go=destination;action.append(button);row.append(action);
+    return row;
+  }
+  const projectBody=document.querySelector('#S03 tbody');
+  const projectEmpty=projectBody.querySelector('[data-empty]');
+  demoProjects.forEach(project=>createDemoRow(projectBody,[project[0],project[1],project[2],project[3],'__status__',project[5],project[6],project[7]],project[4],'查看详情','S18'));
+  const projectList=document.querySelector('[data-paged-list="projects"]');
+  projectBody.querySelectorAll('tr[data-record]').forEach((row,index)=>{row.querySelector('[data-go]').dataset.demoProject=String(index)});
+  const knowledgeDemoRows = {
+    project:[['项目基本信息表（演示）','项目资料','设计演示资料集','D-1.2','演示项目范围','approved','2026-09-24'],['产品结构说明（演示）','项目资料','设计演示资料集','D-1.1','产品资料准备','pending','2026-09-23'],['项目职责分工表（演示）','项目资料','设计演示资料集','D-1.0','项目协作范围','approved','2026-09-22'],['设计输入清单（演示）','项目资料','设计演示资料集','D-0.9','研发资料整理','pending','2026-09-21']],
+    regulations:[['法规来源登记项（演示）','来源登记','公开来源占位记录','D-1.0','来源核查流程示范','pending','2026-09-24'],['标准适用性记录（演示）','适用性记录','设计演示资料集','D-1.0','适用性审核演示','pending','2026-09-23'],['法规跟踪任务（演示）','版本跟踪','设计演示资料集','D-0.8','版本跟踪演示','disabled','2026-09-20']],
+    templates:[['注册文档目录模板（演示）','模板','设计演示资料集','D-1.0','章节计划演示','approved','2026-09-24'],['产品技术要求模板（演示版）','模板','设计演示资料集','D-0.9','任务配置演示','pending','2026-09-22'],['资料核验表模板（演示）','模板','设计演示资料集','D-0.8','资料审查演示','approved','2026-09-19']],
+    rules:[['来源定位检查规则（演示）','检查规则','设计演示资料集','D-1.0','来源检查演示','approved','2026-09-24'],['严格字段核对清单（演示）','检查规则','设计演示资料集','D-0.9','字段检查演示','pending','2026-09-22'],['章节完整性检查规则（演示）','检查规则','设计演示资料集','D-0.8','章节检查演示','approved','2026-09-18']]
+  };
+  Object.entries(knowledgeDemoRows).forEach(([category,records])=>records.forEach(record=>{const row=createDemoRow(document.querySelector('#S04 tbody'),record.slice(0,5).concat('__status__',record[6]),record[5],'查看详情','S05');row.dataset.category=category;}));
+  projectEmpty.hidden=true;
+  document.querySelector('#S04 [data-empty]').hidden=true;
+  const tasks=[['演示任务 · 产品技术要求','产品技术要求','待人工审查','林知远','章节生成与来源核验','2','S09'],['演示任务 · 资料目录','注册文档目录','运行中','周予安','章节计划确认','0','S08'],['演示任务 · 变更说明','变更说明草稿','待补资料','沈知微','来源定位核查','1','S10'],['演示任务 · 总稿复核','注册资料总稿','已退回','顾明川','人工意见处理','3','S11']];
+  const taskBody=document.querySelector('#S06 tbody');taskBody.replaceChildren();
+  tasks.forEach(([name,type,status,owner,phase,issues,screen])=>createDemoRow(taskBody,[name,type,status,owner,phase,issues],status==='运行中'?'active':status==='待人工审查'?'pending':'paused','打开任务',screen));
+  const staticDemoTables=[
+    ['#S13 table tbody',[['注册文档 Agent','D-1.4','设计演示企业','演示连接','12 演示单位/次','__status__','查看版本']], 'S15'],
+    ['#S15 table tbody',[['注册文档 Agent D-1.4 · 第二类器械（演示）','首次注册 · 演示任务集 D-1.0','规则集 D-1.0','12','演示审查员','8 采纳 / 3 退回','0.42 演示单位','查看演示记录']], 'S11']
+  ];
+  staticDemoTables.forEach(([selector,records,destination])=>{const body=document.querySelector(selector);if(!body)return;body.replaceChildren();records.forEach(record=>createDemoRow(body,record.slice(0,-1), 'pending',record.at(-1),destination))});
+  function setupPagedList(root){
+    const query=root.querySelector('[data-list-query]');
+    const status=root.querySelector('[data-list-status]');
+    const size=root.querySelector('[data-page-size]');
+    const previous=root.querySelector('[data-page-previous]');
+    const next=root.querySelector('[data-page-next]');
+    const empty=root.querySelector('[data-empty]');
+    let page=1;
+    function render(){
+      const rows=[...root.querySelectorAll('tbody tr[data-record]')];
+      const term=query.value.trim().toLocaleLowerCase();
+      const filtered=rows.filter(row=>(!root.dataset.activeCategory||row.dataset.category===root.dataset.activeCategory)&&(!root.dataset.activeModule||row.dataset.module===root.dataset.activeModule)&&(!status.value||row.dataset.status===status.value)&&row.textContent.toLocaleLowerCase().includes(term));
+      const pageSize=Number(size.value);
+      const pages=Math.max(1,Math.ceil(filtered.length/pageSize));
+      page=Math.min(page,pages);
+      rows.forEach(row=>{row.hidden=true});
+      filtered.slice((page-1)*pageSize,page*pageSize).forEach(row=>{row.hidden=false});
+      empty.hidden=filtered.length>0;
+      root.querySelector('[data-total]').textContent=`共 ${filtered.length} 条`;
+      root.querySelector('[data-page-info]').textContent=`第 ${page} / ${pages} 页`;
+      previous.disabled=page<=1;
+      next.disabled=page>=pages;
+    }
+    root.querySelector('[data-list-search]').addEventListener('click',()=>{page=1;render()});
+    root.querySelector('[data-list-reset]').addEventListener('click',()=>{query.value='';status.value='';page=1;render()});
+    query.addEventListener('keydown',event=>{if(event.key==='Enter'){page=1;render()}});
+    status.addEventListener('change',()=>{page=1;render()});
+    size.addEventListener('change',()=>{page=1;render()});
+    previous.addEventListener('click',()=>{page-=1;render()});
+    next.addEventListener('click',()=>{page+=1;render()});
+    root.refreshPagedList=()=>{page=1;render()};
+    render();
+  }
+  document.querySelectorAll('[data-paged-list]').forEach(setupPagedList);
+  const adminList=document.querySelector('[data-paged-list="admin"]');
+  function showAdminModule(key){
+    const module=adminModules[key];
+    document.querySelectorAll('[data-admin-module]').forEach(button=>{if(button.dataset.adminModule===key&&document.getElementById('S02').classList.contains('active'))button.setAttribute('aria-current','page');else button.removeAttribute('aria-current')});
+    document.getElementById('admin-title').textContent=module.title;
+    const primary=document.getElementById('admin-primary');
+    primary.hidden=!module.primary;
+    if(module.primary){primary.textContent=module.primary;primary.dataset.modal=module.primary;primary.dataset.adminForm=key}
+    document.getElementById('admin-monitor').classList.toggle('visible',Boolean(module.monitor));
+    const header=document.getElementById('admin-columns');
+    header.replaceChildren(...module.columns.map(label=>{const cell=document.createElement('th');cell.textContent=label;return cell}));
+    adminList.querySelector('[data-empty] td').colSpan=module.columns.length;
+    adminList.querySelector('[data-list-query]').placeholder=`搜索${module.title}记录`;
+    adminList.querySelector('[data-list-query]').value='';
+    adminList.querySelector('[data-list-status]').value='';
+    adminList.dataset.activeModule=key;
+    adminList.querySelectorAll('tbody tr[data-record]').forEach(row=>row.remove());
+    const adminBody=adminList.querySelector('tbody');
+    Array.from({length:14},(_,index)=>{
+      const status=index===3?'pending':'active';
+      const values=module.columns.slice(0,-1).map((column,columnIndex)=>{
+        if(column.includes('状态')||column.includes('结果'))return '__status__';
+        if(column.includes('时间')||column.includes('更新')||column.includes('检查')||column.includes('执行'))return `2026-09-${String(24-index).padStart(2,'0')} 10:${String(8+index).padStart(2,'0')}`;
+        if(column.includes('账号'))return `demo.user${String(index+1).padStart(2,'0')}`;
+        if(column.includes('姓名')||column.includes('负责人')||column.includes('维护人'))return ['林知远','周予安','沈知微','顾明川'][index%4];
+        if(column.includes('部门'))return ['注册事务部','研发支持组','质量管理组'][index%3];
+        if(column.includes('角色'))return ['注册审查员','项目负责人','知识审核员'][index%3];
+        if(column.includes('权限')||column.includes('范围')||column.includes('授权'))return '演示范围 · 项目级';
+        if(column.includes('名称')||column.includes('标题')||column.includes('模块')||column.includes('数据表'))return `${module.title}演示记录 ${String(index+1).padStart(2,'0')}`;
+        return `演示项 ${columnIndex+1}`;
+      });
+      const row=createDemoRow(adminBody,values,status,'查看记录','S02');row.dataset.module=key;
+      const detail=row.querySelector('[data-go]');detail.removeAttribute('data-go');detail.dataset.demoRecord=`${module.title}演示记录`;detail.dataset.modal=detail.dataset.demoRecord;
+    });
+    adminList.refreshPagedList();
+  }
+  document.querySelectorAll('[data-admin-module]').forEach(button=>button.addEventListener('click',()=>{showAdminModule(button.dataset.adminModule);showScreen('S02')}));
+  showAdminModule('users');
+  const knowledgeList=document.querySelector('[data-paged-list="knowledge"]');
+  let selectedKnowledgeRow;
+  function selectKnowledgeRow(row){
+    selectedKnowledgeRow=row;
+    knowledgeList.querySelectorAll('tr[data-record]').forEach(item=>item.classList.toggle('selected-record',item===row));
+    const cells=[...row.cells].map(cell=>cell.textContent.replace('设计演示','').trim());
+    const state=demoStatus[row.dataset.status];
+    document.getElementById('knowledge-preview-title').textContent=cells[0];
+    const noteHeading=document.getElementById('knowledge-note-heading');
+    if(noteHeading)noteHeading.textContent=cells[0].replace('（演示）','');
+    const noteBody=document.getElementById('knowledge-note-body');
+    if(noteBody)noteBody.textContent=`${cells[0]}来自${cells[2]}，版本为${cells[3]}，适用范围为${cells[4]}。当前内容仅供设计演示；正式页面应显示获授权原文与可核查位置。`;
+    document.getElementById('knowledge-preview-version').textContent=cells[3];
+    document.getElementById('knowledge-preview-source').textContent=cells[2];
+    document.getElementById('knowledge-preview-scope').textContent=cells[4];
+    document.getElementById('knowledge-preview-date').textContent=cells[6];
+    const previewStatus=document.getElementById('knowledge-preview-status');
+    previewStatus.textContent=state[0];previewStatus.className=`status ${state[1]}`;
+    document.getElementById('knowledge-detail-title').textContent=cells[0];
+    document.getElementById('knowledge-paper-title').textContent=cells[0].replace('（演示）','');
+    document.getElementById('knowledge-detail-version').textContent=cells[3];
+    document.getElementById('knowledge-paper-version').textContent=cells[3];
+    document.getElementById('compare-current-version').textContent=cells[3];
+    document.getElementById('knowledge-detail-source').textContent=cells[2];
+    document.getElementById('knowledge-detail-scope').textContent=cells[4];
+    const detailStatus=document.getElementById('knowledge-detail-status');
+    detailStatus.textContent=state[0];detailStatus.className=`status ${state[1]}`;
+    document.querySelector('.knowledge-nav-meta strong:last-child').textContent=cells[2];
+    const context={
+      project:{location:'第 3 页 / 产品信息段落',description:'项目资料的演示内容用于查看引用位置。正式使用时应打开获授权原文，并记录页码与审查判断。',links:[['脑电生理监测系统','S18'],['产品技术要求 · 章节生成','S09'],['来源核验 · 第 3 页','S10']]},
+      regulations:{location:'来源登记 / 适用性记录',description:'此处仅展示来源登记与适用性核查流程。正式法规内容应读取获授权原文、发布信息和适用版本。',links:[['来源与适用性核验','S10'],['项目资料范围','S18'],['文档任务','S06']]},
+      templates:{location:'目录结构 / 章节要求',description:'模板演示内容用于查看章节、必填信息与引用要求。正式任务应绑定已核准模板版本。',links:[['章节计划','S08'],['注册文档任务','S09'],['项目资料','S04']]},
+      rules:{location:'检查项 / 适用范围',description:'规则演示内容用于查看检查对象、判定方式与适用范围。正式规则应经过知识审核。',links:[['来源核验','S10'],['章节审查','S11'],['项目任务','S06']]}
+    }[row.dataset.category];
+    document.querySelector('.paper-toolbar>span:first-child').textContent=`内容预览 · ${context.location}`;
+    document.querySelector('.paper-placeholder strong').textContent=`资料定位 · ${context.location}`;
+    document.querySelector('.paper-placeholder p').textContent=context.description;
+    for(const selector of ['.knowledge-preview .knowledge-relations button','.knowledge-review-aside .knowledge-relations button']){
+      document.querySelectorAll(selector).forEach((button,index)=>{button.textContent=`↗ ${context.links[index][0]}`;button.dataset.go=context.links[index][1]});
+    }
+  }
+  function showKnowledgeCategory(key){
+    document.querySelectorAll('[data-knowledge-category]').forEach(button=>{const selected=button.dataset.knowledgeCategory===key;button.classList.toggle('selected',selected);button.setAttribute('aria-pressed',String(selected))});
+    document.querySelectorAll('[data-knowledge-view]').forEach(button=>button.classList.remove('selected'));
+    document.getElementById('knowledge-view-title').textContent={project:'项目资料',regulations:'法规与标准',templates:'模板',rules:'检查规则'}[key];
+    document.getElementById('knowledge-empty').textContent=knowledgeCategories[key].empty;
+    const create=document.getElementById('knowledge-create');
+    create.textContent=knowledgeCategories[key].action;
+    create.dataset.modal=knowledgeCategories[key].action;
+    create.dataset.prototypeForm=`knowledge-${key}`;
+    knowledgeList.dataset.activeCategory=key;
+    knowledgeList.querySelector('[data-list-query]').value='';
+    knowledgeList.querySelector('[data-list-status]').value='';
+    knowledgeList.refreshPagedList();
+    selectKnowledgeRow(knowledgeList.querySelector(`tr[data-record][data-category="${key}"]`));
+  }
+  document.querySelectorAll('[data-knowledge-category]').forEach(button=>button.addEventListener('click',()=>showKnowledgeCategory(button.dataset.knowledgeCategory)));
+  document.querySelectorAll('[data-knowledge-view]').forEach(button=>button.addEventListener('click',()=>{
+    document.querySelectorAll('[data-knowledge-category]').forEach(item=>{item.classList.remove('selected');item.setAttribute('aria-pressed','false')});
+    document.querySelectorAll('[data-knowledge-view]').forEach(item=>item.classList.toggle('selected',item===button));
+    const view=button.dataset.knowledgeView;
+    document.getElementById('knowledge-view-title').textContent={pending:'待核验资料',approved:'已核准资料',all:'全部资料'}[view];
+    knowledgeList.dataset.activeCategory='';
+    knowledgeList.querySelector('[data-list-query]').value='';
+    knowledgeList.querySelector('[data-list-status]').value=view==='all'?'':view;
+    knowledgeList.refreshPagedList();
+    const visible=knowledgeList.querySelector('tr[data-record]:not([hidden])');
+    if(visible)selectKnowledgeRow(visible);
+  }));
+  knowledgeList.querySelector('tbody').addEventListener('click',event=>{const row=event.target.closest('tr[data-record]');if(row)selectKnowledgeRow(row)});
+  const knowledgeSections={overview:['资料概览','核对资料名称、来源、版本与项目适用范围，确认资料可供任务引用。'],source:['原文定位','查看当前资料的来源位置。正式资料须保留可打开的文件位置。'],versions:['版本记录','比较当前版本与历史演示版本，查看变化字段与受影响的任务。'],relations:['关联与引用','资料关联项目、文档任务和来源核验结果。更新版本时需要查看受影响内容。'],review:['核准条件','核验原始来源、版本、适用项目、关联任务并记录人工决定。']};
+  const versionComparison=document.createElement('div');
+  versionComparison.className='version-compare';versionComparison.hidden=true;
+  versionComparison.innerHTML='<div><span>历史演示版本</span><strong>D-1.1</strong><p>适用范围等待补充</p></div><div><span>当前演示版本</span><strong id="compare-current-version">D-1.2</strong><p>新增项目适用范围说明</p></div><p>影响：使用该资料的任务需要核验引用位置与适用范围。此处展示比较界面，不代表真实版本差异。</p>';
+  document.querySelector('.knowledge-section-panel').append(versionComparison);
+  document.querySelectorAll('[data-knowledge-section]').forEach(button=>button.addEventListener('click',()=>{
+    const key=button.dataset.knowledgeSection;
+    document.querySelectorAll('.knowledge-detail-nav [data-knowledge-section]').forEach(item=>item.classList.toggle('selected',item.dataset.knowledgeSection===key));
+    document.getElementById('knowledge-section-title').textContent=knowledgeSections[key][0];
+    document.getElementById('knowledge-section-copy').textContent=knowledgeSections[key][1];
+    versionComparison.hidden=key!=='versions';
+  }));
+  showKnowledgeCategory('project');
+  const agentFlow=[
+    {screen:'S07',title:'创建任务',subtitle:'默认计划与资料'},
+    {screen:'S09',title:'撰写与核验',subtitle:'正文与来源'},
+    {screen:'S11',title:'审查与签发',subtitle:'批注与人工决定'}
+  ];
+  document.querySelectorAll('#S07,#S09,#S11').forEach(screen=>{
+    const stepper=document.createElement('nav');stepper.className='agent-stepper';stepper.setAttribute('aria-label','注册文档 Agent 处理步骤');
+    agentFlow.forEach((step,index)=>{const button=document.createElement('button');button.type='button';button.className='agent-step';button.dataset.go=step.screen;button.dataset.agentStep=step.screen;button.innerHTML=`<span class="agent-step-number">${index+1}</span><span class="agent-step-title">${step.title}<span class="agent-step-subtitle">${step.subtitle}</span></span>`;stepper.append(button)});
+    screen.querySelector('.screen-content').before(stepper);
+  });
+  const agentHero=document.createElement('section');agentHero.className='agent-hero';agentHero.setAttribute('aria-label','注册文档 Agent 演示介绍');
+  agentHero.innerHTML='<div class="agent-hero-copy"><div class="agent-hero-kicker"><span class="status info">DESIGN DEMO</span><span>REGULATORY DOCUMENT AGENT</span></div><h2>注册文档 Agent</h2><p>系统预设章节和资料范围；授权人员在正文中核验来源、修改内容并完成审查。</p><div class="agent-hero-meta"><span class="status neutral">流程 3 步</span><span class="status neutral">正文可编辑</span><span class="status neutral">演示版本 D-1.4</span></div></div><div class="agent-hero-mark"><img src="ui-delivery/assets/2x/medical-agent-brand.png" alt="医疗器械 Agent 标识"></div>';
+  document.querySelector('#S07 .agent-stepper').before(agentHero);
+  const completedAgentSteps=new Set();
+  function updateAgentStepper(screenId){
+    const activeIndex=agentFlow.findIndex(step=>step.screen===screenId);
+    if(activeIndex<0)return;
+    document.querySelectorAll('.agent-stepper').forEach(stepper=>stepper.querySelectorAll('.agent-step').forEach((button,index)=>{
+      button.classList.toggle('done',completedAgentSteps.has(agentFlow[index].screen));
+      if(index===activeIndex)button.setAttribute('aria-current','step');else button.removeAttribute('aria-current');
+    }));
+  }
+  document.querySelector('#S07 .screen-content').insertAdjacentHTML('afterbegin','<div class="agent-demo-note"><strong>演示边界：</strong>项目、资料版本、人员、来源和处理记录均为仿真内容，页面操作只更新当前浏览器中的演示状态。</div>');
+  document.querySelector('#S11 .screen-content .review-state').textContent='待处理演示问题：草稿陈述缺少可直接打开的来源定位。请选择补证、退回或确认操作查看人工审查反馈。';
+  document.querySelectorAll('#S07 select').forEach(select=>{
+    if(select.id==='task-project')select.add(new Option('脑电生理监测系统注册资料准备 · 设计演示','demo-project-01'));
+    if(select.id==='task-category')select.add(new Option('第二类 · 设计演示','class-ii'));
+    if(select.id==='task-registration')select.add(new Option('境内首次注册 · 设计演示','domestic-first'));
+    if(select.id==='task-template')select.add(new Option('注册文档目录模板 D-1.0 · 设计演示','demo-template'));
+    if(select.id==='task-owner')select.add(new Option('林知远 · 演示身份','demo-owner'));
+    if(select.id==='task-sources')select.add(new Option('项目基本信息表 D-1.2 · 设计演示','demo-source'));
+    if(select.options.length>1)select.selectedIndex=1;
+  });
+  document.getElementById('task-purpose').value='演示目标：展示产品技术要求文档的章节准备、来源核验与人工审查流程。';
+  document.querySelector('#S09 #run-state').textContent='设计演示：任务等待启动。开始后展示章节状态、生成结果、来源引用和模拟费用。';
+  document.querySelector('#S09 #chapter-empty').textContent='演示草稿：本章节用于展示正文、引用与人工修改的排版。所有陈述均为虚构占位文本。';
+  document.querySelector('#S09 #chapter-title').textContent='产品概述（演示章节）';
+  document.querySelector('#S09 #chapter-position').textContent='章节 01 · 演示';
+  document.querySelectorAll('#S05 .heading .btn.primary').forEach(button=>{button.disabled=false;button.dataset.feedback=`设计演示：${button.textContent.trim()}已打开，可查看当前流程反馈。`;button.title='设计演示操作';});
+  document.querySelectorAll('#S01 .metric').forEach((metric,index)=>{metric.textContent=['12','7','2','1'][index]});
+  document.querySelector('#S01 .alert.info').innerHTML='<strong>设计演示待办：</strong>3 项章节审查、2 项来源核验和 1 项总稿检查。选择任务可进入对应步骤。';
+  const taskSearch=document.querySelector('#S06 .toolbar input');
+  const taskStatus=document.querySelector('#S06 .toolbar select');
+  function filterDemoTasks(notify=false){
+    const query=taskSearch.value.trim().toLocaleLowerCase();
+    const status=taskStatus.value==='全部状态'?'':taskStatus.value;
+    document.querySelectorAll('#S06 tbody tr[data-record]').forEach(row=>{row.hidden=Boolean((query&&!row.textContent.toLocaleLowerCase().includes(query))||(status&&!row.textContent.includes(status)))});
+    const visible=[...document.querySelectorAll('#S06 tbody tr[data-record]')].filter(row=>!row.hidden).length;
+    if(notify)showFeedback(`设计演示：任务筛选完成，显示 ${visible} 条记录。`);
+  }
+  taskSearch.addEventListener('input',()=>filterDemoTasks());
+  taskStatus.addEventListener('change',()=>filterDemoTasks(true));
+  document.querySelector('#S13 .blocked-reason').textContent='演示版本展示用途、模型连接、预算与发布检查；真实模型连接和发布服务未连接。';
+  document.querySelector('#S15 .alert.info').textContent='设计演示数据：以下数量和比例只展示筛选、比较与审计记录布局，不代表真实模型效果。';
+  document.querySelector('#S16 .alert').textContent='连接状态：未连接';
+  document.querySelector('#S11 .screen-content .card:last-child .checklist').innerHTML='<div><span>章节与版本</span><span>产品概述 · D-1.0（演示）</span></div><div><span>来源支持关系</span><span>待人工核验</span></div><div><span>关键问题处理</span><span>1 项待处理（演示）</span></div>';
+  document.querySelector('#S11 .blocked-reason').textContent='演示确认只更新本页状态；真实流程仍须检查来源、严格字段、关键问题和岗位授权。';
+  document.querySelectorAll('#S13 .checklist span:last-child').forEach((item,index)=>{item.textContent=['演示已登记','演示连接待验证','演示企业范围','12 条演示评测'][index]});
+  document.querySelector('#S15 .grid.cols-4').innerHTML='<div><span class="overline">演示样本量</span><div class="metric">12</div><span class="muted small">示例范围与总量</span></div><div><span class="overline">演示采纳记录</span><div class="metric">8 / 12</div><span class="muted small">仿真审查反馈</span></div><div><span class="overline">演示退回记录</span><div class="metric">3</div><span class="muted small">仿真问题明细</span></div><div><span class="overline">演示计量</span><div class="metric">0.42</div><span class="muted small">示例用量</span></div>';
+  const evaluationFilters=[...document.querySelectorAll('#S15 .toolbar select')];
+  const evaluationOptions=[['全部器械类别','第二类器械（演示）'],['全部注册环节','首次注册'],['全部 Agent 版本','注册文档 Agent D-1.4'],['全部评分规则','规则集 D-1.0']];
+  evaluationFilters.forEach((select,index)=>{const options=[new Option(evaluationOptions[index][0],'')];if(index===0)options.push(new Option('第三类器械（演示）','第三类器械（演示）'));options.push(new Option(evaluationOptions[index][1],evaluationOptions[index][1]));select.replaceChildren(...options)});
+  const evaluationRows=[...document.querySelectorAll('#S15 table tbody tr[data-record]')];
+  const evaluationBody=document.querySelector('#S15 table tbody');
+  const evaluationEmpty=document.createElement('tr');evaluationEmpty.hidden=true;evaluationEmpty.innerHTML='<td class="table-empty" colspan="8">当前筛选条件没有演示记录。</td>';evaluationBody.append(evaluationEmpty);
+  const evaluationSearch=document.querySelector('#S15 .toolbar button');evaluationSearch.removeAttribute('data-feedback');
+  evaluationSearch.addEventListener('click',()=>{
+    const filters=evaluationFilters.map(select=>select.value).filter(Boolean);
+    let visible=0;
+    evaluationRows.forEach(row=>{row.hidden=!filters.every(value=>row.textContent.includes(value));if(!row.hidden)visible+=1});
+    evaluationEmpty.hidden=visible>0;
+    showFeedback(`设计演示：评测记录筛选完成，显示 ${visible} 条。`);
+  });
+  document.querySelector('#S16 .list').innerHTML='<div class="list-item"><strong>企业身份</strong><span class="status neutral">待配置</span></div><div class="list-item"><strong>数据与导出范围</strong><span class="status warn">待确认</span></div>';
+  document.querySelector('#S17 .screen-content .status.error').textContent='演示权限拒绝';
+  document.querySelectorAll('button:disabled:not([data-page-previous]):not([data-page-next])').forEach(button=>{button.disabled=false;if(!button.dataset.go&&!button.dataset.modal&&!button.dataset.feedback&&!button.dataset.agentAction)button.dataset.feedback=`设计演示：${button.title||button.textContent.trim()}已打开对应反馈。`;});
+  function showFeedback(message){feedback.textContent=message;feedback.classList.add('show');clearTimeout(showFeedback.timer);showFeedback.timer=setTimeout(()=>feedback.classList.remove('show'),5000)}
+  function addModalField(container,name,type,options=[]){
+    const wrapper=document.createElement('div');wrapper.className='field';
+    if(type==='textarea')wrapper.classList.add('wide');
+    const label=document.createElement('label');const id=`prototype-field-${container.children.length}`;
+    label.htmlFor=id;label.textContent=name;
+    let control;
+    if(type==='select'){
+      control=document.createElement('select');
+      control.append(new Option(`请选择${name}`,''),...options.map(option=>new Option(option,option)));
+    }else if(type==='textarea'){
+      control=document.createElement('textarea');control.placeholder=`请输入${name}`;
+    }else{
+      control=document.createElement('input');control.type=type;control.placeholder=type==='file'?'':`请输入${name}`;
+    }
+    control.id=id;control.required=true;wrapper.append(label,control);container.append(wrapper);
+  }
+  function openModal(trigger){
+    lastModalTrigger=trigger;
+    document.getElementById('modal-title').textContent=trigger.dataset.modal;
+    const fields=document.getElementById('modal-fields');
+    const reason=document.getElementById('modal-reason-field');
+    const reasonInput=document.getElementById('modal-reason');
+    const confirm=document.getElementById('modal-confirm');
+    fields.replaceChildren();
+    reasonInput.value='';reasonInput.required=false;confirm.disabled=false;
+    if(trigger.dataset.reviewAction){
+      prototypeForms.review.forEach(field=>addModalField(fields,field.name,field.type));
+      fields.hidden=false;reason.hidden=false;reasonInput.required=true;
+      document.getElementById('modal-description').textContent='填写处理理由、目标章节和接收人。正式处理还须核验对象版本与人员权限；当前设计稿不会保存记录。';
+      confirm.textContent='核查处理输入';
+      modal.classList.add('show');reasonInput.focus();
+    }else if(trigger.dataset.prototypeForm==='rewrite'){
+      fields.hidden=true;reason.hidden=true;confirm.disabled=false;
+      document.getElementById('modal-description').textContent='设计演示影响范围：修改章节 1 项、关联章节 2 项、跨章检查 3 项、模拟计量 0.18 单位。以上仅用于展示预览。';
+      confirm.textContent='查看演示影响项';
+      modal.classList.add('show');document.getElementById('modal-close').focus();
+    }else if(trigger.dataset.demoRecord){
+      fields.hidden=true;reason.hidden=true;
+      document.getElementById('modal-description').textContent=`${trigger.dataset.demoRecord}：${trigger.closest('tr')?.innerText.trim()||'演示记录详情'}。全部字段均为仿真内容。`;
+      confirm.textContent='完成查看';
+      modal.classList.add('show');document.getElementById('modal-close').focus();
+    }else if(trigger.dataset.adminForm||trigger.dataset.prototypeForm){
+      const definitions=trigger.dataset.adminForm
+        ?adminFields[trigger.dataset.adminForm].map(name=>({name,type:name==='状态'?'select':name.includes('内容')||name.includes('说明')?'textarea':'text',options:name==='状态'?['启用','停用']:[]}))
+        :prototypeForms[trigger.dataset.prototypeForm];
+      definitions.forEach(field=>addModalField(fields,field.name,field.type,field.options));
+      fields.hidden=false;reason.hidden=true;
+      document.getElementById('modal-description').textContent='填写必要信息并查看字段校验。当前设计稿没有连接服务端，输入不会保存为业务记录。';
+      confirm.textContent='核查表单';
+      modal.classList.add('show');fields.querySelector('input,select,textarea').focus();
+    }else{
+      fields.hidden=true;reason.hidden=false;
+      document.getElementById('modal-description').textContent='这里展示确认内容、当前版本、影响范围与必填理由。设计稿没有连接服务端，确认操作不会保存或签发。';
+      confirm.textContent='查看设计反馈';
+      modal.classList.add('show');reasonInput.focus();
+    }
+  }
+  function closeModal(){modal.classList.remove('show');if(lastModalTrigger)lastModalTrigger.focus()}
+  function showScreen(id){
+    id={S08:'S07',S10:'S09',S12:'S11'}[id]||id;
+    const target=document.getElementById(id);
+    if(!target || !target.classList.contains('screen'))return;
+    if(id==='S11'&&document.getElementById('review-document')&&document.getElementById('document-editor'))document.getElementById('review-document').innerHTML=document.getElementById('document-editor').innerHTML;
+    screens.forEach(screen=>screen.classList.toggle('active',screen.id===id));
+    document.querySelectorAll('.sidebar nav button[data-go]').forEach(button=>{if(button.dataset.go===(id==='S16'?'S16':coreByScreen[id]))button.setAttribute('aria-current','page');else button.removeAttribute('aria-current')});
+    document.querySelectorAll('[data-admin-module]').forEach(button=>{if(id==='S02'&&button.dataset.adminModule===adminList.dataset.activeModule)button.setAttribute('aria-current','page');else button.removeAttribute('aria-current')});
+    updateAgentStepper(id);
+    workspace.dataset.state='normal';history.replaceState(null,'','#'+(id==='S02'?`${routeByScreen[id]}/${adminList.dataset.activeModule}`:routeByScreen[id]));window.scrollTo({top:0,behavior:'instant'});
+  }
+  let selectedDemoProject=demoProjects[0];
+  function showDemoProject(project){
+    selectedDemoProject=project;
+    document.querySelector('#S18 h1').textContent=project[0];
+    document.getElementById('project-banner-name').textContent=project[0];
+    document.getElementById('project-banner-meta').textContent=`${project[2]} · ${project[3]} · 负责人 林知远 · 最近更新 ${project[7]}`;
+    document.getElementById('project-product').textContent=project[1];
+    document.getElementById('project-knowledge').textContent=project[5];
+    document.querySelector('#S18 .project-banner .status').textContent=demoStatus[project[4]][0];
+    document.querySelector('#S18 .project-kpis>div:first-child strong').textContent=project[5].match(/\d+/)?.[0]||'—';
+    document.querySelector('#S18 .project-kpis>div:first-child small').textContent=project[5];
+    const completed=Math.min(5,Number(project[6].match(/\d+/)?.[0]||0));
+    document.querySelector('#S18 .project-score strong').innerHTML=`${completed}<span>/ 5</span>`;
+    document.querySelector('#S18 .project-score .progress-track span').style.width=`${Math.round(completed/5*100)}%`;
+    document.querySelector('#S18 .panel-heading .status').textContent=completed===5?'全部办理环节已完成':`当前位置 · ${['项目建档','资料准备与核准','任务与章节规划','生成与来源检查','人工审查与签发'][completed]}`;
+    document.querySelectorAll('#S18 .milestone').forEach((item,index)=>{
+      item.classList.toggle('current',index===Math.min(completed,4));
+      const marker=item.querySelector('.milestone-index');
+      marker.classList.toggle('done',index<completed);
+      marker.textContent=index<completed?'✓':String(index+1);
+    });
+  }
+  function showState(value){
+    workspace.dataset.state=value;
+    if(value==='normal')return;
+    document.getElementById('state-mark').textContent=value.toUpperCase();
+    document.getElementById('state-title').textContent=stateCopy[value][0];
+    document.getElementById('state-description').textContent=stateCopy[value][1];
+  }
+  const runStates={
+    waiting:{label:'等待任务输入',message:'当前步骤：等待获授权任务、章节计划与资料。尚无实际运行记录。',action:'补充任务输入',go:'S07'},
+    evidence:{label:'章节证据不足',message:'本章节缺少已核准来源或可核查定位。相关章节保持证据待补，其他独立章节的既有结果保持原版本。',action:'补充资料',go:'S04'},
+    timeout:{label:'模型调用超时',message:'显示失败步骤、已保存章节、调用尝试与实际费用；继续前重新核验版本和授权。',action:'查看章节',go:'S09'},
+    budget:{label:'调用预算耗尽',message:'停止下一次调用，保留当前产物与实际费用；由授权人员核查预算和继续方式。',action:'查看 Agent 配置',go:'S13'},
+    context:{label:'章节输入超限',message:'停止受影响步骤并列出缺少的输入；不能用无来源摘要代替必需证据。',action:'核查任务输入',go:'S07'},
+    permission:{label:'来源访问被拒绝',message:'停止越权检索，保持任务目标与授权范围，记录可查询的拒绝事件。',action:'查看访问状态',go:'S17'}
+  };
+  const runPreviewBar=document.createElement('div');runPreviewBar.className='toolbar';
+  const runPreviewLabel=document.createElement('label');runPreviewLabel.htmlFor='run-state-preview';runPreviewLabel.textContent='运行状态预览';
+  const runPreviewSelect=document.createElement('select');runPreviewSelect.id='run-state-preview';
+  Object.entries(runStates).forEach(([value,state])=>runPreviewSelect.append(new Option(state.label,value)));
+  const runRecovery=document.createElement('button');runRecovery.type='button';runRecovery.className='btn';
+  runPreviewBar.append(runPreviewLabel,runPreviewSelect,runRecovery);
+  document.getElementById('run-state').before(runPreviewBar);
+  function showRunState(value){
+    const state=runStates[value];
+    document.getElementById('run-state').textContent=state.message;
+    runRecovery.textContent=state.action;runRecovery.dataset.go=state.go;
+  }
+  runPreviewSelect.addEventListener('change',event=>showRunState(event.target.value));
+  showRunState('waiting');
+  const rewritePreview=document.getElementById('rewrite-preview');
+  rewritePreview.dataset.modal='查看局部处理范围';
+  rewritePreview.dataset.prototypeForm='rewrite';
+  const knowledgeFeedback=document.createElement('button');
+  knowledgeFeedback.type='button';knowledgeFeedback.className='btn';
+  knowledgeFeedback.textContent='提交知识与规则反馈';
+  knowledgeFeedback.dataset.modal='提交知识与规则反馈';
+  knowledgeFeedback.dataset.prototypeForm='feedback';
+  document.querySelector('#S11 .screen-content .card:last-child .actions').append(knowledgeFeedback);
+  document.addEventListener('click',event=>{
+    if(event.target.closest('.product-page,.product-dialog'))return;
+    const projectAction=event.target.closest('[data-demo-project]');
+    if(projectAction){showDemoProject(demoProjects[Number(projectAction.dataset.demoProject)]);showScreen('S18');return}
+    const go=event.target.closest('[data-go]');if(go){showScreen(go.dataset.go);return}
+    const action=event.target.closest('[data-modal]');if(action){openModal(action);return}
+    const note=event.target.closest('[data-feedback]');if(note){showFeedback(note.dataset.feedback);return}
+    const button=event.target.closest('button');if(button&&!button.matches('[data-list-search],[data-list-reset],[data-page-previous],[data-page-next],[data-admin-module],[data-knowledge-category],[data-knowledge-view],[data-knowledge-section],[data-section],#task-check,#state-retry,#modal-close,#modal-confirm,#S15 .toolbar button'))showFeedback(button.title||`设计演示：${button.textContent.trim()}操作已响应。`);
+  });
+  document.getElementById('state-retry').addEventListener('click',()=>showState('normal'));
+  document.getElementById('modal-close').addEventListener('click',closeModal);
+  document.getElementById('modal-confirm').addEventListener('click',()=>{
+    const fields=document.getElementById('modal-fields');
+    if(!fields.hidden){for(const control of fields.querySelectorAll('[required]')){if(!control.reportValidity())return}}
+    const reason=document.getElementById('modal-reason');
+    if(reason.required&&!reason.reportValidity())return;
+    const label=document.getElementById('modal-title').textContent;
+    const trigger=lastModalTrigger;
+    const values=[...fields.querySelectorAll('input,select,textarea')].map(control=>control.value.trim());
+    if(trigger?.dataset.prototypeForm==='project'&&values[0]){
+      const project=[values[0],values[1]||'演示产品',values[2]||'待确认',`${values[4]||'注册路径待补'} · ${values[5]||'环节待补'}`,'configuring','演示资料待核验','0 / 6 个环节','2026-09-24'];
+      demoProjects.unshift(project);const newRow=createDemoRow(projectBody,project.slice(0,4).concat('__status__',project.slice(5)),project[4],'查看详情','S18');projectBody.prepend(newRow);
+      projectBody.querySelectorAll('tr[data-record]').forEach((row,index)=>{row.querySelector('[data-go]').dataset.demoProject=String(index)});projectList.refreshPagedList();
+      closeModal();showFeedback('设计演示：项目已加入当前仿真列表；刷新页面将恢复预设演示记录。');return;
+    }
+    if(trigger?.dataset.adminForm){
+      const module=adminModules[trigger.dataset.adminForm];const rowValues=module.columns.slice(0,-1).map((column,index)=>column.includes('状态')?'__status__':values[index]||`${column}演示项`);
+      const row=createDemoRow(adminList.querySelector('tbody'),rowValues,'pending','查看记录','S02');row.dataset.module=trigger.dataset.adminForm;
+      const detail=row.querySelector('[data-go]');detail.removeAttribute('data-go');detail.dataset.demoRecord=`${module.title}演示记录`;detail.dataset.modal=detail.dataset.demoRecord;
+      adminList.refreshPagedList();
+      closeModal();showFeedback(`设计演示：${label}已加入当前仿真列表；刷新页面将恢复预设演示记录。`);return;
+    }
+    if(trigger?.dataset.reviewAction){
+      closeModal();showFeedback(`设计演示：${label}处理意见已在本次操作中核对，未创建正式审查记录。`);return;
+    }
+    closeModal();showFeedback('设计演示：'+label+'的操作反馈已显示；业务结果仅保存在当前演示页面。');
+  });
+  modal.addEventListener('click',event=>{if(event.target===modal)closeModal()});
+  document.addEventListener('keydown',event=>{
+    if(!modal.classList.contains('show'))return;
+    if(event.key==='Escape'){closeModal();return}
+    if(event.key==='Tab'){
+      const controls=[...modal.querySelectorAll('input,select,textarea,button')].filter(control=>control.offsetParent!==null);
+      const first=controls[0];const last=controls[controls.length-1];
+      if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus()}
+      if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus()}
+    }
+  });
+  function showRoute(){
+    const requestedRoute=location.hash.slice(1);
+    if(requestedRoute.startsWith('system-management/')){
+      const moduleKey=requestedRoute.slice('system-management/'.length);
+      if(adminModules[moduleKey])showAdminModule(moduleKey);
+      showScreen('S02');
+      return;
+    }
+    if(requestedRoute==='scenarios'||requestedRoute==='S14'){showScreen('S01');return}
+    if(['S08','S10','S12'].includes(requestedRoute)){showScreen(requestedRoute);return}
+    showScreen(screenByRoute[requestedRoute]||((document.getElementById(requestedRoute)?.classList.contains('screen'))?requestedRoute:'S01'));
+  }
+  document.querySelector('#S07 .heading').innerHTML='<div><h1>创建文档任务</h1></div><div class="actions"><button class="btn" data-go="S06">返回任务列表</button></div>';
+  document.querySelector('#S07 .screen-content').classList.remove('split');
+  document.querySelector('#S01 .pulse-stats span:last-child').textContent='4 / 5 个办理环节';
+  document.querySelector('#S18 .project-score strong').innerHTML='4<span>/ 5</span>';
+  document.querySelector('#S18 .project-score .progress-track span').style.width='80%';
+  document.querySelector('#S07 .screen-content').innerHTML=`
+    <div class="agent-demo-note">设计演示：系统已按项目预设模板、章节、资料范围和审查角色。只需确认项目与目标文档。</div>
+    <div class="task-setup-layout"><div class="card pad"><span class="eyebrow">TASK SETUP</span><h2>确认任务信息</h2><div class="form"><div class="field"><label for="task-project">项目</label><select id="task-project" required></select></div><div class="field"><label for="task-type">目标文档</label><select id="task-type"><option value="product-requirement">产品技术要求</option><option value="registration-index">注册文档目录</option></select></div><div class="field"><label for="task-purpose">补充说明（选填）</label><textarea id="task-purpose" placeholder="记录本次需要关注的产品字段或资料变化"></textarea></div></div><details class="task-advanced"><summary>查看系统默认配置</summary><div class="compact-facts"><div><span>模板</span><strong>注册文档目录模板 D-1.0</strong></div><div><span>资料版本</span><strong>项目基本信息表 D-1.2</strong></div><div><span>处理方式</span><strong>逐章生成与来源检查</strong></div><div><span>审查责任人</span><strong>林知远</strong></div></div><button class="text-action" data-go="S04">检查适用资料 →</button></details><div class="inline-actions"><button class="btn primary" id="task-check">创建任务并打开正文</button></div><div class="alert info" id="task-check-result" role="status" aria-live="polite">项目与目标文档已预选。任务创建仅更新当前演示页面。</div></div><div class="card pad default-plan"><span class="eyebrow">DEFAULT PLAN</span><h2>系统已准备的章节计划</h2><p class="muted small">按照演示模板生成；授权人员可在正文阶段逐项修改。</p><ol><li><span>01</span><div><strong>产品概述</strong><small>产品名称、型号、注册属性</small></div><em>资料 2 项</em></li><li><span>02</span><div><strong>结构与组成</strong><small>组成、附件与规格</small></div><em>资料 3 项</em></li><li><span>03</span><div><strong>性能指标</strong><small>严格字段与适用条件</small></div><em>资料 4 项</em></li><li><span>04</span><div><strong>检验方法</strong><small>方法、来源与对应关系</small></div><em>资料 2 项</em></li></ol><div class="plan-summary"><span class="status info">自动准备</span><span>章节目标、证据要求、责任人和依赖由系统默认设置</span></div></div></div>`;
+  const projectChoice=document.getElementById('task-project');
+  demoProjects.slice(0,6).forEach((project,index)=>projectChoice.add(new Option(`${project[0]} · 设计演示`,String(index))));
+  projectChoice.value=String(Math.max(0,demoProjects.indexOf(selectedDemoProject)));
+  document.getElementById('task-purpose').value='重点核验产品型号和第 3 页资料引用。';
+  document.querySelector('#S09 .heading').innerHTML='<div><h1>文档撰写与来源核验</h1></div><div class="actions"><span class="status warn" id="draft-save-state">演示草稿待保存</span><button class="btn" id="save-draft">保存草稿</button><button class="btn primary" data-go="S11">进入人工审查</button></div>';
+  document.querySelector('#S09 .screen-content').innerHTML=`
+    <div class="agent-demo-note">设计演示：正文可直接编辑。拖选段落文字后可改写或添加批注；每个章节展示引用来源。</div>
+    <div class="doc-editor-layout"><aside class="card pad editor-outline"><span class="eyebrow">DOCUMENT OUTLINE</span><h2>产品技术要求</h2><button class="selected" data-chapter="overview">01 产品概述 <span>已生成</span></button><button data-chapter="composition">02 结构与组成 <span>已生成</span></button><button data-chapter="performance">03 性能指标 <span>待核验</span></button><button data-chapter="method">04 检验方法 <span>已生成</span></button><div class="outline-foot"><span>演示版本 D-1.0</span><span>来源 4 项 · 问题 1 项</span></div></aside><main class="card pad editor-main"><div class="editor-paper-head"><span class="eyebrow">DRAFT DOCUMENT · D-1.0</span><span class="status info">正文可编辑</span></div><h2>产品技术要求</h2><p class="editor-intro">按章节核对生成内容。点击正文可直接修改；拖选文字可打开修改与批注工具。</p><article id="document-editor" class="editor-article"><section class="doc-module" id="module-overview"><div class="doc-module-head"><span>01</span><h3>产品概述</h3></div><p data-editable contenteditable="true" spellcheck="false">演示产品为灵析多导睡眠监测系统，适用于本次第二类医疗器械注册资料准备。产品名称、型号和注册属性应与项目资料保持一致。</p><button class="source-citation" type="button" data-source="0">↗ 来源：项目基本信息表 D-1.2 · 第 3 页</button></section><section class="doc-module" id="module-composition"><div class="doc-module-head"><span>02</span><h3>结构与组成</h3></div><p data-editable contenteditable="true" spellcheck="false">演示系统由主机、采集模块和配套附件组成。具体组成与规格以获授权的产品结构说明为准。</p><button class="source-citation" type="button" data-source="1">↗ 来源：产品结构说明 D-1.1 · 第 2 页</button></section><section class="doc-module" id="module-performance"><div class="doc-module-head"><span>03</span><h3>性能指标</h3></div><p data-editable contenteditable="true" spellcheck="false">演示型号为 MX-Demo-02。性能参数需要与权威资料逐项核对；当前示例保留一项待人工核验字段。</p><button class="source-citation" type="button" data-source="2">↗ 来源：设计输入清单 D-0.9 · 指标表</button><span class="status warn">严格字段待核验</span></section><section class="doc-module" id="module-method"><div class="doc-module-head"><span>04</span><h3>检验方法</h3></div><p data-editable contenteditable="true" spellcheck="false">检验方法应与性能指标一一对应，并保留方法版本、适用条件及原文位置。</p><button class="source-citation" type="button" data-source="3">↗ 来源：资料核验表模板 D-0.8 · 方法栏</button></section></article><div class="editor-end"><button class="btn" data-go="S11">提交人工审查</button></div></main><aside class="editor-side"><div class="card pad source-inspector"><span class="eyebrow">SOURCE INSPECTOR</span><h2>引用与来源</h2><p class="muted small">点击正文下方的来源，可查看对应资料。</p><div id="active-source"><strong>项目基本信息表 D-1.2</strong><p>第 3 页 · 产品信息段落</p><span class="status warn">待人工核验</span></div><div class="inline-actions"><button class="btn small" data-go="S05">打开资料原文</button><button class="btn small" id="source-check">记录演示核验</button></div></div><div class="card pad"><span class="eyebrow">RUN STATUS</span><h2>运行与恢复</h2><div id="run-control-slot"></div><div class="alert info" id="run-state" role="status">演示草稿已准备；处理状态由右侧查看。</div><div class="compact-facts"><div><span>最近步骤</span><strong>章节内容生成</strong></div><div><span>已完成章节</span><strong>4 / 4</strong></div><div><span>演示计量</span><strong>0.42 单位</strong></div></div><button class="text-action" id="rewrite-preview">查看局部处理范围 →</button></div><div class="card pad"><h2>本页批注</h2><div id="draft-comments" class="comment-list"><p class="muted small">拖选正文后可添加批注。</p></div></div></aside></div>`;
+  document.getElementById('run-control-slot').append(runPreviewBar);
+  document.getElementById('rewrite-preview').dataset.modal='查看局部处理范围';
+  document.getElementById('rewrite-preview').dataset.prototypeForm='rewrite';
+  showRunState('waiting');
+  document.querySelector('#S11 .heading').innerHTML='<div><h1>人工审查与总稿签发</h1></div><div class="actions"><button class="btn" data-go="S09">返回正文</button><button class="btn" id="export-review">导出演示待审稿</button></div>';
+  document.querySelector('#S11 .screen-content').classList.remove('split');
+  document.querySelector('#S11 .screen-content').innerHTML=`
+    <div class="agent-demo-note">设计演示：审查人员可编辑正文、拖选添加批注，并处理问题。签发前须确认版本、来源和岗位权限。</div>
+    <div class="review-merged-layout"><main class="card pad review-paper"><div class="editor-paper-head"><span class="eyebrow">HUMAN REVIEW · D-1.0</span><span class="status warn" id="review-status">待人工审查</span></div><h2>产品技术要求 · 待审总稿</h2><p class="muted small">正文修改与批注只保存在当前演示页面。</p><article id="review-document" class="editor-article" spellcheck="false"></article></main><aside class="review-merged-side"><div class="card pad"><span class="eyebrow">REVIEW DECISIONS</span><h2>人工核查</h2><div class="review-issue"><span class="status warn">待处理问题</span><strong>性能指标来源需要再次确认</strong><p>演示型号 MX-Demo-02 · 第 03 章</p><button class="text-action" data-go="S09">查看正文与来源 →</button></div><div id="review-comments" class="comment-list"><p class="muted small">选中正文后可添加审查批注。</p></div><div class="inline-actions"><button class="btn" data-modal="请求补充证据" data-review-action="evidence">请求补证</button><button class="btn danger" data-modal="退回章节" data-review-action="return">退回</button></div><button class="btn primary" id="review-confirm">确认总稿审查</button></div><div class="card pad"><h2>签发前核验</h2><div class="compact-facts"><div><span>章节覆盖</span><strong>4 / 4</strong></div><div><span>来源引用</span><strong>4 处演示来源</strong></div><div><span>人工审查</span><strong id="review-decision-state">等待确认</strong></div><div><span>签发岗位</span><strong>演示身份待核验</strong></div></div><div class="alert" id="sign-result" role="status">请先确认总稿审查，再查看演示签发反馈。</div><button class="btn primary" id="sign-submit">提交演示签发</button></div><div class="card pad"><h2>知识与规则反馈</h2><button class="btn" data-modal="提交知识与规则反馈" data-prototype-form="feedback">提交知识与规则反馈</button></div></aside></div>`;
+  const selectionToolbar=document.createElement('div');selectionToolbar.id='selection-toolbar';selectionToolbar.className='selection-toolbar';selectionToolbar.hidden=true;
+  selectionToolbar.innerHTML='<button type="button" id="selection-replace">修改选中文字</button><button type="button" id="selection-annotate">添加批注</button>';
+  document.body.append(selectionToolbar);
+  const selectionPanel=document.createElement('div');selectionPanel.id='selection-panel';selectionPanel.className='selection-panel';selectionPanel.hidden=true;
+  selectionPanel.innerHTML='<label for="selection-input" id="selection-label">修改选中文字</label><textarea id="selection-input"></textarea><div class="inline-actions"><button class="btn small" id="selection-cancel">取消</button><button class="btn primary small" id="selection-apply">应用</button></div>';
+  document.body.append(selectionPanel);
+  let activeRange=null;let selectionMode='replace';let selectionQuote='';let reviewConfirmed=false;let activeSourceIndex=0;
+  const verifiedSources=new Set();
+  const sources=[['项目基本信息表 D-1.2','第 3 页 · 产品信息段落'],['产品结构说明 D-1.1','第 2 页 · 结构与组成'],['设计输入清单 D-0.9','指标表 · 型号字段'],['资料核验表模板 D-0.8','方法栏 · 演示']];
+  document.getElementById('task-check').addEventListener('click',()=>{
+    const project=document.getElementById('task-project');
+    if(!project.value){document.getElementById('task-check-result').textContent='请选择项目。';project.focus();return}
+    showDemoProject(demoProjects[Number(project.value)]);
+    document.getElementById('task-check-result').textContent='演示任务已准备，系统默认章节计划已确认。';
+    completedAgentSteps.add('S07');showScreen('S09');showFeedback('设计演示：任务和默认章节计划已准备。');
+  });
+  document.querySelectorAll('#S09 [data-chapter]').forEach(button=>button.addEventListener('click',()=>{
+    document.querySelectorAll('#S09 [data-chapter]').forEach(item=>item.classList.toggle('selected',item===button));
+    document.getElementById(`module-${button.dataset.chapter}`).scrollIntoView({block:'center',behavior:'smooth'});
+  }));
+  document.getElementById('document-editor').addEventListener('click',event=>{
+    const button=event.target.closest('[data-source]');if(!button)return;
+    activeSourceIndex=Number(button.dataset.source);
+    const source=sources[activeSourceIndex];
+    const verified=verifiedSources.has(activeSourceIndex);
+    document.getElementById('active-source').innerHTML=`<strong>${source[0]}</strong><p>${source[1]}</p><span class="status ${verified?'ok':'warn'}">${verified?'演示已核验':'待人工核验'}</span>`;
+    document.querySelectorAll('#S09 [data-source]').forEach(item=>item.classList.toggle('selected',item===button));
+  });
+  document.getElementById('review-document').addEventListener('click',event=>{
+    const citation=event.target.closest('[data-source]');if(!citation)return;
+    showScreen('S09');
+    document.querySelector(`#S09 [data-source="${citation.dataset.source}"]`).click();
+  });
+  document.getElementById('source-check').addEventListener('click',()=>{
+    verifiedSources.add(activeSourceIndex);
+    document.querySelector('#active-source .status').textContent='演示已核验';
+    document.querySelector('#active-source .status').className='status ok';
+    document.querySelector(`#S09 [data-source="${activeSourceIndex}"]`).classList.add('verified');
+    if(activeSourceIndex===2){
+      const issue=document.querySelector('#S11 .review-issue .status');issue.textContent='演示来源已核验';issue.className='status ok';
+      document.querySelector('#S11 .review-issue strong').textContent='性能指标来源已完成演示核验';
+    }
+    showFeedback('设计演示：已记录当前来源的核验反馈。');
+  });
+  function markDraftChanged(){const state=document.getElementById('draft-save-state');state.textContent='有未保存修改';state.className='status warn'}
+  document.getElementById('document-editor').addEventListener('input',markDraftChanged);
+  document.getElementById('review-document').addEventListener('input',()=>{document.getElementById('document-editor').innerHTML=document.getElementById('review-document').innerHTML;document.getElementById('review-status').textContent='审查修改未保存';reviewConfirmed=false;document.getElementById('review-decision-state').textContent='等待确认'});
+  document.getElementById('save-draft').addEventListener('click',()=>{
+    const state=document.getElementById('draft-save-state');state.textContent='演示草稿已保存';state.className='status ok';
+    showFeedback('设计演示：正文修改已保存在当前页面。');
+  });
+  document.getElementById('export-review').addEventListener('click',()=>showFeedback('设计演示：待审稿导出入口已响应，当前未生成真实文件。'));
+  document.getElementById('review-confirm').addEventListener('click',()=>{
+    if(!verifiedSources.has(2)){
+      const result=document.getElementById('sign-result');result.textContent='性能指标来源仍待核验，请打开正文中的引用并记录核验。';result.className='alert error';return;
+    }
+    reviewConfirmed=true;
+    document.getElementById('review-status').textContent='演示审查已确认';document.getElementById('review-status').className='status ok';
+    document.getElementById('review-decision-state').textContent='演示已确认';
+    document.getElementById('sign-result').textContent='演示审查已确认。签发动作仍需正式权限与版本核验。';
+    document.getElementById('sign-result').className='alert info';
+    completedAgentSteps.add('S11');showFeedback('设计演示：总稿审查决定已记录。');
+  });
+  document.getElementById('sign-submit').addEventListener('click',()=>{
+    const result=document.getElementById('sign-result');
+    if(!reviewConfirmed){result.textContent='请先确认总稿审查。';result.className='alert error';return}
+    result.textContent='演示签发已提交。当前页面没有连接正式签发服务，也未生成电子签名。';result.className='alert info';
+    showFeedback('设计演示：已显示签发操作反馈。');
+  });
+  function showTextSelection(){
+    const selection=window.getSelection();
+    if(!selection||selection.isCollapsed){selectionToolbar.hidden=true;return}
+    const range=selection.getRangeAt(0);
+    const start=range.startContainer.nodeType===Node.TEXT_NODE?range.startContainer.parentElement:range.startContainer;
+    const end=range.endContainer.nodeType===Node.TEXT_NODE?range.endContainer.parentElement:range.endContainer;
+    const editor=start.closest('[data-editable],#review-document');
+    if(!editor||!editor.contains(end)){selectionToolbar.hidden=true;return}
+    activeRange=range.cloneRange();selectionQuote=selection.toString();
+    const rect=range.getBoundingClientRect();
+    selectionToolbar.style.left=`${Math.min(window.innerWidth-230,Math.max(8,rect.left))}px`;
+    selectionToolbar.style.top=`${Math.max(8,rect.top-48)}px`;
+    selectionToolbar.hidden=false;
+  }
+  document.addEventListener('mouseup',event=>{if(!event.target.closest('#selection-toolbar,#selection-panel'))showTextSelection()});
+  document.addEventListener('keyup',event=>{if(event.target.closest('[data-editable],#review-document'))showTextSelection()});
+  document.getElementById('selection-replace').addEventListener('click',()=>{
+    selectionMode='replace';selectionPanel.hidden=false;selectionToolbar.hidden=true;
+    document.getElementById('selection-label').textContent='修改选中文字';
+    document.getElementById('selection-input').value=selectionQuote;document.getElementById('selection-input').focus();
+  });
+  document.getElementById('selection-annotate').addEventListener('click',()=>{
+    selectionMode='annotate';selectionPanel.hidden=false;selectionToolbar.hidden=true;
+    document.getElementById('selection-label').textContent=`为“${selectionQuote.slice(0,24)}”添加批注`;
+    document.getElementById('selection-input').value='';document.getElementById('selection-input').focus();
+  });
+  document.getElementById('selection-cancel').addEventListener('click',()=>{selectionPanel.hidden=true;activeRange=null});
+  document.getElementById('selection-apply').addEventListener('click',()=>{
+    const value=document.getElementById('selection-input').value.trim();if(!value||!activeRange)return;
+    if(selectionMode==='replace'){
+      activeRange.deleteContents();activeRange.insertNode(document.createTextNode(value));markDraftChanged();
+      if(document.getElementById('S11').classList.contains('active')){document.getElementById('document-editor').innerHTML=document.getElementById('review-document').innerHTML;reviewConfirmed=false;document.getElementById('review-status').textContent='审查修改未保存'}
+    }else{
+      activeRange.deleteContents();const mark=document.createElement('mark');mark.textContent=selectionQuote;activeRange.insertNode(mark);
+      const target=document.getElementById('S11').classList.contains('active')?'review-comments':'draft-comments';
+      const item=document.createElement('div');item.className='comment-item';
+      const quote=document.createElement('strong');quote.textContent=`“${selectionQuote}”`;
+      const note=document.createElement('p');note.textContent=value;item.append(quote,note);
+      document.getElementById(target).append(item);
+      if(target==='review-comments')document.getElementById('document-editor').innerHTML=document.getElementById('review-document').innerHTML;
+    }
+    selectionPanel.hidden=true;activeRange=null;window.getSelection()?.removeAllRanges();
+  });
+  const knowledgeContent=document.querySelector('#S04 .screen-content');
+  const vaultNav=knowledgeContent.querySelector('.knowledge-sidebar');
+  const vaultList=knowledgeContent.querySelector('[data-paged-list="knowledge"]');
+  const vaultPreview=knowledgeContent.querySelector('.knowledge-preview');
+  vaultNav.querySelector('.knowledge-side-title').textContent='资料库';
+  const vaultFolder=document.createElement('details');vaultFolder.className='vault-folder';vaultFolder.open=true;
+  vaultFolder.innerHTML='<summary>医疗器械注册资料</summary>';
+  const firstCategory=vaultNav.querySelector('[data-knowledge-category]');firstCategory.before(vaultFolder);
+  vaultNav.querySelectorAll('[data-knowledge-category]').forEach(button=>vaultFolder.append(button));
+  vaultNav.querySelectorAll('.knowledge-side-title.second')[0].textContent='常用视图';
+  vaultNav.querySelectorAll('.knowledge-side-title.second')[1].textContent='项目关联';
+  vaultPreview.innerHTML='<div class="vault-reader-head"><span class="eyebrow">DOCUMENT READER</span><button class="btn small" data-go="S05">资料详情</button></div><h2 id="knowledge-preview-title">项目基本信息表（演示）</h2><span class="status ok" id="knowledge-preview-status">演示已核验</span><div class="vault-tabs"><button class="active" data-vault-tab="content">正文</button><button data-vault-tab="properties">属性</button><button data-vault-tab="links">引用关系</button></div><div class="vault-panel" data-vault-panel="content"><article class="vault-note"><span class="eyebrow">资料预览 · 设计演示</span><h3 id="knowledge-note-heading">项目基本信息表</h3><p id="knowledge-note-body">该演示资料用于展示产品信息的来源位置与版本。正式使用时显示获授权文件内容和页码。</p><div class="vault-callout">当前资料与项目任务的关联见「引用关系」。核准信息见「属性」。</div></article></div><div class="vault-panel" data-vault-panel="properties" hidden><div class="compact-facts"><div><span>版本</span><strong id="knowledge-preview-version">D-1.2</strong></div><div><span>来源</span><strong id="knowledge-preview-source">设计演示资料集</strong></div><div><span>适用范围</span><strong id="knowledge-preview-scope">演示项目范围</strong></div><div><span>最近更新</span><strong id="knowledge-preview-date">2026-09-24</strong></div></div></div><div class="vault-panel" data-vault-panel="links" hidden><h3>被引用于</h3><div class="knowledge-relations"><button data-go="S18">↗ 脑电生理监测系统</button><button data-go="S09">↗ 产品技术要求 · 章节生成</button><button data-go="S09">↗ 来源核验 · 第 3 页</button></div></div><div class="vault-reader-foot"><button class="btn primary" data-go="S05">打开资料详情与核准</button></div>';
+  const vaultLayout=document.createElement('div');vaultLayout.className='vault-layout';vaultLayout.append(vaultNav,vaultList,vaultPreview);
+  knowledgeContent.replaceChildren(vaultLayout);
+  document.querySelector('#S04 .heading h1').textContent='资料中心';
+  document.querySelectorAll('[data-vault-tab]').forEach(button=>button.addEventListener('click',()=>{
+    document.querySelectorAll('[data-vault-tab]').forEach(item=>item.classList.toggle('active',item===button));
+    document.querySelectorAll('[data-vault-panel]').forEach(panel=>panel.hidden=panel.dataset.vaultPanel!==button.dataset.vaultTab);
+  }));
+  selectKnowledgeRow(knowledgeList.querySelector('tr[data-record][data-category="project"]'));
+  window.addEventListener('hashchange',showRoute);
+  showRoute();
+</script>
+<link rel="stylesheet" href="ui-delivery/product-workspace.css">
+<link rel="stylesheet" href="ui-delivery/conversation-library.css">
+<link rel="stylesheet" href="ui-delivery/ui-theme.css">
+<script src="ui-delivery/ui-components.js"></script>
+<script src="ui-delivery/model-api-manager.js"></script>
+<script src="ui-delivery/knowledge-workspace.js"></script>
+<script src="ui-delivery/agent-capabilities.js"></script>
+<script src="ui-delivery/research-workspace.js"></script>
+<script src="ui-delivery/complex-demo.js"></script>
+<script src="ui-delivery/assets/evidence/embedded-images.js"></script>
+<script src="ui-delivery/registration-dossier.js"></script>
+<script src="ui-delivery/document-fields.js"></script>
+<script src="ui-delivery/public-reference.js"></script>
+<script src="ui-delivery/document-reader.js"></script>
+<script src="ui-delivery/scene-results.js"></script>
+<script src="ui-delivery/final-product.js"></script>
+<script src="ui-delivery/product-workspace.js"></script>
+<link rel="stylesheet" href="ui-delivery/final-product.css">
+<link rel="stylesheet" href="ui-delivery/scene-cards.css">
+</body>
+</html>

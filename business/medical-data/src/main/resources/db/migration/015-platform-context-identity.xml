@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.31.xsd">
+    <changeSet id="1.0.0-160-context-identity-column" author="medical-agent" dbms="mysql" runInTransaction="false" failOnError="true">
+        <addColumn tableName="platform_session_context">
+            <column name="context_id" type="CHAR(36) CHARACTER SET ascii"/>
+        </addColumn>
+    </changeSet>
+    <changeSet id="1.0.0-161-context-identity-existing" author="medical-agent" dbms="mysql" runInTransaction="false" failOnError="true">
+        <sql>UPDATE platform_session_context SET context_id=UUID() WHERE context_id IS NULL</sql>
+    </changeSet>
+    <changeSet id="1.0.0-162-context-identity-required" author="medical-agent" dbms="mysql" runInTransaction="false" failOnError="true">
+        <addNotNullConstraint tableName="platform_session_context" columnName="context_id" columnDataType="CHAR(36) CHARACTER SET ascii"/>
+    </changeSet>
+    <changeSet id="1.0.0-163-context-identity-unique" author="medical-agent" dbms="mysql" runInTransaction="false" failOnError="true">
+        <addUniqueConstraint tableName="platform_session_context" columnNames="context_id" constraintName="uq_platform_context_identity"/>
+    </changeSet>
+</databaseChangeLog>

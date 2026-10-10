@@ -1,0 +1,35 @@
+.medical-page {
+  --el-color-primary: #1768C4;
+  --el-color-success: #287044;
+  --el-color-warning: #8B570F;
+  --el-color-danger: #B23E46;
+  --el-text-color-primary: #243247;
+  --el-text-color-regular: #526279;
+  --el-border-color: #DCE3EC;
+  --el-border-color-light: #E9EDF3;
+  --el-border-radius-base: 6px;
+  max-width: 1480px;
+  padding: 28px;
+  margin: auto;
+  color: var(--el-text-color-primary);
+  font: 14px/1.6 system-ui, sans-serif;
+  h1 { font-size: 24px; line-height: 1.4; font-weight: 600; }
+  h2 { font-size: 17px; line-height: 1.5; font-weight: 600; }
+  .el-input, .el-select { min-width: 220px; }
+  .el-button, .el-input__wrapper, .el-select__wrapper { min-height: 38px; }
+  section, .el-form, .el-alert { margin-bottom: 24px; }
+  a { color: #175FAE; }
+  :focus-visible { outline: 2px solid #1768C4; outline-offset: 3px; }
+  .el-descriptions__content { overflow-wrap: anywhere; }
+}
+.medical-access { max-width: 540px; }
+@media (max-width: 650px) {
+  .medical-page {
+    padding: 16px;
+    .el-button, .el-input__wrapper, .el-select__wrapper { min-height: 44px; }
+    .el-input, .el-select { min-width: 0; width: 100%; }
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .medical-page * { transition: none !important; animation: none !important; }
+}

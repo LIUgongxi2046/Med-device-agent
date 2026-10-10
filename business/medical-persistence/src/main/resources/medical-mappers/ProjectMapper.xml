@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.medical.persistence.mapper.ProjectMapper">
+  <resultMap id="project" type="com.ruoyi.medical.persistence.ProjectProtocol$Row">
+    <constructor>
+      <arg column="tenant_id" javaType="java.lang.String"/><arg column="project_id" javaType="java.lang.String"/>
+      <arg column="status" javaType="java.lang.String"/><arg column="revision" javaType="java.math.BigInteger"/>
+      <arg column="name" javaType="java.lang.String"/><arg column="responsible_user_id" javaType="java.lang.String"/>
+      <arg column="current_profile_revision" javaType="java.lang.String"/><arg column="creation_basis" javaType="java.lang.String"/>
+      <arg column="creation_basis_sha256" javaType="java.lang.String"/><arg column="creation_reason" javaType="java.lang.String"/>
+      <arg column="authority_grant" javaType="java.lang.String"/><arg column="authority_revision" javaType="java.math.BigInteger"/>
+      <arg column="schema_version" javaType="java.lang.String"/><arg column="schema_manifest_sha256" javaType="java.lang.String"/>
+      <arg column="created_by" javaType="java.lang.String"/><arg column="created_at" javaType="java.time.LocalDateTime"/>
+      <arg column="updated_at" javaType="java.time.LocalDateTime"/><arg column="metadata_revision" javaType="java.math.BigInteger"/>
+    </constructor>
+  </resultMap>
+  <resultMap id="profile" type="com.ruoyi.medical.persistence.ProjectProtocol$Profile">
+    <constructor>
+      <arg column="profile_revision" javaType="java.lang.String"/><arg column="attributes" javaType="java.lang.String"/>
+      <arg column="authority_refs" javaType="java.lang.String"/><arg column="content_sha256" javaType="java.lang.String"/>
+      <arg column="schema_version" javaType="java.lang.String"/><arg column="schema_manifest_sha256" javaType="java.lang.String"/>
+      <arg column="created_by" javaType="java.lang.String"/><arg column="created_at" javaType="java.time.LocalDateTime"/>
+    </constructor>
+  </resultMap>
+  <resultMap id="run" type="com.ruoyi.medical.persistence.ProjectProtocol$Run">
+    <constructor><arg column="run_id" javaType="java.lang.String"/><arg column="status" javaType="java.lang.String"/><arg column="revision" javaType="java.math.BigInteger"/></constructor>
+  </resultMap>
+  <resultMap id="waiting" type="com.ruoyi.medical.persistence.ProjectProtocol$Waiting">
+    <constructor>
+      <arg column="waiting_item_id" javaType="java.lang.String"/><arg column="project_id" javaType="java.lang.String"/>
+      <arg column="run_id" javaType="java.lang.String"/><arg column="target_revision" javaType="java.lang.String"/>
+      <arg column="reason_code" javaType="java.lang.String"/><arg column="question" javaType="java.lang.String"/>
+      <arg column="requirement_refs" javaType="java.lang.String"/><arg column="allowed_resolution_actions" javaType="java.lang.String"/>
+      <arg column="assignee_id" javaType="java.lang.String"/><arg column="status" javaType="java.lang.String"/>
+      <arg column="revision" javaType="java.math.BigInteger"/><arg column="schema_version" javaType="java.lang.String"/>
+      <arg column="updated_at" javaType="java.time.LocalDateTime"/>
+    </constructor>
+  </resultMap>
+  <select id="grants" resultMap="com.ruoyi.medical.persistence.mapper.PermissionMapper.grant" useCache="false" flushCache="true">
+    SELECT grant_id,subject_id,project_id,resource_kind,resource_id,action,`condition`,status,valid_from,valid_to,
+           basis_version,schema_version,schema_manifest_sha256,revision
+    FROM permission_grant g WHERE subject_id=#{userId} AND status='ACTIVE'
+      AND action IN ('project.create','project.read','profile.confirm','project.manage','project.task.read','task.read','run.read','work_item.read')
+      AND valid_from &lt;= UTC_TIMESTAMP(6) AND (valid_to IS NULL OR valid_to &gt; UTC_TIMESTAMP(6)) ORDER BY grant_id FOR UPDATE
+  </select>
+  <select id="project" resultMap="project" useCache="false" flushCache="true">
+    SELECT p.tenant_id,p.project_id,p.status,p.revision,r.name,r.responsible_user_id,r.current_profile_revision,
+           r.creation_basis,r.creation_basis_sha256,r.creation_reason,r.authority_grant,r.authority_revision,
+           r.schema_version,r.schema_manifest_sha256,r.created_by,r.created_at,r.updated_at,r.revision AS metadata_revision
+    FROM project p JOIN project_record r ON r.tenant_id=p.tenant_id AND r.project_id=p.project_id WHERE p.project_id=#{projectId} FOR UPDATE
+  </select>
+  <select id="profile" resultMap="profile" useCache="false" flushCache="true">
+    SELECT profile_revision,attributes,authority_refs,content_sha256,schema_version,schema_manifest_sha256,created_by,created_at
+    FROM project_profile_revision f WHERE project_id=#{projectId} AND profile_revision=#{profileId}
+  </select>
+  <select id="profileRegistry" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT content_sha256 FROM version_registry v WHERE version_id=#{profileId} AND owner_project_id=#{projectId} AND entity_kind='PROJECT_PROFILE'
+  </select>
+  <sql id="projectFilter">
+    <choose>
+      <when test="enterprise">1=1</when>
+      <when test="allowedProjects != null and !allowedProjects.isEmpty()">p.project_id IN <foreach collection="allowedProjects" item="id" open="(" separator="," close=")">#{id}</foreach></when>
+      <otherwise>1=0</otherwise>
+    </choose>
+    <if test="after != null">AND p.project_id &gt; #{after}</if>
+    <if test="name != null">AND LOCATE(#{name},r.name) &gt; 0</if>
+    <if test="status != null">AND p.status=#{status}</if>
+    <if test="responsible != null">AND r.responsible_user_id=#{responsible}</if>
+  </sql>
+  <select id="projects" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT p.project_id FROM project p JOIN project_record r ON r.tenant_id=p.tenant_id AND r.project_id=p.project_id
+    WHERE <include refid="projectFilter"/> ORDER BY p.project_id
+  </select>
+  <select id="projectCount" resultType="java.math.BigInteger" useCache="false" flushCache="true">
+    SELECT COUNT(*) FROM project p JOIN project_record r ON r.tenant_id=p.tenant_id AND r.project_id=p.project_id WHERE <include refid="projectFilter"/>
+  </select>
+  <insert id="insertProject">INSERT INTO project (project_id,status,revision) VALUES (#{projectId},'PENDING',1)</insert>
+  <insert id="insertVersion">
+    INSERT INTO version_registry (version_id,owner_project_id,entity_kind,content_sha256)
+    VALUES (#{profileId},#{projectId},'PROJECT_PROFILE',#{contentHash})
+  </insert>
+  <insert id="insertProfile">
+    INSERT INTO project_profile_revision (project_id,profile_revision,attributes,authority_refs,content_sha256,schema_version,
+        schema_manifest_sha256,created_by,created_at,classification)
+    VALUES (#{projectId},#{profileId},#{attributes},#{authorityRefs},#{contentHash},'1.0.0',#{manifest},#{userId},#{now},#{classification})
+  </insert>
+  <insert id="insertRecord">
+    INSERT INTO project_record (project_id,name,responsible_user_id,current_profile_revision,creation_basis,creation_basis_sha256,
+        creation_reason,authority_grant,authority_revision,schema_version,schema_manifest_sha256,created_by,created_at,classification,revision,updated_at)
+    VALUES (#{projectId},#{name},#{responsible},#{profileId},#{basisId},#{basisHash},#{reason},#{authorityGrant},#{authorityRevision},
+        '1.0.0',#{manifest},#{userId},#{now},#{classification},1,#{now})
+  </insert>
+  <update id="advanceProfile">
+    UPDATE project_record SET current_profile_revision=#{profileId},revision=revision+1,updated_at=UTC_TIMESTAMP(6)
+    WHERE project_id=#{projectId} AND revision=#{expected} AND current_profile_revision=#{oldProfile}
+  </update>
+  <update id="advanceProject">
+    UPDATE project SET status=#{newStatus},revision=revision+1 WHERE project_id=#{projectId} AND status=#{oldStatus} AND revision=#{expected}
+  </update>
+  <update id="advanceRecord">
+    UPDATE project_record SET revision=revision+1,updated_at=UTC_TIMESTAMP(6) WHERE project_id=#{projectId} AND revision=#{expected}
+  </update>
+  <insert id="saveDecision">
+    INSERT INTO project_state_decision (project_id,decision_id,operation_id,decision,from_status,to_status,expected_revision,
+        resulting_revision,profile_revision,reason,impact,authority_grant,authority_revision,schema_version,schema_manifest_sha256,created_by,created_at,classification)
+    VALUES (#{projectId},#{decisionId},#{operationId},#{decision},#{oldStatus},#{newStatus},#{expected},#{resulting},#{profileId},#{reason},#{internalImpact},
+        #{authorityGrant},#{authorityRevision},'1.0.0',#{manifest},#{userId},#{now},#{classification})
+  </insert>
+  <select id="decision" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT JSON_OBJECT('decision_id',decision_id,'operation_id',operation_id,'decision',decision,'from_status',from_status,
+        'to_status',to_status,'expected_revision',CAST(expected_revision AS CHAR),'resulting_revision',CAST(resulting_revision AS CHAR),
+        'profile_revision',profile_revision,'reason',reason,'impact',impact,'authority_grant',authority_grant,'authority_revision',CAST(authority_revision AS CHAR))
+    FROM project_state_decision d WHERE project_id=#{projectId} AND decision_id=#{decisionId}
+  </select>
+  <select id="currentOperation" resultMap="com.ruoyi.medical.persistence.mapper.TenantSelectionMapper.operation" useCache="false" flushCache="true">
+    SELECT operation_id,request_sha256,state,http_status,response_ref,target_id,schema_version,schema_manifest_sha256
+    FROM operation_record o WHERE subject_id=#{userId} AND operation_name=#{operation} AND idempotency_key=#{key}
+  </select>
+  <insert id="saveOperation">
+    INSERT INTO operation_record (operation_id,subject_id,operation_name,idempotency_key,request_sha256,state,http_status,response_ref,
+        target_id,error_code,schema_version,schema_manifest_sha256,created_by,created_at,classification,revision,updated_at)
+    VALUES (#{operationId},#{userId},#{operation},#{key},#{requestHash},'COMPLETED',#{httpStatus},#{response},#{projectId},NULL,
+        '1.0.0',#{manifest},#{userId},#{now},#{classification},1,#{now})
+  </insert>
+  <update id="advanceGovernance">UPDATE tenant SET governance_epoch=governance_epoch+1 WHERE governance_epoch=#{governanceEpoch} AND auth_epoch=#{authEpoch}</update>
+  <sql id="taskFilter">
+    h.project_id=#{projectId}
+    <if test="oldProfile != null">AND EXISTS (SELECT 1 FROM task_revision t WHERE t.tenant_id=h.tenant_id AND t.project_id=h.project_id AND t.task_id=h.task_id AND t.profile_revision=#{oldProfile})</if>
+  </sql>
+  <select id="taskCount" resultType="java.math.BigInteger" useCache="false" flushCache="true">SELECT COUNT(*) FROM task_head h WHERE <include refid="taskFilter"/></select>
+  <select id="tasks" resultType="java.lang.String" useCache="false" flushCache="true">SELECT h.task_id FROM task_head h WHERE <include refid="taskFilter"/> ORDER BY h.task_id</select>
+  <select id="runCount" resultType="java.math.BigInteger" useCache="false" flushCache="true">SELECT COUNT(*) FROM task_run r WHERE project_id=#{projectId} AND status IN ('QUEUED','RUNNING','WAITING_INPUT','CANCEL_REQUESTED')</select>
+  <select id="runs" resultMap="run" useCache="false" flushCache="true">SELECT run_id,status,revision FROM task_run r WHERE project_id=#{projectId} AND status IN ('QUEUED','RUNNING','WAITING_INPUT','CANCEL_REQUESTED') ORDER BY run_id</select>
+  <sql id="waitingFilter">
+    <choose>
+      <when test="enterprise">1=1</when>
+      <when test="allowedProjects != null and !allowedProjects.isEmpty()">w.project_id IN <foreach collection="allowedProjects" item="id" open="(" separator="," close=")">#{id}</foreach></when>
+      <otherwise>1=0</otherwise>
+    </choose>
+    <if test="projectId != null">AND w.project_id=#{projectId}</if>
+    <if test="responsible != null">AND w.assignee_id=#{responsible}</if>
+    <if test="status != null">AND w.status=#{status}</if>
+    <if test="after != null">AND w.waiting_item_id &gt; #{after}</if>
+  </sql>
+  <select id="waitingCount" resultType="java.math.BigInteger" useCache="false" flushCache="true">SELECT COUNT(*) FROM waiting_item w WHERE <include refid="waitingFilter"/></select>
+  <select id="waiting" resultMap="waiting" useCache="false" flushCache="true">
+    SELECT waiting_item_id,project_id,run_id,target_revision,reason_code,question,requirement_refs,allowed_resolution_actions,
+        assignee_id,status,revision,schema_version,updated_at FROM waiting_item w WHERE <include refid="waitingFilter"/>
+    ORDER BY waiting_item_id
+  </select>
+  <select id="audit" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT resource_ref FROM audit_event a WHERE project_id=#{projectId} AND audit_id=#{auditId} AND subject_id=#{userId}
+      AND action=#{eventType} AND result='SUCCESS' AND reason_code IS NULL AND request_id=#{requestId} AND trace_id=#{requestId}
+      AND schema_version='1.0.0' AND schema_manifest_sha256=#{manifest} AND created_by=#{userId} AND classification=#{classification}
+  </select>
+  <select id="event" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT payload FROM outbox_event e WHERE event_id=#{eventId} AND aggregate_id=#{projectId} AND aggregate_revision=#{resulting} AND event_type=#{eventType}
+  </select>
+</mapper>

@@ -1,0 +1,150 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:source-uploads:1.0.0",
+  "$ref": "#/$defs/Create",
+  "$defs": {
+    "Unsigned": {"type": "string", "pattern": "^(?:0|[1-9][0-9]{0,19})$"},
+    "PositiveUnsigned": {"type": "string", "pattern": "^[1-9][0-9]{0,19}$"},
+    "CompletionPart": {
+      "type": "object", "additionalProperties": false,
+      "required": ["part_no", "size_bytes", "sha256"],
+      "properties": {
+        "part_no": {"type": "integer", "minimum": 1, "maximum": 4294967295},
+        "size_bytes": {"$ref": "#/$defs/PositiveUnsigned"},
+        "sha256": {"$ref": "#/$defs/Hash"}
+      }
+    },
+    "Completion": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "expected_revision", "version_intent", "size_bytes", "sha256", "parts"],
+      "properties": {
+        "schema_version": {"const": "1.0.0"},
+        "expected_revision": {"$ref": "#/$defs/PositiveUnsigned"},
+        "version_intent": {"enum": ["NEW_SOURCE", "NEW_VERSION"]},
+        "source_id": {"$ref": "#/$defs/NullableId"},
+        "size_bytes": {"$ref": "#/$defs/PositiveUnsigned"},
+        "sha256": {"$ref": "#/$defs/Hash"},
+        "parts": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/CompletionPart"}}
+      },
+      "allOf": [{
+        "if": {"properties": {"version_intent": {"const": "NEW_VERSION"}}, "required": ["version_intent"]},
+        "then": {"required": ["source_id"], "properties": {"source_id": {"$ref": "#/$defs/Id"}}},
+        "else": {"properties": {"source_id": {"type": "null"}}}
+      }]
+    },
+    "Created": {
+      "type": "object", "additionalProperties": false,
+      "required": ["upload_id", "max_part_bytes", "expires_at"],
+      "properties": {
+        "upload_id": {"$ref": "#/$defs/Id"},
+        "max_part_bytes": {"const": "8388608"},
+        "expires_at": {"allOf": [{"$ref": "#/$defs/NullableTime"}], "type": "string"}
+      }
+    },
+    "Part": {
+      "type": "object", "additionalProperties": false,
+      "required": ["part_no", "size_bytes", "sha256", "state"],
+      "properties": {
+        "part_no": {"type": "integer", "minimum": 1, "maximum": 4294967295},
+        "size_bytes": {"$ref": "#/$defs/Unsigned"}, "sha256": {"$ref": "#/$defs/Hash"},
+        "state": {"enum": ["RESERVED", "WRITING", "STORED", "FAILED"]}
+      }
+    },
+    "Registration": {
+      "type": "object", "additionalProperties": false,
+      "required": ["upload_id", "request", "received_size", "upload_status", "transfer_state", "max_part_bytes", "expires_at", "parts", "next_part"],
+      "properties": {
+        "upload_id": {"$ref": "#/$defs/Id"}, "request": {"$ref": "#/$defs/Create"},
+        "received_size": {"$ref": "#/$defs/Unsigned"},
+        "upload_status": {"enum": ["PENDING", "UPLOADING", "RECEIVED", "FAILED"]},
+        "transfer_state": {"enum": ["ACTIVE", "COMPLETING", "COMPLETED", "CANCELLED", "EXPIRED", "FAILED"]},
+        "max_part_bytes": {"const": "8388608"},
+        "expires_at": {"allOf": [{"$ref": "#/$defs/NullableTime"}], "type": "string"},
+        "parts": {"type": "array", "maxItems": 100, "items": {"$ref": "#/$defs/Part"}},
+        "next_part": {"type": ["integer", "null"], "minimum": 1, "maximum": 4294967295}
+      }
+    },
+    "Id": {"type": "string", "format": "uuid", "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"},
+    "NullableId": {"anyOf": [{"type": "null"}, {"$ref": "#/$defs/Id"}]},
+    "Hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "Text": {"type": "string", "minLength": 1, "maxLength": 4096, "pattern": "\\S"},
+    "NullableText": {"anyOf": [{"type": "null"}, {"$ref": "#/$defs/Text"}]},
+    "NullableUrl": {"anyOf": [{"type": "null"}, {"type": "string", "format": "uri", "maxLength": 4096, "pattern": "^https?://"}]},
+    "NullableTime": {"anyOf": [{"type": "null"}, {"type": "string", "format": "date-time", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\\.[0-9]{1,6})?Z$"}]},
+    "NullableDate": {"anyOf": [{"type": "null"}, {"type": "string", "format": "date", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"}]},
+    "Names": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "\\S"}},
+    "EvidenceIds": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/Id"}},
+    "Provenance": {
+      "type": "object", "additionalProperties": false,
+      "required": ["owner", "publisher", "maintainer_id", "original_url", "final_url", "publisher_version", "published_at", "issued_on", "effective_from", "effective_to", "observed_status", "verified_at", "status_evidence", "acquired_at", "acquired_by", "acquisition_method", "update_frequency", "next_check_at", "retention_policy_id", "legal_hold"],
+      "properties": {
+        "owner": {"allOf": [{"$ref": "#/$defs/Text"}], "maxLength": 512},
+        "publisher": {"$ref": "#/$defs/NullableText"},
+        "maintainer_id": {"$ref": "#/$defs/Id"},
+        "original_url": {"$ref": "#/$defs/NullableUrl"},
+        "final_url": {"$ref": "#/$defs/NullableUrl"},
+        "publisher_version": {"$ref": "#/$defs/NullableText"},
+        "published_at": {"$ref": "#/$defs/NullableTime"},
+        "issued_on": {"$ref": "#/$defs/NullableDate"},
+        "effective_from": {"$ref": "#/$defs/NullableDate"},
+        "effective_to": {"$ref": "#/$defs/NullableDate"},
+        "observed_status": {"$ref": "#/$defs/NullableText"},
+        "verified_at": {"$ref": "#/$defs/NullableTime"},
+        "status_evidence": {"$ref": "#/$defs/EvidenceIds"},
+        "acquired_at": {"$ref": "#/$defs/NullableTime"},
+        "acquired_by": {"$ref": "#/$defs/NullableId"},
+        "acquisition_method": {"$ref": "#/$defs/NullableText"},
+        "update_frequency": {"$ref": "#/$defs/NullableText"},
+        "next_check_at": {"$ref": "#/$defs/NullableTime"},
+        "retention_policy_id": {"$ref": "#/$defs/NullableId"},
+        "legal_hold": {"type": ["boolean", "null"]}
+      }
+    },
+    "RightsDeclaration": {
+      "type": "object", "additionalProperties": false,
+      "required": ["purpose", "license", "allowed_actions", "providers", "regions", "valid_from", "valid_to", "authorization_evidence"],
+      "properties": {
+        "purpose": {"type": "string", "pattern": "^[A-Z][A-Z0-9_]{0,127}$"},
+        "license": {"$ref": "#/$defs/Text"},
+        "allowed_actions": {"type": "array", "uniqueItems": true, "items": {"enum": ["READ", "STORE", "ENTERPRISE_USE", "DISTRIBUTE", "EXTERNAL_PROCESS"]}},
+        "providers": {"$ref": "#/$defs/Names"},
+        "regions": {"$ref": "#/$defs/Names"},
+        "valid_from": {"$ref": "#/$defs/NullableTime"},
+        "valid_to": {"$ref": "#/$defs/NullableTime"},
+        "authorization_evidence": {"$ref": "#/$defs/EvidenceIds"}
+      }
+    },
+    "Create": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "batch_id", "project_id", "ownership", "file_name", "media_type", "size_bytes", "version_intent", "provenance", "classification", "rights_declaration"],
+      "properties": {
+        "schema_version": {"const": "1.0.0"},
+        "batch_id": {"$ref": "#/$defs/Id"},
+        "project_id": {"$ref": "#/$defs/Id"},
+        "ownership": {"enum": ["ENTERPRISE", "PROJECT", "SESSION"]},
+        "session_id": {"$ref": "#/$defs/NullableId"},
+        "file_name": {"type": "string", "minLength": 1, "maxLength": 512, "pattern": "\\S"},
+        "media_type": {"type": "string", "minLength": 1, "maxLength": 128},
+        "size_bytes": {"type": "string", "pattern": "^[1-9][0-9]{0,19}$"},
+        "sha256": {"anyOf": [{"type": "null"}, {"$ref": "#/$defs/Hash"}]},
+        "source_id": {"$ref": "#/$defs/NullableId"},
+        "version_intent": {"enum": ["NEW_SOURCE", "NEW_VERSION"]},
+        "provenance": {"$ref": "#/$defs/Provenance"},
+        "classification": {"enum": ["PUBLIC", "INTERNAL", "RESTRICTED", "PERSONAL_HEALTH"]},
+        "rights_declaration": {"$ref": "#/$defs/RightsDeclaration"}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"ownership": {"const": "SESSION"}}, "required": ["ownership"]},
+          "then": {"required": ["session_id"], "properties": {"session_id": {"$ref": "#/$defs/Id"}}},
+          "else": {"properties": {"session_id": {"type": "null"}}}
+        },
+        {
+          "if": {"properties": {"version_intent": {"const": "NEW_VERSION"}}, "required": ["version_intent"]},
+          "then": {"required": ["source_id"], "properties": {"source_id": {"$ref": "#/$defs/Id"}}},
+          "else": {"properties": {"source_id": {"type": "null"}}}
+        }
+      ]
+    }
+  }
+}

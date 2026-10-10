@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:scenario-catalogue:1.0.0",
+  "$ref": "#/$defs/Page",
+  "$defs": {
+    "Id": {"$ref": "https://schemas.medical-agent.invalid/1.0.0/backend-design/interfaces.schema.yaml#/$defs/Id"},
+    "Revision": {"$ref": "https://schemas.medical-agent.invalid/1.0.0/backend-design/interfaces.schema.yaml#/$defs/Revision"},
+    "Hash": {"$ref": "https://schemas.medical-agent.invalid/1.0.0/backend-design/interfaces.schema.yaml#/$defs/Hash"},
+    "DocumentType": {"$ref": "urn:medical:templates:1.0.0#/$defs/DocumentType"},
+    "NullableId": {"oneOf": [{"$ref": "#/$defs/Id"}, {"type": "null"}]},
+    "Query": {
+      "type": "object", "additionalProperties": false, "required": ["limit"],
+      "properties": {"limit": {"type": "integer", "minimum": 1, "maximum": 100}, "project_id": {"$ref": "#/$defs/Id"},
+        "document_type": {"$ref": "#/$defs/DocumentType"}, "after": {"$ref": "#/$defs/Id"}, "dataset_watermark": {"$ref": "#/$defs/Hash"}},
+      "dependentRequired": {"after": ["dataset_watermark"]}
+    },
+    "Metadata": {
+      "type": "object", "additionalProperties": false,
+      "required": ["configuration_id", "version_id", "project_id", "name", "status", "content_sha256", "configuration_revision", "definition_status", "missing_requirements", "task_entry"],
+      "properties": {
+        "configuration_id": {"$ref": "#/$defs/Id"}, "version_id": {"$ref": "#/$defs/Id"}, "project_id": {"$ref": "#/$defs/NullableId"},
+        "name": {"oneOf": [{"type": "string", "maxLength": 100}, {"type": "null"}]},
+        "status": {"enum": ["DRAFT", "VALIDATING", "EVALUATING", "REVIEW_PENDING", "PUBLISHED", "DISABLED"]},
+        "content_sha256": {"$ref": "#/$defs/Hash"}, "configuration_revision": {"$ref": "#/$defs/Revision"},
+        "definition_status": {"const": "UNVERIFIED"}, "task_entry": {"type": "null"},
+        "missing_requirements": {"type": "array", "minItems": 2, "uniqueItems": true, "items": {"enum": ["SCENARIO_SPECIFICATION_UNVERIFIED", "RELEASE_ADMISSION_UNAVAILABLE", "SCENARIO_DISABLED"]}}
+      }
+    },
+    "Planned": {
+      "type": "object", "additionalProperties": false,
+      "required": ["scenario_id", "name", "purpose", "status", "required_definition_fields", "task_entry"],
+      "properties": {
+        "scenario_id": {"enum": ["REGULATION_COMPARISON", "REPORT_GENERATION", "TRANSLATION", "MARKET_ANALYSIS", "MULTIMODAL_QA"]},
+        "name": {"type": "string", "minLength": 1}, "purpose": {"type": "string", "minLength": 1}, "status": {"const": "PLANNED"}, "task_entry": {"type": "null"},
+        "required_definition_fields": {"type": "array", "minItems": 8, "maxItems": 8, "uniqueItems": true,
+          "items": {"enum": ["ROLES", "INPUTS", "APPLICABLE_KNOWLEDGE", "TASK_RULES", "OUTPUTS", "HUMAN_REVIEW", "FAILURE_STATES", "ACCEPTANCE_SAMPLES"]}}
+      }
+    },
+    "Page": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "tenant_id", "context_revision", "auth_epoch", "governance_epoch", "project_id", "document_type", "limit", "total", "items", "next_after", "filter_sha256", "dataset_watermark", "planned_requirements"],
+      "properties": {
+        "schema_version": {"const": "1.0.0"}, "tenant_id": {"$ref": "#/$defs/Id"}, "context_revision": {"$ref": "#/$defs/Revision"},
+        "auth_epoch": {"$ref": "#/$defs/Revision"}, "governance_epoch": {"$ref": "#/$defs/Revision"}, "project_id": {"$ref": "#/$defs/NullableId"},
+        "document_type": {"oneOf": [{"$ref": "#/$defs/DocumentType"}, {"type": "null"}]}, "limit": {"type": "integer", "minimum": 1, "maximum": 100},
+        "total": {"$ref": "#/$defs/Revision"}, "items": {"type": "array", "maxItems": 100, "items": {"$ref": "#/$defs/Metadata"}},
+        "next_after": {"$ref": "#/$defs/NullableId"}, "filter_sha256": {"$ref": "#/$defs/Hash"}, "dataset_watermark": {"$ref": "#/$defs/Hash"},
+        "planned_requirements": {"type": "array", "items": {"$ref": "#/$defs/Planned"}}
+      }
+    }
+  }
+}

@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:collections:1.0.0",
+  "$ref": "#/$defs/Create",
+  "$defs": {
+    "MemberSelection": {
+      "type": "object", "additionalProperties": false, "required": ["source_version", "parse_version"],
+      "properties": {"source_version": {"$ref": "urn:medical:templates:1.0.0#/$defs/Id"}, "parse_version": {"$ref": "urn:medical:templates:1.0.0#/$defs/Id"}}
+    },
+    "Content": {
+      "type": "object", "additionalProperties": false, "required": ["schema_version", "title", "purpose", "members"],
+      "properties": {
+        "schema_version": {"const": "1.0.0"}, "title": {"type": "string", "minLength": 1, "maxLength": 256, "pattern": "\\S"},
+        "purpose": {"type": "string", "pattern": "^[A-Z][A-Z0-9_]{0,127}$"},
+        "members": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/MemberSelection"}}
+      }
+    },
+    "Create": {
+      "type": "object", "additionalProperties": false, "required": ["schema_version", "owner_project_id", "content", "reason"],
+      "properties": {"schema_version": {"const": "1.0.0"}, "owner_project_id": {"$ref": "urn:medical:templates:1.0.0#/$defs/NullableId"}, "content": {"$ref": "#/$defs/Content"}, "reason": {"type": "string", "minLength": 1, "maxLength": 2000, "pattern": "\\S"}}
+    },
+    "VersionInput": {
+      "type": "object", "additionalProperties": false, "required": ["schema_version", "expected_revision", "base_version", "schema_ref", "content", "reason"],
+      "properties": {
+        "schema_version": {"const": "1.0.0"}, "expected_revision": {"$ref": "urn:medical:templates:1.0.0#/$defs/Count"},
+        "base_version": {"$ref": "urn:medical:templates:1.0.0#/$defs/Basis"}, "schema_ref": {"const": "urn:medical:collections:1.0.0#/$defs/Content"},
+        "content": {"$ref": "#/$defs/Content"}, "reason": {"type": "string", "minLength": 1, "maxLength": 2000, "pattern": "\\S"}
+      }
+    },
+    "Member": {
+      "type": "object", "additionalProperties": false, "required": ["source_id", "source_version", "parse_version", "rights_revision", "original_sha256", "parse_sha256"],
+      "properties": {
+        "source_id": {"$ref": "urn:medical:templates:1.0.0#/$defs/Id"}, "source_version": {"$ref": "urn:medical:templates:1.0.0#/$defs/Id"},
+        "parse_version": {"$ref": "urn:medical:templates:1.0.0#/$defs/Id"}, "rights_revision": {"$ref": "urn:medical:templates:1.0.0#/$defs/Id"},
+        "original_sha256": {"$ref": "urn:medical:templates:1.0.0#/$defs/Hash"}, "parse_sha256": {"$ref": "urn:medical:templates:1.0.0#/$defs/Hash"}
+      }
+    },
+    "Manifest": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "tenant_id", "collection_id", "collection_version", "owner_project_id", "title", "purpose", "members", "base_version", "revision", "reason", "authority_grant_id", "authority_revision", "created_by", "created_at"],
+      "properties": {
+        "schema_version": {"const": "1.0.0"}, "tenant_id": {"$ref": "urn:medical:templates:1.0.0#/$defs/Id"},
+        "collection_id": {"$ref": "urn:medical:templates:1.0.0#/$defs/Id"}, "collection_version": {"$ref": "urn:medical:templates:1.0.0#/$defs/Id"},
+        "owner_project_id": {"$ref": "urn:medical:templates:1.0.0#/$defs/NullableId"},
+        "title": {"type": "string", "minLength": 1, "maxLength": 256, "pattern": "\\S"}, "purpose": {"type": "string", "pattern": "^[A-Z][A-Z0-9_]{0,127}$"},
+        "members": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/Member"}}, "base_version": {"$ref": "urn:medical:templates:1.0.0#/$defs/NullableBasis"},
+        "revision": {"$ref": "urn:medical:templates:1.0.0#/$defs/Count"}, "reason": {"type": "string", "minLength": 1, "maxLength": 2000, "pattern": "\\S"},
+        "authority_grant_id": {"$ref": "urn:medical:templates:1.0.0#/$defs/Id"}, "authority_revision": {"$ref": "urn:medical:templates:1.0.0#/$defs/Count"},
+        "created_by": {"$ref": "urn:medical:templates:1.0.0#/$defs/Id"}, "created_at": {"type": "string", "format": "date-time", "pattern": "(?:Z|[+]00:00)$"}
+      }
+    },
+    "View": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "manifest", "content_sha256", "schema_ref", "schema_manifest_sha256", "allowed_actions"],
+      "properties": {
+        "schema_version": {"const": "1.0.0"}, "manifest": {"$ref": "#/$defs/Manifest"}, "content_sha256": {"$ref": "urn:medical:templates:1.0.0#/$defs/Hash"},
+        "schema_ref": {"const": "urn:medical:collections:1.0.0#/$defs/Manifest"}, "schema_manifest_sha256": {"$ref": "urn:medical:templates:1.0.0#/$defs/Hash"},
+        "allowed_actions": {"type": "array", "uniqueItems": true, "items": {"const": "collection.read"}}
+      }
+    },
+    "Created": {
+      "type": "object", "additionalProperties": false, "required": ["schema_version", "operation_id", "collection"],
+      "properties": {"schema_version": {"const": "1.0.0"}, "operation_id": {"$ref": "urn:medical:templates:1.0.0#/$defs/Id"}, "collection": {"$ref": "#/$defs/View"}}
+    },
+    "Page": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "collection_id", "owner_project_id", "title", "current_version", "revision", "items", "page_info"],
+      "properties": {
+        "schema_version": {"const": "1.0.0"}, "collection_id": {"$ref": "urn:medical:templates:1.0.0#/$defs/Id"}, "owner_project_id": {"$ref": "urn:medical:templates:1.0.0#/$defs/NullableId"},
+        "title": {"type": "string", "minLength": 1, "maxLength": 256}, "current_version": {"$ref": "urn:medical:templates:1.0.0#/$defs/Id"}, "revision": {"$ref": "urn:medical:templates:1.0.0#/$defs/Count"},
+        "items": {"type": "array", "items": {"$ref": "#/$defs/View"}}, "page_info": {"$ref": "https://schemas.medical-agent.invalid/1.0.0/backend-design/interfaces.schema.yaml#/$defs/PageInfo"}
+      }
+    },
+    "SourceAuthorization": {
+      "type": "object", "additionalProperties": false, "required": ["source_version", "rights_revision", "rights_sha256", "grant_id", "grant_revision"],
+      "properties": {
+        "source_version": {"$ref": "urn:medical:templates:1.0.0#/$defs/Id"}, "rights_revision": {"$ref": "urn:medical:templates:1.0.0#/$defs/Id"}, "rights_sha256": {"$ref": "urn:medical:templates:1.0.0#/$defs/Hash"},
+        "grant_id": {"$ref": "urn:medical:templates:1.0.0#/$defs/Id"}, "grant_revision": {"$ref": "urn:medical:templates:1.0.0#/$defs/Count"}
+      }
+    },
+    "VersionAuthorization": {
+      "type": "object", "additionalProperties": false, "required": ["version_id", "content_sha256", "domain", "resource_kind", "resource_id", "grant_id", "grant_revision"],
+      "properties": {
+        "version_id": {"$ref": "urn:medical:templates:1.0.0#/$defs/Id"}, "content_sha256": {"$ref": "urn:medical:templates:1.0.0#/$defs/Hash"}, "domain": {"type": "string", "minLength": 1},
+        "resource_kind": {"type": "string", "minLength": 1}, "resource_id": {"$ref": "urn:medical:templates:1.0.0#/$defs/Id"}, "grant_id": {"$ref": "urn:medical:templates:1.0.0#/$defs/Id"},
+        "grant_revision": {"$ref": "urn:medical:templates:1.0.0#/$defs/Count"}
+      }
+    },
+    "Audit": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "operation_id", "request", "before", "after", "authority_grant_id", "authority_revision", "context_revision", "auth_epoch", "governance_epoch", "sources", "versions"],
+      "properties": {
+        "schema_version": {"const": "1.0.0"}, "operation_id": {"$ref": "urn:medical:templates:1.0.0#/$defs/Id"}, "request": {"oneOf": [{"$ref": "#/$defs/Create"}, {"$ref": "#/$defs/VersionInput"}]},
+        "before": {"$ref": "urn:medical:templates:1.0.0#/$defs/NullableBasis"}, "after": {"$ref": "#/$defs/Created"},
+        "authority_grant_id": {"$ref": "urn:medical:templates:1.0.0#/$defs/Id"}, "authority_revision": {"$ref": "urn:medical:templates:1.0.0#/$defs/Count"},
+        "context_revision": {"$ref": "urn:medical:templates:1.0.0#/$defs/Count"}, "auth_epoch": {"$ref": "urn:medical:templates:1.0.0#/$defs/Count"}, "governance_epoch": {"$ref": "urn:medical:templates:1.0.0#/$defs/Count"},
+        "sources": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/SourceAuthorization"}}, "versions": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/VersionAuthorization"}}
+      }
+    },
+    "Event": {
+      "type": "object", "additionalProperties": false, "required": ["schema_version", "creation", "context_revision", "auth_epoch", "governance_epoch", "sources", "versions"],
+      "properties": {
+        "schema_version": {"const": "1.0.0"}, "creation": {"$ref": "#/$defs/Created"},
+        "context_revision": {"$ref": "urn:medical:templates:1.0.0#/$defs/Count"}, "auth_epoch": {"$ref": "urn:medical:templates:1.0.0#/$defs/Count"}, "governance_epoch": {"$ref": "urn:medical:templates:1.0.0#/$defs/Count"},
+        "sources": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/SourceAuthorization"}}, "versions": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/VersionAuthorization"}}
+      }
+    }
+  }
+}

@@ -1,0 +1,220 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+title: 固定读取产物内容类型
+$defs:
+  Id: {$ref: './interfaces.schema.yaml#/$defs/Id'}
+  Ids: {$ref: './interfaces.schema.yaml#/$defs/Ids'}
+  NullableId: {$ref: './interfaces.schema.yaml#/$defs/NullableId'}
+  Revision: {$ref: './interfaces.schema.yaml#/$defs/Revision'}
+  ArtifactRef: {$ref: './interfaces.schema.yaml#/$defs/ArtifactRef'}
+  Texts: {$ref: './interfaces.schema.yaml#/$defs/Texts'}
+  TaskDetail:
+    type: object
+    additionalProperties: false
+    required: [task_id, task_revision, project_id, owner_id, status, plan_revision, snapshot_id, document_ids, missing_requirements, waiting_item_ids, active_run_ids]
+    properties:
+      task_id: {$ref: '#/$defs/Id'}
+      task_revision: {$ref: '#/$defs/Id'}
+      project_id: {$ref: '#/$defs/Id'}
+      owner_id: {$ref: '#/$defs/Id'}
+      status: {enum: [NEEDS_MATERIALS, PLAN_PENDING, READY, RUNNING, REVIEW_PENDING, SIGN_PENDING, SIGNED, FAILED, RETURNED, CANCEL_REQUESTED, CANCELLED]}
+      plan_revision: {$ref: '#/$defs/NullableId'}
+      snapshot_id: {$ref: '#/$defs/NullableId'}
+      document_ids: {$ref: '#/$defs/Ids'}
+      missing_requirements: {type: array, items: {$ref: '#/$defs/Requirement'}}
+      waiting_item_ids: {$ref: '#/$defs/Ids'}
+      active_run_ids: {$ref: '#/$defs/Ids'}
+  Requirement:
+    type: object
+    additionalProperties: false
+    required: [requirement_id, node_id, field_id, reason_code, allowed_actions]
+    properties: {requirement_id: {type: string}, node_id: {$ref: '#/$defs/NullableId'}, field_id: {$ref: '#/$defs/NullableId'}, reason_code: {type: string}, allowed_actions: {$ref: '#/$defs/Texts'}}
+  CheckDetail:
+    type: object
+    additionalProperties: false
+    required: [check_id, target_kind, target_id, target_revision, input_sha256, rule_manifest_id, status, coverage, findings, issue_ids, evidence_watermark, issue_watermark, invalidation_reason]
+    properties:
+      check_id: {$ref: '#/$defs/Id'}
+      target_kind: {enum: [DOCUMENT, CANDIDATE]}
+      target_id: {$ref: '#/$defs/Id'}
+      target_revision: {$ref: '#/$defs/Id'}
+      input_sha256: {$ref: './interfaces.schema.yaml#/$defs/Hash'}
+      rule_manifest_id: {$ref: '#/$defs/Id'}
+      status: {enum: [QUEUED, RUNNING, SUCCEEDED, WAITING_INPUT, FAILED, CANCELLED]}
+      coverage: {$ref: './interfaces.schema.yaml#/$defs/Coverage'}
+      findings: {$ref: '#/$defs/ArtifactRef'}
+      issue_ids: {$ref: '#/$defs/Ids'}
+      evidence_watermark: {$ref: '#/$defs/Revision'}
+      issue_watermark: {$ref: '#/$defs/Revision'}
+      invalidation_reason: {$ref: './interfaces.schema.yaml#/$defs/NullableText'}
+  EvidenceDecisionDetail:
+    type: object
+    additionalProperties: false
+    required: [decision_id, batch_id, document_revision, actor_id, decided_at, decision, check_ids, evidence_watermark, issue_watermark, validity, invalidation_reason]
+    properties:
+      decision_id: {$ref: '#/$defs/Id'}
+      batch_id: {$ref: '#/$defs/Id'}
+      document_revision: {$ref: '#/$defs/Id'}
+      actor_id: {$ref: '#/$defs/Id'}
+      decided_at: {$ref: './interfaces.schema.yaml#/$defs/Timestamp'}
+      decision: {$ref: './interfaces.schema.yaml#/$defs/EvidenceDecision'}
+      check_ids: {$ref: '#/$defs/Ids'}
+      evidence_watermark: {$ref: '#/$defs/Revision'}
+      issue_watermark: {$ref: '#/$defs/Revision'}
+      validity: {enum: [VALID, INVALIDATED]}
+      invalidation_reason: {$ref: './interfaces.schema.yaml#/$defs/NullableText'}
+  AnnotationDetail:
+    type: object
+    additionalProperties: false
+    required: [annotation_id, document_revision, selection, content, actor_id, created_at, status, location_status, reply_count]
+    properties:
+      annotation_id: {$ref: '#/$defs/Id'}
+      document_revision: {$ref: '#/$defs/Id'}
+      selection: {$ref: './interfaces.schema.yaml#/$defs/Selection'}
+      content: {type: string}
+      actor_id: {$ref: '#/$defs/Id'}
+      created_at: {$ref: './interfaces.schema.yaml#/$defs/Timestamp'}
+      status: {enum: [OPEN, RESOLVED, RETURNED]}
+      location_status: {enum: [CURRENT_VERSION, ORIGINAL_VERSION]}
+      reply_count: {$ref: '#/$defs/Revision'}
+  ReplyDetail:
+    type: object
+    additionalProperties: false
+    required: [reply_id, annotation_id, actor_id, created_at, content]
+    properties: {reply_id: {$ref: '#/$defs/Id'}, annotation_id: {$ref: '#/$defs/Id'}, actor_id: {$ref: '#/$defs/Id'}, created_at: {$ref: './interfaces.schema.yaml#/$defs/Timestamp'}, content: {type: string, minLength: 1}}
+  SignatureDetail:
+    type: object
+    additionalProperties: false
+    required: [signature_id, document_id, document_revision, signer_id, signed_at, purpose, policy_revision, review_ids, check_ids, manifest_sha256, auth_epoch, governance_epoch]
+    properties:
+      signature_id: {$ref: '#/$defs/Id'}
+      document_id: {$ref: '#/$defs/Id'}
+      document_revision: {$ref: '#/$defs/Id'}
+      signer_id: {$ref: '#/$defs/Id'}
+      signed_at: {$ref: './interfaces.schema.yaml#/$defs/Timestamp'}
+      purpose: {type: string}
+      policy_revision: {$ref: '#/$defs/Id'}
+      review_ids: {$ref: '#/$defs/Ids'}
+      check_ids: {$ref: '#/$defs/Ids'}
+      manifest_sha256: {$ref: './interfaces.schema.yaml#/$defs/Hash'}
+      auth_epoch: {$ref: '#/$defs/Revision'}
+      governance_epoch: {$ref: '#/$defs/Revision'}
+  Message:
+    type: object
+    additionalProperties: false
+    required: [message_id, conversation_id, project_id, document_revision, selection, scope, sender_kind, content, run_id, operation_id, candidate_ids, created_at]
+    properties:
+      message_id: {$ref: '#/$defs/Id'}
+      conversation_id: {$ref: '#/$defs/Id'}
+      project_id: {$ref: '#/$defs/NullableId'}
+      document_revision: {$ref: '#/$defs/NullableId'}
+      selection: {oneOf: [{$ref: './interfaces.schema.yaml#/$defs/Selection'}, {type: 'null'}]}
+      scope: {$ref: './interfaces.schema.yaml#/$defs/SourceScope'}
+      sender_kind: {enum: [USER, AGENT, SYSTEM]}
+      content: {type: string}
+      run_id: {$ref: '#/$defs/NullableId'}
+      operation_id: {$ref: '#/$defs/NullableId'}
+      candidate_ids: {$ref: '#/$defs/Ids'}
+      created_at: {$ref: './interfaces.schema.yaml#/$defs/Timestamp'}
+  MessageList: {type: array, items: {$ref: '#/$defs/Message'}}
+  ConfigurationDetail:
+    type: object
+    additionalProperties: false
+    required: [config_id, kind, version, content, parameter_schema_ref, dependency_version_ids, approval_ids, release_ids, verification_ids, credential_reference_id, endpoint_identity]
+    properties:
+      config_id: {$ref: '#/$defs/Id'}
+      kind: {enum: [AGENT, CAPABILITY, MODEL, CONNECTOR]}
+      version: {$ref: '#/$defs/Id'}
+      content: {$ref: '#/$defs/ArtifactRef'}
+      parameter_schema_ref: {type: string, minLength: 1}
+      dependency_version_ids: {$ref: '#/$defs/Ids'}
+      approval_ids: {$ref: '#/$defs/Ids'}
+      release_ids: {$ref: '#/$defs/Ids'}
+      verification_ids: {$ref: '#/$defs/Ids'}
+      credential_reference_id: {$ref: '#/$defs/NullableId'}
+      endpoint_identity: {$ref: './interfaces.schema.yaml#/$defs/NullableText'}
+  EvaluationDetail:
+    type: object
+    additionalProperties: false
+    required: [evaluation_id, sample_manifest, rule_revision, release_candidate_ids, score_ids, status, missing_requirements]
+    properties: {evaluation_id: {$ref: '#/$defs/Id'}, sample_manifest: {$ref: '#/$defs/ArtifactRef'}, rule_revision: {$ref: '#/$defs/Id'}, release_candidate_ids: {$ref: '#/$defs/Ids'}, score_ids: {$ref: '#/$defs/Ids'}, status: {enum: [QUEUED, RUNNING, COMPLETED, FAILED, INSUFFICIENT_EVIDENCE]}, missing_requirements: {$ref: '#/$defs/Texts'}}
+  ScoreDetail:
+    type: object
+    additionalProperties: false
+    required: [score_id, evaluation_id, sample_id, agent_version_id, dimension, value, numerator, denominator, scorer_id, rule_revision, input, output, evidence, supersedes, status]
+    properties:
+      score_id: {$ref: '#/$defs/Id'}
+      evaluation_id: {$ref: '#/$defs/Id'}
+      sample_id: {$ref: '#/$defs/Id'}
+      agent_version_id: {$ref: '#/$defs/Id'}
+      dimension: {type: string}
+      value: {$ref: './interfaces.schema.yaml#/$defs/NullableText'}
+      numerator: {$ref: './interfaces.schema.yaml#/$defs/NullableText'}
+      denominator: {$ref: './interfaces.schema.yaml#/$defs/NullableText'}
+      scorer_id: {$ref: '#/$defs/Id'}
+      rule_revision: {$ref: '#/$defs/Id'}
+      input: {$ref: '#/$defs/ArtifactRef'}
+      output: {oneOf: [{$ref: '#/$defs/ArtifactRef'}, {type: 'null'}]}
+      evidence: {$ref: '#/$defs/ArtifactRef'}
+      supersedes: {$ref: '#/$defs/NullableId'}
+      status: {enum: [SCORED, UNKNOWN, BLOCKED]}
+  FeedbackDetail:
+    type: object
+    additionalProperties: false
+    required: [feedback_id, task_id, document_revision, target_version, content, actor_id, proposal_id, decision_ids]
+    properties: {feedback_id: {$ref: '#/$defs/Id'}, task_id: {$ref: '#/$defs/NullableId'}, document_revision: {$ref: '#/$defs/NullableId'}, target_version: {$ref: '#/$defs/Id'}, content: {type: string}, actor_id: {$ref: '#/$defs/Id'}, proposal_id: {$ref: '#/$defs/NullableId'}, decision_ids: {$ref: '#/$defs/Ids'}}
+  CollectionDetail:
+    type: object
+    additionalProperties: false
+    required: [collection_id, current_version, version_ids, members]
+    properties: {collection_id: {$ref: '#/$defs/Id'}, current_version: {$ref: '#/$defs/NullableId'}, version_ids: {$ref: '#/$defs/Ids'}, members: {$ref: '#/$defs/ArtifactRef'}}
+  FolderDetail:
+    type: object
+    additionalProperties: false
+    required: [folder_id, parent_id, path_ids, child_count]
+    properties: {folder_id: {$ref: '#/$defs/Id'}, parent_id: {$ref: '#/$defs/NullableId'}, path_ids: {$ref: '#/$defs/Ids'}, child_count: {$ref: '#/$defs/Revision'}}
+  TemplateDetail:
+    type: object
+    additionalProperties: false
+    required: [template_version, document_type, nodes, field_definitions, decision_ids]
+    properties: {template_version: {$ref: '#/$defs/Id'}, document_type: {type: string}, nodes: {type: array, items: {$ref: '#/$defs/TemplateNode'}}, field_definitions: {$ref: '#/$defs/ArtifactRef'}, decision_ids: {$ref: '#/$defs/Ids'}}
+  TemplateNode:
+    type: object
+    additionalProperties: false
+    required: [node_id, parent_id, ordinal, title, required, condition, condition_rule_revision, evidence_link_ids, field_ids, attachment_requirement_ids, decision_ids]
+    properties:
+      node_id: {$ref: '#/$defs/Id'}
+      parent_id: {$ref: '#/$defs/NullableId'}
+      ordinal: {type: integer, minimum: 0}
+      title: {type: string}
+      required: {type: boolean}
+      condition: {enum: [APPLICABLE, NOT_APPLICABLE, UNKNOWN]}
+      condition_rule_revision: {$ref: '#/$defs/NullableId'}
+      evidence_link_ids: {$ref: '#/$defs/Ids'}
+      field_ids: {$ref: '#/$defs/Ids'}
+      attachment_requirement_ids: {$ref: '#/$defs/Ids'}
+      decision_ids: {$ref: '#/$defs/Ids'}
+  ChangeProposalDetail:
+    type: object
+    additionalProperties: false
+    required: [proposal_id, old_version, new_version, decision_ids, impacts, application_source_links, coverage]
+    properties: {proposal_id: {$ref: '#/$defs/Id'}, old_version: {$ref: '#/$defs/Id'}, new_version: {$ref: '#/$defs/Id'}, decision_ids: {$ref: '#/$defs/Ids'}, impacts: {type: array, items: {$ref: '#/$defs/Impact'}}, application_source_links: {$ref: '#/$defs/ArtifactRef'}, coverage: {$ref: './interfaces.schema.yaml#/$defs/Coverage'}}
+  Impact:
+    type: object
+    additionalProperties: false
+    required: [resource_kind, resource_id, resource_revision, reason_code, required_action, status]
+    properties: {resource_kind: {enum: [DOCUMENT, FIELD, REVIEW, INDEX, APPLICATION_NODE]}, resource_id: {$ref: '#/$defs/Id'}, resource_revision: {$ref: '#/$defs/Revision'}, reason_code: {type: string}, required_action: {type: string}, status: {enum: [PENDING, CONFIRMED, COMPLETED, BLOCKED]}}
+  DifferenceList: {type: array, items: {$ref: '#/$defs/Difference'}}
+  Difference:
+    type: object
+    additionalProperties: false
+    required: [node_id, kind, left_selection, right_selection, field_ids, added_evidence_link_ids, removed_evidence_link_ids, changed_support_link_ids, affected_check_ids]
+    properties:
+      node_id: {$ref: '#/$defs/Id'}
+      kind: {enum: [ADDED, REMOVED, CHANGED, UNCHANGED]}
+      left_selection: {oneOf: [{$ref: './interfaces.schema.yaml#/$defs/Selection'}, {type: 'null'}]}
+      right_selection: {oneOf: [{$ref: './interfaces.schema.yaml#/$defs/Selection'}, {type: 'null'}]}
+      field_ids: {$ref: '#/$defs/Ids'}
+      added_evidence_link_ids: {$ref: '#/$defs/Ids'}
+      removed_evidence_link_ids: {$ref: '#/$defs/Ids'}
+      changed_support_link_ids: {$ref: '#/$defs/Ids'}
+      affected_check_ids: {$ref: '#/$defs/Ids'}

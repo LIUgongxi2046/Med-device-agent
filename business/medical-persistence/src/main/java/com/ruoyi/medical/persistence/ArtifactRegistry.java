@@ -1,0 +1,63 @@
+package com.ruoyi.medical.persistence;
+
+import com.ruoyi.medical.contracts.ErrorCode;
+import com.ruoyi.medical.contracts.SchemaCatalogue;
+import com.ruoyi.medical.contracts.WireValues;
+import com.ruoyi.medical.persistence.mapper.ArtifactRegistryMapper;
+import java.io.IOException;
+import java.security.NoSuchAlgorithmException;
+import java.util.List;
+import java.util.Objects;
+import org.springframework.stereotype.Component;
+
+@Component
+public final class ArtifactRegistry {
+    private final ArtifactRegistryMapper mapper;
+    private final ResourceReadAuthority authority;
+    private final DependencyManifestSchema manifests;
+    private final SchemaCatalogue schemas;
+    private final DependencyLineage lineage;
+
+    public ArtifactRegistry(ArtifactRegistryMapper mapper, ResourceReadAuthority authority, DependencyManifestSchema manifests, DependencyLineage lineage)
+            throws IOException, NoSuchAlgorithmException {
+        this.mapper = mapper; this.authority = authority; this.manifests = manifests; this.lineage = lineage; schemas = SchemaCatalogue.fromClasspath();
+    }
+
+    ArtifactRegistryProtocol.Registration requireRegistration(EnterpriseAccess.Admission admission, String id,
+            ArtifactRegistryProtocol.ReadRequirement required) throws IOException {
+        Objects.requireNonNull(required); WireValues.uuid(id); WireValues.hash(required.artifactSchemaManifest());
+        String tenant = admission.context().tenant_id();
+        if (!tenant.equals(required.scope().tenant_id())) denied();
+        // 主资源与制品分别授权，登记数据不能决定调用方应读取的领域类型。
+        var resourceGrant = authority.require(admission, required.scope(), required.action(), required.purpose());
+        var artifact = single(mapper.artifact(id)); var binding = single(mapper.binding(id));
+        var artifactGrant = authority.require(admission, new PermissionProtocol.Scope(tenant, artifact.projectId(), "ARTIFACT", id),
+            "artifact.read", required.purpose());
+        if (!tenant.equals(artifact.tenantId()) || !tenant.equals(binding.tenantId()) || !id.equals(artifact.artifactId())
+                || !id.equals(binding.artifactId()) || !Objects.equals(required.scope().project_id(), artifact.projectId())
+                || !Objects.equals(artifact.projectId(), binding.projectId()) || !required.scope().resource_kind().equals(binding.resourceKind())
+                || !required.scope().resource_id().equals(binding.resourceId()) || !artifact.accessSetId().equals(binding.accessSetId())
+                || !required.schemaRef().equals(binding.schemaRef()) || !required.schemaDocumentSha256().equals(binding.schemaDocumentSha256())
+                || !"1.0.0".equals(artifact.schemaVersion()) || !required.artifactSchemaManifest().equals(artifact.schemaManifest())
+                || !artifact.sha256().equals(artifact.contentSha256())) mismatch();
+        schemas.requirePublished(required.schemaRef(), required.schemaDocumentSha256());
+        StoredObjectReferences.decode(artifact.storedObject(), artifact.reference());
+        requireVersion(id, artifact.projectId(), artifact.sha256());
+        var row = single(mapper.manifest(artifact.accessSetId()));
+        if (!tenant.equals(row.tenantId()) || !Objects.equals(artifact.projectId(), row.projectId())
+                || !artifact.accessSetId().equals(row.accessSetId()) || !binding.dependencyManifestSha256().equals(row.manifestSha256())) mismatch();
+        var manifest = manifests.verify(row, mapper.members(row.accessSetId()));
+        requireVersion(row.accessSetId(), row.projectId(), row.manifestSha256());
+        var completeLineage = lineage.require(id, manifest.members(), required.lineageLimits());
+        return new ArtifactRegistryProtocol.Registration(artifact, binding, manifest, artifactGrant, resourceGrant, completeLineage);
+    }
+
+    private void requireVersion(String id, String project, String digest) {
+        var version = single(mapper.version(id));
+        if (!id.equals(version.id()) || !Objects.equals(project, version.projectId()) || !digest.equals(version.contentSha256())) mismatch();
+    }
+
+    private static <T> T single(List<T> rows) { if (rows.size() != 1) denied(); return rows.get(0); }
+    private static void denied() { throw new TenantAccessException(ErrorCode.ACCESS_DENIED); }
+    private static void mismatch() { throw new TenantAccessException(ErrorCode.CONTENT_MISMATCH); }
+}

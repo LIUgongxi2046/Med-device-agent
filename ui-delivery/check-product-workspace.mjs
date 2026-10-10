@@ -1,0 +1,145 @@
+import assert from 'node:assert/strict';
+import { mkdir, readFile } from 'node:fs/promises';
+import { pathToFileURL } from 'node:url';
+import { chromium } from '/Users/liuhaoxian/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright/index.mjs';
+const root='/Users/liuhaoxian/Downloads/我的/AI项目/医疗设备厂商agent';
+await mkdir(`${root}/ui-delivery/.checks`,{recursive:true});
+const browser=await chromium.launch({headless:true,executablePath:'/Users/liuhaoxian/Library/Caches/ms-playwright/chromium_headless_shell-1228/chrome-headless-shell-mac-x64/chrome-headless-shell'});
+const page=await browser.newPage({viewport:{width:1440,height:1000}});
+page.setDefaultTimeout(10000);
+const errors=[];page.on('pageerror',error=>errors.push(error.message));
+await page.goto(pathToFileURL(`${root}/设计稿.html`).href);
+const active=()=>page.locator('.screen.active');
+const action=(name,value)=>page.locator(`.screen.active [data-action="${name}"]${value===undefined?'':`[data-value="${value}"]`}`).first();
+const open=async id=>page.evaluate(id=>showScreen(id),id);
+const submitDialog=()=>page.locator('#product-dialog button[type="submit"]').click();
+const approve=async()=>{
+  await page.locator('#product-dialog input[name="read"]').check();
+  await page.locator('#product-dialog input[name="scope"]').check();
+  await page.locator('#product-dialog textarea[name="reason"]').fill('已核对当前资料版本、位置与适用范围。');await submitDialog();
+};
+assert.equal(await page.locator('section.screen').count(),14);
+assert.deepEqual(await page.locator('.nav-title').allTextContents(),['核心功能','平台管理','系统管理']);
+assert.deepEqual(await page.locator('#navigation button').allTextContents(),['工作台','项目中心','资料中心']);
+assert.equal(await page.locator('#system-navigation button').count(),19);
+assert.equal(await page.locator('#project-flow').count(),0);
+assert.equal(await page.locator('.selection-popover').isVisible(),false);
+assert.equal(await page.locator('#S01 .work-metric').count(),4);
+assert.equal(await page.locator('#S01 .queue-row').count(),2);
+await action('queue-tab','waiting').click();assert.equal(await page.locator('#S01 .queue-row').count(),5);
+await action('queue-filter','running').click();assert.equal(await page.locator('#S01 .queue-row').count(),1);
+assert.match(await page.locator('#S01 .queue-row').innerText(),/运行中/);
+await open('S03');const projects=page.locator('[data-paged-list="projects"]');
+assert.equal(await projects.locator('[data-total]').innerText(),'共 12 条');
+await projects.locator('[data-page-next]').click();assert.equal(await projects.locator('[data-page-info]').innerText(),'第 2 / 2 页');
+await projects.locator('[data-page-previous]').click();await page.locator('#S03 [data-demo-project="1"]').click();
+assert.match(await active().innerText(),/清澜便携式超声诊断仪/);
+await action('navigate','S07').click();assert.equal(await page.locator('#current-project').inputValue(),'project-2');
+assert.equal(await page.locator('#current-project option').count(),12);
+await page.locator('#document-type').selectOption('index');assert.match(await active().innerText(),/临床评价资料/);
+await action('create-task').click();assert.match(await active().innerText(),/清澜便携式超声诊断仪/);
+assert.match(await active().innerText(),/任务等待项目资料/);assert.equal(await active().locator('[data-document-module]').count(),0);
+await action('project-materials').click();assert.match(await active().innerText(),/没有符合条件的资料/);
+await action('upload-material').click();await page.locator('#product-dialog input[name="file"]').setInputFiles(`${root}/PRD.md`);
+await page.locator('#product-dialog input[name="source"]').fill('项目工作区 PRD 文件');await submitDialog();
+await page.locator('#S05.active').waitFor({state:'visible'});
+assert.equal(await active().getAttribute('id'),'S05');assert.match(await active().innerText(),/医疗器械企业 Agent 平台产品需求规格说明书/);
+await action('approve-material').click();await approve();await open('S09');await action('resume-task').click();
+assert.equal(await active().locator('[data-document-module]').count(),0);
+await action('research-task-scope').click();await page.locator('#product-dialog [name="members"]').last().check();await submitDialog();
+await page.locator('#product-dialog [name="confirm"]').check();await submitDialog();await action('resume-task').click();
+assert.equal(await active().locator('[data-document-module]').count(),6);
+assert.match(await active().locator('[data-document-module="0"]').innerText(),/清澜便携式超声诊断仪/);
+await action('save-document').click();
+assert.equal(await page.locator('.selection-popover').isVisible(),false);
+await open('S01');await action('queue-tab','all').click();await action('task-open','task-1').click();
+assert.match(await active().locator('.document-subtitle').innerText(),/灵析多导睡眠监测系统/);
+assert.match(await active().locator('[data-document-module="0"]').innerText(),/灵析多导睡眠监测系统/);
+await action('navigate','S09').click();const first=page.locator('.screen.active [data-document-module="0"]');
+await first.fill((await first.innerText())+' 本次修订需要复核。');assert.match(await page.locator('#document-save-state').innerText(),/尚未保存/);
+await first.scrollIntoViewIfNeeded();const box=await first.boundingBox();
+await page.mouse.move(box.x+20,box.y+23);await page.mouse.down();await page.mouse.move(box.x+145,box.y+23,{steps:10});await page.mouse.up();
+assert.equal(await page.locator('.selection-popover').isVisible(),true);
+await page.locator('.selection-popover [data-action="replace-selection"]').click();
+await page.locator('#product-dialog textarea[name="text"]').fill('修订后的产品说明');await submitDialog();
+assert.match(await first.innerText(),/修订后的产品说明/);await action('save-document').click();
+await action('module-comment','0').click();await page.locator('#product-dialog textarea[name="comment"]').fill('需要复核产品名称。');await submitDialog();
+await action('resolve-comment','0').click();await page.locator('#product-dialog textarea[name="reply"]').fill('已核对项目与产品名称。');await submitDialog();
+await action('reader-filter','all').click();
+assert.match(await active().locator('.comment-block').innerText(),/已解决/);
+for(let index=0;index<6;index++){
+  await active().locator('.evidence-fold').nth(index).locator('summary').first().click();
+  await action('chapter-source',String(index)).click();
+  if(await action('approve-source').count()){await action('approve-source').click();await approve()}
+  await page.locator('#evidence-confirm').check();await action('verify-source').click();
+}
+await action('navigate','S11').click();await active().locator('.review-decision>summary').click();assert.equal(await action('confirm-review').isEnabled(),true);
+await action('confirm-review').click();await page.locator('[data-change="review-role"]').selectOption('signer');assert.equal(await action('sign-document').isEnabled(),true);
+await action('navigate','S09').click();await first.fill((await first.innerText())+' 确认后再次修改。');
+await action('save-document').click();await action('navigate','S11').click();
+assert.equal(await action('sign-document').isDisabled(),true);assert.equal(await action('confirm-review').isDisabled(),true);
+assert.match(await page.locator('#review-readiness').innerText(),/尚有核验或标注待处理/);
+await action('return-task').click();await page.locator('#product-dialog select[name="owner"]').selectOption('周予安');
+await page.locator('#product-dialog textarea[name="reason"]').fill('需要研发人员重新核对来源。');await submitDialog();
+await action('document-history').click();assert.match(await page.locator('#product-dialog').innerText(),/退回/);await page.locator('#product-dialog [data-action="dialog-close"]').first().click();
+await open('S01');await action('queue-tab','waiting').click();assert.match(await action('task-open','task-1').locator('..').innerText(),/已退回/);
+await action('task-open','task-1').click();await action('navigate','S09').click();await active().locator('.reader-operations>summary').click();
+await action('resume-task').click();await action('save-document').click();
+for(let index=0;index<6;index++){await action('chapter-source',String(index)).click();await page.locator('#evidence-confirm').check();await action('verify-source').click()}
+await action('navigate','S11').click();
+await action('confirm-review').click();await action('sign-document').click();await page.locator('#product-dialog input[name="confirm"]').check();await submitDialog();
+assert.match(await active().locator('.document-sheet').innerText(),/签发版本只读/);assert.equal(await first.getAttribute('contenteditable'),'false');
+const downloadPromise=page.waitForEvent('download');await action('export-document').click();const download=await downloadPromise;
+await download.saveAs(`${root}/ui-delivery/.checks/文稿导出.md`);assert.match(await readFile(`${root}/ui-delivery/.checks/文稿导出.md`,'utf8'),/已签发/);
+await open('S04');await page.locator('[data-change="library-scope"]').selectOption('all');await page.locator('[data-change="library-size"]').selectOption('50');await action('select-material','material-10').click();
+await open('S09');await action('chapter-source','1').click();await action('source-original').click();
+assert.match(await active().locator('.library-reader h2').innerText(),/产品结构说明/);assert.match(await active().locator('.source-location').innerText(),/第 2 章/);
+await action('source-return').click();assert.equal(await active().getAttribute('id'),'S09');
+await open('S04');await page.locator('[data-change="library-scope"]').selectOption('all');await page.locator('[data-change="library-size"]').selectOption('10');
+await page.locator('[data-form="library-search"] input[name="query"]').fill('不存在的资料名称');await page.locator('[data-form="library-search"] button[type="submit"]').click();
+assert.match(await active().innerText(),/没有符合条件的资料/);assert.equal(await active().locator('.library-reader').count(),0);
+await action('library-reset').click();await action('library-page','2').click();assert.match(await active().locator('.pagination').innerText(),/2 \/ 4/);
+await action('library-page','1').click();await page.locator('[data-change="library-size"]').selectOption('50');await action('select-material','material-0').click();await action('upload-version','material-0').click();
+await page.locator('#product-dialog input[name="file"]').setInputFiles(`${root}/PRD.md`);await page.locator('#product-dialog input[name="version"]').fill('D-1.3');
+await page.locator('#product-dialog input[name="source"]').fill('工作区版本检查文件');await submitDialog();await page.locator('#S05.active').waitFor({state:'visible'});await action('library-tab','links').click();
+assert.ok(await active().locator('[data-action="backlink"]').count()>0);
+await open('S11');assert.match(await active().locator('.document-sheet').innerText(),/签发版本只读/);
+await action('navigate','S09').click();
+await action('chapter-source','0').click();await action('source-original').click();
+assert.match(await active().locator('.source-location').innerText(),/固定引用 D-1.2/);assert.match(await active().locator('.source-location').innerText(),/最新资料为 D-1.3/);
+await open('S13');await action('config-select','D-1.5').click();await action('material-open','material-8').click();
+await action('approve-material','material-8').click();await approve();await open('S13');await action('config-tab','model').click();
+await page.locator('[data-form="agent-model"] input[name="budget"]').fill('23');await page.locator('[data-form="agent-model"] button[type="submit"]').click();
+await action('check-config').click();await action('config-tab','release').click();assert.equal(await action('publish-version').isDisabled(),true);
+await action('evaluate-version','D-1.5').click();await page.locator('[data-form="evaluation-filter"] select[name="category"]').selectOption('第三类');
+await page.locator('[data-form="evaluation-filter"] button[type="submit"]').click();assert.equal(await page.locator('[data-metric="固定样本"]').innerText(),'0');
+assert.equal(await active().locator('[data-sample]').count(),0);await action('eval-reset').click();assert.equal(await page.locator('[data-metric="固定样本"]').innerText(),'7');
+for(const id of ['task-1','task-2','task-3','task-4','task-5','task-6','task-7']){
+  await action('grade-sample',`D-1.5:${id}`).click();await page.locator('#product-dialog details summary').click();const sampleText=await page.locator('#product-dialog .source-excerpt').innerText();assert.ok(sampleText.length>0);
+  await page.locator('#product-dialog textarea[name="output"]').fill(sampleText);await page.locator('#product-dialog input[name="score"]').fill('80');
+  await page.locator('#product-dialog textarea[name="reason"]').fill('记录人工评分操作，核对所选版本与样本文档。');await submitDialog();
+  assert.equal(await page.locator('#product-dialog').evaluate(dialog=>dialog.open),false);
+}
+assert.equal(await page.locator('[data-metric="已评分"]').innerText(),'7 / 7');await action('eval-tab','compare').click();
+assert.match(await active().locator('.compare-result').innerText(),/尚未全部评分/);await page.locator('[data-change="compare-a"]').selectOption('D-1.5');
+assert.match(await active().locator('.compare-result').innerText(),/两个不同版本/);
+await open('S13');await action('config-tab','release').click();assert.equal(await action('publish-version').isDisabled(),true);
+assert.match(await active().locator('.release-checks').innerText(),/角色工具已验证/);
+assert.match(await active().locator('.release-checks').innerText(),/研究与修订上限已填写/);
+await open('S01');assert.match(await active().locator('.agent-launch').innerText(),/D-1.4/);
+await action('navigate','S07').click();await active().locator('details summary').click();assert.match(await active().locator('details').innerText(),/D-1.4/);
+assert.match(await active().locator('details').innerText(),/12 演示单位/);
+for(const module of await page.locator('[data-admin-module]').all()){
+  await module.click();assert.equal(await page.locator('#admin-title').innerText(),await module.innerText());assert.equal(await page.locator('[data-paged-list="admin"] [data-total]').innerText(),'共 14 条');
+}
+await page.locator('[data-admin-module="users"]').click();await page.locator('[data-paged-list="admin"] [data-page-next]').click();
+assert.equal(await page.locator('[data-paged-list="admin"] [data-page-info]').innerText(),'第 2 / 2 页');
+for(const id of ['S01','S03','S04','S05','S06','S07','S09','S11','S13','S15','S18']){
+  await open(id);assert.equal(await active().getAttribute('id'),id);assert.equal(await page.evaluate(()=>/\bS\d{2}\b/.test(document.body.innerText)),false);
+}
+await page.setViewportSize({width:390,height:844});
+for(const id of ['S01','S02','S03','S04','S05','S06','S07','S09','S11','S13','S15','S18']){
+  await open(id);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,`窄屏页面宽度：${id}`);
+}
+assert.deepEqual(errors,[]);await browser.close();
+console.log('PASS: 项目与任务关联、正文修订与签发、资料上传与引用、配置发布、评测筛选、系统菜单与窄屏检查。');

@@ -1,0 +1,854 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+title: 页面与内部接口共享类型
+$defs:
+  Id: {type: string, format: uuid}
+  Revision: {type: string, pattern: '^(0|[1-9][0-9]*)$', maxLength: 20}
+  Hash: {type: string, pattern: '^[a-f0-9]{64}$'}
+  NullableId: {oneOf: [{$ref: '#/$defs/Id'}, {type: 'null'}]}
+  NullableHash: {oneOf: [{$ref: '#/$defs/Hash'}, {type: 'null'}]}
+  NullableText: {type: [string, 'null']}
+  Ids: {type: array, uniqueItems: true, items: {$ref: '#/$defs/Id'}}
+  Texts: {type: array, uniqueItems: true, items: {type: string, minLength: 1}}
+  Timestamp: {type: string, format: date-time}
+  Envelope:
+    type: object
+    additionalProperties: false
+    required: [schema_version, request_id, resource_revision, data]
+    properties:
+      schema_version: {const: 1.0.0}
+      request_id: {type: string, minLength: 1}
+      resource_revision: {oneOf: [{$ref: '#/$defs/Revision'}, {type: 'null'}]}
+      data: true
+  Error:
+    type: object
+    additionalProperties: false
+    required: [schema_version, code, message, request_id, resource_revision, allowed_actions, retryable, operation_id, details]
+    properties:
+      schema_version: {const: 1.0.0}
+      code: {type: string}
+      message: {type: string}
+      request_id: {type: string}
+      resource_revision: {oneOf: [{$ref: '#/$defs/Revision'}, {type: 'null'}]}
+      allowed_actions: {$ref: '#/$defs/Texts'}
+      retryable: {type: boolean}
+      operation_id: {$ref: '#/$defs/NullableId'}
+      details: {type: array, items: {$ref: '#/$defs/ErrorDetail'}}
+  ErrorDetail:
+    type: object
+    additionalProperties: false
+    required: [field, code]
+    properties: {field: {type: string}, code: {type: string}}
+  Operation:
+    type: object
+    additionalProperties: false
+    required: [operation_id, resource_id, status, status_url]
+    properties:
+      operation_id: {$ref: '#/$defs/Id'}
+      resource_id: {$ref: '#/$defs/NullableId'}
+      status: {enum: [PROCESSING, COMPLETED, FAILED]}
+      status_url: {type: string, pattern: '^/api/operations/'}
+  PageInfo:
+    type: object
+    additionalProperties: false
+    required: [page, page_size, total, watermark, filter_sha256]
+    properties:
+      page: {type: integer, minimum: 1}
+      page_size: {type: integer, minimum: 1, maximum: 100}
+      total: {$ref: '#/$defs/Revision'}
+      watermark: {$ref: '#/$defs/Revision'}
+      filter_sha256: {$ref: '#/$defs/Hash'}
+  Coverage:
+    type: object
+    additionalProperties: false
+    required: [selection_sha256, delivered_sha256, complete, next_cursor]
+    properties:
+      selection_sha256: {$ref: '#/$defs/Hash'}
+      delivered_sha256: {$ref: '#/$defs/Hash'}
+      complete: {type: boolean}
+      next_cursor: {type: [string, 'null'], minLength: 1}
+    oneOf:
+      - {properties: {complete: {const: true}, next_cursor: {type: 'null'}}}
+      - {properties: {complete: {const: false}, next_cursor: {type: string}}}
+  ArtifactRef:
+    type: object
+    additionalProperties: false
+    required: [artifact_id, sha256, schema_ref, coverage]
+    properties:
+      artifact_id: {$ref: '#/$defs/Id'}
+      sha256: {$ref: '#/$defs/Hash'}
+      schema_ref: {type: string, minLength: 1}
+      coverage: {$ref: '#/$defs/Coverage'}
+  Record:
+    type: object
+    additionalProperties: false
+    required: [id, revision, name, status, updated_at, allowed_actions, detail]
+    properties:
+      id: {$ref: '#/$defs/Id'}
+      revision: {$ref: '#/$defs/Revision'}
+      name: {type: string}
+      status: {type: string, minLength: 1}
+      updated_at: {$ref: '#/$defs/Timestamp'}
+      allowed_actions: {$ref: '#/$defs/Texts'}
+      detail: {$ref: '#/$defs/ArtifactRef'}
+  RecordPage:
+    type: object
+    additionalProperties: false
+    required: [items, page_info]
+    properties: {items: {type: array, items: {$ref: '#/$defs/Record'}}, page_info: {$ref: '#/$defs/PageInfo'}}
+  Selection:
+    type: object
+    additionalProperties: false
+    required: [document_revision, segments]
+    properties:
+      document_revision: {$ref: '#/$defs/Id'}
+      segments: {type: array, minItems: 1, items: {oneOf: [{$ref: '#/$defs/TextSelection'}, {$ref: '#/$defs/ImageSelection'}, {$ref: '#/$defs/TableSelection'}]}}
+  TextSelection:
+    type: object
+    additionalProperties: false
+    required: [kind, node_id, node_sha256, start_cp, end_cp, quote_sha256]
+    properties:
+      kind: {const: TEXT}
+      node_id: {$ref: '#/$defs/Id'}
+      node_sha256: {$ref: '#/$defs/Hash'}
+      start_cp: {type: integer, minimum: 0, maximum: 9007199254740991}
+      end_cp: {type: integer, minimum: 1, maximum: 9007199254740991}
+      quote_sha256: {$ref: '#/$defs/Hash'}
+  ImageSelection:
+    type: object
+    additionalProperties: false
+    required: [kind, node_id, image_artifact_id, image_sha256]
+    properties: {kind: {const: IMAGE}, node_id: {$ref: '#/$defs/Id'}, image_artifact_id: {$ref: '#/$defs/Id'}, image_sha256: {$ref: '#/$defs/Hash'}}
+  TableSelection:
+    type: object
+    additionalProperties: false
+    required: [kind, node_id, row_ids, column_ids, cell_ids, table_sha256]
+    properties:
+      kind: {const: TABLE}
+      node_id: {$ref: '#/$defs/Id'}
+      row_ids: {$ref: '#/$defs/Ids', minItems: 1}
+      column_ids: {$ref: '#/$defs/Ids', minItems: 1}
+      cell_ids: {$ref: '#/$defs/Ids', minItems: 1}
+      table_sha256: {$ref: '#/$defs/Hash'}
+  Node:
+    type: object
+    additionalProperties: false
+    required: [node_id, parent_id, ordinal, field_ids, evidence_link_ids, content]
+    properties:
+      node_id: {$ref: '#/$defs/Id'}
+      parent_id: {$ref: '#/$defs/NullableId'}
+      ordinal: {type: integer, minimum: 0}
+      field_ids: {$ref: '#/$defs/Ids'}
+      evidence_link_ids: {$ref: '#/$defs/Ids'}
+      content: {oneOf: [{$ref: '#/$defs/ContainerContent'}, {$ref: '#/$defs/TextContent'}, {$ref: '#/$defs/ImageContent'}, {$ref: '#/$defs/TableContent'}, {$ref: '#/$defs/FormulaContent'}]}
+  ContainerContent:
+    type: object
+    additionalProperties: false
+    required: [kind, title]
+    properties: {kind: {enum: [DOCUMENT, SECTION, PARAGRAPH]}, title: {type: string}}
+  TextContent:
+    type: object
+    additionalProperties: false
+    required: [kind, text, marks]
+    properties: {kind: {const: TEXT}, text: {type: string}, marks: {type: array, uniqueItems: true, items: {enum: [BOLD, ITALIC, UNDERLINE, SUPERSCRIPT, SUBSCRIPT]}}}
+  ImageContent:
+    type: object
+    additionalProperties: false
+    required: [kind, artifact_id, sha256, alt_text, caption]
+    properties: {kind: {const: IMAGE}, artifact_id: {$ref: '#/$defs/Id'}, sha256: {$ref: '#/$defs/Hash'}, alt_text: {type: string}, caption: {type: string}}
+  TableContent:
+    type: object
+    additionalProperties: false
+    required: [kind, row_ids, column_ids, cells, caption]
+    properties:
+      kind: {const: TABLE}
+      row_ids: {$ref: '#/$defs/Ids', minItems: 1}
+      column_ids: {$ref: '#/$defs/Ids', minItems: 1}
+      cells: {type: array, items: {$ref: '#/$defs/Cell'}}
+      caption: {type: string}
+  Cell:
+    type: object
+    additionalProperties: false
+    required: [cell_id, row_id, column_id, row_span, column_span, node_ids]
+    properties:
+      cell_id: {$ref: '#/$defs/Id'}
+      row_id: {$ref: '#/$defs/Id'}
+      column_id: {$ref: '#/$defs/Id'}
+      row_span: {type: integer, minimum: 1}
+      column_span: {type: integer, minimum: 1}
+      node_ids: {$ref: '#/$defs/Ids'}
+  FormulaContent:
+    type: object
+    additionalProperties: false
+    required: [kind, latex, description, rendered_artifact_id]
+    properties: {kind: {const: FORMULA}, latex: {type: string}, description: {type: string}, rendered_artifact_id: {$ref: '#/$defs/NullableId'}}
+  FieldValue:
+    type: object
+    additionalProperties: false
+    required: [field_id, node_id, field_definition_id, original_value, decimal_value, unit, model, condition, evidence_link_ids]
+    properties:
+      field_id: {$ref: '#/$defs/Id'}
+      node_id: {$ref: '#/$defs/Id'}
+      field_definition_id: {$ref: '#/$defs/Id'}
+      original_value: {type: string}
+      decimal_value: {type: [string, 'null'], pattern: '^-?[0-9]+(\.[0-9]+)?$'}
+      unit: {$ref: '#/$defs/NullableText'}
+      model: {$ref: '#/$defs/NullableText'}
+      condition: {$ref: '#/$defs/NullableText'}
+      evidence_link_ids: {$ref: '#/$defs/Ids'}
+  EvidenceLink:
+    type: object
+    additionalProperties: false
+    required: [evidence_link_id, node_ids, relation, evidence]
+    properties:
+      evidence_link_id: {$ref: '#/$defs/Id'}
+      node_ids: {$ref: '#/$defs/Ids', minItems: 1}
+      relation: {enum: [SUPPORT, CONFLICT, BACKGROUND]}
+      evidence: {$ref: '../data-design/dataset.schema.json#/$defs/EvidenceRef'}
+  FactUsage:
+    type: object
+    additionalProperties: false
+    required: [fact_version_id, node_ids, field_ids]
+    properties: {fact_version_id: {$ref: '#/$defs/Id'}, node_ids: {$ref: '#/$defs/Ids'}, field_ids: {$ref: '#/$defs/Ids'}}
+  DocumentBody:
+    type: object
+    additionalProperties: false
+    required: [schema_version, template_version, nodes, fields, evidence_links, fact_usages]
+    properties:
+      schema_version: {const: 1.0.0}
+      template_version: {$ref: '#/$defs/Id'}
+      nodes: {type: array, minItems: 1, items: {$ref: '#/$defs/Node'}}
+      fields: {type: array, items: {$ref: '#/$defs/FieldValue'}}
+      evidence_links: {type: array, items: {$ref: '#/$defs/EvidenceLink'}}
+      fact_usages: {type: array, items: {$ref: '#/$defs/FactUsage'}}
+  DocumentFieldProjection:
+    type: object
+    additionalProperties: false
+    required: [schema_version, document_revision, body_sha256, fields]
+    properties:
+      schema_version: {const: '1.0.0'}
+      document_revision: {$ref: '#/$defs/Id'}
+      body_sha256: {$ref: '#/$defs/Hash'}
+      fields: {type: array, items: {$ref: '#/$defs/FieldValue'}}
+  DocumentEvidenceProjection:
+    type: object
+    additionalProperties: false
+    required: [schema_version, document_revision, body_sha256, evidence_links, fact_usages]
+    properties:
+      schema_version: {const: '1.0.0'}
+      document_revision: {$ref: '#/$defs/Id'}
+      body_sha256: {$ref: '#/$defs/Hash'}
+      evidence_links: {type: array, items: {$ref: '#/$defs/EvidenceLink'}}
+      fact_usages: {type: array, items: {$ref: '#/$defs/FactUsage'}}
+  BodyPage:
+    type: object
+    additionalProperties: false
+    required: [document_revision, body_sha256, nodes, fields, evidence_links, fact_usages, coverage]
+    properties:
+      document_revision: {$ref: '#/$defs/Id'}
+      body_sha256: {$ref: '#/$defs/Hash'}
+      nodes: {type: array, items: {$ref: '#/$defs/Node'}}
+      fields: {type: array, items: {$ref: '#/$defs/FieldValue'}}
+      evidence_links: {type: array, items: {$ref: '#/$defs/EvidenceLink'}}
+      fact_usages: {type: array, items: {$ref: '#/$defs/FactUsage'}}
+      coverage: {$ref: '#/$defs/Coverage'}
+  DocumentSnapshot:
+    type: object
+    additionalProperties: false
+    required: [document_id, project_id, document_revision, revision, plan_revision, template_version, body, fields, evidence_links, body_schema_revision, check_ids, review_ids, signature_ids, invalidation_reasons, issue_watermark, evidence_watermark, auth_epoch, governance_epoch, allowed_actions, stream_cursors]
+    properties:
+      document_id: {$ref: '#/$defs/Id'}
+      project_id: {$ref: '#/$defs/Id'}
+      document_revision: {$ref: '#/$defs/Id'}
+      revision: {$ref: '#/$defs/Revision'}
+      plan_revision: {$ref: '#/$defs/Id'}
+      template_version: {$ref: '#/$defs/Id'}
+      body: {$ref: '#/$defs/ArtifactRef'}
+      fields: {$ref: '#/$defs/ArtifactRef'}
+      evidence_links: {$ref: '#/$defs/ArtifactRef'}
+      body_schema_revision: {$ref: '#/$defs/Id'}
+      check_ids: {$ref: '#/$defs/Ids'}
+      review_ids: {$ref: '#/$defs/Ids'}
+      signature_ids: {$ref: '#/$defs/Ids'}
+      invalidation_reasons: {$ref: '#/$defs/Texts'}
+      issue_watermark: {$ref: '#/$defs/Revision'}
+      evidence_watermark: {$ref: '#/$defs/Revision'}
+      auth_epoch: {$ref: '#/$defs/Revision'}
+      governance_epoch: {$ref: '#/$defs/Revision'}
+      allowed_actions: {$ref: '#/$defs/Texts'}
+      stream_cursors: {type: array, items: {$ref: '#/$defs/StreamCursor'}}
+  RevisionInput:
+    type: object
+    additionalProperties: false
+    required: [base_revision, expected_revision, body_artifact_id, body_sha256, body_schema_revision, reason]
+    properties:
+      base_revision: {$ref: '#/$defs/Id'}
+      expected_revision: {$ref: '#/$defs/Revision'}
+      body_artifact_id: {$ref: '#/$defs/Id'}
+      body_sha256: {$ref: '#/$defs/Hash'}
+      body_schema_revision: {$ref: '#/$defs/Id'}
+      reason: {type: string, minLength: 1}
+  SourceScope:
+    type: object
+    additionalProperties: false
+    required: [mode, collection_versions, source_versions, network_enabled, network_policy_revision, approved_query_revision]
+    properties:
+      mode: {enum: [PROJECT_APPROVED, COLLECTION_VERSIONS, SOURCE_VERSIONS, COMBINED]}
+      collection_versions: {$ref: '#/$defs/Ids'}
+      source_versions: {$ref: '#/$defs/Ids'}
+      network_enabled: {type: boolean}
+      network_policy_revision: {$ref: '#/$defs/NullableId'}
+      approved_query_revision: {$ref: '#/$defs/NullableId'}
+    allOf:
+      - oneOf:
+          - {properties: {mode: {const: PROJECT_APPROVED}, collection_versions: {maxItems: 0}, source_versions: {maxItems: 0}}}
+          - {properties: {mode: {const: COLLECTION_VERSIONS}, source_versions: {maxItems: 0}}}
+          - {properties: {mode: {const: SOURCE_VERSIONS}, collection_versions: {maxItems: 0}}}
+          - {properties: {mode: {const: COMBINED}}}
+      - oneOf:
+          - {properties: {network_enabled: {const: false}, network_policy_revision: {type: 'null'}, approved_query_revision: {type: 'null'}}}
+          - {properties: {network_enabled: {const: true}, network_policy_revision: {$ref: '#/$defs/Id'}, approved_query_revision: {$ref: '#/$defs/Id'}}}
+  UploadRequest:
+    type: object
+    additionalProperties: false
+    required: [purpose, document_id, expected_revision, media_type, size_bytes, sha256, schema_ref, dependency_access_set_id]
+    properties:
+      purpose: {const: DOCUMENT_BODY}
+      document_id: {$ref: '#/$defs/Id'}
+      expected_revision: {$ref: '#/$defs/Revision'}
+      media_type: {const: application/json}
+      size_bytes: {$ref: '#/$defs/Revision'}
+      sha256: {$ref: '#/$defs/Hash'}
+      schema_ref: {const: 'interfaces.schema.yaml#/$defs/DocumentBody'}
+      dependency_access_set_id: {$ref: '#/$defs/Id'}
+  UploadGrant:
+    type: object
+    additionalProperties: false
+    required: [grant_id, upload_id, upload_url, expires_at, max_part_bytes]
+    properties:
+      grant_id: {$ref: '#/$defs/Id'}
+      upload_id: {$ref: '#/$defs/Id'}
+      upload_url: {type: string, pattern: '^/(api|internal/v1)/uploads/'}
+      expires_at: {$ref: '#/$defs/Timestamp'}
+      max_part_bytes: {const: 8388608}
+  UploadCompletion:
+    type: object
+    additionalProperties: false
+    required: [sha256, size_bytes, expected_revision]
+    properties: {sha256: {$ref: '#/$defs/Hash'}, size_bytes: {$ref: '#/$defs/Revision'}, expected_revision: {$ref: '#/$defs/Revision'}}
+  ArtifactReceipt:
+    type: object
+    additionalProperties: false
+    required: [artifact_id, sha256, schema_ref, revision]
+    properties: {artifact_id: {$ref: '#/$defs/Id'}, sha256: {$ref: '#/$defs/Hash'}, schema_ref: {type: string}, revision: {$ref: '#/$defs/Revision'}}
+  CompareRequest:
+    type: object
+    additionalProperties: false
+    required: [document_id, left_revision, right_revision]
+    properties: {document_id: {$ref: '#/$defs/Id'}, left_revision: {$ref: '#/$defs/Id'}, right_revision: {$ref: '#/$defs/Id'}}
+  CandidateCompareRequest:
+    type: object
+    additionalProperties: false
+    required: [candidate_id, target_document_revision]
+    properties: {candidate_id: {$ref: '#/$defs/Id'}, target_document_revision: {$ref: '#/$defs/Id'}}
+  Comparison:
+    type: object
+    additionalProperties: false
+    required: [comparison_id, comparison_revision, left_id, right_revision, differences, affected_node_ids]
+    properties:
+      comparison_id: {$ref: '#/$defs/Id'}
+      comparison_revision: {$ref: '#/$defs/Revision'}
+      left_id: {$ref: '#/$defs/Id'}
+      right_revision: {$ref: '#/$defs/Id'}
+      differences: {$ref: '#/$defs/ArtifactRef'}
+      affected_node_ids: {$ref: '#/$defs/Ids'}
+  CandidateView:
+    type: object
+    additionalProperties: false
+    required: [candidate_id, revision, status, base_document_revision, target_node_ids, content, original_evidence, new_evidence, check_ids, input_sha256, snapshot_id, plan_revision, allowed_actions, adoption_id, adopted_document_revision]
+    properties:
+      candidate_id: {$ref: '#/$defs/Id'}
+      revision: {$ref: '#/$defs/Revision'}
+      status: {enum: [READY, ADOPTED, REJECTED, STALE]}
+      base_document_revision: {$ref: '#/$defs/Id'}
+      target_node_ids: {$ref: '#/$defs/Ids', minItems: 1}
+      content: {$ref: '#/$defs/ArtifactRef'}
+      original_evidence: {$ref: '#/$defs/ArtifactRef'}
+      new_evidence: {$ref: '#/$defs/ArtifactRef'}
+      check_ids: {$ref: '#/$defs/Ids'}
+      input_sha256: {$ref: '#/$defs/Hash'}
+      snapshot_id: {$ref: '#/$defs/Id'}
+      plan_revision: {$ref: '#/$defs/Id'}
+      allowed_actions: {$ref: '#/$defs/Texts'}
+      adoption_id: {$ref: '#/$defs/NullableId'}
+      adopted_document_revision: {$ref: '#/$defs/NullableId'}
+  EvidenceDecision:
+    type: object
+    additionalProperties: false
+    required: [evidence_link_id, selection, access, location, support, reason, rule_revision]
+    properties:
+      evidence_link_id: {$ref: '#/$defs/Id'}
+      selection: {$ref: '#/$defs/Selection'}
+      access: {enum: [PASS, FAIL]}
+      location: {enum: [PASS, FAIL]}
+      support: {enum: [SUPPORTED, CONTRADICTED, INSUFFICIENT, NOT_APPLICABLE]}
+      reason: {type: string, minLength: 1}
+      rule_revision: {$ref: '#/$defs/NullableId'}
+  ReviewBaseline:
+    type: object
+    required: [document_revision, expected_revision, check_ids, evidence_watermark, issue_watermark]
+    properties:
+      document_revision: {$ref: '#/$defs/Id'}
+      expected_revision: {$ref: '#/$defs/Revision'}
+      check_ids: {$ref: '#/$defs/Ids', minItems: 1}
+      evidence_watermark: {$ref: '#/$defs/Revision'}
+      issue_watermark: {$ref: '#/$defs/Revision'}
+  EvidenceDecisionBatch:
+    allOf: [{$ref: '#/$defs/ReviewBaseline'}]
+    type: object
+    unevaluatedProperties: false
+    required: [decisions]
+    properties: {decisions: {type: array, minItems: 1, items: {$ref: '#/$defs/EvidenceDecision'}}}
+  ReviewTarget:
+    type: object
+    additionalProperties: false
+    required: [node_id, section_revision, selection, decision, reason, assignee_id]
+    properties:
+      node_id: {$ref: '#/$defs/NullableId'}
+      section_revision: {$ref: '#/$defs/NullableId'}
+      selection: {oneOf: [{$ref: '#/$defs/Selection'}, {type: 'null'}]}
+      decision: {enum: [CONFIRM, RETURN]}
+      reason: {type: string, minLength: 1}
+      assignee_id: {$ref: '#/$defs/NullableId'}
+  ReviewBatch:
+    allOf: [{$ref: '#/$defs/ReviewBaseline'}]
+    type: object
+    unevaluatedProperties: false
+    required: [targets]
+    properties: {targets: {type: array, minItems: 1, items: {$ref: '#/$defs/ReviewTarget'}}}
+  DecisionBatch:
+    type: object
+    additionalProperties: false
+    required: [batch_id, document_revision, revision, decision_ids]
+    properties: {batch_id: {$ref: '#/$defs/Id'}, document_revision: {$ref: '#/$defs/Id'}, revision: {$ref: '#/$defs/Revision'}, decision_ids: {$ref: '#/$defs/Ids', minItems: 1}}
+  AnnotationInput:
+    type: object
+    additionalProperties: false
+    required: [document_revision, selection, content, expected_revision]
+    properties: {document_revision: {$ref: '#/$defs/Id'}, selection: {$ref: '#/$defs/Selection'}, content: {type: string, minLength: 1}, expected_revision: {$ref: '#/$defs/Revision'}}
+  ReauthRequest:
+    type: object
+    additionalProperties: false
+    required: [document_id, document_revision, purpose, signing_policy_revision]
+    properties: {document_id: {$ref: '#/$defs/Id'}, document_revision: {$ref: '#/$defs/Id'}, purpose: {type: string, minLength: 1}, signing_policy_revision: {$ref: '#/$defs/Id'}}
+  ReauthChallenge:
+    type: object
+    additionalProperties: false
+    required: [challenge_id, authorization_url, expires_at]
+    properties: {challenge_id: {$ref: '#/$defs/Id'}, authorization_url: {type: string, format: uri}, expires_at: {$ref: '#/$defs/Timestamp'}}
+  ReauthCompletion:
+    type: object
+    additionalProperties: false
+    required: [callback_receipt_id]
+    properties: {callback_receipt_id: {$ref: '#/$defs/Id'}}
+  ReauthReceipt:
+    type: object
+    additionalProperties: false
+    required: [reauthentication_ref, subject_id, document_id, document_revision, purpose, expires_at]
+    properties:
+      reauthentication_ref: {$ref: '#/$defs/Id'}
+      subject_id: {$ref: '#/$defs/Id'}
+      document_id: {$ref: '#/$defs/Id'}
+      document_revision: {$ref: '#/$defs/Id'}
+      purpose: {type: string}
+      expires_at: {$ref: '#/$defs/Timestamp'}
+  CancelMessage:
+    type: object
+    additionalProperties: false
+    required: [expected_revision, reason]
+    properties: {expected_revision: {$ref: '#/$defs/Revision'}, reason: {type: string, minLength: 1}}
+  ConversationSnapshot:
+    type: object
+    additionalProperties: false
+    required: [conversation_id, project_id, revision, status, messages, pending_action_ids, stream_cursor]
+    properties:
+      conversation_id: {$ref: '#/$defs/Id'}
+      project_id: {$ref: '#/$defs/Id'}
+      revision: {$ref: '#/$defs/Revision'}
+      status: {enum: [ACTIVE, ARCHIVED, DELETED]}
+      messages: {$ref: '#/$defs/ArtifactRef'}
+      pending_action_ids: {$ref: '#/$defs/Ids'}
+      stream_cursor: {$ref: '#/$defs/StreamCursor'}
+  CredentialWrite:
+    type: object
+    additionalProperties: false
+    required: [config_id, expected_revision, provider_kind, secret_value]
+    properties:
+      config_id: {$ref: '#/$defs/Id'}
+      expected_revision: {$ref: '#/$defs/Revision'}
+      provider_kind: {type: string, minLength: 1}
+      secret_value: {type: string, minLength: 1, writeOnly: true}
+  CredentialReceipt:
+    type: object
+    additionalProperties: false
+    required: [credential_reference_id, secret_version, config_revision, verification_id]
+    properties: {credential_reference_id: {$ref: '#/$defs/Id'}, secret_version: {type: string}, config_revision: {$ref: '#/$defs/Revision'}, verification_id: {$ref: '#/$defs/Id'}}
+  VerificationView:
+    type: object
+    additionalProperties: false
+    required: [verification_id, config_id, config_revision, secret_version, status, verified_at, endpoint_identity, error_code]
+    properties:
+      verification_id: {$ref: '#/$defs/Id'}
+      config_id: {$ref: '#/$defs/Id'}
+      config_revision: {$ref: '#/$defs/Revision'}
+      secret_version: {type: string}
+      status: {enum: [PENDING, RUNNING, PASSED, FAILED, INVALIDATED]}
+      verified_at: {oneOf: [{$ref: '#/$defs/Timestamp'}, {type: 'null'}]}
+      endpoint_identity: {$ref: '#/$defs/NullableText'}
+      error_code: {$ref: '#/$defs/NullableText'}
+  ManagementBindings:
+    type: object
+    additionalProperties: false
+    required: [release_id, environment_id, manifest_sha256, modules]
+    properties:
+      release_id: {$ref: '#/$defs/Id'}
+      environment_id: {$ref: '#/$defs/Id'}
+      manifest_sha256: {$ref: '#/$defs/Hash'}
+      modules: {type: array, minItems: 18, maxItems: 18, items: {$ref: '#/$defs/ManagementModule'}}
+  ManagementModule:
+    type: object
+    additionalProperties: false
+    required: [module_id, binding_status, route_name, component_ref, source_commit, operations, permission_codes, unavailable_reason]
+    properties:
+      module_id: {enum: [USER, ROLE, MENU, DEPARTMENT, POST, DICTIONARY, PARAMETER, NOTICE, ONLINE_USER, SCHEDULED_JOB, OPERATION_LOG, LOGIN_LOG, SERVICE_MONITOR, CACHE_MONITOR, CONNECTION_POOL, CODE_GENERATOR, API_DOCUMENTATION, FORM_BUILDER]}
+      binding_status: {enum: [BOUND, UNBOUND, DISABLED]}
+      route_name: {$ref: '#/$defs/NullableText'}
+      component_ref: {$ref: '#/$defs/NullableText'}
+      source_commit: {$ref: '#/$defs/NullableText'}
+      operations: {type: array, items: {$ref: '#/$defs/ManagementOperation'}}
+      permission_codes: {$ref: '#/$defs/Texts'}
+      unavailable_reason: {$ref: '#/$defs/NullableText'}
+    allOf:
+      - if: {properties: {binding_status: {const: BOUND}}}
+        then:
+          properties:
+            route_name: {type: string, minLength: 1}
+            component_ref: {type: string, minLength: 1}
+            source_commit: {type: string, minLength: 1}
+            operations: {minItems: 1}
+            permission_codes: {minItems: 1}
+            unavailable_reason: {type: 'null'}
+        else:
+          properties:
+            operations: {maxItems: 0}
+            unavailable_reason: {type: string, minLength: 1}
+  ManagementOperation:
+    type: object
+    additionalProperties: false
+    required: [operation_id, method, path, request_schema_ref, response_schema_ref, side_effect, permission_code]
+    properties:
+      operation_id: {type: string}
+      method: {enum: [GET, POST, PUT, DELETE]}
+      path: {type: string, pattern: '^/api/'}
+      request_schema_ref: {$ref: '#/$defs/NullableText'}
+      response_schema_ref: {type: string}
+      side_effect: {enum: [NONE, WRITE, EXPORT, SESSION_REVOKE, JOB_DISPATCH]}
+      permission_code: {type: string, minLength: 1}
+  ReportFilters:
+    type: object
+    additionalProperties: false
+    required: [project_id, from, to, actor_id, status]
+    properties: {project_id: {$ref: '#/$defs/NullableId'}, from: {$ref: '#/$defs/Timestamp'}, to: {$ref: '#/$defs/Timestamp'}, actor_id: {$ref: '#/$defs/NullableId'}, status: {$ref: '#/$defs/NullableText'}}
+  ReportExportRequest:
+    type: object
+    additionalProperties: false
+    required: [report_kind, filters, dataset_watermark, metric_revision, format]
+    properties:
+      report_kind: {enum: [USAGE, AUDIT, EVALUATION]}
+      filters: {$ref: '#/$defs/ReportFilters'}
+      dataset_watermark: {$ref: '#/$defs/Revision'}
+      metric_revision: {$ref: '#/$defs/Id'}
+      format: {enum: [CSV, XLSX]}
+  ReportExportView:
+    type: object
+    additionalProperties: false
+    required: [report_id, status, filter_sha256, dataset_watermark, metric_revision, record_count, export_item_ids, error_code]
+    properties:
+      report_id: {$ref: '#/$defs/Id'}
+      status: {enum: [QUEUED, RUNNING, SUCCEEDED, FAILED, CANCELLED]}
+      filter_sha256: {$ref: '#/$defs/Hash'}
+      dataset_watermark: {$ref: '#/$defs/Revision'}
+      metric_revision: {$ref: '#/$defs/Id'}
+      record_count: {oneOf: [{$ref: '#/$defs/Revision'}, {type: 'null'}]}
+      export_item_ids: {$ref: '#/$defs/Ids'}
+      error_code: {$ref: '#/$defs/NullableText'}
+  OperationLookup:
+    type: object
+    additionalProperties: false
+    required: [operation_id, idempotency_key]
+    properties: {operation_id: {type: string, minLength: 1}, idempotency_key: {type: string, minLength: 16, maxLength: 128, pattern: '^[\x21-\x7e]+$'}}
+  OperationLookupResult:
+    type: object
+    additionalProperties: false
+    required: [lookup_status, operation]
+    properties: {lookup_status: {enum: [FOUND, NOT_FOUND, EXPIRED]}, operation: {oneOf: [{$ref: '#/$defs/Operation'}, {type: 'null'}]}}
+  ReconciliationRequest:
+    type: object
+    additionalProperties: false
+    required: [expected_revision, reason, receipt_artifact_id, receipt_sha256]
+    properties: {expected_revision: {$ref: '#/$defs/Revision'}, reason: {type: string, minLength: 1}, receipt_artifact_id: {$ref: '#/$defs/NullableId'}, receipt_sha256: {$ref: '#/$defs/NullableHash'}}
+  Stream:
+    type: object
+    additionalProperties: false
+    required: [stream_id, kind, resource_id]
+    properties: {stream_id: {$ref: '#/$defs/Id'}, kind: {enum: [RUN, CONVERSATION]}, resource_id: {$ref: '#/$defs/Id'}}
+  StreamCursor:
+    type: object
+    additionalProperties: false
+    required: [stream, sequence, cursor, resource_manifest]
+    properties: {stream: {$ref: '#/$defs/Stream'}, sequence: {$ref: '#/$defs/Revision'}, cursor: {type: string}, resource_manifest: {$ref: '#/$defs/ArtifactRef'}}
+  StatePayload:
+    type: object
+    additionalProperties: false
+    required: [business_event_type, status, reason_code, read_operation_id]
+    properties: {business_event_type: {type: string}, status: {type: string}, reason_code: {$ref: '#/$defs/NullableText'}, read_operation_id: {type: string}}
+  WaitingPayload:
+    type: object
+    additionalProperties: false
+    required: [business_event_type, waiting_item_id, reason_code, assignee_id, read_operation_id]
+    properties: {business_event_type: {type: string}, waiting_item_id: {$ref: '#/$defs/Id'}, reason_code: {type: string}, assignee_id: {$ref: '#/$defs/Id'}, read_operation_id: {const: TK-02}}
+  DocumentPayload:
+    type: object
+    additionalProperties: false
+    required: [business_event_type, document_revision, affected_node_ids, read_operation_id]
+    properties: {business_event_type: {type: string}, document_revision: {$ref: '#/$defs/Id'}, affected_node_ids: {$ref: '#/$defs/Ids'}, read_operation_id: {const: DC-01}}
+  InvalidationPayload:
+    type: object
+    additionalProperties: false
+    required: [business_event_type, document_revision, review_ids, reason_code, read_operation_id]
+    properties: {business_event_type: {type: string}, document_revision: {$ref: '#/$defs/Id'}, review_ids: {$ref: '#/$defs/Ids'}, reason_code: {type: string}, read_operation_id: {const: DC-01}}
+  GovernancePayload:
+    type: object
+    additionalProperties: false
+    required: [business_event_type, governance_epoch, auth_epoch, read_operation_id]
+    properties: {business_event_type: {type: string}, governance_epoch: {$ref: '#/$defs/Revision'}, auth_epoch: {$ref: '#/$defs/Revision'}, read_operation_id: {const: KN-06}}
+  PublicEvent:
+    type: object
+    additionalProperties: false
+    required: [schema_version, event_id, stream, sequence, event_type, tenant_id, project_id, task_id, run_id, resource_kind, resource_id, resource_revision, occurred_at, payload]
+    properties:
+      schema_version: {const: 1.0.0}
+      event_id: {$ref: '#/$defs/Id'}
+      stream: {$ref: '#/$defs/Stream'}
+      sequence: {$ref: '#/$defs/Revision'}
+      event_type: {enum: [run.updated, step.updated, waiting_input.created, candidate.updated, document.revised, review.invalidated, source.governance_changed, export.updated, notification.created]}
+      tenant_id: {$ref: '#/$defs/Id'}
+      project_id: {$ref: '#/$defs/NullableId'}
+      task_id: {$ref: '#/$defs/NullableId'}
+      run_id: {$ref: '#/$defs/NullableId'}
+      resource_kind: {enum: [RUN, STEP, WAITING_ITEM, CANDIDATE, DOCUMENT, SOURCE_VERSION, EXPORT, NOTIFICATION]}
+      resource_id: {$ref: '#/$defs/Id'}
+      resource_revision: {$ref: '#/$defs/Revision'}
+      occurred_at: {$ref: '#/$defs/Timestamp'}
+      payload: {type: object}
+    oneOf:
+      - {properties: {event_type: {const: run.updated}, resource_kind: {const: RUN}, payload: {$ref: '#/$defs/StatePayload', properties: {read_operation_id: {const: RN-02}}}}}
+      - {properties: {event_type: {const: step.updated}, resource_kind: {const: STEP}, payload: {$ref: '#/$defs/StatePayload', properties: {read_operation_id: {const: RN-02}}}}}
+      - {properties: {event_type: {const: waiting_input.created}, resource_kind: {const: WAITING_ITEM}, payload: {$ref: '#/$defs/WaitingPayload'}}}
+      - {properties: {event_type: {const: candidate.updated}, resource_kind: {const: CANDIDATE}, payload: {$ref: '#/$defs/StatePayload', properties: {read_operation_id: {const: BX-07}}}}}
+      - {properties: {event_type: {const: document.revised}, resource_kind: {const: DOCUMENT}, payload: {$ref: '#/$defs/DocumentPayload'}}}
+      - {properties: {event_type: {const: review.invalidated}, resource_kind: {const: DOCUMENT}, payload: {$ref: '#/$defs/InvalidationPayload'}}}
+      - {properties: {event_type: {const: source.governance_changed}, resource_kind: {const: SOURCE_VERSION}, payload: {$ref: '#/$defs/GovernancePayload'}}}
+      - {properties: {event_type: {const: export.updated}, resource_kind: {const: EXPORT}, payload: {$ref: '#/$defs/StatePayload', properties: {read_operation_id: {const: EX-02}}}}}
+      - {properties: {event_type: {const: notification.created}, resource_kind: {const: NOTIFICATION}, payload: {$ref: '#/$defs/StatePayload', properties: {read_operation_id: {const: OP-02}}}}}
+  CandidateDelta:
+    type: object
+    additionalProperties: false
+    required: [schema_version, stream, candidate_id, delta_sequence, durable, text]
+    properties: {schema_version: {const: 1.0.0}, stream: {$ref: '#/$defs/Stream'}, candidate_id: {$ref: '#/$defs/Id'}, delta_sequence: {$ref: '#/$defs/Revision'}, durable: {const: false}, text: {type: string}}
+  StepIdentity:
+    type: object
+    required: [schema_version, run_id, step_id, lease_generation]
+    properties:
+      schema_version: {const: 1.0.0}
+      run_id: {$ref: '#/$defs/Id'}
+      step_id: {$ref: '#/$defs/Id'}
+      lease_generation: {type: integer, minimum: 0, maximum: 9007199254740991}
+  ActionIdentity:
+    allOf: [{$ref: '#/$defs/StepIdentity'}]
+    type: object
+    required: [action_id, input_sha256]
+    properties: {action_id: {$ref: '#/$defs/Id'}, input_sha256: {$ref: '#/$defs/Hash'}}
+  InputReadRequest:
+    allOf: [{$ref: '#/$defs/StepIdentity'}]
+    type: object
+    unevaluatedProperties: false
+    required: [input_manifest_id, kind, resource_id, node_ids, cursor]
+    properties:
+      input_manifest_id: {$ref: '#/$defs/Id'}
+      kind: {enum: [MANIFEST, TEMPLATE, ARTIFACT, RETRIEVAL, ISSUES]}
+      resource_id: {$ref: '#/$defs/Id'}
+      node_ids: {$ref: '#/$defs/Ids'}
+      cursor: {$ref: '#/$defs/NullableText'}
+  ToolRead:
+    type: object
+    additionalProperties: false
+    required: [resource_id, content, coverage]
+    properties: {resource_id: {$ref: '#/$defs/Id'}, content: {$ref: '#/$defs/ArtifactRef'}, coverage: {$ref: '#/$defs/Coverage'}}
+  PlanCandidateRequest:
+    allOf: [{$ref: '#/$defs/ActionIdentity'}]
+    type: object
+    unevaluatedProperties: false
+    required: [plan_artifact_id]
+    properties: {plan_artifact_id: {$ref: '#/$defs/Id'}}
+  CandidateReceipt:
+    type: object
+    additionalProperties: false
+    required: [candidate_id, revision, validation_status, missing_requirement_ids]
+    properties: {candidate_id: {$ref: '#/$defs/Id'}, revision: {$ref: '#/$defs/Revision'}, validation_status: {enum: [VALID, WAITING_INPUT]}, missing_requirement_ids: {$ref: '#/$defs/Texts'}}
+  WaitingRequest:
+    allOf: [{$ref: '#/$defs/ActionIdentity'}]
+    type: object
+    unevaluatedProperties: false
+    required: [target_revision, reason_code, question, requirement_refs, allowed_resolution_actions]
+    properties:
+      target_revision: {$ref: '#/$defs/Id'}
+      reason_code: {type: string}
+      question: {type: string, minLength: 1}
+      requirement_refs: {$ref: '#/$defs/Texts'}
+      allowed_resolution_actions: {$ref: '#/$defs/Texts'}
+  WaitingReceipt:
+    type: object
+    additionalProperties: false
+    required: [waiting_item_id, assignee_id, status, revision]
+    properties: {waiting_item_id: {$ref: '#/$defs/Id'}, assignee_id: {$ref: '#/$defs/Id'}, status: {const: WAITING_INPUT}, revision: {$ref: '#/$defs/Revision'}}
+  CheckResultRequest:
+    allOf: [{$ref: '#/$defs/ActionIdentity'}]
+    type: object
+    unevaluatedProperties: false
+    required: [check_id, target_kind, target_revision, rule_manifest_id, findings_artifact_id, coverage]
+    properties:
+      check_id: {$ref: '#/$defs/Id'}
+      target_kind: {enum: [DOCUMENT, CANDIDATE]}
+      target_revision: {$ref: '#/$defs/Id'}
+      rule_manifest_id: {$ref: '#/$defs/Id'}
+      findings_artifact_id: {$ref: '#/$defs/Id'}
+      coverage: {$ref: '#/$defs/Coverage'}
+  CheckReceipt:
+    type: object
+    additionalProperties: false
+    required: [check_id, revision, issue_ids, status]
+    properties: {check_id: {$ref: '#/$defs/Id'}, revision: {$ref: '#/$defs/Revision'}, issue_ids: {$ref: '#/$defs/Ids'}, status: {enum: [SUCCEEDED, WAITING_INPUT, FAILED]}}
+  WebAcquisitionRequest:
+    allOf: [{$ref: '#/$defs/ActionIdentity'}]
+    type: object
+    unevaluatedProperties: false
+    required: [question_id, approved_query_revision, network_policy_revision]
+    properties: {question_id: {$ref: '#/$defs/Id'}, approved_query_revision: {$ref: '#/$defs/Id'}, network_policy_revision: {$ref: '#/$defs/Id'}}
+  ContextRequest:
+    allOf: [{$ref: '#/$defs/ActionIdentity'}]
+    type: object
+    unevaluatedProperties: false
+    required: [exact_input_artifact_id, source_manifest_id, prompt_revision, tokenizer_revision, token_count, dependency_access_set_id]
+    properties:
+      exact_input_artifact_id: {$ref: '#/$defs/Id'}
+      source_manifest_id: {$ref: '#/$defs/Id'}
+      prompt_revision: {$ref: '#/$defs/Id'}
+      tokenizer_revision: {type: string}
+      token_count: {type: integer, minimum: 0, maximum: 9007199254740991}
+      dependency_access_set_id: {$ref: '#/$defs/Id'}
+  ContextReceipt:
+    type: object
+    additionalProperties: false
+    required: [context_manifest_id, sha256]
+    properties: {context_manifest_id: {$ref: '#/$defs/Id'}, sha256: {$ref: '#/$defs/Hash'}}
+  ObjectRef:
+    type: object
+    additionalProperties: false
+    required: [object_key, object_version, sha256, size_bytes, media_type]
+    properties: {object_key: {type: string, maxLength: 1024}, object_version: {type: string, maxLength: 256}, sha256: {$ref: '#/$defs/Hash'}, size_bytes: {$ref: '#/$defs/Revision'}, media_type: {type: string, maxLength: 128}}
+  AgentArtifactRequest:
+    allOf: [{$ref: '#/$defs/ActionIdentity'}]
+    type: object
+    unevaluatedProperties: false
+    required: [kind, schema_ref, object_ref, dependency_access_set_id]
+    properties:
+      kind: {enum: [PlanCandidate, EvidenceBundle, FieldCheckResult, SectionCandidate, ClaimRecord, ReviewFindings, AssemblyManifest, HandoffRecord, ContextInput]}
+      schema_ref: {type: string}
+      object_ref: {$ref: '#/$defs/ObjectRef'}
+      dependency_access_set_id: {$ref: '#/$defs/Id'}
+  InvocationReadRequest:
+    allOf: [{$ref: '#/$defs/StepIdentity'}]
+    type: object
+    unevaluatedProperties: false
+    required: [invocation_id, action_id]
+    properties: {invocation_id: {$ref: '#/$defs/Id'}, action_id: {$ref: '#/$defs/Id'}}
+  ContentChunk:
+    type: object
+    additionalProperties: false
+    required: [resource_id, artifact_id, schema_ref, media_type, encoding, content, chunk_sha256, full_sha256, coverage, read_receipt_id]
+    properties:
+      resource_id: {$ref: '#/$defs/Id'}
+      artifact_id: {$ref: '#/$defs/Id'}
+      schema_ref: {type: string}
+      media_type: {type: string}
+      encoding: {enum: [UTF8, BASE64]}
+      content: {type: string}
+      chunk_sha256: {$ref: '#/$defs/Hash'}
+      full_sha256: {$ref: '#/$defs/Hash'}
+      coverage: {$ref: '#/$defs/Coverage'}
+      read_receipt_id: {$ref: '#/$defs/Id'}
+  InternalUploadRequest:
+    allOf: [{$ref: '#/$defs/ActionIdentity'}]
+    type: object
+    unevaluatedProperties: false
+    required: [purpose, media_type, size_bytes, sha256, schema_ref, dependency_access_set_id]
+    properties:
+      purpose: {const: AGENT_ARTIFACT}
+      media_type: {type: string}
+      size_bytes: {$ref: '#/$defs/Revision'}
+      sha256: {$ref: '#/$defs/Hash'}
+      schema_ref: {type: string}
+      dependency_access_set_id: {$ref: '#/$defs/Id'}
+  InternalUploadCompletion:
+    allOf: [{$ref: '#/$defs/ActionIdentity'}]
+    type: object
+    unevaluatedProperties: false
+    required: [expected_revision, sha256, size_bytes]
+    properties: {expected_revision: {$ref: '#/$defs/Revision'}, sha256: {$ref: '#/$defs/Hash'}, size_bytes: {$ref: '#/$defs/Revision'}}
+  InternalSearchRequest:
+    allOf: [{$ref: '#/$defs/ActionIdentity'}]
+    type: object
+    unevaluatedProperties: false
+    required: [query, snapshot_id, retrieval_profile_revision, purpose, cursor]
+    properties:
+      query: {type: string, minLength: 1}
+      snapshot_id: {$ref: '#/$defs/Id'}
+      retrieval_profile_revision: {$ref: '#/$defs/Id'}
+      purpose: {enum: [RESEARCH, VERIFICATION, EVALUATION]}
+      cursor: {$ref: '#/$defs/NullableText'}
+  InternalSearchResult:
+    type: object
+    additionalProperties: false
+    required: [retrieval_id, status, evidence_refs, missing_requirement_ids, manifest_sha256, coverage, read_receipt_id]
+    properties:
+      retrieval_id: {$ref: '#/$defs/Id'}
+      status: {enum: [FOUND, EMPTY]}
+      evidence_refs: {type: array, items: {$ref: '../data-design/dataset.schema.json#/$defs/EvidenceRef'}}
+      missing_requirement_ids: {$ref: '#/$defs/Ids'}
+      manifest_sha256: {$ref: '#/$defs/Hash'}
+      coverage: {$ref: '#/$defs/Coverage'}
+      read_receipt_id: {$ref: '#/$defs/Id'}
+  InternalSourceReadRequest:
+    allOf: [{$ref: '#/$defs/StepIdentity'}]
+    type: object
+    unevaluatedProperties: false
+    required: [evidence_ref, purpose, cursor]
+    properties:
+      evidence_ref: {$ref: '../data-design/dataset.schema.json#/$defs/EvidenceRef'}
+      purpose: {enum: [RESEARCH, VERIFICATION, PARSING, EVALUATION]}
+      cursor: {$ref: '#/$defs/NullableText'}
+  InternalSourceReadResult:
+    type: object
+    additionalProperties: false
+    required: [evidence_ref, chunk]
+    properties: {evidence_ref: {$ref: '../data-design/dataset.schema.json#/$defs/EvidenceRef'}, chunk: {$ref: '#/$defs/ContentChunk'}}

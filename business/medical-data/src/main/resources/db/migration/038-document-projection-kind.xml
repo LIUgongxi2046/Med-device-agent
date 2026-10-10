@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.31.xsd"
+    logicalFilePath="medical-agent/db/migration/038-document-projection-kind.xml">
+  <changeSet id="1.0.0-252-document-projection-kind" author="medical-agent" dbms="mysql" runInTransaction="false" failOnError="true">
+    <preConditions onFail="HALT" onError="HALT">
+      <indexExists tableName="artifact" indexName="uq_document_artifact_kind"/>
+    </preConditions>
+    <sql>ALTER TABLE artifact
+      DROP INDEX uq_document_artifact_kind,
+      ADD COLUMN document_projection_kind VARCHAR(32) GENERATED ALWAYS AS
+        (CASE WHEN artifact_kind IN ('DOCUMENT_BODY','DOCUMENT_FIELDS','DOCUMENT_EVIDENCE') THEN artifact_kind ELSE NULL END) STORED,
+      ADD UNIQUE KEY uq_document_projection_identity (tenant_id,project_id,document_revision,document_projection_kind)
+    </sql>
+  </changeSet>
+</databaseChangeLog>

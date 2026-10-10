@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:task-plan-decision:1.0.0",
+  "$ref": "#/$defs/Request",
+  "$defs": {
+    "Id": {"type": "string", "format": "uuid", "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"},
+    "Hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "Revision": {"type": "string", "pattern": "^[1-9][0-9]{0,19}$"},
+    "Status": {"enum": ["NEEDS_MATERIALS", "PLAN_PENDING"]},
+    "Baseline": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "tenant_id", "project_id", "task_id", "task_revision", "plan_revision", "plan_sha256", "snapshot_id", "template_version", "profile_revision", "task_revision_sha256", "input_sha256", "scope_sha256", "requirements_sha256", "task_status", "expected_revision", "plan_head_revision", "context_revision", "auth_epoch", "governance_epoch", "dependency_authorizations_sha256"],
+      "properties": {
+        "schema_version": {"const": "1.0.0"}, "tenant_id": {"$ref": "#/$defs/Id"}, "project_id": {"$ref": "#/$defs/Id"},
+        "task_id": {"$ref": "#/$defs/Id"}, "task_revision": {"$ref": "#/$defs/Id"}, "plan_revision": {"$ref": "#/$defs/Id"},
+        "plan_sha256": {"$ref": "#/$defs/Hash"}, "snapshot_id": {"$ref": "#/$defs/Id"}, "template_version": {"$ref": "#/$defs/Id"},
+        "profile_revision": {"$ref": "#/$defs/Id"}, "task_revision_sha256": {"$ref": "#/$defs/Hash"},
+        "input_sha256": {"$ref": "#/$defs/Hash"}, "scope_sha256": {"$ref": "#/$defs/Hash"}, "requirements_sha256": {"$ref": "#/$defs/Hash"},
+        "task_status": {"$ref": "#/$defs/Status"}, "expected_revision": {"$ref": "#/$defs/Revision"},
+        "plan_head_revision": {"$ref": "#/$defs/Revision"}, "context_revision": {"$ref": "#/$defs/Revision"},
+        "auth_epoch": {"$ref": "#/$defs/Revision"}, "governance_epoch": {"$ref": "#/$defs/Revision"},
+        "dependency_authorizations_sha256": {"$ref": "#/$defs/Hash"}
+      }
+    },
+    "Request": {
+      "type": "object", "additionalProperties": false,
+      "allOf": [{"if": {"properties": {"decision": {"const": "CONFIRM"}}}, "then": {"properties": {"baseline_manifest": {"properties": {"task_status": {"const": "PLAN_PENDING"}}}}}}],
+      "required": ["schema_version", "target_revision", "expected_revision", "decision", "reason", "baseline_manifest"],
+      "properties": {
+        "schema_version": {"const": "1.0.0"}, "target_revision": {"$ref": "#/$defs/Id"},
+        "expected_revision": {"$ref": "#/$defs/Revision"}, "decision": {"enum": ["RETURN", "CONFIRM"]},
+        "reason": {"type": "string", "minLength": 1, "maxLength": 2000}, "baseline_manifest": {"$ref": "#/$defs/Baseline"}
+      }
+    },
+    "Receipt": {
+      "type": "object", "additionalProperties": false,
+      "allOf": [
+        {"if": {"properties": {"decision": {"const": "RETURN"}}}, "then": {"properties": {"resulting_plan_revision": {"type": "null"}, "to_status": {"$ref": "#/$defs/Status"}}}},
+        {"if": {"properties": {"decision": {"const": "CONFIRM"}}}, "then": {"properties": {"resulting_plan_revision": {"$ref": "#/$defs/Id"}, "from_status": {"const": "PLAN_PENDING"}, "to_status": {"const": "READY"}}}}
+      ],
+      "required": ["schema_version", "operation_id", "decision_id", "tenant_id", "project_id", "task_id", "target_plan_revision", "target_plan_sha256", "basis_task_revision", "resulting_task_revision", "resulting_plan_revision", "decision", "from_status", "to_status", "expected_revision", "resulting_revision", "actor_id", "decided_at", "reason"],
+      "properties": {
+        "schema_version": {"const": "1.0.0"}, "operation_id": {"$ref": "#/$defs/Id"}, "decision_id": {"$ref": "#/$defs/Id"},
+        "tenant_id": {"$ref": "#/$defs/Id"}, "project_id": {"$ref": "#/$defs/Id"}, "task_id": {"$ref": "#/$defs/Id"},
+        "target_plan_revision": {"$ref": "#/$defs/Id"}, "target_plan_sha256": {"$ref": "#/$defs/Hash"},
+        "basis_task_revision": {"$ref": "#/$defs/Id"}, "resulting_task_revision": {"$ref": "#/$defs/Id"},
+        "resulting_plan_revision": {"oneOf": [{"$ref": "#/$defs/Id"}, {"type": "null"}]}, "decision": {"enum": ["RETURN", "CONFIRM"]},
+        "from_status": {"$ref": "#/$defs/Status"}, "to_status": {"enum": ["NEEDS_MATERIALS", "PLAN_PENDING", "READY"]},
+        "expected_revision": {"$ref": "#/$defs/Revision"}, "resulting_revision": {"$ref": "#/$defs/Revision"},
+        "actor_id": {"$ref": "#/$defs/Id"}, "decided_at": {"type": "string", "format": "date-time", "pattern": "(?:Z|[+]00:00)$"},
+        "reason": {"type": "string", "minLength": 1, "maxLength": 2000}
+      }
+    }
+  }
+}

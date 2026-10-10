@@ -1,0 +1,11 @@
+fieldset { border: 1px solid #cfd8e6; border-radius: 8px; padding: 16px; margin-top: 20px; }
+legend { padding: 0 8px; }
+select, textarea { box-sizing: border-box; width: 100%; border: 1px solid #cfd8e6; border-radius: 8px; padding: 10px; font: inherit; color: #183153; background: #fff; }
+textarea { resize: vertical; }
+.attestation { display: flex; align-items: flex-start; gap: 8px; }
+.attestation input { width: auto; margin-top: 4px; }
+[data-registrations] article { border-top: 1px solid #cfd8e6; padding: 12px 0; }
+[data-reviews] article { border-top: 1px solid #cfd8e6; padding: 12px 0; }
+[data-resource-kinds] { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
+[data-application] dd { overflow-wrap: anywhere; white-space: pre-wrap; }
+[data-detail] dd { overflow-wrap: anywhere; white-space: pre-wrap; }

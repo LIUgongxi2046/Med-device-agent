@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:run-token-policy:1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "revision", "issuer", "audience", "public_key_der_base64", "maximum_lifetime_seconds", "maximum_token_bytes"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "revision": {"type": "string", "format": "uuid", "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"},
+    "issuer": {"type": "string", "format": "uri", "minLength": 1, "maxLength": 512},
+    "audience": {"type": "string", "minLength": 1, "maxLength": 255},
+    "public_key_der_base64": {"type": "string", "minLength": 1},
+    "maximum_lifetime_seconds": {"type": "integer", "minimum": 1, "maximum": 2147483647},
+    "maximum_token_bytes": {"type": "integer", "minimum": 1, "maximum": 2147483647}
+  }
+}

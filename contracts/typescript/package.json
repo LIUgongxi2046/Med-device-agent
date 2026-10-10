@@ -1,0 +1,35 @@
+{
+  "name": "@medical-agent/contracts",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {"types": "./src/catalogue.ts", "default": "./lib/catalogue.js"},
+    "./errors": {"types": "./src/errors.ts", "default": "./lib/errors.js"},
+    "./wire": {"types": "./src/wire.ts", "default": "./lib/wire.js"},
+    "./dataset": {"types": "./src/dataset.ts", "default": "./lib/dataset.js"},
+    "./model-stream": {"types": "./src/model-stream.ts", "default": "./lib/model-stream.js"},
+    "./interfaces-common": {"types": "./src/interfaces-common.ts", "default": "./lib/interfaces-common.js"},
+    "./interfaces": {"types": "./src/interfaces.ts", "default": "./lib/interfaces.js"},
+    "./interface-bindings": {"types": "./src/interface-bindings.ts", "default": "./lib/interface-bindings.js"},
+    "./artifacts": {"types": "./src/artifacts.ts", "default": "./lib/artifacts.js"},
+    "./resource-details": {"types": "./src/resource-details.ts", "default": "./lib/resource-details.js"}
+  },
+  "files": ["lib", "src"],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "prepare": "npm run build",
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test tests/*.test.ts",
+    "inspect": "node --import tsx src/inspect.ts"
+  },
+  "dependencies": {
+    "@js-temporal/polyfill": "0.5.1",
+    "ajv": "8.20.0",
+    "ajv-formats": "3.0.1",
+    "decimal.js": "10.6.0",
+    "json-canonicalize": "3.0.1",
+    "yaml": "2.9.1"
+  },
+  "devDependencies": {"@types/node": "24.10.1", "tsx": "4.23.15", "typescript": "5.9.3"}
+}

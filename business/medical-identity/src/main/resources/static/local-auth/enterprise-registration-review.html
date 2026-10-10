@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>审查企业申请 · 医疗器械资料平台</title><link rel="stylesheet" href="/local-auth/auth.css"><link rel="stylesheet" href="/local-auth/enterprise-registration.css"><script type="module" src="/local-auth/enterprise-registration-review.js"></script></head>
+<body><main><p class="brand">医疗器械资料平台</p><h1>审查企业申请</h1><a href="/local-auth/account.html">返回当前账户</a><a href="/local-auth/enterprise-registration.html">企业登记申请</a>
+<p>根据获授权资料审查真实申请。批准将启用企业空间和明确选择的管理员治理权限；业务岗位、资料访问与专业签发分别授权。</p>
+<label for="review-state">申请审查状态</label><select id="review-state" data-filter disabled><option value="PENDING_REVIEW">待审查</option><option value="APPROVED">已批准</option><option value="REJECTED">已拒绝</option></select>
+<button type="button" data-refresh disabled>重新读取申请</button><div data-reviews></div><button type="button" data-next hidden disabled>读取更多申请</button>
+<section data-application hidden><h2>原始申请和审查结果</h2><dl></dl></section>
+<section data-decision-section hidden><h2>人工审查决定</h2><form data-decision><fieldset disabled><legend>决定及依据</legend>
+<label for="decision">审查决定</label><select id="decision" name="decision" required><option value="">请选择审查决定</option><option value="APPROVE">批准并启用企业</option><option value="REJECT">拒绝申请</option></select>
+<label>审查依据与原因<textarea name="reason" rows="5" required data-code-point-limit="4096"></textarea></label>
+<fieldset data-governance hidden><legend>明确批准首位管理员的治理权限</legend>
+<p>逐项选择动作并填写可委派范围。未选择的动作不产生许可。</p>
+<label class="attestation"><input type="checkbox" name="action" value="member.manage">管理企业成员及授权</label>
+<label class="attestation"><input type="checkbox" name="action" value="role.manage">管理批准岗位版本</label>
+<label class="attestation"><input type="checkbox" name="action" value="project.create">创建企业项目</label>
+<label class="attestation"><input type="checkbox" name="local_identity">允许首位管理员使用本地账户治理权限</label>
+<p>选择允许使用权限的用途：</p>
+<label class="attestation"><input type="checkbox" name="purpose" value="PERMISSION_ADMINISTRATION">处理成员与项目授权</label>
+<label class="attestation"><input type="checkbox" name="purpose" value="INVITATION_ADMINISTRATION">邀请企业成员</label>
+<label class="attestation"><input type="checkbox" name="purpose" value="ROLE_ADMINISTRATION">配置批准岗位</label>
+<label class="attestation"><input type="checkbox" name="purpose" value="PROJECT_ADMINISTRATION">管理项目建档</label>
+<label>允许委派的其他业务用途，每行填写一个已批准用途标识<textarea name="additional_purposes" rows="3"></textarea></label>
+<label class="attestation"><input type="checkbox" name="all_purposes">明确批准治理和委派适用于全部用途</label>
+<label>可委派动作，每行填写一个批准的动作标识<textarea name="delegated_actions" rows="4"></textarea></label>
+<label>可配置和邀请的批准岗位标识，每行填写一个UUID<textarea name="role_ids" rows="3"></textarea></label><button type="button" data-role-id>生成待批准岗位标识</button>
+<p>选择可以授予权限的资源类别：</p><div data-resource-kinds></div>
+<label class="attestation"><input type="checkbox" name="all_projects">允许在本企业全部项目范围委派权限</label>
+<label class="attestation"><input type="checkbox" name="all_resources">允许在已选资源类别的全部对象范围委派权限</label>
+<label class="attestation"><input type="checkbox" name="unlimited_validity">批准治理权限没有固定截止时间</label>
+<label>治理权限截止时间<input name="valid_to" type="datetime-local" step="1"></label>
+</fieldset>
+<label class="attestation"><input name="approval_attested" type="checkbox" required>确认审查依据及授权范围已经取得企业批准，并由本人作出本次决定。</label>
+<button type="submit">保存人工审查决定</button><button type="button" data-abandon>清除待提交请求身份</button>
+</fieldset></form></section><p role="status" aria-live="polite" data-status>正在核验当前账户</p>
+</main></body></html>

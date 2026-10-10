@@ -1,0 +1,12 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>设置管理员 · 医疗器械资料平台</title><link rel="stylesheet" href="/local-auth/auth.css"><script src="/local-auth/auth.js" type="module"></script></head>
+<body><main><p class="brand">医疗器械资料平台</p><h1>设置首次管理员</h1><p>建立管理员账户后，可以使用该账户登录系统。</p>
+<form method="post" action="/auth/setup" data-auth-form>
+<label for="username">用户名</label><input id="username" name="username" autocomplete="username" maxlength="256" required>
+<label for="display_name">显示名称</label><input id="display_name" name="display_name" autocomplete="name" maxlength="256" required>
+<label for="password">密码</label><input id="password" name="password" type="password" autocomplete="new-password" minlength="15" required aria-describedby="password-help">
+<p id="password-help">至少15个字符，最多72个 UTF-8 字节。</p>
+<label for="password-confirm">确认密码</label><input id="password-confirm" type="password" autocomplete="new-password" required>
+<button type="submit" disabled>建立管理员账户</button><p role="status" aria-live="polite" data-status>正在建立安全会话</p>
+</form></main></body></html>

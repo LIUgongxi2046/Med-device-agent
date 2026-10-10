@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:member-governance-read:1.0.0",
+  "$defs": {
+    "Query": {
+      "type": "object", "additionalProperties": false, "required": ["limit"],
+      "properties": {
+        "limit": {"type": "integer", "minimum": 1, "maximum": 100},
+        "after": {"$ref": "urn:medical:permission-decisions:1.0.0#/$defs/Id"},
+        "subject_id": {"$ref": "urn:medical:permission-decisions:1.0.0#/$defs/Id"},
+        "dataset_watermark": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      },
+      "dependentRequired": {"after": ["dataset_watermark"]}
+    },
+    "Member": {
+      "type": "object", "additionalProperties": false,
+      "required": ["member_id", "user_id", "status", "revision", "valid_from", "valid_to"],
+      "properties": {
+        "member_id": {"$ref": "urn:medical:permission-decisions:1.0.0#/$defs/Id"},
+        "user_id": {"$ref": "urn:medical:permission-decisions:1.0.0#/$defs/Id"},
+        "status": {"enum": ["INVITED", "ACTIVE", "DISABLED"]},
+        "revision": {"$ref": "urn:medical:permission-decisions:1.0.0#/$defs/Revision"},
+        "valid_from": {"$ref": "urn:medical:permission-decisions:1.0.0#/$defs/Time"},
+        "valid_to": {"$ref": "urn:medical:permission-decisions:1.0.0#/$defs/NullableTime"}
+      }
+    },
+    "Grant": {
+      "type": "object", "additionalProperties": false,
+      "required": ["grant_id", "subject_id", "scope", "action", "condition", "status", "revision", "valid_from", "valid_to", "basis"],
+      "properties": {
+        "grant_id": {"$ref": "urn:medical:permission-decisions:1.0.0#/$defs/Id"},
+        "subject_id": {"$ref": "urn:medical:permission-decisions:1.0.0#/$defs/Id"},
+        "scope": {"$ref": "urn:medical:permission-decisions:1.0.0#/$defs/Scope"},
+        "action": {"$ref": "urn:medical:permission-decisions:1.0.0#/$defs/Action"},
+        "condition": {"$ref": "urn:medical:permission-decisions:1.0.0#/$defs/Condition"},
+        "status": {"enum": ["ACTIVE", "REVOKED"]},
+        "revision": {"$ref": "urn:medical:permission-decisions:1.0.0#/$defs/Revision"},
+        "valid_from": {"$ref": "urn:medical:permission-decisions:1.0.0#/$defs/Time"},
+        "valid_to": {"$ref": "urn:medical:permission-decisions:1.0.0#/$defs/NullableTime"},
+        "basis": {"$ref": "urn:medical:permission-decisions:1.0.0#/$defs/Basis"}
+      }
+    },
+    "Invitation": {
+      "type": "object", "additionalProperties": false,
+      "required": ["invitation_id", "user_id", "roles", "scope", "status", "revision", "expires_at", "created_by", "created_at", "basis"],
+      "properties": {
+        "invitation_id": {"$ref": "urn:medical:permission-decisions:1.0.0#/$defs/Id"},
+        "user_id": {"$ref": "urn:medical:permission-decisions:1.0.0#/$defs/Id"},
+        "roles": {"$ref": "urn:medical:member-invitations:1.0.0#/$defs/Roles"},
+        "scope": {"$ref": "urn:medical:permission-decisions:1.0.0#/$defs/Scope"},
+        "status": {"enum": ["PENDING", "ACCEPTED", "EXPIRED", "REVOKED"]},
+        "revision": {"$ref": "urn:medical:permission-decisions:1.0.0#/$defs/Revision"},
+        "expires_at": {"$ref": "urn:medical:permission-decisions:1.0.0#/$defs/Time"},
+        "created_by": {"$ref": "urn:medical:permission-decisions:1.0.0#/$defs/Id"},
+        "created_at": {"$ref": "urn:medical:permission-decisions:1.0.0#/$defs/Time"},
+        "basis": {"$ref": "urn:medical:permission-decisions:1.0.0#/$defs/Basis"}
+      }
+    },
+    "Page": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "tenant_id", "items", "next_after", "dataset_watermark", "current_context"],
+      "properties": {
+        "schema_version": {"const": "1.0.0"},
+        "tenant_id": {"$ref": "urn:medical:permission-decisions:1.0.0#/$defs/Id"},
+        "items": {"type": "array", "maxItems": 100, "items": {"type": "object"}},
+        "next_after": {"$ref": "urn:medical:permission-decisions:1.0.0#/$defs/NullableId"},
+        "dataset_watermark": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "current_context": {"$ref": "urn:medical:permission-decisions:1.0.0#/$defs/Context"}
+      }
+    },
+    "MembersPage": {"allOf": [{"$ref": "#/$defs/Page"}, {"properties": {"items": {"items": {"$ref": "#/$defs/Member"}}}}]},
+    "GrantsPage": {"allOf": [{"$ref": "#/$defs/Page"}, {"properties": {"items": {"items": {"$ref": "#/$defs/Grant"}}}}]},
+    "InvitationsPage": {"allOf": [{"$ref": "#/$defs/Page"}, {"properties": {"items": {"items": {"$ref": "#/$defs/Invitation"}}}}]}
+  }
+}

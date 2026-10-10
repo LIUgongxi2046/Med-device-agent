@@ -1,0 +1,237 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.medical.persistence.mapper.VersionResourceMapper">
+    <resultMap id="owner" type="com.ruoyi.medical.persistence.VersionResourceProtocol$OwnerRow">
+        <constructor>
+            <arg column="tenant_id" javaType="java.lang.String"/><arg column="version_id" javaType="java.lang.String"/>
+            <arg column="version_project_id" javaType="java.lang.String"/><arg column="resource_project_id" javaType="java.lang.String"/>
+            <arg column="resource_kind" javaType="java.lang.String"/><arg column="resource_id" javaType="java.lang.String"/>
+            <arg column="content_sha256" javaType="java.lang.String"/><arg column="source_version" javaType="java.lang.String"/>
+            <arg column="conversation_id" javaType="java.lang.String"/><arg column="conversation_owner_id" javaType="java.lang.String"/>
+            <arg column="conversation_status" javaType="java.lang.String"/>
+        </constructor>
+    </resultMap>
+    <sql id="noSourceOrConversation">NULL AS source_version,NULL AS conversation_id,NULL AS conversation_owner_id,NULL AS conversation_status</sql>
+    <sql id="noConversation">NULL AS conversation_id,NULL AS conversation_owner_id,NULL AS conversation_status</sql>
+    <sql id="versionIdentities">
+        <choose><when test="_parameter.containsKey('ids')"><foreach collection="ids" item="versionId" separator=",">#{versionId}</foreach></when>
+            <otherwise>#{id}</otherwise></choose>
+    </sql>
+    <resultMap id="domainOwner" type="com.ruoyi.medical.persistence.VersionResourceProtocol$DomainOwnerRow">
+        <constructor>
+            <arg column="domain" javaType="java.lang.String"/>
+            <arg resultMap="owner" javaType="com.ruoyi.medical.persistence.VersionResourceProtocol$OwnerRow"/>
+        </constructor>
+    </resultMap>
+    <sql id="ownerSelection">
+        <choose>
+            <when test="domain == 'SOURCE_VERSION'">
+                SELECT v.tenant_id,v.source_version AS version_id,s.owner_project_id AS version_project_id,s.owner_project_id AS resource_project_id,
+                    'SOURCE' AS resource_kind,s.source_id AS resource_id,v.original_sha256 AS content_sha256,v.source_version,<include refid="noConversation"/>
+                FROM source_version v JOIN source s ON s.tenant_id=v.tenant_id AND s.source_id=v.source_id WHERE v.source_version IN (<include refid="versionIdentities"/>)
+            </when>
+            <when test="domain == 'PARSE_VERSION'">
+                SELECT v.tenant_id,v.parse_version AS version_id,s.owner_project_id AS version_project_id,s.owner_project_id AS resource_project_id,
+                    'SOURCE' AS resource_kind,s.source_id AS resource_id,v.content_sha256,v.source_version,<include refid="noConversation"/>
+                FROM parse_version v JOIN source_version o ON o.tenant_id=v.tenant_id AND o.source_version=v.source_version
+                JOIN source s ON s.tenant_id=o.tenant_id AND s.source_id=o.source_id WHERE v.parse_version IN (<include refid="versionIdentities"/>)
+            </when>
+            <when test="domain == 'INDEX_MANIFEST'">
+                SELECT v.tenant_id,v.index_version AS version_id,s.owner_project_id AS version_project_id,s.owner_project_id AS resource_project_id,
+                    'SOURCE' AS resource_kind,s.source_id AS resource_id,v.manifest_sha256 AS content_sha256,v.source_version,<include refid="noConversation"/>
+                FROM index_manifest v JOIN source_version o ON o.tenant_id=v.tenant_id AND o.source_version=v.source_version
+                JOIN source s ON s.tenant_id=o.tenant_id AND s.source_id=o.source_id WHERE v.index_version IN (<include refid="versionIdentities"/>)
+            </when>
+            <when test="domain == 'APPROVAL_DECISION'">
+                SELECT v.tenant_id,v.approval_revision AS version_id,s.owner_project_id AS version_project_id,s.owner_project_id AS resource_project_id,
+                    'SOURCE' AS resource_kind,s.source_id AS resource_id,NULL AS content_sha256,v.source_version,<include refid="noConversation"/>
+                FROM approval_decision v JOIN source_version o ON o.tenant_id=v.tenant_id AND o.source_version=v.source_version
+                JOIN source s ON s.tenant_id=o.tenant_id AND s.source_id=o.source_id WHERE v.approval_revision IN (<include refid="versionIdentities"/>)
+            </when>
+            <when test="domain == 'RIGHTS_REVISION'">
+                SELECT v.tenant_id,v.rights_revision AS version_id,s.owner_project_id AS version_project_id,s.owner_project_id AS resource_project_id,
+                    'SOURCE' AS resource_kind,s.source_id AS resource_id,v.content_sha256,v.source_version,<include refid="noConversation"/>
+                FROM rights_revision v JOIN source_version o ON o.tenant_id=v.tenant_id AND o.source_version=v.source_version
+                JOIN source s ON s.tenant_id=o.tenant_id AND s.source_id=o.source_id WHERE v.rights_revision IN (<include refid="versionIdentities"/>)
+            </when>
+            <when test="domain == 'SOURCE_BINDING'">
+                SELECT v.tenant_id,v.binding_revision AS version_id,v.project_id AS version_project_id,s.owner_project_id AS resource_project_id,
+                    'SOURCE' AS resource_kind,s.source_id AS resource_id,NULL AS content_sha256,v.source_version,<include refid="noConversation"/>
+                FROM project_source_binding v JOIN source_version o ON o.tenant_id=v.tenant_id AND o.source_version=v.source_version
+                JOIN source s ON s.tenant_id=o.tenant_id AND s.source_id=o.source_id WHERE v.binding_revision IN (<include refid="versionIdentities"/>)
+            </when>
+            <when test="domain == 'COLLECTION_VERSION'">
+                SELECT v.tenant_id,v.collection_version AS version_id,h.owner_project_id AS version_project_id,h.owner_project_id AS resource_project_id,
+                    CASE WHEN h.owner_project_id IS NULL THEN 'ENTERPRISE' ELSE 'PROJECT' END AS resource_kind,
+                    COALESCE(h.owner_project_id,h.tenant_id) AS resource_id,v.content_sha256,<include refid="noSourceOrConversation"/>
+                FROM collection_version v JOIN collection_head h ON h.tenant_id=v.tenant_id AND h.collection_id=v.collection_id WHERE v.collection_version IN (<include refid="versionIdentities"/>)
+            </when>
+            <when test="domain == 'PROJECT_PROFILE'">
+                SELECT v.tenant_id,v.profile_revision AS version_id,v.project_id AS version_project_id,v.project_id AS resource_project_id,
+                    'PROJECT' AS resource_kind,v.project_id AS resource_id,v.content_sha256,<include refid="noSourceOrConversation"/>
+                FROM project_profile_revision v WHERE v.profile_revision IN (<include refid="versionIdentities"/>)
+            </when>
+            <when test="domain == 'SCOPE_SNAPSHOT'">
+                SELECT v.tenant_id,v.snapshot_id AS version_id,v.project_id AS version_project_id,v.project_id AS resource_project_id,
+                    'PROJECT' AS resource_kind,v.project_id AS resource_id,v.manifest_sha256 AS content_sha256,<include refid="noSourceOrConversation"/>
+                FROM scope_snapshot v WHERE v.snapshot_id IN (<include refid="versionIdentities"/>)
+            </when>
+            <when test="domain == 'TEMPLATE_VERSION'">
+                SELECT v.tenant_id,v.template_version AS version_id,NULL AS version_project_id,NULL AS resource_project_id,
+                    'TEMPLATE' AS resource_kind,v.template_version AS resource_id,v.content_sha256,<include refid="noSourceOrConversation"/>
+                FROM template_version v WHERE v.template_version IN (<include refid="versionIdentities"/>)
+            </when>
+            <when test="domain == 'RULE_VERSION'">
+                SELECT v.tenant_id,v.rule_version AS version_id,NULL AS version_project_id,NULL AS resource_project_id,
+                    'RULE' AS resource_kind,v.rule_version AS resource_id,v.content_sha256,<include refid="noSourceOrConversation"/>
+                FROM rule_version v WHERE v.rule_version IN (<include refid="versionIdentities"/>)
+            </when>
+            <when test="domain == 'TASK_REVISION'">
+                SELECT v.tenant_id,v.task_revision AS version_id,v.project_id AS version_project_id,v.project_id AS resource_project_id,
+                    'TASK' AS resource_kind,v.task_id AS resource_id,v.content_sha256,<include refid="noSourceOrConversation"/>
+                FROM task_revision v WHERE v.task_revision IN (<include refid="versionIdentities"/>)
+            </when>
+            <when test="domain == 'PLAN_REVISION'">
+                SELECT v.tenant_id,v.plan_revision AS version_id,v.project_id AS version_project_id,v.project_id AS resource_project_id,
+                    'TASK' AS resource_kind,v.task_id AS resource_id,v.content_sha256,<include refid="noSourceOrConversation"/>
+                FROM plan_revision v WHERE v.plan_revision IN (<include refid="versionIdentities"/>)
+            </when>
+            <when test="domain == 'DOCUMENT_REVISION'">
+                SELECT v.tenant_id,v.document_revision AS version_id,v.project_id AS version_project_id,v.project_id AS resource_project_id,
+                    'DOCUMENT' AS resource_kind,v.document_id AS resource_id,v.body_sha256 AS content_sha256,<include refid="noSourceOrConversation"/>
+                FROM document_revision v JOIN document_revision_meta m ON m.tenant_id=v.tenant_id AND m.project_id=v.project_id
+                    AND m.document_id=v.document_id AND m.document_revision=v.document_revision AND m.body_sha256=v.body_sha256 WHERE v.document_revision IN (<include refid="versionIdentities"/>)
+            </when>
+            <when test="domain == 'SECTION_REVISION'">
+                SELECT v.tenant_id,v.section_revision AS version_id,v.project_id AS version_project_id,v.project_id AS resource_project_id,
+                    'TASK' AS resource_kind,p.task_id AS resource_id,v.content_sha256,<include refid="noSourceOrConversation"/>
+                FROM section_revision v JOIN plan_revision p ON p.tenant_id=v.tenant_id AND p.project_id=v.project_id AND p.plan_revision=v.plan_revision
+                WHERE v.section_revision IN (<include refid="versionIdentities"/>)
+            </when>
+            <when test="domain == 'SHARED_FACT'">
+                SELECT v.tenant_id,v.fact_version AS version_id,v.project_id AS version_project_id,v.project_id AS resource_project_id,
+                    'PROJECT' AS resource_kind,v.project_id AS resource_id,v.content_sha256,<include refid="noSourceOrConversation"/>
+                FROM shared_fact_version v WHERE v.fact_version IN (<include refid="versionIdentities"/>)
+            </when>
+            <when test="domain == 'ARTIFACT'">
+                SELECT v.tenant_id,v.artifact_id AS version_id,v.project_id AS version_project_id,v.project_id AS resource_project_id,
+                    'ARTIFACT' AS resource_kind,v.artifact_id AS resource_id,v.content_sha256,<include refid="noSourceOrConversation"/>
+                FROM artifact v WHERE v.artifact_id IN (<include refid="versionIdentities"/>)
+            </when>
+            <when test="domain == 'DEPENDENCY_ACCESS_SET'">
+                SELECT v.tenant_id,v.access_set_id AS version_id,v.project_id AS version_project_id,v.project_id AS resource_project_id,
+                    CASE WHEN v.project_id IS NULL THEN 'ENTERPRISE' ELSE 'PROJECT' END AS resource_kind,
+                    COALESCE(v.project_id,v.tenant_id) AS resource_id,v.content_sha256,<include refid="noSourceOrConversation"/>
+                FROM dependency_access_set v WHERE v.access_set_id IN (<include refid="versionIdentities"/>)
+            </when>
+            <when test="domain == 'CONTEXT_MANIFEST'">
+                SELECT v.tenant_id,v.context_manifest_id AS version_id,v.project_id AS version_project_id,v.project_id AS resource_project_id,
+                    CASE WHEN v.project_id IS NULL THEN 'ENTERPRISE' ELSE 'PROJECT' END AS resource_kind,
+                    COALESCE(v.project_id,v.tenant_id) AS resource_id,v.content_sha256,<include refid="noSourceOrConversation"/>
+                FROM context_manifest v WHERE v.context_manifest_id IN (<include refid="versionIdentities"/>)
+            </when>
+            <when test="domain == 'CANDIDATE'">
+                SELECT v.tenant_id,v.candidate_id AS version_id,v.project_id AS version_project_id,v.project_id AS resource_project_id,
+                    'TASK' AS resource_kind,v.task_id AS resource_id,v.content_sha256,<include refid="noSourceOrConversation"/>
+                FROM candidate v WHERE v.candidate_id IN (<include refid="versionIdentities"/>)
+            </when>
+            <when test="domain == 'CAPABILITY_VERSION'">
+                SELECT v.tenant_id,v.capability_version AS version_id,v.project_id AS version_project_id,v.project_id AS resource_project_id,
+                    'CONFIGURATION' AS resource_kind,v.config_id AS resource_id,v.content_sha256,<include refid="noSourceOrConversation"/>
+                FROM capability_version v WHERE v.capability_version IN (<include refid="versionIdentities"/>)
+            </when>
+            <when test="domain == 'MODEL_CONFIG'">
+                SELECT v.tenant_id,v.model_config_revision AS version_id,v.project_id AS version_project_id,v.project_id AS resource_project_id,
+                    'CONFIGURATION' AS resource_kind,v.config_id AS resource_id,v.content_sha256,<include refid="noSourceOrConversation"/>
+                FROM model_config_revision v WHERE v.model_config_revision IN (<include refid="versionIdentities"/>)
+            </when>
+            <when test="domain == 'AGENT_VERSION'">
+                SELECT v.tenant_id,v.agent_version_id AS version_id,v.project_id AS version_project_id,v.project_id AS resource_project_id,
+                    'CONFIGURATION' AS resource_kind,v.agent_id AS resource_id,v.content_sha256,<include refid="noSourceOrConversation"/>
+                FROM agent_version v WHERE v.agent_version_id IN (<include refid="versionIdentities"/>)
+            </when>
+            <when test="domain == 'RELEASE_RECORD'">
+                SELECT v.tenant_id,v.release_id AS version_id,v.project_id AS version_project_id,a.project_id AS resource_project_id,
+                    'CONFIGURATION' AS resource_kind,a.agent_id AS resource_id,v.content_sha256,<include refid="noSourceOrConversation"/>
+                FROM release_record v JOIN agent_version a ON a.tenant_id=v.tenant_id AND a.agent_version_id=v.agent_version_id WHERE v.release_id IN (<include refid="versionIdentities"/>)
+            </when>
+            <when test="domain == 'RELEASE_SCOPE'">
+                SELECT v.tenant_id,v.scope_revision AS version_id,v.project_id AS version_project_id,a.project_id AS resource_project_id,
+                    'CONFIGURATION' AS resource_kind,a.agent_id AS resource_id,v.content_sha256,<include refid="noSourceOrConversation"/>
+                FROM release_scope v JOIN release_record r ON r.tenant_id=v.tenant_id AND r.release_id=v.release_id
+                JOIN agent_version a ON a.tenant_id=r.tenant_id AND a.agent_version_id=r.agent_version_id WHERE v.scope_revision IN (<include refid="versionIdentities"/>)
+            </when>
+            <when test="domain == 'CONNECTOR_CONFIG'">
+                SELECT v.tenant_id,v.config_revision AS version_id,v.project_id AS version_project_id,v.project_id AS resource_project_id,
+                    'CONFIGURATION' AS resource_kind,v.connector_id AS resource_id,v.content_sha256,<include refid="noSourceOrConversation"/>
+                FROM connector_config v WHERE v.config_revision IN (<include refid="versionIdentities"/>)
+            </when>
+            <when test="domain == 'EVALUATION'">
+                SELECT v.tenant_id,v.evaluation_id AS version_id,v.project_id AS version_project_id,v.project_id AS resource_project_id,
+                    'EVALUATION' AS resource_kind,v.evaluation_id AS resource_id,v.content_sha256,<include refid="noSourceOrConversation"/>
+                FROM evaluation_batch v WHERE v.evaluation_id IN (<include refid="versionIdentities"/>)
+            </when>
+            <when test="domain == 'TASK_SUMMARY'">
+                SELECT v.tenant_id,v.summary_id AS version_id,v.project_id AS version_project_id,v.project_id AS resource_project_id,
+                    CASE WHEN e.execution_kind='TASK' THEN 'TASK' WHEN v.project_id IS NULL THEN 'ENTERPRISE' ELSE 'PROJECT' END AS resource_kind,
+                    CASE WHEN e.execution_kind='TASK' THEN t.task_id ELSE COALESCE(v.project_id,v.tenant_id) END AS resource_id,
+                    v.content_sha256,<include refid="noSourceOrConversation"/>
+                FROM task_summary v JOIN execution_registry e ON e.tenant_id=v.tenant_id AND e.project_key=v.project_key AND e.run_id=v.run_id
+                LEFT JOIN task_run t ON t.tenant_id=e.tenant_id AND t.project_id=e.project_id AND t.run_id=e.run_id WHERE v.summary_id IN (<include refid="versionIdentities"/>)
+            </when>
+            <when test="domain == 'BUDGET_REVISION'">
+                SELECT v.tenant_id,v.budget_revision AS version_id,v.project_id AS version_project_id,v.project_id AS resource_project_id,
+                    'BUDGET' AS resource_kind,v.budget_id AS resource_id,v.content_sha256,<include refid="noSourceOrConversation"/>
+                FROM budget_revision v WHERE v.budget_revision IN (<include refid="versionIdentities"/>)
+            </when>
+            <when test="domain == 'CONVERSATION_MESSAGE'">
+                SELECT v.tenant_id,v.message_id AS version_id,v.project_id AS version_project_id,v.project_id AS resource_project_id,
+                    CASE WHEN c.document_id IS NULL THEN 'PROJECT' ELSE 'DOCUMENT' END AS resource_kind,
+                    COALESCE(c.document_id,c.project_id) AS resource_id,v.content_sha256,NULL AS source_version,
+                    c.conversation_id,c.owner_id AS conversation_owner_id,c.status AS conversation_status
+                FROM conversation_message v JOIN conversation c ON c.tenant_id=v.tenant_id AND c.project_id=v.project_id AND c.conversation_id=v.conversation_id
+                WHERE v.message_id IN (<include refid="versionIdentities"/>)
+            </when>
+            <when test="domain == 'ROLE_DEFINITION'">
+                SELECT v.tenant_id,v.version_id,NULL AS version_project_id,NULL AS resource_project_id,
+                    'ENTERPRISE' AS resource_kind,v.tenant_id AS resource_id,NULL AS content_sha256,<include refid="noSourceOrConversation"/>
+                FROM enterprise_role_version v WHERE v.version_id IN (<include refid="versionIdentities"/>)
+            </when>
+            <when test="domain == 'SIGNATURE'">
+                SELECT v.tenant_id,v.signature_id AS version_id,v.project_id AS version_project_id,v.project_id AS resource_project_id,
+                    'DOCUMENT' AS resource_kind,v.document_id AS resource_id,v.content_sha256,<include refid="noSourceOrConversation"/>
+                FROM signature_record v WHERE v.signature_id IN (<include refid="versionIdentities"/>)
+            </when>
+            <when test="domain == 'EXPORT_MANIFEST'">
+                SELECT v.tenant_id,v.export_id AS version_id,v.project_id AS version_project_id,v.project_id AS resource_project_id,
+                    'DOCUMENT' AS resource_kind,d.document_id AS resource_id,v.content_sha256,<include refid="noSourceOrConversation"/>
+                FROM export_manifest v JOIN document_revision d ON d.tenant_id=v.tenant_id AND d.project_id=v.project_id AND d.document_revision=v.document_revision
+                WHERE v.export_id IN (<include refid="versionIdentities"/>)
+            </when>
+            <when test="domain == 'MANAGEMENT_RELEASE'">
+                SELECT v.tenant_id,v.release_id AS version_id,v.project_id AS version_project_id,v.project_id AS resource_project_id,
+                    CASE WHEN v.project_id IS NULL THEN 'ENTERPRISE' ELSE 'PROJECT' END AS resource_kind,
+                    COALESCE(v.project_id,v.tenant_id) AS resource_id,v.manifest_sha256 AS content_sha256,<include refid="noSourceOrConversation"/>
+                FROM management_binding_release v WHERE v.release_id IN (<include refid="versionIdentities"/>)
+            </when>
+            <when test="domain == 'IMPACT_MANIFEST'">
+                SELECT v.tenant_id,v.impact_id AS version_id,NULL AS version_project_id,NULL AS resource_project_id,
+                    'ENTERPRISE' AS resource_kind,v.tenant_id AS resource_id,v.content_sha256,<include refid="noSourceOrConversation"/>
+                FROM impact_manifest v WHERE v.impact_id IN (<include refid="versionIdentities"/>)
+            </when>
+            <when test="domain == 'APPLICABILITY_DECISION'">
+                SELECT v.tenant_id,v.decision_id AS version_id,v.project_id AS version_project_id,v.project_id AS resource_project_id,
+                    'PROJECT' AS resource_kind,v.project_id AS resource_id,NULL AS content_sha256,<include refid="noSourceOrConversation"/>
+                FROM applicability_decision v WHERE v.decision_id IN (<include refid="versionIdentities"/>)
+            </when>
+        </choose>
+    </sql>
+    <select id="owners" resultMap="owner" useCache="false" flushCache="true">
+        <include refid="ownerSelection"/>
+    </select>
+    <select id="ownersAcrossDomains" resultMap="domainOwner" useCache="false" flushCache="true">
+        <foreach collection="domains" item="domain" separator=" UNION ALL ">
+            SELECT #{domain} AS domain,candidate.* FROM (<include refid="ownerSelection"/>) candidate
+        </foreach>
+    </select>
+</mapper>

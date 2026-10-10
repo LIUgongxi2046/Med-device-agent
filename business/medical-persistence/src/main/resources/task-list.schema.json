@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:task-list:1.0.0",
+  "$defs": {
+    "Filter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["page", "page_size"],
+      "properties": {
+        "page": {"type": "integer", "minimum": 1, "maximum": 2147483647},
+        "page_size": {"type": "integer", "minimum": 1, "maximum": 100},
+        "status": {"enum": ["NEEDS_MATERIALS", "PLAN_PENDING", "READY", "RUNNING", "REVIEW_PENDING", "SIGN_PENDING", "SIGNED", "FAILED", "RETURNED", "CANCEL_REQUESTED", "CANCELLED"]},
+        "owner_id": {"$ref": "https://schemas.medical-agent.invalid/1.0.0/backend-design/interfaces.schema.yaml#/$defs/Id"},
+        "updated_from": {"$ref": "https://schemas.medical-agent.invalid/1.0.0/backend-design/interfaces.schema.yaml#/$defs/Timestamp"},
+        "updated_to": {"$ref": "https://schemas.medical-agent.invalid/1.0.0/backend-design/interfaces.schema.yaml#/$defs/Timestamp"},
+        "dataset_watermark": {"$ref": "https://schemas.medical-agent.invalid/1.0.0/backend-design/interfaces.schema.yaml#/$defs/Revision"},
+        "filter_sha256": {"$ref": "https://schemas.medical-agent.invalid/1.0.0/backend-design/interfaces.schema.yaml#/$defs/Hash"}
+      },
+      "dependentRequired": {"dataset_watermark": ["filter_sha256"], "filter_sha256": ["dataset_watermark"]},
+      "allOf": [{"if": {"properties": {"page": {"minimum": 2}}}, "then": {"required": ["dataset_watermark", "filter_sha256"]}}]
+    },
+    "Item": {
+      "type": "object", "additionalProperties": false,
+      "required": ["detail", "document_type", "goal", "updated_at"],
+      "properties": {
+        "detail": {"$ref": "https://schemas.medical-agent.invalid/1.0.0/backend-design/resource-details.schema.yaml#/$defs/TaskDetail"},
+        "document_type": {"$ref": "urn:medical:templates:1.0.0#/$defs/DocumentType"},
+        "goal": {"$ref": "https://schemas.medical-agent.invalid/1.0.0/agent-design/artifacts.schema.json#/$defs/Text"},
+        "updated_at": {"$ref": "https://schemas.medical-agent.invalid/1.0.0/backend-design/interfaces.schema.yaml#/$defs/Timestamp"}
+      }
+    },
+    "Page": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["items", "page_info"],
+      "properties": {
+        "items": {"type": "array", "maxItems": 100, "items": {"$ref": "#/$defs/Item"}},
+        "page_info": {"$ref": "https://schemas.medical-agent.invalid/1.0.0/backend-design/interfaces.schema.yaml#/$defs/PageInfo"}
+      }
+    }
+  }
+}

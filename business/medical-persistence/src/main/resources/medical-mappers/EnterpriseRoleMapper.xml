@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.medical.persistence.mapper.EnterpriseRoleMapper">
+    <resultMap id="head" type="com.ruoyi.medical.persistence.EnterpriseRoleProtocol$Head">
+        <constructor><arg column="role_id" javaType="java.lang.String"/><arg column="current_version" javaType="java.lang.String"/>
+            <arg column="revision" javaType="java.math.BigInteger"/></constructor>
+    </resultMap>
+    <resultMap id="publication" type="com.ruoyi.medical.persistence.EnterpriseRoleProtocol$Publication">
+        <constructor>
+            <arg column="version_id" javaType="java.lang.String"/><arg column="name" javaType="java.lang.String"/>
+            <arg column="approval_basis" javaType="java.lang.String"/><arg column="approval_basis_sha256" javaType="java.lang.String"/>
+            <arg column="approval_reason" javaType="java.lang.String"/><arg column="authority_grant" javaType="java.lang.String"/>
+            <arg column="authority_revision" javaType="java.math.BigInteger"/><arg column="schema_version" javaType="java.lang.String"/>
+            <arg column="schema_manifest_sha256" javaType="java.lang.String"/>
+        </constructor>
+    </resultMap>
+    <select id="managers" resultMap="com.ruoyi.medical.persistence.mapper.PermissionMapper.grant" useCache="false" flushCache="true">
+        SELECT grant_id,subject_id,project_id,resource_kind,resource_id,action,`condition`,status,valid_from,valid_to,
+            basis_version,schema_version,schema_manifest_sha256,revision
+        FROM permission_grant g WHERE subject_id=#{userId} AND action='role.manage' AND status='ACTIVE'
+            AND valid_from &lt;= UTC_TIMESTAMP(6) AND (valid_to IS NULL OR valid_to>UTC_TIMESTAMP(6)) ORDER BY grant_id FOR UPDATE
+    </select>
+    <select id="head" resultMap="head" useCache="false" flushCache="true">
+        SELECT role_id,current_version,revision FROM enterprise_role_head h WHERE role_id=#{roleId} FOR UPDATE
+    </select>
+    <select id="heads" resultMap="head" useCache="false" flushCache="true">
+        SELECT role_id,current_version,revision FROM enterprise_role_head h WHERE role_id IN
+        <foreach collection="roles" item="role" open="(" separator="," close=")">#{role}</foreach>
+        <if test="after != null">AND role_id>#{after}</if> ORDER BY role_id LIMIT #{limit} FOR UPDATE
+    </select>
+    <select id="publication" resultMap="publication" useCache="false" flushCache="true">
+        SELECT version_id,name,approval_basis,approval_basis_sha256,approval_reason,authority_grant,authority_revision,schema_version,schema_manifest_sha256
+        FROM enterprise_role_publication p WHERE version_id=#{versionId} FOR UPDATE
+    </select>
+    <insert id="insertVersion">
+        INSERT INTO version_registry (version_id,owner_project_id,entity_kind,content_sha256)
+        VALUES (#{versionId},NULL,'ROLE_DEFINITION',#{contentSha256})
+    </insert>
+    <insert id="insertRole">
+        INSERT INTO enterprise_role_version (version_id,role_id,definition,status,approved_by,approved_at,valid_from,valid_to,
+            schema_version,schema_manifest_sha256,created_by,created_at,classification,revision,updated_at)
+        VALUES (#{versionId},#{roleId},#{definition},'ACTIVE',#{userId},#{now},#{validFrom},#{validTo},
+            '1.0.0',#{invitationManifest},#{userId},#{now},#{classification},1,#{now})
+    </insert>
+    <insert id="insertPublication">
+        INSERT INTO enterprise_role_publication (version_id,name,approval_basis,approval_basis_sha256,approval_reason,authority_grant,authority_revision,
+            schema_version,schema_manifest_sha256,created_by,created_at,classification,revision,updated_at)
+        VALUES (#{versionId},#{name},#{basis},#{basisHash},#{reason},#{authorityGrant},#{authorityRevision},
+            '1.0.0',#{manifest},#{userId},#{now},#{classification},1,#{now})
+    </insert>
+    <insert id="insertHead">
+        INSERT INTO enterprise_role_head (role_id,current_version,created_by,created_at,classification,revision,updated_at)
+        VALUES (#{roleId},#{versionId},#{userId},#{now},#{classification},1,#{now})
+    </insert>
+    <update id="advanceHead">
+        UPDATE enterprise_role_head SET current_version=#{versionId},revision=revision+1,updated_at=#{now}
+        WHERE role_id=#{roleId} AND revision=#{headRevision}
+    </update>
+    <update id="revokeVersion">
+        UPDATE enterprise_role_version SET status='REVOKED',revision=revision+1,updated_at=UTC_TIMESTAMP(6)
+        WHERE version_id=#{versionId} AND revision=#{revision} AND status='ACTIVE'
+    </update>
+    <select id="pendingInvitations" resultMap="com.ruoyi.medical.persistence.mapper.InvitationMapper.invitation" useCache="false" flushCache="true">
+        SELECT invitation_id,user_id,identity_id,roles,scope,authorization_manifest,basis_version,credential_sha256,
+            expires_at,status,created_by,created_at,schema_version,schema_manifest_sha256,revision
+        FROM member_invitation i WHERE status='PENDING' AND JSON_CONTAINS(roles,JSON_OBJECT('version_id',#{versionId})) ORDER BY invitation_id FOR UPDATE
+    </select>
+    <select id="activeRoleGrants" resultMap="com.ruoyi.medical.persistence.mapper.PermissionMapper.grant" useCache="false" flushCache="true">
+        SELECT g.grant_id,g.subject_id,g.project_id,g.resource_kind,g.resource_id,g.action,g.`condition`,g.status,g.valid_from,g.valid_to,
+            g.basis_version,g.schema_version,g.schema_manifest_sha256,g.revision
+        FROM permission_grant g INNER JOIN member_role_grant r ON r.grant_id=g.grant_id
+        WHERE r.role_version=#{versionId} AND g.status='ACTIVE' ORDER BY g.grant_id FOR UPDATE
+    </select>
+    <update id="revokeInvitation">
+        UPDATE member_invitation SET status=CASE WHEN expires_at &lt;= UTC_TIMESTAMP(6) THEN 'EXPIRED' ELSE 'REVOKED' END,
+            terminal_at=UTC_TIMESTAMP(6),terminal_reason=#{reason},revision=revision+1,updated_at=UTC_TIMESTAMP(6)
+        WHERE invitation_id=#{id} AND revision=#{revision} AND status='PENDING'
+    </update>
+    <update id="advanceEpochs">
+        UPDATE tenant SET auth_epoch=auth_epoch+1,governance_epoch=governance_epoch+1 WHERE auth_epoch=#{auth} AND governance_epoch=#{governance}
+    </update>
+    <select id="currentOperation" resultMap="com.ruoyi.medical.persistence.mapper.TenantSelectionMapper.operation" useCache="false" flushCache="true">
+        SELECT operation_id,request_sha256,state,http_status,response_ref,target_id,schema_version,schema_manifest_sha256
+        FROM operation_record o WHERE subject_id=#{userId} AND operation_name=#{operation} AND idempotency_key=#{key}
+    </select>
+    <insert id="saveOperation">
+        INSERT INTO operation_record (operation_id,subject_id,operation_name,idempotency_key,request_sha256,state,http_status,response_ref,target_id,
+            error_code,schema_version,schema_manifest_sha256,created_by,created_at,classification,revision,updated_at)
+        VALUES (#{operationId},#{userId},#{operation},#{key},#{sha256},'COMPLETED',#{httpStatus},#{response},#{versionId},NULL,
+            '1.0.0',#{manifest},#{userId},UTC_TIMESTAMP(6),#{classification},1,UTC_TIMESTAMP(6))
+    </insert>
+</mapper>

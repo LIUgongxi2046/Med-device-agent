@@ -1,0 +1,284 @@
+{
+  "checked_at": "2026-09-30T15:46:32.155082+00:00",
+  "capability": "READONLY",
+  "outcome_type": "QUALITY",
+  "status": "PASS",
+  "command": ".lld-data-work/venv/bin/python data-design/validate_delivery.py",
+  "environment": {
+    "python_executable": "/Users/liuhaoxian/Downloads/我的/AI项目/医疗设备厂商agent/.lld-data-work/venv/bin/python",
+    "python_version": "3.12.14",
+    "platform": "macOS-13.7.8-x86_64-i386-64bit",
+    "working_directory": "/Users/liuhaoxian/Downloads/我的/AI项目/医疗设备厂商agent",
+    "libraries": {
+      "python-docx": "1.2.0",
+      "pypdf": "6.9.2",
+      "markdown-it-py": "4.0.0",
+      "jsonschema": "4.26.0",
+      "sqlglot": "30.0.3"
+    }
+  },
+  "summary": {
+    "sources": 11,
+    "records": 12,
+    "schema": "PASS",
+    "source_reread": "PASS",
+    "locator_reread": "PASS",
+    "original_preview_pairs": 2,
+    "text_derivations": 3,
+    "mysql_ddl_static_parse": "PASS",
+    "table_count": 18,
+    "table_names": [
+      "tenant",
+      "project",
+      "source",
+      "source_version",
+      "parse_version",
+      "source_chunk",
+      "index_manifest",
+      "approval_decision",
+      "source_use_gate",
+      "project_source_binding",
+      "scope_snapshot",
+      "scope_member",
+      "document_revision",
+      "claim",
+      "evidence_link",
+      "version_registry",
+      "lineage_edge",
+      "outbox_event"
+    ],
+    "local_link_count": 13
+  },
+  "source_receipts": [
+    {
+      "source_id": "official-clinical-2021-73-a4",
+      "source_ref": "ui-delivery/assets/public-evidence/clinical-evaluation-2021.docx",
+      "sha256": "a70e1b2c0407416a2ea5a076c96e4fd85ea6edf2fcbf5235d0a6581e5a43d7ee",
+      "status": "PASS"
+    },
+    {
+      "source_id": "official-safety-2021-121-a9",
+      "source_ref": "ui-delivery/assets/public-evidence/safety-principles-2021.doc",
+      "sha256": "84f97d0fb9a587d4d1dfbc22da619b8616eac3907ab2999ce33d66739d081292",
+      "status": "PASS"
+    },
+    {
+      "source_id": "official-format-2021-121-a4",
+      "source_ref": "ui-delivery/research/official/registration-format-2021-121.doc",
+      "sha256": "918de55c070b86dfbcae6d013dcf2ce8afbc1fedd5a1aa84e2c2962ba842c5db",
+      "status": "PASS"
+    },
+    {
+      "source_id": "official-format-2021-121-a4-text",
+      "source_ref": "ui-delivery/research/official/registration-format-2021-121.txt",
+      "sha256": "2fdc36f675104e60caf17e8c2f40772eeee1de5c67ef015e89e05a4296be0b36",
+      "status": "PASS"
+    },
+    {
+      "source_id": "official-requirements-2021-121-a5",
+      "source_ref": "ui-delivery/research/official/registration-requirements-2021-121.doc",
+      "sha256": "9cec3ef722dfe4c9b4f4b7caf1e3d208ac4ba8c6bdca67bf22a01c934b33fee5",
+      "status": "PASS"
+    },
+    {
+      "source_id": "official-requirements-2021-121-a5-text",
+      "source_ref": "ui-delivery/research/official/registration-requirements-2021-121.txt",
+      "sha256": "65877d3a85d80bd867ffbf719908457d39d956a15e7a77a382934809fb569b56",
+      "status": "PASS"
+    },
+    {
+      "source_id": "official-ptr-2022-8",
+      "source_ref": "ui-delivery/research/official/technical-requirements-2022-8.doc",
+      "sha256": "466c5784ecb9d5dd6675cac84bafe9f0ab3fd9e2975a7d85796d1974a4a6134f",
+      "status": "PASS"
+    },
+    {
+      "source_id": "official-ptr-2022-8-text",
+      "source_ref": "ui-delivery/research/official/technical-requirements-2022-8.txt",
+      "sha256": "c8204a2a500ab251e4d3e141d7168c1e4c4115494ba7fad33b33fafdb04793fa",
+      "status": "PASS"
+    },
+    {
+      "source_id": "official-clinical-2021-73-a4-preview",
+      "source_ref": "ui-delivery/assets/public-evidence/clinical-evaluation-2021.pdf",
+      "sha256": "de3c22d2401c1e5338145b5714045bd46030db7b9f0da7199a6ab1db8f148026",
+      "status": "PASS"
+    },
+    {
+      "source_id": "official-safety-2021-121-a9-preview",
+      "source_ref": "ui-delivery/assets/public-evidence/safety-principles-2021.pdf",
+      "sha256": "5179d8baeded33b57c52f10df9f3c3628ea9e4c1db3c29e0db6ce21ff6648c81",
+      "status": "PASS"
+    },
+    {
+      "source_id": "project-prd-v1.3.0",
+      "source_ref": "PRD.md",
+      "sha256": "7e8b1cf75b016db541d568d619fc6e41428c3e36f62398d0bfa4a34d74466146",
+      "status": "PASS"
+    }
+  ],
+  "record_receipts": [
+    {
+      "record_id": "sample-61a3722db5d38d8064f0d9f9",
+      "format": "TXT",
+      "quote_hash": "707f47faa4f5f790eaf5a12b3bb7a2090e2cb1769258a77f27fae0a8b45092a3",
+      "reread": "PASS"
+    },
+    {
+      "record_id": "sample-53cc3d876181c4bf1f9001cd",
+      "format": "TXT",
+      "quote_hash": "f715575429809b01717834fd8cd8b3e5dcd152b3a32caaefebd8e2eedd8a0fd1",
+      "reread": "PASS"
+    },
+    {
+      "record_id": "sample-0f71159addf0dffbe8d56832",
+      "format": "TXT",
+      "quote_hash": "7e66e2a1b57a282ff438beefc20bd641059825661053ab74e31181ddf8297822",
+      "reread": "PASS"
+    },
+    {
+      "record_id": "sample-d0f623241d7bc55892827735",
+      "format": "TXT",
+      "quote_hash": "e1b216bc044918fca0d4761bb364dc3120f1795b97194a8c3502b7d2616f1a06",
+      "reread": "PASS"
+    },
+    {
+      "record_id": "sample-48d4924935e1fba269841254",
+      "format": "TXT",
+      "quote_hash": "7cf759b0f4bebdce21296c58b376629b032f7b7d87535a089154dc4cc813abff",
+      "reread": "PASS"
+    },
+    {
+      "record_id": "sample-bd2acb084969ce6db8cacd55",
+      "format": "DOCX",
+      "quote_hash": "c09cf43710e00952d45f7ebd326fb69aaf1f0592dd096bda896b0267af67f4b4",
+      "reread": "PASS"
+    },
+    {
+      "record_id": "sample-db1dad48a393fec29da0b347",
+      "format": "DOCX",
+      "quote_hash": "fcd2fc90998d6a7300c4956b0c20a622d0df10d91bd9ae25c27c57b358a73145",
+      "reread": "PASS"
+    },
+    {
+      "record_id": "sample-2c67ee8d5f11f2ac4e74c823",
+      "format": "DOCX",
+      "quote_hash": "df5c9a274bd7ed01fdcf325f32dbb9a54e8c8ecc2460890c11d00a56ad2e324b",
+      "reread": "PASS"
+    },
+    {
+      "record_id": "sample-348313d9568032ecb29392eb",
+      "format": "DOCX",
+      "quote_hash": "db19f8f88f170addb323c60a02c7be494e2af875022f61fecb36c4d99a144350",
+      "reread": "PASS"
+    },
+    {
+      "record_id": "sample-4c108c5d4523f7ae0cfb6837",
+      "format": "PDF",
+      "quote_hash": "d30f92c2c0964c5a9538443b1bc931a1e46cf316b4eb07a3358f0cee72201450",
+      "reread": "PASS"
+    },
+    {
+      "record_id": "sample-53812d8507cef9132cac1db0",
+      "format": "PDF",
+      "quote_hash": "cdd249388b9aece9bb01723ce3cc967119689b6c2e998546e48ffd1369e7b586",
+      "reread": "PASS"
+    },
+    {
+      "record_id": "sample-2255bcdd9731ab29c8033d27",
+      "format": "MARKDOWN",
+      "quote_hash": "5ef2861f912568c545d8c7afd173b400d4006dcb5a4a64a1d2726526328e4917",
+      "reread": "PASS"
+    }
+  ],
+  "original_preview_pairs": [
+    {
+      "original": "ui-delivery/assets/public-evidence/safety-principles-2021.doc",
+      "preview": "ui-delivery/assets/public-evidence/safety-principles-2021.pdf",
+      "status": "PASS"
+    },
+    {
+      "original": "ui-delivery/assets/public-evidence/clinical-evaluation-2021.docx",
+      "preview": "ui-delivery/assets/public-evidence/clinical-evaluation-2021.pdf",
+      "status": "PASS"
+    }
+  ],
+  "text_derivations": [
+    {
+      "source_id": "official-format-2021-121-a4-text",
+      "original_source_id": "official-format-2021-121-a4",
+      "status": "PASS"
+    },
+    {
+      "source_id": "official-requirements-2021-121-a5-text",
+      "original_source_id": "official-requirements-2021-121-a5",
+      "status": "PASS"
+    },
+    {
+      "source_id": "official-ptr-2022-8-text",
+      "original_source_id": "official-ptr-2022-8",
+      "status": "PASS"
+    }
+  ],
+  "inputs": [
+    {
+      "path": "PRD.md",
+      "sha256": "7e8b1cf75b016db541d568d619fc6e41428c3e36f62398d0bfa4a34d74466146"
+    },
+    {
+      "path": "HLD.md",
+      "sha256": "fadbcfb76e0957afc181f4109e837af3c1c16dee2ce692027c1cb64bc6fa0647"
+    },
+    {
+      "path": "LLD-数据.md",
+      "sha256": "a18810030ca0ccb75f05c4431508b6c5ad7637ff6a99798b41b0345381a7d4eb"
+    },
+    {
+      "path": "data-design/core.sql",
+      "sha256": "a6dd24622f6d38bacb0d03245e9add4d99dec85927af5f310a0889ffc3b56f70"
+    },
+    {
+      "path": "data-design/dataset.schema.json",
+      "sha256": "9cd36c6c343b44aeee6f0ea21667d579db730331d4f9973becf0b1bb13549b8a"
+    },
+    {
+      "path": "data-design/sample_dataset.json",
+      "sha256": "6df3f7ec5c0f3ef553ba6a310c916d8935a8f621f5ef875ad980020b9716c127"
+    },
+    {
+      "path": "data-design/requirements.txt",
+      "sha256": "67f9eb95ddfae3bd7d30d6de382aa3deab4bdf04dd4d7467aae26083db358de5"
+    },
+    {
+      "path": "data-design/validate_delivery.py",
+      "sha256": "2f1fa88f5f01863604d362fa6b73ee13fe8967f069c75bad4aa6434b97826a55"
+    },
+    {
+      "path": "data-design/build_samples.py",
+      "sha256": "ba90f684a21e3a36f965354c7c49dc5011fccfb42bb19f703efd5987dbb6cc3c"
+    },
+    {
+      "path": "data-design/inspect_samples.py",
+      "sha256": "c699a1806a936b69c3c28d5b3e9cc8bfaafc7e8edf6139174e7f2babe9d0c82d"
+    },
+    {
+      "path": "ui-delivery/assets/public-evidence/provenance.json",
+      "sha256": "71113d0d2859752704f2361405ac145d5251e77735a1fa652a7318e91101cbc0"
+    }
+  ],
+  "not_run": [
+    "MYSQL_8_4_EXECUTION",
+    "QDRANT_IMPORT_AND_SEARCH",
+    "MODEL_API",
+    "CUSTOMER_BUSINESS_ACCEPTANCE",
+    "CROSS_TENANT_AUTHORIZATION",
+    "SEVEN_FORMAT_ACCEPTANCE",
+    "OCR",
+    "VISUAL_LAYOUT",
+    "FULL_PRIVACY_SCAN",
+    "PERMISSION_REVOCATION",
+    "UPDATE_APPROVAL",
+    "HISTORY_REPLAY",
+    "DELETION_AND_BACKUP_RESTORE"
+  ]
+}

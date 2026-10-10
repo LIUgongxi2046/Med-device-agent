@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:framework-navigation:1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "framework_revision", "user_id", "framework_user_id", "roles", "permissions", "routers"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "framework_revision": {"const": "ruoyi-3.9.2"},
+    "user_id": {"type": "string", "format": "uuid", "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"},
+    "framework_user_id": {"type": "string", "pattern": "^[1-9][0-9]{0,18}$"},
+    "roles": {"$ref": "#/$defs/Keys"},
+    "permissions": {"$ref": "#/$defs/Keys"},
+    "routers": {"type": "array", "items": {"$ref": "#/$defs/Router"}}
+  },
+  "$defs": {
+    "Keys": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+    "Router": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "path": {"type": "string", "minLength": 1},
+        "hidden": {"type": "boolean"},
+        "redirect": {"type": "string", "minLength": 1},
+        "component": {"type": "string", "minLength": 1},
+        "query": {"type": "string", "minLength": 1},
+        "alwaysShow": {"type": "boolean"},
+        "meta": {"$ref": "#/$defs/Meta"},
+        "children": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/Router"}}
+      }
+    },
+    "Meta": {
+      "type": "object", "additionalProperties": false,
+      "required": ["title", "icon", "noCache", "link"],
+      "properties": {
+        "title": {"type": ["string", "null"]},
+        "icon": {"type": ["string", "null"]},
+        "noCache": {"type": "boolean"},
+        "link": {"type": ["string", "null"]}
+      }
+    }
+  }
+}

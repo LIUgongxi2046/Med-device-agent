@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:tasks:1.0.0",
+  "$ref": "#/$defs/Create",
+  "$defs": {
+    "Create": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "project_id", "profile_revision", "document_type", "template_version", "agent_release_id", "scope_selection", "owner_id", "goal"],
+      "properties": {
+        "schema_version": {"const": "1.0.0"},
+        "project_id": {"$ref": "https://schemas.medical-agent.invalid/1.0.0/backend-design/interfaces.schema.yaml#/$defs/Id"},
+        "profile_revision": {"$ref": "https://schemas.medical-agent.invalid/1.0.0/backend-design/interfaces.schema.yaml#/$defs/Id"},
+        "document_type": {"$ref": "urn:medical:templates:1.0.0#/$defs/DocumentType"},
+        "template_version": {"$ref": "https://schemas.medical-agent.invalid/1.0.0/backend-design/interfaces.schema.yaml#/$defs/Id"},
+        "agent_release_id": {"$ref": "https://schemas.medical-agent.invalid/1.0.0/backend-design/interfaces.schema.yaml#/$defs/Id"},
+        "scope_selection": {"$ref": "https://schemas.medical-agent.invalid/1.0.0/backend-design/interfaces.schema.yaml#/$defs/SourceScope"},
+        "owner_id": {"$ref": "https://schemas.medical-agent.invalid/1.0.0/backend-design/interfaces.schema.yaml#/$defs/Id"},
+        "goal": {"$ref": "https://schemas.medical-agent.invalid/1.0.0/agent-design/artifacts.schema.json#/$defs/Text"},
+        "based_on_document_revision": {"$ref": "https://schemas.medical-agent.invalid/1.0.0/backend-design/interfaces.schema.yaml#/$defs/NullableId"}
+      }
+    },
+    "ScopeSnapshotManifest": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "tenant_id", "project_id", "snapshot_id", "profile_revision", "scope_selection", "auth_epoch", "governance_epoch", "members"],
+      "properties": {
+        "schema_version": {"const": "1.0.0"},
+        "tenant_id": {"$ref": "https://schemas.medical-agent.invalid/1.0.0/backend-design/interfaces.schema.yaml#/$defs/Id"},
+        "project_id": {"$ref": "https://schemas.medical-agent.invalid/1.0.0/backend-design/interfaces.schema.yaml#/$defs/Id"},
+        "snapshot_id": {"$ref": "https://schemas.medical-agent.invalid/1.0.0/backend-design/interfaces.schema.yaml#/$defs/Id"},
+        "profile_revision": {"$ref": "https://schemas.medical-agent.invalid/1.0.0/backend-design/interfaces.schema.yaml#/$defs/Id"},
+        "scope_selection": {"$ref": "https://schemas.medical-agent.invalid/1.0.0/backend-design/interfaces.schema.yaml#/$defs/SourceScope"},
+        "auth_epoch": {"$ref": "https://schemas.medical-agent.invalid/1.0.0/backend-design/interfaces.schema.yaml#/$defs/Revision"},
+        "governance_epoch": {"$ref": "https://schemas.medical-agent.invalid/1.0.0/backend-design/interfaces.schema.yaml#/$defs/Revision"},
+        "members": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/ScopeSnapshotMember"}}
+      }
+    },
+    "ScopeSnapshotMember": {
+      "type": "object", "additionalProperties": false,
+      "required": ["source_id", "source_version", "parse_version", "index_version", "approval_revision", "binding_revision", "rights_revision", "original_sha256"],
+      "properties": {
+        "source_id": {"$ref": "https://schemas.medical-agent.invalid/1.0.0/backend-design/interfaces.schema.yaml#/$defs/Id"},
+        "source_version": {"$ref": "https://schemas.medical-agent.invalid/1.0.0/backend-design/interfaces.schema.yaml#/$defs/Id"},
+        "parse_version": {"$ref": "https://schemas.medical-agent.invalid/1.0.0/backend-design/interfaces.schema.yaml#/$defs/Id"},
+        "index_version": {"$ref": "https://schemas.medical-agent.invalid/1.0.0/backend-design/interfaces.schema.yaml#/$defs/Id"},
+        "approval_revision": {"$ref": "https://schemas.medical-agent.invalid/1.0.0/backend-design/interfaces.schema.yaml#/$defs/Id"},
+        "binding_revision": {"$ref": "https://schemas.medical-agent.invalid/1.0.0/backend-design/interfaces.schema.yaml#/$defs/Id"},
+        "rights_revision": {"$ref": "https://schemas.medical-agent.invalid/1.0.0/backend-design/interfaces.schema.yaml#/$defs/Id"},
+        "original_sha256": {"$ref": "https://schemas.medical-agent.invalid/1.0.0/backend-design/interfaces.schema.yaml#/$defs/Hash"}
+      }
+    },
+    "PlanVersionInput": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "expected_revision", "base_version", "schema_ref", "content", "reason"],
+      "properties": {
+        "schema_version": {"const": "1.0.0"},
+        "expected_revision": {"$ref": "https://schemas.medical-agent.invalid/1.0.0/backend-design/interfaces.schema.yaml#/$defs/Revision"},
+        "base_version": {"$ref": "https://schemas.medical-agent.invalid/1.0.0/backend-design/interfaces.schema.yaml#/$defs/NullableId"},
+        "schema_ref": {"const": "https://schemas.medical-agent.invalid/1.0.0/agent-design/artifacts.schema.json#/$defs/PlanCandidate"},
+        "content": {"$ref": "https://schemas.medical-agent.invalid/1.0.0/agent-design/artifacts.schema.json#/$defs/PlanCandidate"},
+        "reason": {"type": "string", "minLength": 1, "maxLength": 2000}
+      }
+    }
+  }
+}

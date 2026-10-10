@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.medical.persistence.mapper.PermissionMapper">
+    <resultMap id="grant" type="com.ruoyi.medical.persistence.PermissionProtocol$GrantRow">
+        <constructor>
+            <arg column="grant_id" javaType="java.lang.String"/><arg column="subject_id" javaType="java.lang.String"/>
+            <arg column="project_id" javaType="java.lang.String"/><arg column="resource_kind" javaType="java.lang.String"/>
+            <arg column="resource_id" javaType="java.lang.String"/><arg column="action" javaType="java.lang.String"/>
+            <arg column="condition" javaType="java.lang.String"/><arg column="status" javaType="java.lang.String"/>
+            <arg column="valid_from" javaType="java.time.LocalDateTime"/><arg column="valid_to" javaType="java.time.LocalDateTime"/>
+            <arg column="basis_version" javaType="java.lang.String"/><arg column="schema_version" javaType="java.lang.String"/>
+            <arg column="schema_manifest_sha256" javaType="java.lang.String"/><arg column="revision" javaType="java.math.BigInteger"/>
+        </constructor>
+    </resultMap>
+    <resultMap id="binding" type="com.ruoyi.medical.persistence.PermissionProtocol$BindingRow">
+        <constructor>
+            <arg column="user_id" javaType="java.lang.String"/><arg column="identity_id" javaType="java.lang.String"/>
+            <arg column="mode" javaType="java.lang.String"/><arg column="issuer" javaType="java.lang.String"/>
+            <arg column="subject" javaType="java.lang.String"/><arg column="local_user_id" javaType="java.lang.String"/>
+            <arg column="status" javaType="java.lang.String"/>
+        </constructor>
+    </resultMap>
+    <resultMap id="version" type="com.ruoyi.medical.persistence.PermissionProtocol$VersionRow">
+        <constructor>
+            <arg column="version_id" javaType="java.lang.String"/><arg column="owner_project_id" javaType="java.lang.String"/>
+            <arg column="content_sha256" javaType="java.lang.String"/>
+        </constructor>
+    </resultMap>
+    <resultMap id="owner" type="com.ruoyi.medical.persistence.PermissionProtocol$OwnerRow">
+        <constructor><arg column="id" javaType="java.lang.String"/><arg column="project_id" javaType="java.lang.String"/></constructor>
+    </resultMap>
+    <select id="resourceGrants" resultMap="grant" useCache="false" flushCache="true">
+        SELECT grant_id,subject_id,project_id,resource_kind,resource_id,action,`condition`,status,valid_from,valid_to,
+               basis_version,schema_version,schema_manifest_sha256,revision
+        FROM permission_grant g WHERE subject_id=#{userId} AND action=#{action} AND status='ACTIVE'
+          AND valid_from &lt;= UTC_TIMESTAMP(6) AND (valid_to IS NULL OR valid_to &gt; UTC_TIMESTAMP(6)) ORDER BY grant_id
+    </select>
+    <select id="currentDelegations" resultMap="grant" useCache="false" flushCache="true">
+        SELECT grant_id,subject_id,project_id,resource_kind,resource_id,action,`condition`,status,valid_from,valid_to,
+               basis_version,schema_version,schema_manifest_sha256,revision
+        FROM permission_grant g WHERE subject_id=#{userId} AND action IN ('member.manage','project.grant') AND status='ACTIVE'
+          AND valid_from &lt;= UTC_TIMESTAMP(6) AND (valid_to IS NULL OR valid_to &gt; UTC_TIMESTAMP(6)) ORDER BY grant_id FOR UPDATE
+    </select>
+    <select id="currentOperation" resultMap="com.ruoyi.medical.persistence.mapper.TenantSelectionMapper.operation" useCache="false" flushCache="true">
+        SELECT operation_id,request_sha256,state,http_status,response_ref,target_id,schema_version,schema_manifest_sha256
+        FROM operation_record o WHERE subject_id=#{userId} AND operation_name='ID-09' AND idempotency_key=#{key}
+    </select>
+    <select id="targetMember" resultMap="com.ruoyi.medical.persistence.mapper.TenantMemberMapper.member" useCache="false" flushCache="true">
+        SELECT tenant_id,member_id,user_id,status,valid_from,valid_to,revision FROM tenant_member m WHERE user_id=#{targetId} FOR UPDATE
+    </select>
+    <select id="targetBinding" resultMap="binding" useCache="false" flushCache="true">
+        SELECT user_id,identity_id,mode,issuer,subject,local_user_id,status FROM identity_binding i WHERE user_id=#{targetId} AND status='ACTIVE' FOR UPDATE
+    </select>
+    <select id="currentBinding" resultMap="binding" useCache="false" flushCache="true">
+        SELECT user_id,identity_id,mode,issuer,subject,local_user_id,status FROM identity_binding i WHERE user_id=#{userId} AND status='ACTIVE' FOR UPDATE
+    </select>
+    <select id="currentGrant" resultMap="grant" useCache="false" flushCache="true">
+        SELECT grant_id,subject_id,project_id,resource_kind,resource_id,action,`condition`,status,valid_from,valid_to,
+               basis_version,schema_version,schema_manifest_sha256,revision FROM permission_grant g WHERE grant_id=#{grantId} FOR UPDATE
+    </select>
+    <select id="basis" resultMap="version" useCache="false" flushCache="true">
+        SELECT version_id,owner_project_id,content_sha256 FROM version_registry v WHERE version_id=#{versionId}
+    </select>
+    <select id="projectStatus" resultType="java.lang.String" useCache="false" flushCache="true">
+        SELECT status FROM project p WHERE project_id=#{projectId} FOR UPDATE
+    </select>
+    <select id="databaseTime" resultType="java.time.LocalDateTime" useCache="false" flushCache="true">SELECT UTC_TIMESTAMP(6)</select>
+    <select id="resourceOwner" resultMap="owner" useCache="false" flushCache="true">
+        <choose>
+            <when test="kind == 'ENTERPRISE'">SELECT tenant_id AS id,NULL AS project_id FROM tenant r WHERE tenant_id=#{resourceId}</when>
+            <when test="kind == 'PROJECT'">SELECT project_id AS id,project_id FROM project r WHERE project_id=#{resourceId}</when>
+            <when test="kind == 'MEMBER'">SELECT member_id AS id,NULL AS project_id FROM tenant_member r WHERE member_id=#{resourceId}</when>
+            <when test="kind == 'SOURCE'">SELECT source_id AS id,owner_project_id AS project_id FROM source r WHERE source_id=#{resourceId}</when>
+            <when test="kind == 'TASK'">SELECT task_id AS id,project_id FROM task_head r WHERE task_id=#{resourceId}</when>
+            <when test="kind == 'DOCUMENT'">SELECT document_id AS id,project_id FROM document_head r WHERE document_id=#{resourceId}</when>
+            <when test="kind == 'ARTIFACT'">SELECT artifact_id AS id,project_id FROM artifact r WHERE artifact_id=#{resourceId}</when>
+            <when test="kind == 'CONFIGURATION'">SELECT config_id AS id,project_id FROM configuration_head r WHERE config_id=#{resourceId}</when>
+            <when test="kind == 'TEMPLATE'">SELECT template_version AS id,NULL AS project_id FROM template_version r WHERE template_version=#{resourceId}</when>
+            <when test="kind == 'RULE'">SELECT rule_version AS id,NULL AS project_id FROM rule_version r WHERE rule_version=#{resourceId}</when>
+            <when test="kind == 'BUDGET'">SELECT budget_id AS id,project_id FROM budget_account r WHERE budget_id=#{resourceId}</when>
+            <when test="kind == 'EVALUATION'">SELECT evaluation_id AS id,project_id FROM evaluation_batch r WHERE evaluation_id=#{resourceId}</when>
+            <when test="kind == 'AUDIT'">SELECT audit_id AS id,project_id FROM audit_event r WHERE audit_id=#{resourceId}</when>
+            <when test="kind == 'REPORT'">SELECT report_id AS id,project_id FROM report_export r WHERE report_id=#{resourceId}</when>
+        </choose>
+    </select>
+    <insert id="insertGrant">
+        INSERT INTO permission_grant (grant_id,subject_id,project_id,resource_kind,resource_id,action,`condition`,status,
+            valid_from,valid_to,basis_version,schema_version,schema_manifest_sha256,created_by,created_at,classification,revision,updated_at)
+        VALUES (#{grant.grantId},#{grant.subjectId},#{grant.projectId},#{grant.resourceKind},#{grant.resourceId},#{grant.action},
+            #{grant.condition},'ACTIVE',#{grant.validFrom},#{grant.validTo},#{grant.basisVersion},'1.0.0',#{grant.manifest},
+            #{userId},UTC_TIMESTAMP(6),#{classification},1,UTC_TIMESTAMP(6))
+    </insert>
+    <update id="revokeGrant">
+        UPDATE permission_grant SET status='REVOKED',revision=revision+1,updated_at=UTC_TIMESTAMP(6)
+        WHERE grant_id=#{grantId} AND subject_id=#{targetId} AND revision=#{revision} AND status='ACTIVE'
+    </update>
+    <update id="disableMember">
+        UPDATE tenant_member SET status='DISABLED',revision=revision+1,updated_at=UTC_TIMESTAMP(6)
+        WHERE member_id=#{memberId} AND user_id=#{targetId} AND revision=#{revision} AND status IN ('ACTIVE','INVITED')
+    </update>
+    <update id="revokeMemberGrants">
+        UPDATE permission_grant SET status='REVOKED',revision=revision+1,updated_at=UTC_TIMESTAMP(6) WHERE subject_id=#{targetId} AND status='ACTIVE'
+    </update>
+    <update id="terminateInvitations">
+        UPDATE member_invitation SET status=CASE WHEN expires_at &lt;= UTC_TIMESTAMP(6) THEN 'EXPIRED' ELSE 'REVOKED' END,
+            terminal_at=UTC_TIMESTAMP(6),terminal_reason=#{reason},revision=revision+1,updated_at=UTC_TIMESTAMP(6)
+        WHERE user_id=#{targetId} AND status='PENDING'
+    </update>
+    <update id="advanceAuthEpoch">UPDATE tenant SET auth_epoch=auth_epoch+1 WHERE auth_epoch=#{epoch}</update>
+    <insert id="saveOperation">
+        INSERT INTO operation_record (operation_id,subject_id,operation_name,idempotency_key,request_sha256,state,http_status,
+            response_ref,target_id,error_code,schema_version,schema_manifest_sha256,created_by,created_at,classification,revision,updated_at)
+        VALUES (#{operationId},#{userId},'ID-09',#{key},#{sha256},'COMPLETED',200,#{response},#{targetId},NULL,
+            '1.0.0',#{manifest},#{userId},UTC_TIMESTAMP(6),#{classification},1,UTC_TIMESTAMP(6))
+    </insert>
+    <insert id="saveAudit">
+        INSERT INTO audit_event (project_id,audit_id,subject_id,action,resource_ref,result,reason_code,request_id,trace_id,
+            schema_version,schema_manifest_sha256,created_by,created_at,classification)
+        VALUES (#{projectId},#{auditId},#{userId},#{action},#{resource},'SUCCESS',NULL,#{requestId},#{requestId},
+            '1.0.0',#{manifest},#{userId},UTC_TIMESTAMP(6),#{classification})
+    </insert>
+    <insert id="saveEvent">
+        INSERT INTO outbox_event (event_id,aggregate_id,aggregate_revision,event_type,payload,occurred_at,published_at)
+        VALUES (#{eventId},#{targetId},#{revision},#{eventType},#{payload},UTC_TIMESTAMP(6),NULL)
+    </insert>
+</mapper>

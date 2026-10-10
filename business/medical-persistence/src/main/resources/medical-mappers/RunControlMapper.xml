@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.medical.persistence.mapper.RunControlMapper">
+  <select id="operation" resultMap="com.ruoyi.medical.persistence.mapper.TaskPlanWriteMapper.operation" useCache="false" flushCache="true">
+    SELECT operation_id,request_sha256,state,http_status,response_ref,target_id,schema_version,schema_manifest_sha256
+    FROM operation_record WHERE subject_id=#{userId} AND operation_name='RN-04' AND idempotency_key=#{key} FOR UPDATE
+  </select>
+  <select id="activeRun" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT run_id FROM task_active_run WHERE project_id=#{projectId} AND task_id=#{taskId} FOR UPDATE
+  </select>
+  <select id="originalCancellation" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT response_ref FROM operation_record WHERE operation_name='RN-04' AND target_id=#{runId} AND state='COMPLETED'
+      AND response_ref-&gt;&gt;'$.data.run.status'='CANCEL_REQUESTED' AND response_ref-&gt;&gt;'$.data.command_id' IS NOT NULL
+    ORDER BY created_at,operation_id LIMIT 1 FOR UPDATE
+  </select>
+  <update id="requestCancellation">
+    UPDATE task_run SET status='CANCEL_REQUESTED',reason_code='USER_CANCELLED',dispatch_closed_at=COALESCE(dispatch_closed_at,#{now}),
+      revision=revision+1,updated_at=#{now}
+    WHERE project_id=#{projectId} AND task_id=#{taskId} AND run_id=#{runId} AND revision=#{expectedRevision}
+      AND status=#{previousStatus} AND status IN ('QUEUED','RUNNING','WAITING_INPUT')
+  </update>
+  <update id="requestTaskCancellation">
+    UPDATE task_head SET status='CANCEL_REQUESTED',revision=revision+1,updated_at=#{now}
+    WHERE project_id=#{projectId} AND task_id=#{taskId} AND revision=#{taskRevision}
+  </update>
+  <update id="advanceStream">
+    UPDATE stream_registry SET last_sequence=#{nextSequence},revision=revision+1,updated_at=#{now}
+    WHERE project_id=#{projectId} AND stream_id=#{streamId} AND kind='RUN' AND owner_resource_id=#{runId} AND last_sequence=#{sequence}
+  </update>
+  <insert id="appendEvent">
+    INSERT INTO stream_event(project_id,event_id,stream_id,sequence,task_id,run_id,resource_kind,resource_id,resource_revision,
+      event_type,payload,occurred_at,schema_version,schema_manifest_sha256,created_by,created_at,classification)
+    VALUES(#{projectId},#{eventId},#{streamId},#{nextSequence},#{taskId},#{runId},'RUN',#{runId},#{resultingRevision},
+      'run.updated',CAST(#{eventPayload} AS JSON),#{now},'1.0.0',#{eventManifest},#{userId},#{now},#{classification})
+  </insert>
+  <insert id="saveCommand">
+    INSERT INTO outbox_event(event_id,aggregate_id,aggregate_revision,event_type,payload,occurred_at,published_at)
+    VALUES(#{commandEventId},#{runId},#{resultingRevision},'run.cancel.requested',CAST(#{commandPayload} AS JSON),#{now},NULL)
+  </insert>
+  <insert id="saveOperation">
+    INSERT INTO operation_record(operation_id,subject_id,operation_name,idempotency_key,request_sha256,state,http_status,response_ref,
+      target_id,error_code,schema_version,schema_manifest_sha256,created_by,created_at,classification,revision,updated_at)
+    VALUES(#{operationId},#{userId},'RN-04',#{key},#{requestHash},'COMPLETED',200,CAST(#{response} AS JSON),
+      #{runId},NULL,'1.0.0',#{manifest},#{userId},#{now},#{classification},1,#{now})
+  </insert>
+</mapper>

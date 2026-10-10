@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.medical.persistence.mapper.TenantSelectionMapper">
+    <resultMap id="operation" type="com.ruoyi.medical.persistence.SelectionOperationRow">
+        <constructor>
+            <arg column="operation_id" javaType="java.lang.String"/>
+            <arg column="request_sha256" javaType="java.lang.String"/>
+            <arg column="state" javaType="java.lang.String"/>
+            <arg column="http_status" javaType="java.lang.Integer"/>
+            <arg column="response_ref" javaType="java.lang.String"/>
+            <arg column="target_id" javaType="java.lang.String"/>
+            <arg column="schema_version" javaType="java.lang.String"/>
+            <arg column="schema_manifest_sha256" javaType="java.lang.String"/>
+        </constructor>
+    </resultMap>
+    <select id="currentOperation" resultMap="operation" useCache="false" flushCache="true">
+        SELECT operation_id,request_sha256,state,http_status,response_ref,target_id,schema_version,schema_manifest_sha256
+        FROM operation_record o WHERE subject_id=#{userId} AND operation_name='ID-04' AND idempotency_key=#{key}
+    </select>
+    <insert id="saveOperation">
+        INSERT INTO operation_record (operation_id,subject_id,operation_name,idempotency_key,request_sha256,state,
+            http_status,response_ref,target_id,error_code,schema_version,schema_manifest_sha256,
+            created_by,created_at,classification,revision,updated_at)
+        VALUES (#{operationId},#{userId},'ID-04',#{key},#{sha256},'COMPLETED',200,#{response},#{targetId},NULL,
+            '1.0.0',#{manifest},#{userId},UTC_TIMESTAMP(6),#{classification},1,UTC_TIMESTAMP(6))
+    </insert>
+    <insert id="saveAudit">
+        INSERT INTO audit_event (project_id,audit_id,subject_id,action,resource_ref,result,reason_code,request_id,
+            trace_id,schema_version,schema_manifest_sha256,created_by,created_at,classification)
+        VALUES (NULL,#{auditId},#{userId},'session.select_tenant',#{resource},'SUCCESS',NULL,#{requestId},#{requestId},
+            '1.0.0',#{manifest},#{userId},UTC_TIMESTAMP(6),#{classification})
+    </insert>
+    <insert id="saveEvent">
+        INSERT INTO outbox_event (event_id,aggregate_id,aggregate_revision,event_type,payload,occurred_at,published_at)
+        VALUES (#{eventId},#{contextId},#{revision},'session.context_changed',#{payload},UTC_TIMESTAMP(6),NULL)
+    </insert>
+</mapper>

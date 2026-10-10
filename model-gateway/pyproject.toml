@@ -1,0 +1,12 @@
+[build-system]
+requires = ["setuptools==80.9.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "medical-model-gateway"
+version = "1.0.0"
+requires-python = ">=3.12"
+dependencies = ["openai==3.24.0", "medical-contracts==1.0.0"]
+
+[tool.setuptools.packages.find]
+where = ["src"]

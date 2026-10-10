@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:dependency-access-manifest:1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "tenant_id", "project_id", "access_set_id", "members"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "tenant_id": {"$ref": "#/$defs/Id"},
+    "project_id": {"anyOf": [{"$ref": "#/$defs/Id"}, {"type": "null"}]},
+    "access_set_id": {"$ref": "#/$defs/Id"},
+    "members": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["upstream_version_id", "rights_revision"],
+        "properties": {"upstream_version_id": {"$ref": "#/$defs/Id"}, "rights_revision": {"$ref": "#/$defs/Id"}}
+      }
+    }
+  },
+  "$defs": {
+    "Id": {"type": "string", "format": "uuid", "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"}
+  }
+}

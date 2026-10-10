@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0.0",
+  "base_uri": "https://schemas.medical-agent.invalid/1.0.0/",
+  "schemas": [
+    {"name": "dataset", "path": "data-design/dataset.schema.json", "sha256": "9cd36c6c343b44aeee6f0ea21667d579db730331d4f9973becf0b1bb13549b8a"},
+    {"name": "interfaces", "path": "backend-design/interfaces.schema.yaml", "sha256": "0e2dcc451ca58cefdc4432ec126936a142237000ca786dd69fb82792da433444"},
+    {"name": "resource-details", "path": "backend-design/resource-details.schema.yaml", "sha256": "4ae03c093dbb980c8bff967e988384ee1d4c08e0a33a1ee6cf089d48b095fa5c"},
+    {"name": "artifacts", "path": "agent-design/artifacts.schema.json", "sha256": "c1e5bea78196e600a2ab43fafe379f7dafe7b5ecf7fc691afa980f7ec8c27d0c"},
+    {"name": "model-stream", "path": "agent-design/model-stream.schema.json", "sha256": "9a379c8c9d292f8a24e2a7a153b91598aa00d96f024772829246192b96a5d378"},
+    {"name": "templates", "path": "business/medical-persistence/src/main/resources/templates.schema.json", "sha256": "72f4017e925645e531723b3e5a943d0bbe0eb87b20b7e0ef4578c2f9329f5d9b"},
+    {"name": "template-operations", "path": "business/medical-persistence/src/main/resources/template-operations.schema.json", "sha256": "a26d1801067498b27ac175c5a95d3fa4b5fc72892b1e21bf51dab75bb6b7c2f2"},
+    {"name": "tasks", "path": "business/medical-persistence/src/main/resources/tasks.schema.json", "sha256": "ee2543a8c340bbff39f53cdf248abd1180cd03575df285480712f5f1ed4ce88a"},
+    {"name": "collections", "path": "business/medical-persistence/src/main/resources/collections.schema.json", "sha256": "c36a4d9478afdc94e4862e8bad63c4d5685ece9cb0a2bcc7eaea3e08790a975f"},
+    {"name": "rule-expressions", "path": "business/medical-persistence/src/main/resources/rule-expressions.schema.json", "sha256": "b5a2e6f065dca5a78c976fda7d0584213ee7151ca8b4fa5a225e7e30c902e5cf"},
+    {"name": "template-applicability", "path": "business/medical-persistence/src/main/resources/template-applicability.schema.json", "sha256": "0c304401621f198af342a823fa51b826a101b2e07ff616d09d3a1f190b01f498"},
+    {"name": "agent-release", "path": "business/medical-persistence/src/main/resources/agent-release.schema.json", "sha256": "a73b5bca37580065fccf7ac23340dd276fcf3fc32f313ccceed2de7c5813008a"},
+    {"name": "task-plan-view", "path": "business/medical-persistence/src/main/resources/task-plan-view.schema.json", "sha256": "6b7938f35b68ea79711eaa1bb9c27ac57d1786865e546404f6d974c9d50dcf61"}
+  ]
+}

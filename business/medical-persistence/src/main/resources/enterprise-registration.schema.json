@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:enterprise-registration:1.0.0",
+  "$defs": {
+    "Uuid": {"type": "string", "format": "uuid"},
+    "Hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "Revision": {"type": "string", "pattern": "^(0|[1-9][0-9]{0,19})$"},
+    "Request": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "legal_name", "jurisdiction", "legal_identifier", "first_admin_user_id", "authorization_basis", "authorization_attested"],
+      "properties": {
+        "schema_version": {"const": "1.0.0"},
+        "legal_name": {"type": "string", "minLength": 1, "maxLength": 512},
+        "jurisdiction": {"type": "string", "minLength": 1, "maxLength": 128},
+        "legal_identifier": {"type": "string", "minLength": 1, "maxLength": 256},
+        "first_admin_user_id": {"$ref": "#/$defs/Uuid"},
+        "authorization_basis": {"type": "string", "minLength": 1, "maxLength": 4096},
+        "authorization_attested": {"const": true}
+      }
+    },
+    "Binding": {
+      "type": "object", "additionalProperties": false, "required": ["mode", "user_id", "issuer", "subject"],
+      "properties": {"mode": {"const": "local"}, "user_id": {"$ref": "#/$defs/Uuid"}, "issuer": {"type": "null"}, "subject": {"type": "null"}}
+    },
+    "Detail": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "registration_id", "operation_id", "application", "first_admin_binding", "first_admin_revision", "submitted_by", "created_at", "status", "revision", "content_sha256"],
+      "properties": {
+        "schema_version": {"const": "1.0.0"}, "registration_id": {"$ref": "#/$defs/Uuid"}, "operation_id": {"$ref": "#/$defs/Uuid"},
+        "application": {"$ref": "#/$defs/Request"}, "first_admin_binding": {"$ref": "#/$defs/Binding"},
+        "first_admin_revision": {"$ref": "#/$defs/Revision"}, "submitted_by": {"$ref": "#/$defs/Uuid"},
+        "created_at": {"type": "string", "format": "date-time"}, "status": {"const": "PENDING_REVIEW"},
+        "revision": {"const": "1"}, "content_sha256": {"$ref": "#/$defs/Hash"}
+      }
+    },
+    "Page": {
+      "type": "object", "additionalProperties": false, "required": ["schema_version", "items", "next_cursor"],
+      "properties": {"schema_version": {"const": "1.0.0"}, "items": {"type": "array", "maxItems": 100, "items": {"$ref": "#/$defs/Detail"}},
+        "next_cursor": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/Uuid"}]}}
+    },
+    "Audit": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "registration_id", "operation_id", "submitted_by", "first_admin_user_id", "request_sha256", "content_sha256", "status", "revision"],
+      "properties": {
+        "schema_version": {"const": "1.0.0"}, "registration_id": {"$ref": "#/$defs/Uuid"}, "operation_id": {"$ref": "#/$defs/Uuid"},
+        "submitted_by": {"$ref": "#/$defs/Uuid"}, "first_admin_user_id": {"$ref": "#/$defs/Uuid"},
+        "request_sha256": {"$ref": "#/$defs/Hash"}, "content_sha256": {"$ref": "#/$defs/Hash"}, "status": {"const": "PENDING_REVIEW"}, "revision": {"const": "1"}
+      }
+    }
+  }
+}

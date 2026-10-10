@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent><groupId>com.ruoyi</groupId><artifactId>ruoyi</artifactId><version>3.9.2</version></parent>
+  <artifactId>medical-workflow</artifactId>
+  <description>完整任务依赖调度及持久人工决定</description>
+  <dependencies>
+    <dependency><groupId>com.ruoyi</groupId><artifactId>medical-contracts</artifactId><version>${ruoyi.version}</version></dependency>
+    <dependency><groupId>io.temporal</groupId><artifactId>temporal-sdk</artifactId><version>1.40.0</version></dependency>
+    <dependency><groupId>org.jgrapht</groupId><artifactId>jgrapht-core</artifactId><version>1.5.2</version></dependency>
+    <dependency><groupId>org.junit.jupiter</groupId><artifactId>junit-jupiter</artifactId><scope>test</scope></dependency>
+    <dependency><groupId>org.awaitility</groupId><artifactId>awaitility</artifactId><scope>test</scope></dependency>
+  </dependencies>
+  <build><plugins>
+    <plugin><groupId>org.apache.maven.plugins</groupId><artifactId>maven-surefire-plugin</artifactId><version>3.5.5</version>
+      <configuration><systemPropertyVariables><medical.projectRoot>${project.basedir}/../..</medical.projectRoot></systemPropertyVariables>
+        <argLine>${medical.testJvmMemory} -Dfile.encoding=UTF-8 -Djava.io.tmpdir=${project.basedir}/../../.implementation-work/java-temp</argLine>
+      </configuration>
+    </plugin>
+  </plugins></build>
+</project>

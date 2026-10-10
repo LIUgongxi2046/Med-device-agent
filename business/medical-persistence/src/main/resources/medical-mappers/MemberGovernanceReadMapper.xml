@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.medical.persistence.mapper.MemberGovernanceReadMapper">
+    <select id="members" resultMap="com.ruoyi.medical.persistence.mapper.TenantMemberMapper.member" useCache="false" flushCache="true">
+        SELECT tenant_id,member_id,user_id,status,valid_from,valid_to,revision FROM tenant_member m
+        <where><if test="targetId != null">user_id=#{targetId}</if></where>
+        ORDER BY member_id LIMIT #{capacity}
+    </select>
+    <select id="grants" resultMap="com.ruoyi.medical.persistence.mapper.PermissionMapper.grant" useCache="false" flushCache="true">
+        SELECT grant_id,subject_id,project_id,resource_kind,resource_id,action,`condition`,status,valid_from,valid_to,
+            basis_version,schema_version,schema_manifest_sha256,revision FROM permission_grant g
+        <where><if test="targetId != null">subject_id=#{targetId}</if></where>
+        ORDER BY grant_id LIMIT #{capacity}
+    </select>
+    <resultMap id="invitation" type="com.ruoyi.medical.persistence.MemberGovernanceReadProtocol$Invitation">
+        <constructor>
+            <arg column="invitation_id" javaType="java.lang.String"/><arg column="user_id" javaType="java.lang.String"/>
+            <arg column="roles" javaType="java.lang.String"/><arg column="scope" javaType="java.lang.String"/>
+            <arg column="authorization_manifest" javaType="java.lang.String"/><arg column="basis_version" javaType="java.lang.String"/>
+            <arg column="content_sha256" javaType="java.lang.String"/><arg column="status" javaType="java.lang.String"/>
+            <arg column="revision" javaType="java.math.BigInteger"/><arg column="expires_at" javaType="java.time.LocalDateTime"/>
+            <arg column="created_by" javaType="java.lang.String"/><arg column="created_at" javaType="java.time.LocalDateTime"/>
+            <arg column="schema_version" javaType="java.lang.String"/><arg column="schema_manifest_sha256" javaType="java.lang.String"/>
+        </constructor>
+    </resultMap>
+    <select id="invitations" resultMap="invitation" useCache="false" flushCache="true">
+        SELECT i.invitation_id,i.user_id,i.roles,i.scope,i.authorization_manifest,i.basis_version,v.content_sha256,
+            i.status,i.revision,i.expires_at,i.created_by,i.created_at,i.schema_version,i.schema_manifest_sha256
+        FROM member_invitation i JOIN version_registry v ON v.tenant_id=i.tenant_id AND v.version_id=i.basis_version
+        <where><if test="targetId != null">i.user_id=#{targetId}</if></where>
+        ORDER BY i.invitation_id LIMIT #{capacity}
+    </select>
+</mapper>

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.medical.persistence.mapper.ScopeSnapshotWriteMapper">
+  <insert id="insertVersion">
+    INSERT INTO version_registry(version_id,owner_project_id,entity_kind,content_sha256)
+    VALUES(#{snapshotId},#{projectId},'SCOPE_SNAPSHOT',#{hash})
+  </insert>
+  <insert id="insertSnapshot">
+    INSERT INTO scope_snapshot(project_id,snapshot_id,manifest,manifest_sha256,auth_epoch,governance_epoch,created_at)
+    VALUES(#{projectId},#{snapshotId},CAST(#{manifest} AS JSON),#{hash},#{authEpoch},#{governanceEpoch},#{now})
+  </insert>
+  <insert id="insertMember">
+    INSERT INTO scope_member(project_id,snapshot_id,source_id,source_version,parse_version,index_version,approval_revision,binding_revision)
+    VALUES(#{projectId},#{snapshotId},#{item.source_id},#{item.source_version},#{item.parse_version},#{item.index_version},#{item.approval_revision},#{item.binding_revision})
+  </insert>
+  <insert id="insertLineage">
+    INSERT INTO lineage_edge(consumer_version_id,upstream_version_id,relation_kind,actor_id,decision_ref,created_at)
+    VALUES(#{snapshotId},#{upstreamId},'SCOPE_SNAPSHOT',#{userId},NULL,#{now})
+  </insert>
+  <select id="parents" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT upstream_version_id FROM lineage_edge e WHERE consumer_version_id=#{snapshotId} AND relation_kind='SCOPE_SNAPSHOT'
+    ORDER BY upstream_version_id
+  </select>
+</mapper>

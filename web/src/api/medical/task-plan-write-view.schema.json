@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:task-plan-write-view:1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["actor", "tenant_id", "project_id", "task_id", "task_revision", "key", "operation", "context", "expected_revision", "base_version", "body_sha256", "content_sha256"],
+  "properties": {
+    "actor": {"$ref": "urn:medical:template-approval:1.0.0#/$defs/Id"},
+    "tenant_id": {"$ref": "urn:medical:template-approval:1.0.0#/$defs/Id"},
+    "project_id": {"$ref": "urn:medical:template-approval:1.0.0#/$defs/Id"},
+    "task_id": {"$ref": "urn:medical:template-approval:1.0.0#/$defs/Id"},
+    "task_revision": {"$ref": "urn:medical:template-approval:1.0.0#/$defs/Id"},
+    "key": {"type": "string", "minLength": 16, "maxLength": 128, "pattern": "^[\\x21-\\x7e]+$"},
+    "operation": {"const": "TK-03"},
+    "context": {"$ref": "urn:medical:identity#/$defs/Context"},
+    "expected_revision": {"$ref": "urn:medical:template-approval:1.0.0#/$defs/Revision"},
+    "base_version": {"$ref": "https://schemas.medical-agent.invalid/1.0.0/backend-design/interfaces.schema.yaml#/$defs/NullableId"},
+    "body_sha256": {"$ref": "https://schemas.medical-agent.invalid/1.0.0/backend-design/interfaces.schema.yaml#/$defs/Hash"},
+    "content_sha256": {"$ref": "https://schemas.medical-agent.invalid/1.0.0/backend-design/interfaces.schema.yaml#/$defs/Hash"}
+  }
+}

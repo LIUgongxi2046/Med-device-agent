@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:own-profile:1.0.0",
+  "$defs": {
+    "Revision": { "type": "string", "pattern": "^[1-9][0-9]{0,19}$" },
+    "Request": {
+      "type": "object", "additionalProperties": false,
+      "required": ["user_id", "nickName", "email", "phonenumber", "sex", "expected_revision"],
+      "properties": {
+        "user_id": { "type": "string", "format": "uuid" },
+        "nickName": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "email": { "type": ["string", "null"], "maxLength": 50 },
+        "phonenumber": { "type": ["string", "null"], "maxLength": 11 },
+        "sex": { "enum": ["0", "1", "2", "", null] },
+        "expected_revision": { "$ref": "#/$defs/Revision" }
+      }
+    },
+    "Pending": {
+      "type": "object", "additionalProperties": false,
+      "required": ["actor", "key", "revision", "sha256"],
+      "properties": {
+        "actor": { "type": "string", "format": "uuid" },
+        "key": { "type": "string", "format": "uuid" },
+        "revision": { "$ref": "#/$defs/Revision" },
+        "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+      }
+    },
+    "Profile": {
+      "type": "object",
+      "required": ["code", "data", "roleGroup", "postGroup", "account_revision", "business_user_id"],
+      "properties": {
+        "code": { "const": 200 },
+        "account_revision": { "$ref": "#/$defs/Revision" },
+        "business_user_id": { "type": "string", "format": "uuid" },
+        "roleGroup": { "type": ["string", "null"] },
+        "postGroup": { "type": ["string", "null"] },
+        "data": {
+          "type": "object", "required": ["userId", "userName", "nickName", "email", "phonenumber", "sex", "avatar"],
+          "properties": {
+            "userId": { "type": "integer", "minimum": 1, "maximum": 9007199254740991 },
+            "userName": { "type": "string", "minLength": 1, "maxLength": 128 },
+            "nickName": { "type": "string", "minLength": 1, "maxLength": 128 },
+            "email": { "type": ["string", "null"], "maxLength": 50 },
+            "phonenumber": { "type": ["string", "null"], "maxLength": 11 },
+            "sex": { "enum": ["0", "1", "2", "", null] },
+            "avatar": { "type": ["string", "null"] },
+            "password": false
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,32 @@
+[
+  {
+    "file": "design-evidence-v1-page-1.png",
+    "page": 1,
+    "width": 800,
+    "height": 1040,
+    "sha256": "b17a1ecad5666f5bf78b4940bd887bbb5972ed2ca72768854e94fa11ed38e79d",
+    "source": "design-evidence-v1.html",
+    "version": "v1.0",
+    "nature": "用户授权的演示原页截图"
+  },
+  {
+    "file": "design-evidence-v1-page-2.png",
+    "page": 2,
+    "width": 800,
+    "height": 1040,
+    "sha256": "1a2736b0545efb0fc70ea62bdd3cb4fb441a9ed6169c0f4802b6112ffeb3af80",
+    "source": "design-evidence-v1.html",
+    "version": "v1.0",
+    "nature": "用户授权的演示原页截图"
+  },
+  {
+    "file": "design-evidence-v1-page-3.png",
+    "page": 3,
+    "width": 800,
+    "height": 1040,
+    "sha256": "2e38f1d40eb2a6582169ad9976814cd875c43db2ee5e8eeac9affbc458d6b89c",
+    "source": "design-evidence-v1.html",
+    "version": "v1.0",
+    "nature": "用户授权的演示原页截图"
+  }
+]

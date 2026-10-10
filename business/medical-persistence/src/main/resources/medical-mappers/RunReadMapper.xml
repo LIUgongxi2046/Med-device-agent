@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.medical.persistence.mapper.RunReadMapper">
+  <select id="head" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT JSON_OBJECT('tenant_id',r.tenant_id,'project_id',r.project_id,'run_id',r.run_id,'task_id',r.task_id,
+      'task_revision',r.task_revision,'execution_kind',r.execution_kind,'registry_kind',e.execution_kind,
+      'registry_project_id',e.project_id,'budget_revision',r.budget_revision,'status',r.status,'reason_code',r.reason_code,
+      'started_at',DATE_FORMAT(r.started_at,'%Y-%m-%dT%H:%i:%s.%fZ'),'ended_at',DATE_FORMAT(r.ended_at,'%Y-%m-%dT%H:%i:%s.%fZ'),
+      'revision',CAST(r.revision AS CHAR),'schema_version',r.schema_version,'schema_manifest',r.schema_manifest_sha256,
+      'dispatch_closed_at',DATE_FORMAT(r.dispatch_closed_at,'%Y-%m-%dT%H:%i:%s.%fZ'),'workflow_id',r.workflow_id,
+      'superseded_by_run_id',r.superseded_by_run_id)
+    FROM task_run r JOIN execution_registry e ON e.tenant_id=r.tenant_id AND e.run_id=r.run_id
+    WHERE r.run_id=#{runId} FOR UPDATE
+  </select>
+  <select id="steps" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT JSON_OBJECT('step_id',s.step_id,'role_version',s.role_version,'section_id',s.section_id,'status',s.status,
+      'lease_generation',CAST(s.lease_generation AS CHAR),'revision',CAST(s.revision AS CHAR))
+    FROM run_step s WHERE s.project_id=#{projectId} AND s.run_id=#{runId} ORDER BY s.step_id LIMIT 10001 FOR UPDATE
+  </select>
+  <select id="waiting" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT JSON_OBJECT('waiting_item_id',w.waiting_item_id,'step_id',w.step_id,'action_id',w.action_id,
+      'target_revision',w.target_revision,'reason_code',w.reason_code,'question',w.question,
+      'requirement_refs',w.requirement_refs,'allowed_resolution_actions',w.allowed_resolution_actions,
+      'assignee_id',w.assignee_id,'status',w.status,'resolution_id',w.resolution_id,'revision',CAST(w.revision AS CHAR))
+    FROM waiting_item w WHERE w.project_id=#{projectId} AND w.run_id=#{runId} AND w.status='WAITING_INPUT'
+    ORDER BY w.waiting_item_id LIMIT 10001 FOR UPDATE
+  </select>
+  <select id="invocations" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT JSON_OBJECT('invocation_id',i.invocation_id,'step_id',i.step_id,'action_id',i.action_id,
+      'status',i.status,'settlement_status',i.settlement_status,'currency',i.currency,
+      'settled_amount',CAST(i.settled_amount AS CHAR),'total_tokens',CAST(i.total_tokens AS CHAR),'revision',CAST(i.revision AS CHAR))
+    FROM invocation i WHERE i.project_id=#{projectId} AND i.run_id=#{runId}
+      AND (i.status IN ('RESERVED','DISPATCHING','IN_FLIGHT','CANCEL_REQUESTED','UNKNOWN') OR i.settlement_status &lt;&gt; 'SETTLED')
+    ORDER BY i.invocation_id LIMIT 10001 FOR UPDATE
+  </select>
+  <select id="budget" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT JSON_OBJECT('tenant_id',b.tenant_id,'project_id',b.project_id,'budget_id',b.budget_id,
+      'budget_revision',r.budget_revision,'currency',r.currency,'account_currency',b.currency,
+      'spent',CAST(b.spent AS CHAR),'reserved',CAST(b.reserved AS CHAR),'approval',r.limits,
+      'approver_id',r.approver_id,'reason',r.reason,'content_sha256',r.content_sha256,'registry_sha256',v.content_sha256,
+      'schema_version',r.schema_version,'schema_manifest',r.schema_manifest_sha256)
+    FROM budget_revision r JOIN budget_account b ON b.tenant_id=r.tenant_id AND b.budget_id=r.budget_id
+    JOIN version_registry v ON v.tenant_id=r.tenant_id AND v.version_id=r.budget_revision AND v.entity_kind='BUDGET'
+      AND v.owner_project_id &lt;=&gt; r.project_id
+    WHERE r.budget_revision=#{budgetRevision} FOR UPDATE
+  </select>
+  <select id="cursor" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT JSON_OBJECT('stream_id',s.stream_id,'sequence',CAST(s.last_sequence AS CHAR),'event_id',e.event_id)
+    FROM stream_registry s LEFT JOIN stream_event e ON e.tenant_id=s.tenant_id AND e.stream_id=s.stream_id
+      AND e.sequence=s.last_sequence AND e.project_id=s.project_id
+    WHERE s.project_id=#{projectId} AND s.kind='RUN' AND s.owner_resource_id=#{runId} FOR UPDATE
+  </select>
+  <select id="stream" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT JSON_OBJECT('stream_id',s.stream_id,'sequence',CAST(s.last_sequence AS CHAR))
+    FROM stream_registry s WHERE s.project_id=#{projectId} AND s.kind='RUN' AND s.owner_resource_id=#{runId} FOR UPDATE
+  </select>
+  <select id="eventCursor" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT JSON_OBJECT('sequence',CAST(e.sequence AS CHAR)) FROM stream_event e
+    WHERE e.project_id=#{projectId} AND e.stream_id=#{streamId} AND e.event_id=#{eventId} AND e.run_id=#{runId} FOR UPDATE
+  </select>
+  <select id="events" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT JSON_OBJECT('schema_manifest',e.schema_manifest_sha256,'event',JSON_OBJECT(
+      'schema_version',e.schema_version,'event_id',e.event_id,
+      'stream',JSON_OBJECT('stream_id',e.stream_id,'kind','RUN','resource_id',#{runId}),
+      'sequence',CAST(e.sequence AS CHAR),'event_type',e.event_type,'tenant_id',e.tenant_id,'project_id',e.project_id,
+      'task_id',e.task_id,'run_id',e.run_id,'resource_kind',e.resource_kind,'resource_id',e.resource_id,
+      'resource_revision',CAST(e.resource_revision AS CHAR),'occurred_at',DATE_FORMAT(e.occurred_at,'%Y-%m-%dT%H:%i:%s.%fZ'),'payload',e.payload))
+    FROM stream_event e WHERE e.project_id=#{projectId} AND e.stream_id=#{streamId} AND e.run_id=#{runId}
+      AND e.sequence &gt; #{sequence} ORDER BY e.sequence LIMIT 64 FOR UPDATE
+  </select>
+  <select id="eventAuthority" resultType="java.lang.String" useCache="false" flushCache="true">
+    <choose>
+      <when test="kind == 'WAITING_ITEM'">
+        SELECT JSON_OBJECT('kind','TASK','id',#{taskId},'project_id',w.project_id)
+        FROM waiting_item w WHERE w.project_id=#{projectId} AND w.waiting_item_id=#{id} AND w.run_id=#{runId} FOR UPDATE
+      </when>
+      <when test="kind == 'CANDIDATE'">
+        SELECT JSON_OBJECT('kind','TASK','id',c.task_id,'project_id',c.project_id)
+        FROM candidate c WHERE c.project_id=#{projectId} AND c.candidate_id=#{id} AND c.run_id=#{runId} AND c.task_id=#{taskId} FOR UPDATE
+      </when>
+      <when test="kind == 'DOCUMENT'">
+        SELECT JSON_OBJECT('kind','DOCUMENT','id',d.document_id,'project_id',d.project_id)
+        FROM document_head d WHERE d.project_id=#{projectId} AND d.document_id=#{id} AND d.task_id=#{taskId} FOR UPDATE
+      </when>
+      <when test="kind == 'SOURCE_VERSION'">
+        SELECT JSON_OBJECT('kind','SOURCE','id',v.source_id,'project_id',s.owner_project_id)
+        FROM source_version v JOIN source s ON s.tenant_id=v.tenant_id AND s.source_id=v.source_id
+        WHERE v.source_version=#{id} AND (s.owner_project_id IS NULL OR s.owner_project_id=#{projectId}) FOR UPDATE
+      </when>
+      <when test="kind == 'EXPORT'">
+        SELECT JSON_OBJECT('kind','DOCUMENT','id',d.document_id,'project_id',e.project_id)
+        FROM export_manifest e JOIN document_revision_meta d ON d.tenant_id=e.tenant_id AND d.project_id=e.project_id AND d.document_revision=e.document_revision
+        JOIN document_head h ON h.tenant_id=d.tenant_id AND h.project_id=d.project_id AND h.document_id=d.document_id
+        WHERE e.project_id=#{projectId} AND e.export_id=#{id} AND h.task_id=#{taskId} FOR UPDATE
+      </when>
+      <when test="kind == 'NOTIFICATION'">
+        SELECT JSON_OBJECT('kind','PROJECT','id',n.project_id,'project_id',n.project_id)
+        FROM notification n WHERE n.project_id=#{projectId} AND n.notification_id=#{id} AND n.recipient_id=#{userId} FOR UPDATE
+      </when>
+    </choose>
+  </select>
+</mapper>

@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:rule-expressions:1.0.0",
+  "$ref": "#/$defs/Content",
+  "$defs": {
+    "Constant": {
+      "type": "object", "additionalProperties": false, "required": ["key", "value", "basis_refs"],
+      "properties": {
+        "key": {"$ref": "urn:medical:templates:1.0.0#/$defs/Key"},
+        "value": {"type": ["boolean", "string", "number", "array", "object"]},
+        "basis_refs": {"allOf": [{"$ref": "urn:medical:templates:1.0.0#/$defs/Bases"}, {"minItems": 1}]}
+      }
+    },
+    "Expression": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "engine_revision", "expression", "input_keys", "constants"],
+      "properties": {
+        "schema_version": {"const": "1.0.0"},
+        "engine_revision": {"const": "spring-spel-6.2.19-boolean-v1"},
+        "expression": {"type": "string", "minLength": 1, "maxLength": 10000},
+        "input_keys": {"$ref": "urn:medical:templates:1.0.0#/$defs/Keys"},
+        "constants": {"type": "array", "maxItems": 1000, "items": {"$ref": "#/$defs/Constant"}}
+      }
+    },
+    "Content": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "engine_revision", "expression", "basis_manifest"],
+      "properties": {
+        "schema_version": {"const": "1.0.0"},
+        "engine_revision": {"const": "spring-spel-6.2.19-boolean-v1"},
+        "expression": {"$ref": "#/$defs/Expression"},
+        "basis_manifest": {"allOf": [{"$ref": "urn:medical:templates:1.0.0#/$defs/Bases"}, {"minItems": 1}]}
+      }
+    },
+    "Result": {
+      "type": "object", "additionalProperties": false, "required": ["status", "unknown_input_keys"],
+      "properties": {
+        "status": {"$ref": "urn:medical:templates:1.0.0#/$defs/Applicability"},
+        "unknown_input_keys": {"$ref": "urn:medical:templates:1.0.0#/$defs/Keys"}
+      },
+      "oneOf": [
+        {"properties": {"status": {"const": "UNKNOWN"}, "unknown_input_keys": {"minItems": 1}}},
+        {"properties": {"status": {"enum": ["APPLICABLE", "NOT_APPLICABLE"]}, "unknown_input_keys": {"maxItems": 0}}}
+      ]
+    }
+  }
+}

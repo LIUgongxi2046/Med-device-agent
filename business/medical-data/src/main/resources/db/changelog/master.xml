@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.31.xsd"
+                   logicalFilePath="medical-agent/db/changelog/master.xml">
+    <preConditions onFail="HALT" onError="HALT">
+        <dbms type="mysql"/>
+        <sqlCheck expectedResult="1">SELECT IF(VERSION() REGEXP '^8[.]4[.]', 1, 0)</sqlCheck>
+        <sqlCheck expectedResult="${medicalMigrationDatabase}">SELECT DATABASE()</sqlCheck>
+        <sqlCheck expectedResult="${medicalMigrationServerUuid}">SELECT @@server_uuid</sqlCheck>
+    </preConditions>
+    <changeSet id="1.0.0-001-core" author="medical-agent" dbms="mysql" runInTransaction="false" failOnError="true">
+        <sqlFile path="data-design/core.sql" relativeToChangelogFile="false" encoding="UTF-8" splitStatements="true" stripComments="false"/>
+    </changeSet>
+    <include file="db/migration/002-identity-sources.sql" relativeToChangelogFile="false"/>
+    <include file="db/migration/003-project-template.sql" relativeToChangelogFile="false"/>
+    <include file="db/migration/004-task-execution.sql" relativeToChangelogFile="false"/>
+    <include file="db/migration/005-document-evidence.sql" relativeToChangelogFile="false"/>
+    <include file="db/migration/006-review-signature-export.sql" relativeToChangelogFile="false"/>
+    <include file="db/migration/007-capability-model-budget.sql" relativeToChangelogFile="false"/>
+    <include file="db/migration/008-governance-evaluation-connector.sql" relativeToChangelogFile="false"/>
+    <include file="db/migration/009-conversation-events-receipts.sql" relativeToChangelogFile="false"/>
+    <include file="db/migration/010-platform-identity.sql" relativeToChangelogFile="false"/>
+    <include file="db/migration/011-platform-oidc-session.sql" relativeToChangelogFile="false"/>
+    <include file="db/migration/012-platform-logout.sql" relativeToChangelogFile="false"/>
+    <include file="db/migration/013-platform-local-account.sql" relativeToChangelogFile="false"/>
+    <include file="db/migration/014-platform-business-session.sql" relativeToChangelogFile="false"/>
+    <include file="db/migration/015-platform-context-identity.xml" relativeToChangelogFile="false"/>
+    <include file="db/migration/016-platform-local-management.sql" relativeToChangelogFile="false"/>
+    <include file="db/migration/017-member-identity-mode.sql" relativeToChangelogFile="false"/>
+    <include file="db/migration/018-member-invitation.sql" relativeToChangelogFile="false"/>
+    <include file="db/migration/019-enterprise-role-version.sql" relativeToChangelogFile="false"/>
+    <include file="db/migration/020-platform-enterprise-registration.sql" relativeToChangelogFile="false"/>
+    <include file="db/migration/021-enterprise-registration-review.sql" relativeToChangelogFile="false"/>
+    <include file="db/migration/022-enterprise-role-governance.sql" relativeToChangelogFile="false"/>
+    <include file="db/migration/023-project-governance.sql" relativeToChangelogFile="false"/>
+    <include file="db/migration/024-operation-retention.sql" relativeToChangelogFile="false"/>
+    <include file="db/migration/025-artifact-content-registry.sql" relativeToChangelogFile="false"/>
+    <include file="db/migration/026-upload-storage.sql" relativeToChangelogFile="false"/>
+    <include file="db/migration/027-template-definition.sql" relativeToChangelogFile="false"/>
+    <include file="db/migration/028-ruoyi-account-tables.sql" relativeToChangelogFile="false"/>
+    <include file="db/migration/029-ruoyi-account-binding.xml" relativeToChangelogFile="false"/>
+    <include file="db/migration/030-ruoyi-authentication-menu.sql" relativeToChangelogFile="false"/>
+    <include file="db/migration/031-template-approval.sql" relativeToChangelogFile="false"/>
+    <include file="db/migration/032-task-plan-content.sql" relativeToChangelogFile="false"/>
+    <include file="db/migration/033-task-missing-requirements.xml" relativeToChangelogFile="false"/>
+    <include file="db/migration/034-ruoyi-management-tables.sql" relativeToChangelogFile="false"/>
+    <include file="db/migration/035-source-upload-request.sql" relativeToChangelogFile="false"/>
+    <include file="db/migration/036-task-plan-relations.xml" relativeToChangelogFile="false"/>
+    <include file="db/migration/037-document-reading.xml" relativeToChangelogFile="false"/>
+    <include file="db/migration/038-document-projection-kind.xml" relativeToChangelogFile="false"/>
+    <include file="db/migration/039-document-revision-projections.xml" relativeToChangelogFile="false"/>
+</databaseChangeLog>

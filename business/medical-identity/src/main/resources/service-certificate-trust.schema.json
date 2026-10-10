@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:service-certificate-trust:1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "revision", "authorities", "revocations", "registered_certificates", "protocols", "ciphers"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "revision": {"type": "string", "format": "uuid"},
+    "authorities": {"$ref": "#/$defs/der_list"},
+    "revocations": {"$ref": "#/$defs/der_list"},
+    "registered_certificates": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {"type": "string", "format": "uri"},
+      "additionalProperties": {
+        "type": "array", "minItems": 1, "uniqueItems": true,
+        "items": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+      }
+    },
+    "protocols": {"type": "array", "minItems": 1, "maxItems": 1, "items": {"const": "TLSv1.3"}},
+    "ciphers": {
+      "type": "array", "minItems": 1, "maxItems": 3, "uniqueItems": true,
+      "items": {"enum": ["TLS_AES_128_GCM_SHA256", "TLS_AES_256_GCM_SHA384", "TLS_CHACHA20_POLY1305_SHA256"]}
+    }
+  },
+  "$defs": {
+    "der_list": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 4}}
+  }
+}

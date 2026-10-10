@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:identity-binding:1.0.0",
+  "oneOf": [{"$ref": "#/$defs/LocalBinding"}, {"$ref": "#/$defs/OidcBinding"}],
+  "$defs": {
+    "Id": {"type": "string", "format": "uuid", "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"},
+    "LocalBinding": {
+      "type": "object", "additionalProperties": false,
+      "required": ["mode", "user_id", "issuer", "subject"],
+      "properties": {
+        "mode": {"const": "local"}, "user_id": {"$ref": "#/$defs/Id"},
+        "issuer": {"type": "null"}, "subject": {"type": "null"}
+      }
+    },
+    "OidcBinding": {
+      "type": "object", "additionalProperties": false,
+      "required": ["mode", "user_id", "issuer", "subject"],
+      "properties": {
+        "mode": {"const": "oidc"}, "user_id": {"$ref": "#/$defs/Id"},
+        "issuer": {"type": "string", "format": "uri", "pattern": "^https://", "maxLength": 512},
+        "subject": {"type": "string", "minLength": 1, "maxLength": 255}
+      }
+    },
+    "Manifest": {
+      "type": "object", "additionalProperties": false, "required": ["schema_version", "schemas"],
+      "properties": {
+        "schema_version": {"const": "1.0.0"},
+        "schemas": {"type": "array", "minItems": 2, "maxItems": 2, "uniqueItems": true,
+                   "items": {"$ref": "#/$defs/ManifestEntry"}}
+      }
+    },
+    "ManifestEntry": {
+      "type": "object", "additionalProperties": false, "required": ["path", "sha256"],
+      "properties": {
+        "path": {"enum": ["identity-binding.schema.json", "contracts/catalogue.json"]},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    }
+  }
+}

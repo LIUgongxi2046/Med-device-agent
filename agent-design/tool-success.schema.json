@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.medical-agent.invalid/1.0.0/tool-success",
+  "title": "ToolSuccess",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema_version", "action_id", "tool_id", "status", "artifact_id", "resource_revision", "summary", "coverage", "next_cursor", "payload"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"}, "action_id": {"$ref": "#/$defs/Id"},
+    "tool_id": {"enum": ["AT-01", "AT-02", "AT-03", "AT-04", "AT-05", "AT-06", "AT-07", "AT-08", "AT-09", "AT-10"]},
+    "status": {"enum": ["SUCCEEDED", "WAITING_INPUT"]}, "artifact_id": {"$ref": "#/$defs/Id"},
+    "resource_revision": {"type": ["string", "null"], "minLength": 1}, "summary": {"type": "string"},
+    "coverage": {"$ref": "#/$defs/Coverage"}, "next_cursor": {"type": ["string", "null"], "minLength": 1},
+    "payload": {"oneOf": [{"$ref": "#/$defs/SearchResult"}, {"$ref": "#/$defs/SourceResult"}, {"$ref": "#/$defs/ContentResult"}, {"$ref": "#/$defs/ReceiptResult"}]}
+  },
+  "$defs": {
+    "Id": {"type": "string", "format": "uuid"}, "Hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "EvidenceRef": {"$ref": "https://schemas.medical-agent.invalid/1.0.0/data-design/dataset.schema.json#/$defs/EvidenceRef"},
+    "Coverage": {"type": "object", "additionalProperties": false, "required": ["requested_scope_sha256", "delivered_scope_sha256", "complete"], "properties": {"requested_scope_sha256": {"$ref": "#/$defs/Hash"}, "delivered_scope_sha256": {"$ref": "#/$defs/Hash"}, "complete": {"type": "boolean"}}},
+    "SearchResult": {"type": "object", "additionalProperties": false, "required": ["kind", "retrieval_id", "match_status", "evidence_refs", "missing_requirement_ids"], "properties": {"kind": {"const": "SEARCH"}, "retrieval_id": {"$ref": "#/$defs/Id"}, "match_status": {"enum": ["FOUND", "EMPTY"]}, "evidence_refs": {"type": "array", "items": {"$ref": "#/$defs/EvidenceRef"}}, "missing_requirement_ids": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/Id"}}}},
+    "SourceResult": {"type": "object", "additionalProperties": false, "required": ["kind", "evidence_ref", "content", "read_receipt_id"], "properties": {"kind": {"const": "SOURCE"}, "evidence_ref": {"$ref": "#/$defs/EvidenceRef"}, "content": {"type": "string", "minLength": 1}, "read_receipt_id": {"$ref": "#/$defs/Id"}}},
+    "ContentResult": {"type": "object", "additionalProperties": false, "required": ["kind", "content_kind", "content_schema_ref", "content_sha256", "media_type", "content", "read_receipt_id"], "properties": {"kind": {"enum": ["ARTIFACT", "SKILL"]}, "content_kind": {"type": "string", "minLength": 1}, "content_schema_ref": {"type": ["string", "null"], "minLength": 1}, "content_sha256": {"$ref": "#/$defs/Hash"}, "media_type": {"enum": ["application/json", "text/markdown", "text/plain"]}, "content": {"type": "string", "minLength": 1}, "read_receipt_id": {"$ref": "#/$defs/Id"}}},
+    "ReceiptResult": {"type": "object", "additionalProperties": false, "required": ["kind", "resource_id", "resource_kind", "resource_state", "check_ids"], "properties": {"kind": {"const": "RECEIPT"}, "resource_id": {"$ref": "#/$defs/Id"}, "resource_kind": {"enum": ["FIELD_CHECK", "CANDIDATE", "REVIEW_FINDINGS", "WAITING_ITEM", "WEB_ACQUISITION", "PLAN_CANDIDATE"]}, "resource_state": {"type": "string", "minLength": 1}, "check_ids": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/Id"}}}}
+  }
+}

@@ -1,0 +1,257 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.31.xsd">
+    <changeSet id="1.0.0-238-plan-section-shape" author="medical-agent" dbms="mysql" runInTransaction="false" failOnError="true">
+        <preConditions onFail="HALT" onError="HALT">
+            <sqlCheck expectedResult="0">SELECT COUNT(*) FROM plan_section</sqlCheck>
+            <foreignKeyConstraintExists foreignKeyTableName="plan_section" foreignKeyName="plan_section_ibfk_2"/>
+        </preConditions>
+        <dropForeignKeyConstraint baseTableName="plan_section" constraintName="plan_section_ibfk_2"/>
+        <sql>ALTER TABLE plan_section
+            DROP INDEX uq_plan_requirement,
+            DROP COLUMN node_id,
+            MODIFY owner_id CHAR(36) CHARACTER SET ascii NULL,
+            MODIFY goal LONGTEXT NOT NULL,
+            ADD COLUMN method VARCHAR(24) NOT NULL,
+            ADD COLUMN position INT UNSIGNED NOT NULL,
+            ADD UNIQUE KEY uq_plan_section_template (tenant_id,project_id,plan_revision,section_id,template_version),
+            ADD UNIQUE KEY uq_plan_section_position (tenant_id,project_id,plan_revision,position),
+            ADD CONSTRAINT ck_plan_section_method CHECK (method IN ('DETERMINISTIC','MODEL_ASSISTED','HUMAN_PROVIDED')),
+            ADD CONSTRAINT ck_plan_section_requirements CHECK (JSON_TYPE(requirements)='ARRAY' AND JSON_LENGTH(requirements)&gt;0)
+        </sql>
+    </changeSet>
+    <changeSet id="1.0.0-239-plan-section-node" author="medical-agent" dbms="mysql" runInTransaction="false" failOnError="true">
+        <sql>CREATE TABLE plan_section_node (
+            tenant_id CHAR(36) CHARACTER SET ascii NOT NULL,
+            project_id CHAR(36) CHARACTER SET ascii NOT NULL,
+            plan_revision CHAR(36) CHARACTER SET ascii NOT NULL,
+            section_id CHAR(36) CHARACTER SET ascii NOT NULL,
+            template_version CHAR(36) CHARACTER SET ascii NOT NULL,
+            node_id CHAR(36) CHARACTER SET ascii NOT NULL,
+            position INT UNSIGNED NOT NULL,
+            created_by CHAR(36) CHARACTER SET ascii NOT NULL,
+            created_at DATETIME(6) NOT NULL,
+            classification VARCHAR(24) NOT NULL,
+            PRIMARY KEY (tenant_id,project_id,plan_revision,section_id,node_id),
+            UNIQUE KEY uq_plan_node_coverage (tenant_id,project_id,plan_revision,node_id),
+            UNIQUE KEY uq_plan_node_position (tenant_id,project_id,plan_revision,section_id,position),
+            FOREIGN KEY (tenant_id,project_id,plan_revision,section_id,template_version)
+                REFERENCES plan_section (tenant_id,project_id,plan_revision,section_id,template_version),
+            FOREIGN KEY (tenant_id,template_version,node_id) REFERENCES requirement_node (tenant_id,template_version,node_id),
+            FOREIGN KEY (tenant_id,created_by) REFERENCES tenant_member (tenant_id,user_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_as_cs</sql>
+    </changeSet>
+    <changeSet id="1.0.0-240-plan-section-rule" author="medical-agent" dbms="mysql" runInTransaction="false" failOnError="true">
+        <sql>CREATE TABLE plan_section_rule (
+            tenant_id CHAR(36) CHARACTER SET ascii NOT NULL,
+            project_id CHAR(36) CHARACTER SET ascii NOT NULL,
+            plan_revision CHAR(36) CHARACTER SET ascii NOT NULL,
+            section_id CHAR(36) CHARACTER SET ascii NOT NULL,
+            rule_id CHAR(36) CHARACTER SET ascii NOT NULL,
+            position INT UNSIGNED NOT NULL,
+            created_by CHAR(36) CHARACTER SET ascii NOT NULL,
+            created_at DATETIME(6) NOT NULL,
+            classification VARCHAR(24) NOT NULL,
+            PRIMARY KEY (tenant_id,project_id,plan_revision,section_id,rule_id),
+            UNIQUE KEY uq_plan_section_rule_position (tenant_id,project_id,plan_revision,section_id,position),
+            FOREIGN KEY (tenant_id,project_id,plan_revision,section_id) REFERENCES plan_section (tenant_id,project_id,plan_revision,section_id),
+            FOREIGN KEY (tenant_id,created_by) REFERENCES tenant_member (tenant_id,user_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_as_cs</sql>
+    </changeSet>
+    <changeSet id="1.0.0-241-plan-dependency-order" author="medical-agent" dbms="mysql" runInTransaction="false" failOnError="true">
+        <preConditions onFail="HALT" onError="HALT">
+            <sqlCheck expectedResult="0">SELECT COUNT(*) FROM plan_dependency</sqlCheck>
+        </preConditions>
+        <sql>ALTER TABLE plan_dependency
+            ADD COLUMN position INT UNSIGNED NOT NULL,
+            ADD UNIQUE KEY uq_plan_dependency_position (tenant_id,project_id,plan_revision,section_id,position)
+        </sql>
+    </changeSet>
+    <changeSet id="1.0.0-242-plan-task-identity" author="medical-agent" dbms="mysql" runInTransaction="false" failOnError="true">
+        <sql>ALTER TABLE plan_revision
+            ADD UNIQUE KEY uq_plan_task_identity (tenant_id,project_id,task_id,plan_revision)
+        </sql>
+    </changeSet>
+    <changeSet id="1.0.0-243-task-question-identity" author="medical-agent" dbms="mysql" runInTransaction="false" failOnError="true">
+        <preConditions onFail="HALT" onError="HALT">
+            <sqlCheck expectedResult="0">SELECT COUNT(*) FROM research_question</sqlCheck>
+        </preConditions>
+        <sql>ALTER TABLE research_question
+            ADD COLUMN task_id CHAR(36) CHARACTER SET ascii NOT NULL,
+            ADD COLUMN question_key LONGTEXT CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+            ADD COLUMN question_key_sha256 CHAR(64) CHARACTER SET ascii
+                GENERATED ALWAYS AS (SHA2(question_key,256)) STORED,
+            MODIFY question LONGTEXT NOT NULL,
+            ADD UNIQUE KEY uq_task_question_key (tenant_id,project_id,task_id,question_key_sha256),
+            ADD UNIQUE KEY uq_task_question_identity (tenant_id,project_id,task_id,question_id),
+            ADD CONSTRAINT fk_question_origin_plan FOREIGN KEY (tenant_id,project_id,task_id,plan_revision)
+                REFERENCES plan_revision (tenant_id,project_id,task_id,plan_revision),
+            ADD CONSTRAINT ck_task_question_key CHECK (question_key REGEXP '^[A-Za-z][A-Za-z0-9_-]*$')
+        </sql>
+    </changeSet>
+    <changeSet id="1.0.0-244-plan-question-version" author="medical-agent" dbms="mysql" runInTransaction="false" failOnError="true">
+        <sql>CREATE TABLE plan_question (
+            tenant_id CHAR(36) CHARACTER SET ascii NOT NULL,
+            project_id CHAR(36) CHARACTER SET ascii NOT NULL,
+            task_id CHAR(36) CHARACTER SET ascii NOT NULL,
+            plan_revision CHAR(36) CHARACTER SET ascii NOT NULL,
+            question_id CHAR(36) CHARACTER SET ascii NOT NULL,
+            section_id CHAR(36) CHARACTER SET ascii NOT NULL,
+            question LONGTEXT NOT NULL,
+            position INT UNSIGNED NOT NULL,
+            created_by CHAR(36) CHARACTER SET ascii NOT NULL,
+            created_at DATETIME(6) NOT NULL,
+            classification VARCHAR(24) NOT NULL,
+            PRIMARY KEY (tenant_id,project_id,plan_revision,question_id),
+            UNIQUE KEY uq_plan_question_section (tenant_id,project_id,plan_revision,question_id,section_id),
+            UNIQUE KEY uq_plan_question_position (tenant_id,project_id,plan_revision,position),
+            FOREIGN KEY (tenant_id,project_id,task_id,question_id) REFERENCES research_question (tenant_id,project_id,task_id,question_id),
+            FOREIGN KEY (tenant_id,project_id,task_id,plan_revision) REFERENCES plan_revision (tenant_id,project_id,task_id,plan_revision),
+            FOREIGN KEY (tenant_id,project_id,plan_revision,section_id) REFERENCES plan_section (tenant_id,project_id,plan_revision,section_id),
+            FOREIGN KEY (tenant_id,created_by) REFERENCES tenant_member (tenant_id,user_id),
+            CHECK (CHAR_LENGTH(question)&gt;0)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_as_cs</sql>
+    </changeSet>
+    <changeSet id="1.0.0-245-plan-question-node" author="medical-agent" dbms="mysql" runInTransaction="false" failOnError="true">
+        <sql>CREATE TABLE plan_question_node (
+            tenant_id CHAR(36) CHARACTER SET ascii NOT NULL,
+            project_id CHAR(36) CHARACTER SET ascii NOT NULL,
+            plan_revision CHAR(36) CHARACTER SET ascii NOT NULL,
+            question_id CHAR(36) CHARACTER SET ascii NOT NULL,
+            section_id CHAR(36) CHARACTER SET ascii NOT NULL,
+            node_id CHAR(36) CHARACTER SET ascii NOT NULL,
+            position INT UNSIGNED NOT NULL,
+            created_by CHAR(36) CHARACTER SET ascii NOT NULL,
+            created_at DATETIME(6) NOT NULL,
+            classification VARCHAR(24) NOT NULL,
+            PRIMARY KEY (tenant_id,project_id,plan_revision,question_id,node_id),
+            UNIQUE KEY uq_plan_question_node_position (tenant_id,project_id,plan_revision,question_id,position),
+            FOREIGN KEY (tenant_id,project_id,plan_revision,question_id,section_id)
+                REFERENCES plan_question (tenant_id,project_id,plan_revision,question_id,section_id),
+            FOREIGN KEY (tenant_id,project_id,plan_revision,section_id,node_id)
+                REFERENCES plan_section_node (tenant_id,project_id,plan_revision,section_id,node_id),
+            FOREIGN KEY (tenant_id,created_by) REFERENCES tenant_member (tenant_id,user_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_as_cs</sql>
+    </changeSet>
+    <changeSet id="1.0.0-246-plan-question-rule" author="medical-agent" dbms="mysql" runInTransaction="false" failOnError="true">
+        <sql>CREATE TABLE plan_question_rule (
+            tenant_id CHAR(36) CHARACTER SET ascii NOT NULL,
+            project_id CHAR(36) CHARACTER SET ascii NOT NULL,
+            plan_revision CHAR(36) CHARACTER SET ascii NOT NULL,
+            question_id CHAR(36) CHARACTER SET ascii NOT NULL,
+            rule_id CHAR(36) CHARACTER SET ascii NOT NULL,
+            position INT UNSIGNED NOT NULL,
+            created_by CHAR(36) CHARACTER SET ascii NOT NULL,
+            created_at DATETIME(6) NOT NULL,
+            classification VARCHAR(24) NOT NULL,
+            PRIMARY KEY (tenant_id,project_id,plan_revision,question_id,rule_id),
+            UNIQUE KEY uq_plan_question_rule_position (tenant_id,project_id,plan_revision,question_id,position),
+            FOREIGN KEY (tenant_id,project_id,plan_revision,question_id) REFERENCES plan_question (tenant_id,project_id,plan_revision,question_id),
+            FOREIGN KEY (tenant_id,created_by) REFERENCES tenant_member (tenant_id,user_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_as_cs</sql>
+    </changeSet>
+    <changeSet id="1.0.0-247-plan-question-dependency" author="medical-agent" dbms="mysql" runInTransaction="false" failOnError="true">
+        <sql>CREATE TABLE plan_question_dependency (
+            tenant_id CHAR(36) CHARACTER SET ascii NOT NULL,
+            project_id CHAR(36) CHARACTER SET ascii NOT NULL,
+            plan_revision CHAR(36) CHARACTER SET ascii NOT NULL,
+            question_id CHAR(36) CHARACTER SET ascii NOT NULL,
+            depends_on_question_id CHAR(36) CHARACTER SET ascii NOT NULL,
+            position INT UNSIGNED NOT NULL,
+            created_by CHAR(36) CHARACTER SET ascii NOT NULL,
+            created_at DATETIME(6) NOT NULL,
+            classification VARCHAR(24) NOT NULL,
+            PRIMARY KEY (tenant_id,project_id,plan_revision,question_id,depends_on_question_id),
+            UNIQUE KEY uq_plan_question_dependency_position (tenant_id,project_id,plan_revision,question_id,position),
+            FOREIGN KEY (tenant_id,project_id,plan_revision,question_id) REFERENCES plan_question (tenant_id,project_id,plan_revision,question_id),
+            FOREIGN KEY (tenant_id,project_id,plan_revision,depends_on_question_id) REFERENCES plan_question (tenant_id,project_id,plan_revision,question_id),
+            FOREIGN KEY (tenant_id,created_by) REFERENCES tenant_member (tenant_id,user_id),
+            CHECK (question_id&lt;&gt;depends_on_question_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_as_cs</sql>
+    </changeSet>
+    <changeSet id="1.0.0-248-task-plan-head" author="medical-agent" dbms="mysql" runInTransaction="false" failOnError="true">
+        <sql>CREATE TABLE task_plan_head (
+            tenant_id CHAR(36) CHARACTER SET ascii NOT NULL,
+            project_id CHAR(36) CHARACTER SET ascii NOT NULL,
+            task_id CHAR(36) CHARACTER SET ascii NOT NULL,
+            plan_revision CHAR(36) CHARACTER SET ascii NOT NULL,
+            revision BIGINT UNSIGNED NOT NULL,
+            created_by CHAR(36) CHARACTER SET ascii NOT NULL,
+            created_at DATETIME(6) NOT NULL,
+            updated_at DATETIME(6) NOT NULL,
+            classification VARCHAR(24) NOT NULL,
+            PRIMARY KEY (tenant_id,project_id,task_id),
+            FOREIGN KEY (tenant_id,project_id,task_id,plan_revision) REFERENCES plan_revision (tenant_id,project_id,task_id,plan_revision),
+            FOREIGN KEY (tenant_id,created_by) REFERENCES tenant_member (tenant_id,user_id),
+            CHECK (revision&gt;0 AND updated_at&gt;=created_at)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_as_cs</sql>
+    </changeSet>
+    <changeSet id="1.0.0-249-plan-decision" author="medical-agent" dbms="mysql" runInTransaction="false" failOnError="true">
+        <sql>CREATE TABLE task_plan_decision (
+            tenant_id CHAR(36) CHARACTER SET ascii NOT NULL,
+            project_id CHAR(36) CHARACTER SET ascii NOT NULL,
+            task_id CHAR(36) CHARACTER SET ascii NOT NULL,
+            decision_id CHAR(36) CHARACTER SET ascii NOT NULL,
+            operation_id CHAR(36) CHARACTER SET ascii NOT NULL,
+            target_plan_revision CHAR(36) CHARACTER SET ascii NOT NULL,
+            target_plan_sha256 CHAR(64) CHARACTER SET ascii NOT NULL,
+            basis_task_revision CHAR(36) CHARACTER SET ascii NOT NULL,
+            resulting_task_revision CHAR(36) CHARACTER SET ascii NOT NULL,
+            resulting_plan_revision CHAR(36) CHARACTER SET ascii NULL,
+            decision VARCHAR(24) NOT NULL,
+            from_status VARCHAR(24) NOT NULL,
+            to_status VARCHAR(24) NOT NULL,
+            expected_revision BIGINT UNSIGNED NOT NULL,
+            resulting_revision BIGINT UNSIGNED NOT NULL,
+            reason TEXT NOT NULL,
+            request_json JSON NOT NULL,
+            baseline_manifest JSON NOT NULL,
+            baseline_sha256 CHAR(64) CHARACTER SET ascii NOT NULL,
+            dependency_authorizations JSON NOT NULL,
+            receipt_json JSON NOT NULL,
+            receipt_sha256 CHAR(64) CHARACTER SET ascii NOT NULL,
+            authority_grant CHAR(36) CHARACTER SET ascii NOT NULL,
+            authority_revision BIGINT UNSIGNED NOT NULL,
+            auth_epoch BIGINT UNSIGNED NOT NULL,
+            governance_epoch BIGINT UNSIGNED NOT NULL,
+            schema_version VARCHAR(32) NOT NULL,
+            schema_manifest_sha256 CHAR(64) CHARACTER SET ascii NOT NULL,
+            created_by CHAR(36) CHARACTER SET ascii NOT NULL,
+            created_at DATETIME(6) NOT NULL,
+            classification VARCHAR(24) NOT NULL,
+            PRIMARY KEY (tenant_id,project_id,decision_id),
+            UNIQUE KEY uq_task_plan_decision_operation (tenant_id,operation_id),
+            UNIQUE KEY uq_task_plan_decision_revision (tenant_id,project_id,task_id,resulting_revision),
+            UNIQUE KEY uq_task_plan_decision_result (tenant_id,project_id,task_id,resulting_plan_revision,decision_id),
+            FOREIGN KEY (tenant_id,project_id,task_id,target_plan_revision,target_plan_sha256)
+                REFERENCES plan_revision (tenant_id,project_id,task_id,plan_revision,content_sha256),
+            FOREIGN KEY (tenant_id,project_id,task_id,basis_task_revision,target_plan_revision)
+                REFERENCES plan_revision (tenant_id,project_id,task_id,task_revision,plan_revision),
+            FOREIGN KEY (tenant_id,project_id,task_id,resulting_task_revision)
+                REFERENCES task_revision (tenant_id,project_id,task_id,task_revision),
+            FOREIGN KEY (tenant_id,project_id,task_id,resulting_task_revision,resulting_plan_revision)
+                REFERENCES plan_revision (tenant_id,project_id,task_id,task_revision,plan_revision),
+            FOREIGN KEY (tenant_id,operation_id) REFERENCES operation_record (tenant_id,operation_id),
+            FOREIGN KEY (tenant_id,created_by) REFERENCES tenant_member (tenant_id,user_id),
+            FOREIGN KEY (tenant_id,authority_grant) REFERENCES permission_grant (tenant_id,grant_id),
+            CHECK (expected_revision&gt;0 AND resulting_revision=expected_revision+1
+                AND authority_revision&gt;0 AND auth_epoch&gt;0 AND governance_epoch&gt;0),
+            CHECK (CHAR_LENGTH(reason) BETWEEN 1 AND 2000),
+            CHECK ((decision='CONFIRM' AND from_status='PLAN_PENDING' AND to_status='READY'
+                    AND resulting_plan_revision IS NOT NULL AND resulting_plan_revision&lt;&gt;target_plan_revision
+                    AND resulting_task_revision&lt;&gt;basis_task_revision)
+                OR (decision='RETURN' AND from_status IN ('NEEDS_MATERIALS','PLAN_PENDING') AND to_status=from_status
+                    AND resulting_plan_revision IS NULL AND resulting_task_revision=basis_task_revision)),
+            CHECK (schema_version='1.0.0' AND JSON_TYPE(request_json)='OBJECT'
+                AND JSON_TYPE(baseline_manifest)='OBJECT' AND JSON_TYPE(dependency_authorizations)='ARRAY'
+                AND JSON_TYPE(receipt_json)='OBJECT' AND target_plan_sha256 REGEXP '^[a-f0-9]{64}$'
+                AND baseline_sha256 REGEXP '^[a-f0-9]{64}$' AND receipt_sha256 REGEXP '^[a-f0-9]{64}$'
+                AND schema_manifest_sha256 REGEXP '^[a-f0-9]{64}$')
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_as_cs</sql>
+        <sql>ALTER TABLE plan_revision ADD CONSTRAINT fk_plan_confirming_decision
+            FOREIGN KEY (tenant_id,project_id,task_id,plan_revision,decision_id)
+            REFERENCES task_plan_decision (tenant_id,project_id,task_id,resulting_plan_revision,decision_id)
+        </sql>
+    </changeSet>
+</databaseChangeLog>

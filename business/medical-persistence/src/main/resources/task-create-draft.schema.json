@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:task-create-draft:1.0.0",
+  "$ref": "#/$defs/View",
+  "$defs": {
+    "View": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "operation_id", "tenant_id", "project_id", "actor_id", "created_at", "body_sha256", "content"],
+      "properties": {
+        "schema_version": {"const": "1.0.0"},
+        "operation_id": {"$ref": "https://schemas.medical-agent.invalid/1.0.0/backend-design/interfaces.schema.yaml#/$defs/Id"},
+        "tenant_id": {"$ref": "https://schemas.medical-agent.invalid/1.0.0/backend-design/interfaces.schema.yaml#/$defs/Id"},
+        "project_id": {"$ref": "https://schemas.medical-agent.invalid/1.0.0/backend-design/interfaces.schema.yaml#/$defs/Id"},
+        "actor_id": {"$ref": "https://schemas.medical-agent.invalid/1.0.0/backend-design/interfaces.schema.yaml#/$defs/Id"},
+        "created_at": {"$ref": "https://schemas.medical-agent.invalid/1.0.0/backend-design/interfaces.schema.yaml#/$defs/Timestamp"},
+        "body_sha256": {"$ref": "https://schemas.medical-agent.invalid/1.0.0/backend-design/interfaces.schema.yaml#/$defs/Hash"},
+        "content": {"$ref": "urn:medical:tasks:1.0.0#/$defs/Create"}
+      }
+    }
+  }
+}

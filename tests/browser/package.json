@@ -1,0 +1,9 @@
+{
+  "name": "medical-local-browser-checks",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@playwright/cli": "0.1.22"
+  }
+}

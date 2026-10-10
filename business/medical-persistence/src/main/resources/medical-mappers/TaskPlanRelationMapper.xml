@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.medical.persistence.mapper.TaskPlanRelationMapper">
+    <resultMap id="basis" type="com.ruoyi.medical.persistence.TaskPlanProjection$Basis">
+        <constructor>
+            <arg column="tenant_id" javaType="java.lang.String"/><arg column="project_id" javaType="java.lang.String"/>
+            <arg column="task_id" javaType="java.lang.String"/><arg column="task_revision" javaType="java.lang.String"/>
+            <arg column="plan_revision" javaType="java.lang.String"/><arg column="template_version" javaType="java.lang.String"/>
+            <arg column="snapshot_id" javaType="java.lang.String"/><arg column="profile_revision" javaType="java.lang.String"/>
+            <arg column="content_json" javaType="java.lang.String"/><arg column="content_sha256" javaType="java.lang.String"/>
+            <arg column="registry_hash" javaType="java.lang.String"/><arg column="schema_ref" javaType="java.lang.String"/>
+            <arg column="schema_version" javaType="java.lang.String"/><arg column="schema_manifest_sha256" javaType="java.lang.String"/>
+            <arg column="created_by" javaType="java.lang.String"/><arg column="created_at" javaType="java.time.LocalDateTime"/>
+            <arg column="classification" javaType="java.lang.String"/><arg column="status" javaType="java.lang.String"/>
+        </constructor>
+    </resultMap>
+    <select id="basis" resultMap="basis" useCache="false" flushCache="true">
+        SELECT c.tenant_id,c.project_id,c.task_id,c.task_revision,c.plan_revision,c.template_version,c.snapshot_id,
+            t.profile_revision,c.content_json,c.content_sha256,v.content_sha256 AS registry_hash,c.schema_ref,c.schema_version,
+            c.schema_manifest_sha256,c.created_by,c.created_at,c.classification,p.status
+        FROM plan_content_revision c
+        JOIN plan_revision p ON p.tenant_id=c.tenant_id AND p.project_id=c.project_id AND p.task_id=c.task_id
+            AND p.task_revision=c.task_revision AND p.plan_revision=c.plan_revision AND p.template_version=c.template_version
+            AND p.snapshot_id=c.snapshot_id AND p.content_sha256=c.content_sha256
+            AND p.created_by=c.created_by AND p.created_at=c.created_at AND p.classification=c.classification
+        JOIN task_revision t ON t.tenant_id=c.tenant_id AND t.project_id=c.project_id AND t.task_id=c.task_id
+            AND t.task_revision=c.task_revision AND t.template_version=c.template_version AND t.snapshot_id=c.snapshot_id
+        JOIN version_registry v ON v.tenant_id=c.tenant_id AND v.version_id=c.plan_revision
+            AND v.owner_project_id=c.project_id AND v.entity_kind='PLAN_REVISION'
+        WHERE c.project_id=#{projectId} AND c.task_id=#{taskId} AND c.plan_revision=#{planRevision} FOR UPDATE
+    </select>
+    <resultMap id="projection" type="com.ruoyi.medical.persistence.TemplateProtocol$Projection">
+        <constructor>
+            <arg column="id" javaType="java.lang.String"/><arg column="content" javaType="java.lang.String"/>
+            <arg column="schema_version" javaType="java.lang.String"/><arg column="schema_manifest_sha256" javaType="java.lang.String"/>
+            <arg column="created_by" javaType="java.lang.String"/><arg column="created_at" javaType="java.time.LocalDateTime"/>
+            <arg column="classification" javaType="java.lang.String"/>
+        </constructor>
+    </resultMap>
+    <resultMap id="identity" type="com.ruoyi.medical.persistence.TaskPlanProjection$QuestionIdentity">
+        <constructor>
+            <arg column="task_id" javaType="java.lang.String"/><arg column="question_id" javaType="java.lang.String"/>
+            <arg column="question_key" javaType="java.lang.String"/><arg column="question_key_sha256" javaType="java.lang.String"/>
+        </constructor>
+    </resultMap>
+    <sql id="metadata">c.schema_version,c.schema_manifest_sha256,r.created_by,r.created_at,r.classification</sql>
+    <sql id="contentBasis">
+        JOIN plan_content_revision c ON c.tenant_id=r.tenant_id AND c.project_id=r.project_id AND c.plan_revision=r.plan_revision
+        WHERE c.project_id=#{projectId} AND c.task_id=#{taskId} AND c.plan_revision=#{planRevision}
+    </sql>
+    <insert id="insertSection">
+        INSERT INTO plan_section(project_id,plan_revision,section_id,template_version,owner_id,goal,requirements,evidence_scope,
+            method,position,schema_version,schema_manifest_sha256,created_by,created_at,classification)
+        VALUES(#{projectId},#{planRevision},#{item.sectionId},#{templateVersion},#{item.ownerId},#{item.goal},
+            CAST(#{requirements} AS JSON),CAST(#{evidenceScope} AS JSON),#{item.method},#{item.position},
+            '1.0.0',#{manifest},#{userId},#{now},#{classification})
+    </insert>
+    <insert id="insertSectionNode">
+        INSERT INTO plan_section_node(project_id,plan_revision,section_id,template_version,node_id,position,created_by,created_at,classification)
+        VALUES(#{projectId},#{planRevision},#{item.sectionId},#{templateVersion},#{item.nodeId},#{item.position},#{userId},#{now},#{classification})
+    </insert>
+    <insert id="insertSectionRule">
+        INSERT INTO plan_section_rule(project_id,plan_revision,section_id,rule_id,position,created_by,created_at,classification)
+        VALUES(#{projectId},#{planRevision},#{item.sectionId},#{item.ruleId},#{item.position},#{userId},#{now},#{classification})
+    </insert>
+    <insert id="insertSectionDependency">
+        INSERT INTO plan_dependency(project_id,plan_revision,section_id,depends_on,position,created_by,created_at,classification)
+        VALUES(#{projectId},#{planRevision},#{item.sectionId},#{item.dependsOnSectionId},#{item.position},#{userId},#{now},#{classification})
+    </insert>
+    <insert id="insertQuestionIdentity">
+        INSERT INTO research_question(project_id,task_id,question_id,question_key,plan_revision,section_id,question,
+            completion_rule,status,evidence_manifest,schema_version,schema_manifest_sha256,created_by,created_at,classification,revision,updated_at)
+        VALUES(#{projectId},#{taskId},#{item.questionId},#{item.questionKey},#{planRevision},#{item.sectionId},#{item.question},
+            CAST(#{completionRules} AS JSON),'OPEN',CAST('[]' AS JSON),'1.0.0',#{manifest},#{userId},#{now},#{classification},1,#{now})
+    </insert>
+    <insert id="insertQuestion">
+        INSERT INTO plan_question(project_id,task_id,plan_revision,question_id,section_id,question,position,created_by,created_at,classification)
+        VALUES(#{projectId},#{taskId},#{planRevision},#{item.questionId},#{item.sectionId},#{item.question},#{item.position},#{userId},#{now},#{classification})
+    </insert>
+    <insert id="insertQuestionNode">
+        INSERT INTO plan_question_node(project_id,plan_revision,question_id,section_id,node_id,position,created_by,created_at,classification)
+        VALUES(#{projectId},#{planRevision},#{item.questionId},#{sectionId},#{item.nodeId},#{item.position},#{userId},#{now},#{classification})
+    </insert>
+    <insert id="insertQuestionRule">
+        INSERT INTO plan_question_rule(project_id,plan_revision,question_id,rule_id,position,created_by,created_at,classification)
+        VALUES(#{projectId},#{planRevision},#{item.questionId},#{item.ruleId},#{item.position},#{userId},#{now},#{classification})
+    </insert>
+    <insert id="insertQuestionDependency">
+        INSERT INTO plan_question_dependency(project_id,plan_revision,question_id,depends_on_question_id,position,created_by,created_at,classification)
+        VALUES(#{projectId},#{planRevision},#{item.questionId},#{item.dependsOnQuestionId},#{item.position},#{userId},#{now},#{classification})
+    </insert>
+    <select id="identities" resultMap="identity" useCache="false" flushCache="true">
+        SELECT task_id,question_id,question_key,question_key_sha256 FROM research_question
+        WHERE project_id=#{projectId} AND task_id=#{taskId} AND
+        <choose>
+            <when test="questionKeys.size() &gt; 0">
+                question_key_sha256 IN <foreach collection="questionKeys" item="key" open="(" separator="," close=")">SHA2(#{key},256)</foreach>
+            </when>
+            <otherwise>1=0</otherwise>
+        </choose>
+        ORDER BY question_id FOR UPDATE
+    </select>
+    <select id="sections" resultMap="projection" useCache="false" flushCache="true">
+        SELECT r.section_id AS id,JSON_OBJECT('section_id',r.section_id,'goal',r.goal,'owner_id',r.owner_id,
+            'method',r.method,'position',r.position,'requirement_node_ids',r.requirements,'evidence_scope',r.evidence_scope,
+            'template_version',r.template_version) AS content,
+            r.schema_version,r.schema_manifest_sha256,r.created_by,r.created_at,r.classification
+        FROM plan_section r <include refid="contentBasis"/> ORDER BY r.position
+    </select>
+    <select id="sectionNodes" resultMap="projection" useCache="false" flushCache="true">
+        SELECT CONCAT(r.section_id,':',r.node_id) AS id,
+            JSON_OBJECT('section_id',r.section_id,'node_id',r.node_id,'position',r.position,'template_version',r.template_version) AS content,
+            <include refid="metadata"/> FROM plan_section_node r <include refid="contentBasis"/> ORDER BY r.section_id,r.position
+    </select>
+    <select id="sectionRules" resultMap="projection" useCache="false" flushCache="true">
+        SELECT CONCAT(r.section_id,':',r.rule_id) AS id,
+            JSON_OBJECT('section_id',r.section_id,'rule_id',r.rule_id,'position',r.position) AS content,
+            <include refid="metadata"/> FROM plan_section_rule r <include refid="contentBasis"/> ORDER BY r.section_id,r.position
+    </select>
+    <select id="sectionDependencies" resultMap="projection" useCache="false" flushCache="true">
+        SELECT CONCAT(r.section_id,':',r.depends_on) AS id,
+            JSON_OBJECT('section_id',r.section_id,'depends_on_section_id',r.depends_on,'position',r.position) AS content,
+            <include refid="metadata"/> FROM plan_dependency r <include refid="contentBasis"/> ORDER BY r.section_id,r.position
+    </select>
+    <select id="questions" resultMap="projection" useCache="false" flushCache="true">
+        SELECT r.question_id AS id,JSON_OBJECT('question_id',r.question_id,'question_key',q.question_key,
+            'section_id',r.section_id,'question',r.question,'position',r.position) AS content,
+            <include refid="metadata"/> FROM plan_question r
+        JOIN research_question q ON q.tenant_id=r.tenant_id AND q.project_id=r.project_id AND q.task_id=r.task_id AND q.question_id=r.question_id
+        <include refid="contentBasis"/> ORDER BY r.position
+    </select>
+    <select id="questionNodes" resultMap="projection" useCache="false" flushCache="true">
+        SELECT CONCAT(r.question_id,':',r.node_id) AS id,
+            JSON_OBJECT('question_id',r.question_id,'node_id',r.node_id,'position',r.position,'section_id',r.section_id) AS content,
+            <include refid="metadata"/> FROM plan_question_node r <include refid="contentBasis"/> ORDER BY r.question_id,r.position
+    </select>
+    <select id="questionRules" resultMap="projection" useCache="false" flushCache="true">
+        SELECT CONCAT(r.question_id,':',r.rule_id) AS id,
+            JSON_OBJECT('question_id',r.question_id,'rule_id',r.rule_id,'position',r.position) AS content,
+            <include refid="metadata"/> FROM plan_question_rule r <include refid="contentBasis"/> ORDER BY r.question_id,r.position
+    </select>
+    <select id="questionDependencies" resultMap="projection" useCache="false" flushCache="true">
+        SELECT CONCAT(r.question_id,':',r.depends_on_question_id) AS id,
+            JSON_OBJECT('question_id',r.question_id,'depends_on_question_id',r.depends_on_question_id,'position',r.position) AS content,
+            <include refid="metadata"/> FROM plan_question_dependency r <include refid="contentBasis"/> ORDER BY r.question_id,r.position
+    </select>
+</mapper>

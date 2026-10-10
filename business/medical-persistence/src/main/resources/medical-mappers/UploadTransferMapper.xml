@@ -1,0 +1,253 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.medical.persistence.mapper.UploadTransferMapper">
+    <resultMap id="documentRow" type="com.ruoyi.medical.persistence.UploadTransferProtocol$DocumentRow">
+        <constructor>
+            <arg column="tenant_id" javaType="java.lang.String"/><arg column="project_id" javaType="java.lang.String"/>
+            <arg column="document_id" javaType="java.lang.String"/><arg column="current_document_revision" javaType="java.lang.String"/>
+            <arg column="task_id" javaType="java.lang.String"/><arg column="status" javaType="java.lang.String"/>
+            <arg column="created_by" javaType="java.lang.String"/><arg column="created_at" javaType="java.time.LocalDateTime"/>
+            <arg column="classification" javaType="java.lang.String"/><arg column="revision" javaType="java.math.BigInteger"/>
+            <arg column="updated_at" javaType="java.time.LocalDateTime"/><arg column="project_status" javaType="java.lang.String"/>
+        </constructor>
+    </resultMap>
+    <select id="document" resultMap="documentRow" useCache="false" flushCache="true">
+        SELECT d.tenant_id,d.project_id,d.document_id,d.current_document_revision,d.task_id,d.status,
+               d.created_by,d.created_at,d.classification,d.revision,d.updated_at,p.status AS project_status
+        FROM document_head d JOIN project p ON p.tenant_id=d.tenant_id AND p.project_id=d.project_id
+        JOIN tenant_member m ON m.tenant_id=d.tenant_id AND m.user_id=#{userId} AND m.status='ACTIVE'
+          AND m.valid_from &lt;= UTC_TIMESTAMP(6) AND (m.valid_to IS NULL OR m.valid_to &gt; UTC_TIMESTAMP(6))
+        WHERE d.document_id=#{documentId}<include refid="lock"/>
+    </select>
+    <resultMap id="sessionRow" type="com.ruoyi.medical.persistence.UploadTransferProtocol$SessionRow">
+        <constructor>
+            <arg column="tenant_id" javaType="java.lang.String"/><arg column="project_id" javaType="java.lang.String"/>
+            <arg column="upload_id" javaType="java.lang.String"/><arg column="subject_id" javaType="java.lang.String"/>
+            <arg column="purpose" javaType="java.lang.String"/><arg column="source_upload_id" javaType="java.lang.String"/>
+            <arg column="grant_id" javaType="java.lang.String"/><arg column="expected_size" javaType="java.math.BigInteger"/>
+            <arg column="expected_sha256" javaType="java.lang.String"/><arg column="received_size" javaType="java.math.BigInteger"/>
+            <arg column="media_type" javaType="java.lang.String"/><arg column="object_key" javaType="java.lang.String"/>
+            <arg column="object_key_sha256" javaType="java.lang.String"/><arg column="max_part_bytes" javaType="java.math.BigInteger"/>
+            <arg column="expires_at" javaType="java.time.LocalDateTime"/><arg column="state" javaType="java.lang.String"/>
+            <arg column="object_version" javaType="java.lang.String"/><arg column="content_sha256" javaType="java.lang.String"/>
+            <arg column="object_ref" javaType="java.lang.String"/><arg column="schema_version" javaType="java.lang.String"/>
+            <arg column="schema_manifest_sha256" javaType="java.lang.String"/><arg column="created_by" javaType="java.lang.String"/>
+            <arg column="created_at" javaType="java.time.LocalDateTime"/><arg column="classification" javaType="java.lang.String"/>
+            <arg column="revision" javaType="java.math.BigInteger"/><arg column="updated_at" javaType="java.time.LocalDateTime"/>
+        </constructor>
+    </resultMap>
+    <resultMap id="partRow" type="com.ruoyi.medical.persistence.UploadTransferProtocol$PartRow">
+        <constructor>
+            <arg column="tenant_id" javaType="java.lang.String"/><arg column="project_id" javaType="java.lang.String"/>
+            <arg column="upload_id" javaType="java.lang.String"/><arg column="part_no" javaType="java.lang.Long"/>
+            <arg column="write_id" javaType="java.lang.String"/><arg column="total_size" javaType="java.math.BigInteger"/>
+            <arg column="max_part_bytes" javaType="java.math.BigInteger"/><arg column="start_byte" javaType="java.math.BigInteger"/>
+            <arg column="end_byte" javaType="java.math.BigInteger"/><arg column="size_bytes" javaType="java.math.BigInteger"/>
+            <arg column="sha256" javaType="java.lang.String"/><arg column="object_key" javaType="java.lang.String"/>
+            <arg column="object_key_sha256" javaType="java.lang.String"/><arg column="state" javaType="java.lang.String"/>
+            <arg column="object_version" javaType="java.lang.String"/><arg column="object_ref" javaType="java.lang.String"/>
+            <arg column="schema_version" javaType="java.lang.String"/><arg column="schema_manifest_sha256" javaType="java.lang.String"/>
+            <arg column="created_by" javaType="java.lang.String"/><arg column="created_at" javaType="java.time.LocalDateTime"/>
+            <arg column="classification" javaType="java.lang.String"/><arg column="revision" javaType="java.math.BigInteger"/>
+            <arg column="updated_at" javaType="java.time.LocalDateTime"/>
+        </constructor>
+    </resultMap>
+    <resultMap id="bindingRow" type="com.ruoyi.medical.persistence.UploadTransferProtocol$BindingRow">
+        <constructor>
+            <arg column="tenant_id" javaType="java.lang.String"/><arg column="project_id" javaType="java.lang.String"/>
+            <arg column="grant_id" javaType="java.lang.String"/><arg column="upload_id" javaType="java.lang.String"/>
+            <arg column="subject_id" javaType="java.lang.String"/><arg column="purpose" javaType="java.lang.String"/>
+            <arg column="document_id" javaType="java.lang.String"/><arg column="run_id" javaType="java.lang.String"/>
+            <arg column="step_id" javaType="java.lang.String"/><arg column="expected_revision" javaType="java.math.BigInteger"/>
+            <arg column="context_revision" javaType="java.math.BigInteger"/><arg column="principal_id" javaType="java.lang.String"/>
+            <arg column="lease_generation" javaType="java.math.BigInteger"/><arg column="dependency_access_set_id" javaType="java.lang.String"/>
+            <arg column="dependency_manifest_sha256" javaType="java.lang.String"/><arg column="schema_document_sha256" javaType="java.lang.String"/>
+            <arg column="authorization_manifest" javaType="java.lang.String"/><arg column="authorization_sha256" javaType="java.lang.String"/>
+            <arg column="schema_version" javaType="java.lang.String"/><arg column="schema_manifest_sha256" javaType="java.lang.String"/>
+            <arg column="created_by" javaType="java.lang.String"/><arg column="created_at" javaType="java.time.LocalDateTime"/>
+            <arg column="classification" javaType="java.lang.String"/>
+        </constructor>
+    </resultMap>
+    <resultMap id="grantRow" type="com.ruoyi.medical.persistence.UploadTransferProtocol$GrantRow">
+        <constructor>
+            <arg column="tenant_id" javaType="java.lang.String"/><arg column="project_id" javaType="java.lang.String"/>
+            <arg column="grant_id" javaType="java.lang.String"/><arg column="subject_id" javaType="java.lang.String"/>
+            <arg column="purpose" javaType="java.lang.String"/><arg column="document_id" javaType="java.lang.String"/>
+            <arg column="run_id" javaType="java.lang.String"/><arg column="step_id" javaType="java.lang.String"/>
+            <arg column="object_key" javaType="java.lang.String"/><arg column="object_version" javaType="java.lang.String"/>
+            <arg column="object_identity_sha256" javaType="java.lang.String"/><arg column="sha256" javaType="java.lang.String"/>
+            <arg column="size_bytes" javaType="java.math.BigInteger"/><arg column="media_type" javaType="java.lang.String"/>
+            <arg column="schema_ref" javaType="java.lang.String"/><arg column="expires_at" javaType="java.time.LocalDateTime"/>
+            <arg column="status" javaType="java.lang.String"/><arg column="artifact_id" javaType="java.lang.String"/>
+            <arg column="created_by" javaType="java.lang.String"/><arg column="created_at" javaType="java.time.LocalDateTime"/>
+            <arg column="classification" javaType="java.lang.String"/><arg column="revision" javaType="java.math.BigInteger"/>
+            <arg column="updated_at" javaType="java.time.LocalDateTime"/>
+        </constructor>
+    </resultMap>
+    <resultMap id="sourceRow" type="com.ruoyi.medical.persistence.UploadTransferProtocol$SourceRow">
+        <constructor>
+            <arg column="tenant_id" javaType="java.lang.String"/><arg column="project_id" javaType="java.lang.String"/>
+            <arg column="upload_id" javaType="java.lang.String"/><arg column="batch_id" javaType="java.lang.String"/>
+            <arg column="session_id" javaType="java.lang.String"/><arg column="ownership" javaType="java.lang.String"/>
+            <arg column="file_name" javaType="java.lang.String"/><arg column="expected_size" javaType="java.math.BigInteger"/>
+            <arg column="received_size" javaType="java.math.BigInteger"/><arg column="expected_sha256" javaType="java.lang.String"/>
+            <arg column="actual_sha256" javaType="java.lang.String"/><arg column="object_ref" javaType="java.lang.String"/>
+            <arg column="status" javaType="java.lang.String"/><arg column="expires_at" javaType="java.time.LocalDateTime"/>
+            <arg column="schema_version" javaType="java.lang.String"/><arg column="schema_manifest_sha256" javaType="java.lang.String"/>
+            <arg column="created_by" javaType="java.lang.String"/><arg column="created_at" javaType="java.time.LocalDateTime"/>
+            <arg column="classification" javaType="java.lang.String"/><arg column="revision" javaType="java.math.BigInteger"/>
+            <arg column="updated_at" javaType="java.time.LocalDateTime"/>
+        </constructor>
+    </resultMap>
+    <sql id="partColumns">
+        p.tenant_id,p.project_id,p.upload_id,p.part_no,p.write_id,p.total_size,p.max_part_bytes,p.start_byte,p.end_byte,
+        p.size_bytes,p.sha256,p.object_key,p.object_key_sha256,p.state,p.object_version,p.object_ref,p.schema_version,
+        p.schema_manifest_sha256,p.created_by,p.created_at,p.classification,p.revision,p.updated_at
+    </sql>
+    <sql id="partOwner">
+        JOIN object_upload_session s ON s.tenant_id=p.tenant_id AND s.project_key=p.project_key AND s.upload_id=p.upload_id
+             AND s.expected_size=p.total_size AND s.max_part_bytes=p.max_part_bytes
+    </sql>
+    <sql id="lock"><if test="lock">FOR UPDATE</if></sql>
+    <select id="databaseTime" resultType="java.time.LocalDateTime" useCache="false" flushCache="true">SELECT UTC_TIMESTAMP(6)</select>
+    <select id="storedSize" resultType="java.math.BigInteger" useCache="false" flushCache="true">
+        SELECT COALESCE(SUM(p.size_bytes),0) FROM object_upload_part p <include refid="partOwner"/>
+        WHERE p.upload_id=#{uploadId} AND s.subject_id=#{userId} AND p.state='STORED'
+    </select>
+    <select id="session" resultMap="sessionRow" useCache="false" flushCache="true">
+        SELECT s.tenant_id,s.project_id,s.upload_id,s.subject_id,s.purpose,s.source_upload_id,s.grant_id,s.expected_size,
+               s.expected_sha256,s.received_size,s.media_type,s.object_key,s.object_key_sha256,s.max_part_bytes,s.expires_at,
+               s.state,s.object_version,s.content_sha256,s.object_ref,s.schema_version,s.schema_manifest_sha256,
+               s.created_by,s.created_at,s.classification,s.revision,s.updated_at
+        FROM object_upload_session s WHERE s.upload_id=#{uploadId} AND s.subject_id=#{userId}<include refid="lock"/>
+    </select>
+    <select id="part" resultMap="partRow" useCache="false" flushCache="true">
+        SELECT <include refid="partColumns"/> FROM object_upload_part p <include refid="partOwner"/>
+        WHERE p.upload_id=#{uploadId} AND p.part_no=#{partNo} AND s.subject_id=#{userId}<include refid="lock"/>
+    </select>
+    <select id="parts" resultMap="partRow" useCache="false" flushCache="true">
+        SELECT <include refid="partColumns"/> FROM object_upload_part p <include refid="partOwner"/>
+        WHERE p.upload_id=#{uploadId} AND p.part_no &gt; #{afterPart} AND s.subject_id=#{userId}
+        ORDER BY p.part_no LIMIT #{limit}<include refid="lock"/>
+    </select>
+    <select id="binding" resultMap="bindingRow" useCache="false" flushCache="true">
+        SELECT b.tenant_id,b.project_id,b.grant_id,b.upload_id,b.subject_id,b.purpose,b.document_id,b.run_id,b.step_id,
+               b.expected_revision,b.context_revision,b.principal_id,b.lease_generation,b.dependency_access_set_id,
+               b.dependency_manifest_sha256,b.schema_document_sha256,b.authorization_manifest,b.authorization_sha256,
+               b.schema_version,b.schema_manifest_sha256,b.created_by,b.created_at,b.classification
+        FROM artifact_upload_binding b JOIN object_upload_session s
+          ON s.tenant_id=b.tenant_id AND s.project_key=b.project_key AND s.upload_id=b.upload_id
+             AND s.grant_id=b.grant_id AND s.subject_id=b.subject_id AND s.purpose=b.purpose
+        WHERE s.upload_id=#{uploadId} AND s.subject_id=#{userId}<include refid="lock"/>
+    </select>
+    <select id="grant" resultMap="grantRow" useCache="false" flushCache="true">
+        SELECT g.tenant_id,g.project_id,g.grant_id,g.subject_id,g.purpose,g.document_id,g.run_id,g.step_id,g.object_key,
+               g.object_version,g.object_identity_sha256,g.sha256,g.size_bytes,g.media_type,g.schema_ref,g.expires_at,
+               g.status,g.artifact_id,g.created_by,g.created_at,g.classification,g.revision,g.updated_at
+        FROM artifact_upload_grant g JOIN object_upload_session s
+          ON s.tenant_id=g.tenant_id AND s.project_key=g.project_key AND s.grant_id=g.grant_id
+             AND s.subject_id=g.subject_id AND s.purpose=g.purpose
+        WHERE s.upload_id=#{uploadId} AND s.subject_id=#{userId}<include refid="lock"/>
+    </select>
+    <select id="source" resultMap="sourceRow" useCache="false" flushCache="true">
+        SELECT u.tenant_id,u.project_id,u.upload_id,u.batch_id,u.session_id,u.ownership,u.file_name,u.expected_size,
+               u.received_size,u.expected_sha256,u.actual_sha256,u.object_ref,u.status,u.expires_at,u.schema_version,
+               u.schema_manifest_sha256,u.created_by,u.created_at,u.classification,u.revision,u.updated_at
+        FROM upload_item u JOIN object_upload_session s
+          ON s.tenant_id=u.tenant_id AND s.project_id=u.project_id AND s.source_upload_id=u.upload_id AND s.purpose='SOURCE'
+        WHERE s.upload_id=#{uploadId} AND s.subject_id=#{userId}<include refid="lock"/>
+    </select>
+    <insert id="saveSession">
+        INSERT INTO object_upload_session (project_id,upload_id,subject_id,purpose,source_upload_id,grant_id,expected_size,
+            expected_sha256,received_size,media_type,object_key,object_key_sha256,max_part_bytes,expires_at,state,
+            object_version,content_sha256,object_ref,schema_version,schema_manifest_sha256,created_by,created_at,
+            classification,revision,updated_at)
+        VALUES (#{row.projectId},#{row.uploadId},#{userId},#{row.purpose},#{row.sourceUploadId},#{row.grantId},#{row.expectedSize},
+            #{row.expectedSha256},#{row.receivedSize},#{row.mediaType},#{row.objectKey},#{row.objectKeySha256},#{row.maxPartBytes},
+            #{row.expiresAt},#{row.state},#{row.objectVersion},#{row.contentSha256},#{row.objectRef},#{row.schemaVersion},
+            #{row.schemaManifestSha256},#{userId},#{row.createdAt},#{row.classification},#{row.revision},#{row.updatedAt})
+    </insert>
+    <insert id="savePart">
+        INSERT INTO object_upload_part (project_id,upload_id,part_no,write_id,total_size,max_part_bytes,start_byte,end_byte,
+            size_bytes,sha256,object_key,object_key_sha256,state,object_version,object_ref,schema_version,
+            schema_manifest_sha256,created_by,created_at,classification,revision,updated_at)
+        VALUES (#{row.projectId},#{row.uploadId},#{row.partNo},#{row.writeId},#{row.totalSize},#{row.maxPartBytes},#{row.startByte},
+            #{row.endByte},#{row.sizeBytes},#{row.sha256},#{row.objectKey},#{row.objectKeySha256},#{row.state},#{row.objectVersion},
+            #{row.objectRef},#{row.schemaVersion},#{row.schemaManifestSha256},#{userId},#{row.createdAt},#{row.classification},
+            #{row.revision},#{row.updatedAt})
+    </insert>
+    <insert id="saveBinding">
+        INSERT INTO artifact_upload_binding (project_id,grant_id,upload_id,subject_id,purpose,document_id,run_id,step_id,
+            expected_revision,context_revision,principal_id,lease_generation,dependency_access_set_id,
+            dependency_manifest_sha256,schema_document_sha256,authorization_manifest,authorization_sha256,
+            schema_version,schema_manifest_sha256,created_by,created_at,classification)
+        VALUES (#{row.projectId},#{row.grantId},#{row.uploadId},#{userId},#{row.purpose},#{row.documentId},#{row.runId},#{row.stepId},
+            #{row.expectedRevision},#{row.contextRevision},#{row.principalId},#{row.leaseGeneration},#{row.dependencyAccessSetId},
+            #{row.dependencyManifestSha256},#{row.schemaDocumentSha256},#{row.authorizationManifest},#{row.authorizationSha256},
+            #{row.schemaVersion},#{row.schemaManifestSha256},#{userId},#{row.createdAt},#{row.classification})
+    </insert>
+    <insert id="saveGrant">
+        INSERT INTO artifact_upload_grant (project_id,grant_id,subject_id,purpose,document_id,run_id,step_id,object_key,
+            object_version,object_identity_sha256,sha256,size_bytes,media_type,schema_ref,expires_at,status,artifact_id,
+            created_by,created_at,classification,revision,updated_at)
+        VALUES (#{row.projectId},#{row.grantId},#{userId},#{row.purpose},#{row.documentId},#{row.runId},#{row.stepId},#{row.objectKey},
+            #{row.objectVersion},#{row.objectIdentitySha256},#{row.sha256},#{row.sizeBytes},#{row.mediaType},#{row.schemaRef},
+            #{row.expiresAt},#{row.status},#{row.artifactId},#{userId},#{row.createdAt},#{row.classification},#{row.revision},#{row.updatedAt})
+    </insert>
+    <sql id="activePart">
+        p.upload_id=#{uploadId} AND p.part_no=#{partNo} AND p.write_id=#{writeId} AND p.revision=#{expected}
+        AND EXISTS (SELECT 1 FROM object_upload_session s
+                    WHERE s.tenant_id=p.tenant_id AND s.project_key=p.project_key AND s.upload_id=p.upload_id
+                      AND s.expected_size=p.total_size AND s.max_part_bytes=p.max_part_bytes
+                      AND s.subject_id=#{userId} AND s.state='ACTIVE' AND s.expires_at &gt; UTC_TIMESTAMP(6))
+    </sql>
+    <update id="beginPart">
+        UPDATE object_upload_part p
+        SET p.state='WRITING',p.revision=p.revision+1,p.updated_at=UTC_TIMESTAMP(6)
+        WHERE <include refid="activePart"/> AND p.state='RESERVED'
+    </update>
+    <update id="storePart">
+        UPDATE object_upload_part p
+        SET p.state='STORED',p.object_version=#{objectVersion},p.object_ref=#{objectRef},p.revision=p.revision+1,p.updated_at=UTC_TIMESTAMP(6)
+        WHERE <include refid="activePart"/> AND p.state='WRITING' AND p.object_version IS NULL AND p.object_ref IS NULL
+    </update>
+    <update id="failPart">
+        UPDATE object_upload_part p
+        SET p.state='FAILED',p.revision=p.revision+1,p.updated_at=UTC_TIMESTAMP(6)
+        WHERE <include refid="activePart"/> AND p.state='WRITING' AND p.object_version IS NULL AND p.object_ref IS NULL
+    </update>
+    <update id="receive">
+        UPDATE object_upload_session s
+        SET s.received_size=#{receivedSize},s.revision=s.revision+1,s.updated_at=UTC_TIMESTAMP(6)
+        WHERE s.upload_id=#{uploadId} AND s.subject_id=#{userId} AND s.revision=#{expected}
+          AND s.state='ACTIVE' AND s.expires_at &gt; UTC_TIMESTAMP(6)
+          AND (SELECT COALESCE(SUM(p.size_bytes),0) FROM object_upload_part p WHERE p.tenant_id=s.tenant_id
+               AND p.project_key=s.project_key AND p.upload_id=s.upload_id AND p.state='STORED')=#{receivedSize}
+    </update>
+    <update id="beginCompletion">
+        UPDATE object_upload_session s SET s.state='COMPLETING',s.revision=s.revision+1,s.updated_at=UTC_TIMESTAMP(6)
+        WHERE s.upload_id=#{uploadId} AND s.subject_id=#{userId} AND s.revision=#{expected}
+          AND s.state='ACTIVE' AND s.expires_at &gt; UTC_TIMESTAMP(6) AND s.received_size=s.expected_size
+          AND (SELECT COUNT(*) FROM object_upload_part p WHERE p.tenant_id=s.tenant_id AND p.project_key=s.project_key
+               AND p.upload_id=s.upload_id AND p.state='STORED')=CEILING(s.expected_size/s.max_part_bytes)
+          AND NOT EXISTS (SELECT 1 FROM object_upload_part p WHERE p.tenant_id=s.tenant_id AND p.project_key=s.project_key
+                          AND p.upload_id=s.upload_id AND p.state&lt;&gt;'STORED')
+    </update>
+    <update id="complete">
+        UPDATE object_upload_session s
+        SET s.state='COMPLETED',s.object_version=#{objectVersion},s.content_sha256=#{contentSha256},s.object_ref=#{objectRef},
+            s.revision=s.revision+1,s.updated_at=UTC_TIMESTAMP(6)
+        WHERE s.upload_id=#{uploadId} AND s.subject_id=#{userId} AND s.revision=#{expected}
+          AND s.state='COMPLETING' AND s.expires_at &gt; UTC_TIMESTAMP(6) AND s.received_size=s.expected_size
+          AND s.object_version IS NULL AND s.object_ref IS NULL AND s.content_sha256 IS NULL
+    </update>
+    <update id="cancel">
+        UPDATE object_upload_session s SET s.state='CANCELLED',s.revision=s.revision+1,s.updated_at=UTC_TIMESTAMP(6)
+        WHERE s.upload_id=#{uploadId} AND s.subject_id=#{userId} AND s.revision=#{expected} AND s.state IN ('ACTIVE','COMPLETING')
+    </update>
+    <update id="expire">
+        UPDATE object_upload_session s SET s.state='EXPIRED',s.revision=s.revision+1,s.updated_at=UTC_TIMESTAMP(6)
+        WHERE s.upload_id=#{uploadId} AND s.subject_id=#{userId} AND s.revision=#{expected}
+          AND s.state IN ('ACTIVE','COMPLETING') AND s.expires_at &lt;= UTC_TIMESTAMP(6)
+    </update>
+</mapper>

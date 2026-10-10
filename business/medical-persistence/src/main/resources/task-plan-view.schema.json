@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:task-plan-view:1.0.0",
+  "$ref": "#/$defs/View",
+  "$defs": {
+    "Basis": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "tenant_id", "project_id", "task_id", "task_revision", "snapshot_id", "template_version", "profile_revision", "template_content", "conditions", "completion_rule_ids"],
+      "properties": {
+        "schema_version": {"const": "1.0.0"},
+        "tenant_id": {"$ref": "https://schemas.medical-agent.invalid/1.0.0/backend-design/interfaces.schema.yaml#/$defs/Id"},
+        "project_id": {"$ref": "https://schemas.medical-agent.invalid/1.0.0/backend-design/interfaces.schema.yaml#/$defs/Id"},
+        "task_id": {"$ref": "https://schemas.medical-agent.invalid/1.0.0/backend-design/interfaces.schema.yaml#/$defs/Id"},
+        "task_revision": {"$ref": "https://schemas.medical-agent.invalid/1.0.0/backend-design/interfaces.schema.yaml#/$defs/Id"},
+        "snapshot_id": {"$ref": "https://schemas.medical-agent.invalid/1.0.0/backend-design/interfaces.schema.yaml#/$defs/Id"},
+        "template_version": {"$ref": "https://schemas.medical-agent.invalid/1.0.0/backend-design/interfaces.schema.yaml#/$defs/Id"},
+        "profile_revision": {"$ref": "https://schemas.medical-agent.invalid/1.0.0/backend-design/interfaces.schema.yaml#/$defs/Id"},
+        "template_content": {"$ref": "urn:medical:templates:1.0.0#/$defs/Content"},
+        "conditions": {"type": "array", "items": {"$ref": "urn:medical:template-applicability:1.0.0#/$defs/ConditionResult"}},
+        "completion_rule_ids": {"type": "array", "uniqueItems": true, "items": {"$ref": "https://schemas.medical-agent.invalid/1.0.0/backend-design/interfaces.schema.yaml#/$defs/Id"}}
+      }
+    },
+    "View": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "tenant_id", "project_id", "task_id", "task_revision", "plan_revision", "snapshot_id", "template_version", "profile_revision", "status", "content", "content_sha256", "current_plan_revision", "current_plan_head_revision"],
+      "properties": {
+        "schema_version": {"const": "1.0.0"},
+        "tenant_id": {"$ref": "https://schemas.medical-agent.invalid/1.0.0/backend-design/interfaces.schema.yaml#/$defs/Id"},
+        "project_id": {"$ref": "https://schemas.medical-agent.invalid/1.0.0/backend-design/interfaces.schema.yaml#/$defs/Id"},
+        "task_id": {"$ref": "https://schemas.medical-agent.invalid/1.0.0/backend-design/interfaces.schema.yaml#/$defs/Id"},
+        "task_revision": {"$ref": "https://schemas.medical-agent.invalid/1.0.0/backend-design/interfaces.schema.yaml#/$defs/Id"},
+        "plan_revision": {"$ref": "https://schemas.medical-agent.invalid/1.0.0/backend-design/interfaces.schema.yaml#/$defs/Id"},
+        "snapshot_id": {"$ref": "https://schemas.medical-agent.invalid/1.0.0/backend-design/interfaces.schema.yaml#/$defs/Id"},
+        "template_version": {"$ref": "https://schemas.medical-agent.invalid/1.0.0/backend-design/interfaces.schema.yaml#/$defs/Id"},
+        "profile_revision": {"$ref": "https://schemas.medical-agent.invalid/1.0.0/backend-design/interfaces.schema.yaml#/$defs/Id"},
+        "status": {"enum": ["DRAFT", "CONFIRMED", "SUPERSEDED"]},
+        "content": {"$ref": "https://schemas.medical-agent.invalid/1.0.0/agent-design/artifacts.schema.json#/$defs/PlanCandidate"},
+        "content_sha256": {"$ref": "https://schemas.medical-agent.invalid/1.0.0/backend-design/interfaces.schema.yaml#/$defs/Hash"},
+        "current_plan_revision": {"$ref": "https://schemas.medical-agent.invalid/1.0.0/backend-design/interfaces.schema.yaml#/$defs/NullableId"},
+        "current_plan_head_revision": {"anyOf": [{"$ref": "https://schemas.medical-agent.invalid/1.0.0/backend-design/interfaces.schema.yaml#/$defs/Revision"}, {"type": "null"}]}
+      },
+      "allOf": [{"if": {"properties": {"current_plan_revision": {"type": "null"}}}, "then": {"properties": {"current_plan_head_revision": {"type": "null"}}}, "else": {"properties": {"current_plan_head_revision": {"type": "string", "pattern": "^[1-9][0-9]*$"}}}}]
+    }
+  }
+}

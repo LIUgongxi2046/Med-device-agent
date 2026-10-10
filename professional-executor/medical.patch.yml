@@ -1,0 +1,45 @@
+- insert:
+    - id: medical-professional-executor
+      name: '@medical-agent/professional-executor'
+      inject: [llm, tools, loader]
+      config:
+        schemaRoot: !!js dshHomePath('..')
+        socketPath: !!js dshHomePath('../.build-work/professional.sock')
+        tokenPath: !!js dshHomePath('../.build-work/professional.token')
+        inventoryPath: !!js dshHomePath('../.build-work/professional-inventory.json')
+        role: Planner
+        model: SIMULATION
+        contextWindow: 32768
+        maxOutputTokens: 8192
+        reasoningEfforts: [none]
+        defaultReasoningEffort: none
+        receiveTimeoutMs: 10000
+        streamTimeoutMs: 300000
+        maxResponseBytes: 16777216
+        maxEventCharacters: 1048576
+        cancellationReason: RUN_CANCEL_REQUESTED
+        toolTimeouts:
+          AT-01: 120000
+          AT-02: 60000
+          AT-03: 60000
+          AT-04: 10000
+          AT-05: 300000
+          AT-06: 10000
+          AT-07: 10000
+          AT-08: 10000
+          AT-09: 30000
+          AT-10: 10000
+        allowedPluginNames:
+          - 'cordis:include'
+          - '@deepseek-ai/dsh-sdk-app'
+          - '@deepseek-ai/dsh-sdk-jsonrpc-server'
+          - '@deepseek-ai/cordis-plugin-timer'
+          - '@deepseek-ai/dsh-llm'
+          - '@deepseek-ai/dsh-session'
+          - '@deepseek-ai/dsh-session-projection'
+          - '@deepseek-ai/dsh-system-prompt'
+          - '@deepseek-ai/dsh-tools'
+          - '@deepseek-ai/dsh-agent'
+          - '@deepseek-ai/dsh-agent-loop'
+          - '@deepseek-ai/dsh-session-persistence-jsonl'
+          - '@medical-agent/professional-executor'

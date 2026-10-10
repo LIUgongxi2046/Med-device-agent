@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$ref": "#/$defs/View",
+  "$defs": {
+    "Id": {"type":"string","format":"uuid"},
+    "Revision": {"type":"string","pattern":"^(0|[1-9][0-9]*)$","maxLength":20},
+    "NullableId": {"oneOf":[{"$ref":"#/$defs/Id"},{"type":"null"}]},
+    "Timestamp": {"type":["string","null"],"format":"date-time"},
+    "Operation": {
+      "type":"object","additionalProperties":false,"required":["operation_id","resource_id","status","status_url"],
+      "properties":{"operation_id":{"$ref":"#/$defs/Id"},"resource_id":{"$ref":"#/$defs/Id"},"status":{"const":"COMPLETED"},"status_url":{"type":"string","pattern":"^/api/operations/"}}
+    },
+    "Run": {
+      "type":"object","additionalProperties":false,"required":["run_id","task_id","status","reason_code","revision","dispatch_closed_at","ended_at"],
+      "properties":{
+        "run_id":{"$ref":"#/$defs/Id"},"task_id":{"$ref":"#/$defs/Id"},
+        "status":{"enum":["CANCEL_REQUESTED","CANCELLED","SUCCEEDED","FAILED"]},
+        "reason_code":{"type":["string","null"]},"revision":{"$ref":"#/$defs/Revision"},
+        "dispatch_closed_at":{"$ref":"#/$defs/Timestamp"},"ended_at":{"$ref":"#/$defs/Timestamp"}
+      },
+      "allOf":[{"if":{"properties":{"status":{"const":"CANCEL_REQUESTED"}}},"then":{"properties":{"dispatch_closed_at":{"type":"string"},"ended_at":{"type":"null"}}}}]
+    },
+    "View": {
+      "type":"object","additionalProperties":false,"required":["operation","command_id","run"],
+      "properties":{"operation":{"$ref":"#/$defs/Operation"},"command_id":{"$ref":"#/$defs/NullableId"},"run":{"$ref":"#/$defs/Run"}},
+      "allOf":[{"if":{"properties":{"run":{"properties":{"status":{"const":"CANCEL_REQUESTED"}}}}},"then":{"properties":{"command_id":{"$ref":"#/$defs/Id"}}}}]
+    }
+  }
+}

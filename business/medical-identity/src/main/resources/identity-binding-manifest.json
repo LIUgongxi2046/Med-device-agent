@@ -1,0 +1,7 @@
+{
+  "schema_version": "1.0.0",
+  "schemas": [
+    {"path": "identity-binding.schema.json", "sha256": "b942601c9b7dc36b2ce85d82975e414c809f086e76e30ea0a1e6b8dc5c011237"},
+    {"path": "contracts/catalogue.json", "sha256": "dcd72acbb7a45775373662e0ffe4557030d4740b0afacdee8375e7768e761915"}
+  ]
+}

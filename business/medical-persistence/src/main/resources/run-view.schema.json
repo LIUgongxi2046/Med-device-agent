@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:run-view:1.0.0",
+  "$ref": "#/$defs/View",
+  "$defs": {
+    "Id": {"type":"string","format":"uuid","pattern":"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"},
+    "Revision": {"type":"string","pattern":"^[1-9][0-9]{0,19}$"},
+    "Count": {"type":"string","pattern":"^(0|[1-9][0-9]{0,19})$"},
+    "Money": {"type":"string","pattern":"^(0|[1-9][0-9]{0,15})(\\.[0-9]{1,8})?$"},
+    "NullableId": {"anyOf":[{"$ref":"#/$defs/Id"},{"type":"null"}]},
+    "NullableTime": {"type":["string","null"],"format":"date-time"},
+    "Texts": {"type":"array","uniqueItems":true,"items":{"type":"string","minLength":1}},
+    "Step": {
+      "type":"object","additionalProperties":false,
+      "required":["step_id","role_version","section_id","status","lease_generation","revision"],
+      "properties": {
+        "step_id":{"$ref":"#/$defs/Id"},"role_version":{"$ref":"#/$defs/Id"},"section_id":{"$ref":"#/$defs/NullableId"},
+        "status":{"enum":["PENDING","READY","RUNNING","WAITING_INPUT","SUCCEEDED","FAILED","CANCEL_REQUESTED","CANCELLED","SKIPPED"]},
+        "lease_generation":{"$ref":"#/$defs/Count"},"revision":{"$ref":"#/$defs/Revision"}
+      }
+    },
+    "Waiting": {
+      "type":"object","additionalProperties":false,
+      "required":["waiting_item_id","step_id","action_id","target_revision","reason_code","question","requirement_refs","allowed_resolution_actions","assignee_id","status","resolution_id","revision"],
+      "properties": {
+        "waiting_item_id":{"$ref":"#/$defs/Id"},"step_id":{"$ref":"#/$defs/Id"},"action_id":{"$ref":"#/$defs/Id"},"target_revision":{"$ref":"#/$defs/Id"},
+        "reason_code":{"type":"string","minLength":1,"maxLength":64},"question":{"type":"string","minLength":1},
+        "requirement_refs":{"$ref":"#/$defs/Texts"},"allowed_resolution_actions":{"$ref":"#/$defs/Texts"},
+        "assignee_id":{"$ref":"#/$defs/Id"},"status":{"enum":["WAITING_INPUT","RESOLVED","CANCELLED","SUPERSEDED"]},
+        "resolution_id":{"$ref":"#/$defs/NullableId"},"revision":{"$ref":"#/$defs/Revision"}
+      }
+    },
+    "Invocation": {
+      "type":"object","additionalProperties":false,
+      "required":["invocation_id","step_id","action_id","status","settlement_status","currency","settled_amount","total_tokens","revision"],
+      "properties": {
+        "invocation_id":{"$ref":"#/$defs/Id"},"step_id":{"$ref":"#/$defs/Id"},"action_id":{"$ref":"#/$defs/Id"},
+        "status":{"enum":["RESERVED","DISPATCHING","IN_FLIGHT","SUCCEEDED","FAILED","CANCEL_REQUESTED","CANCELLED","UNKNOWN"]},
+        "settlement_status":{"enum":["PENDING","SETTLED","DISPUTED"]},"currency":{"type":"string","pattern":"^[A-Z]{3}$"},
+        "settled_amount":{"anyOf":[{"$ref":"#/$defs/Money"},{"type":"null"}]},
+        "total_tokens":{"anyOf":[{"$ref":"#/$defs/Count"},{"type":"null"}]},"revision":{"$ref":"#/$defs/Revision"}
+      },
+      "allOf":[{"if":{"properties":{"settlement_status":{"const":"SETTLED"}}},"then":{"properties":{"settled_amount":{"$ref":"#/$defs/Money"}}}}]
+    },
+    "Budget": {
+      "type":"object","additionalProperties":false,"required":["budget_id","budget_revision","spent","reserved","limit","currency"],
+      "properties": {
+        "budget_id":{"$ref":"#/$defs/Id"},"budget_revision":{"$ref":"#/$defs/Id"},"spent":{"$ref":"#/$defs/Money"},
+        "reserved":{"$ref":"#/$defs/Money"},"limit":{"$ref":"#/$defs/Money"},"currency":{"type":"string","pattern":"^[A-Z]{3}$"}
+      }
+    },
+    "View": {
+      "type":"object","additionalProperties":false,
+      "required":["run_id","task_id","task_revision","status","reason_code","steps","waiting_items","inflight_invocations","budget","started_at","ended_at","revision","event_cursor"],
+      "properties": {
+        "run_id":{"$ref":"#/$defs/Id"},"task_id":{"$ref":"#/$defs/Id"},"task_revision":{"$ref":"#/$defs/Id"},
+        "status":{"enum":["QUEUED","RUNNING","WAITING_INPUT","SUCCEEDED","FAILED","CANCEL_REQUESTED","CANCELLED","SUPERSEDED"]},
+        "reason_code":{"type":["string","null"],"minLength":1,"maxLength":64},
+        "steps":{"type":"array","items":{"$ref":"#/$defs/Step"}},"waiting_items":{"type":"array","items":{"$ref":"#/$defs/Waiting"}},
+        "inflight_invocations":{"type":"array","items":{"$ref":"#/$defs/Invocation"}},"budget":{"$ref":"#/$defs/Budget"},
+        "started_at":{"$ref":"#/$defs/NullableTime"},"ended_at":{"$ref":"#/$defs/NullableTime"},"revision":{"$ref":"#/$defs/Revision"},
+        "event_cursor":{"$ref":"#/$defs/NullableId"}
+      }
+    }
+  }
+}

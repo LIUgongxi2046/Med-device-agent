@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:task-plan-return-view:1.0.0",
+  "type": "object", "additionalProperties": false,
+  "required": ["actor_id", "tenant_id", "project_id", "task_id", "target_revision", "expected_revision", "key", "body_sha256", "operation"],
+  "properties": {
+    "actor_id": {"$ref": "urn:medical:task-plan-decision:1.0.0#/$defs/Id"},
+    "tenant_id": {"$ref": "urn:medical:task-plan-decision:1.0.0#/$defs/Id"},
+    "project_id": {"$ref": "urn:medical:task-plan-decision:1.0.0#/$defs/Id"},
+    "task_id": {"$ref": "urn:medical:task-plan-decision:1.0.0#/$defs/Id"},
+    "target_revision": {"$ref": "urn:medical:task-plan-decision:1.0.0#/$defs/Id"},
+    "expected_revision": {"$ref": "urn:medical:task-plan-decision:1.0.0#/$defs/Revision"},
+    "key": {"$ref": "urn:medical:task-plan-decision:1.0.0#/$defs/Id"},
+    "body_sha256": {"$ref": "urn:medical:task-plan-decision:1.0.0#/$defs/Hash"}, "operation": {"const": "TK-04"}
+  }
+}

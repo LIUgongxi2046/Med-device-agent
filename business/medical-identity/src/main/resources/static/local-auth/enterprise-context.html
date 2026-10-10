@@ -1,0 +1,8 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>选择企业空间 · 医疗器械资料平台</title><link rel="stylesheet" href="/local-auth/auth.css"><link rel="stylesheet" href="/local-auth/enterprise-context.css"><script src="/local-auth/enterprise-context.js" type="module"></script></head>
+<body><main class="management"><p class="brand">医疗器械资料平台</p><h1>选择企业空间</h1><a href="/local-auth/account.html">返回当前账户</a><button type="button" data-refresh disabled>重新读取企业身份</button>
+<section data-protected hidden><dl><dt>当前账户</dt><dd data-user></dd><dt>当前企业</dt><dd data-context></dd><dt>上下文版本</dt><dd data-revision></dd><dt>授权水位</dt><dd data-auth-epoch></dd><dt>治理水位</dt><dd data-governance-epoch></dd></dl><h2>本人企业成员身份</h2><div data-memberships></div><p>企业空间只包含当前账户的有效成员身份。企业和成员编号来自服务端登记，项目、资料及签发权限需要分别授权。</p>
+<form data-selection><label for="tenant-id">企业空间</label><select id="tenant-id" name="tenant_id" required disabled><option value="">请选择企业空间</option></select><button type="submit" disabled>确认选择企业</button></form><section data-action-section hidden><h2>当前可用动作</h2><div data-actions></div></section><a href="/local-auth/enterprise-registration.html" data-registration hidden>企业登记申请</a></section>
+<section data-pending hidden><h2>尚未确认的选择请求</h2><p>连接中断以后，请选择原企业并继续提交相同请求。原请求身份与版本保持不变。刷新以后需要重新选择原企业，企业信息不保存在浏览器存储。</p><dl><dt>请求身份</dt><dd data-request-key></dd><dt>原上下文版本</dt><dd data-request-revision></dd></dl><label class="confirmation"><input type="checkbox" data-confirm-resolution>已经核查原选择结果，确认结束该请求</label><button type="button" data-clear-pending disabled>清除已核查请求身份</button></section>
+<p role="status" aria-live="polite" data-status>正在读取企业身份</p></main></body></html>

@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.medical.persistence.mapper.DocumentUploadBasisMapper">
+    <resultMap id="taskRow" type="com.ruoyi.medical.persistence.DocumentUploadBasisProtocol$TaskRow">
+        <constructor>
+            <arg column="tenant_id" javaType="java.lang.String"/><arg column="project_id" javaType="java.lang.String"/>
+            <arg column="task_id" javaType="java.lang.String"/><arg column="status" javaType="java.lang.String"/>
+            <arg column="current_revision" javaType="java.lang.String"/><arg column="owner_id" javaType="java.lang.String"/>
+            <arg column="created_by" javaType="java.lang.String"/><arg column="created_at" javaType="java.time.LocalDateTime"/>
+            <arg column="classification" javaType="java.lang.String"/><arg column="revision" javaType="java.math.BigInteger"/>
+            <arg column="updated_at" javaType="java.time.LocalDateTime"/>
+        </constructor>
+    </resultMap>
+    <resultMap id="taskRevisionRow" type="com.ruoyi.medical.persistence.DocumentUploadBasisProtocol$TaskRevisionRow">
+        <constructor>
+            <arg column="tenant_id" javaType="java.lang.String"/><arg column="project_id" javaType="java.lang.String"/>
+            <arg column="task_revision" javaType="java.lang.String"/><arg column="task_id" javaType="java.lang.String"/>
+            <arg column="profile_revision" javaType="java.lang.String"/><arg column="snapshot_id" javaType="java.lang.String"/>
+            <arg column="template_version" javaType="java.lang.String"/><arg column="agent_release_id" javaType="java.lang.String"/>
+            <arg column="plan_revision" javaType="java.lang.String"/><arg column="parent_revision" javaType="java.lang.String"/>
+            <arg column="reason" javaType="java.lang.String"/><arg column="content_sha256" javaType="java.lang.String"/>
+            <arg column="created_by" javaType="java.lang.String"/><arg column="created_at" javaType="java.time.LocalDateTime"/>
+            <arg column="classification" javaType="java.lang.String"/>
+        </constructor>
+    </resultMap>
+    <resultMap id="planRow" type="com.ruoyi.medical.persistence.DocumentUploadBasisProtocol$PlanRow">
+        <constructor>
+            <arg column="tenant_id" javaType="java.lang.String"/><arg column="project_id" javaType="java.lang.String"/>
+            <arg column="plan_revision" javaType="java.lang.String"/><arg column="task_id" javaType="java.lang.String"/>
+            <arg column="task_revision" javaType="java.lang.String"/><arg column="template_version" javaType="java.lang.String"/>
+            <arg column="snapshot_id" javaType="java.lang.String"/><arg column="status" javaType="java.lang.String"/>
+            <arg column="decision_id" javaType="java.lang.String"/><arg column="content_sha256" javaType="java.lang.String"/>
+            <arg column="created_by" javaType="java.lang.String"/><arg column="created_at" javaType="java.time.LocalDateTime"/>
+            <arg column="classification" javaType="java.lang.String"/>
+        </constructor>
+    </resultMap>
+    <resultMap id="snapshotRow" type="com.ruoyi.medical.persistence.DocumentUploadBasisProtocol$SnapshotRow">
+        <constructor>
+            <arg column="tenant_id" javaType="java.lang.String"/><arg column="project_id" javaType="java.lang.String"/>
+            <arg column="snapshot_id" javaType="java.lang.String"/><arg column="manifest" javaType="java.lang.String"/>
+            <arg column="manifest_sha256" javaType="java.lang.String"/><arg column="auth_epoch" javaType="java.math.BigInteger"/>
+            <arg column="governance_epoch" javaType="java.math.BigInteger"/><arg column="created_at" javaType="java.time.LocalDateTime"/>
+        </constructor>
+    </resultMap>
+    <resultMap id="memberRow" type="com.ruoyi.medical.persistence.DocumentUploadBasisProtocol$MemberRow">
+        <constructor>
+            <arg column="tenant_id" javaType="java.lang.String"/><arg column="project_id" javaType="java.lang.String"/>
+            <arg column="snapshot_id" javaType="java.lang.String"/><arg column="source_id" javaType="java.lang.String"/>
+            <arg column="source_version" javaType="java.lang.String"/><arg column="parse_version" javaType="java.lang.String"/>
+            <arg column="index_version" javaType="java.lang.String"/><arg column="approval_revision" javaType="java.lang.String"/>
+            <arg column="binding_revision" javaType="java.lang.String"/>
+        </constructor>
+    </resultMap>
+    <sql id="taskJoin">
+        FROM document_head d JOIN task_head t ON t.tenant_id=d.tenant_id AND t.project_id=d.project_id AND t.task_id=d.task_id
+        JOIN tenant_member m ON m.tenant_id=d.tenant_id AND m.user_id=#{userId} AND m.status='ACTIVE'
+          AND m.valid_from &lt;= UTC_TIMESTAMP(6) AND (m.valid_to IS NULL OR m.valid_to &gt; UTC_TIMESTAMP(6))
+    </sql>
+    <sql id="revisionJoin">
+        JOIN task_revision r ON r.tenant_id=t.tenant_id AND r.project_id=t.project_id AND r.task_id=t.task_id AND r.task_revision=t.current_revision
+    </sql>
+    <sql id="snapshotJoin">
+        JOIN scope_snapshot ss ON ss.tenant_id=r.tenant_id AND ss.project_id=r.project_id AND ss.snapshot_id=r.snapshot_id
+    </sql>
+    <sql id="whereDocument">WHERE d.document_id=#{documentId}</sql>
+    <sql id="lock"><if test="lock">FOR UPDATE</if></sql>
+    <select id="task" resultMap="taskRow" useCache="false" flushCache="true">
+        SELECT t.tenant_id,t.project_id,t.task_id,t.status,t.current_revision,t.owner_id,t.created_by,t.created_at,t.classification,t.revision,t.updated_at
+        <include refid="taskJoin"/><include refid="whereDocument"/><include refid="lock"/>
+    </select>
+    <select id="taskRevision" resultMap="taskRevisionRow" useCache="false" flushCache="true">
+        SELECT r.tenant_id,r.project_id,r.task_revision,r.task_id,r.profile_revision,r.snapshot_id,r.template_version,r.agent_release_id,
+               r.plan_revision,r.parent_revision,r.reason,r.content_sha256,r.created_by,r.created_at,r.classification
+        <include refid="taskJoin"/><include refid="revisionJoin"/><include refid="whereDocument"/><include refid="lock"/>
+    </select>
+    <select id="plan" resultMap="planRow" useCache="false" flushCache="true">
+        SELECT p.tenant_id,p.project_id,p.plan_revision,p.task_id,p.task_revision,p.template_version,p.snapshot_id,p.status,p.decision_id,
+               p.content_sha256,p.created_by,p.created_at,p.classification
+        <include refid="taskJoin"/><include refid="revisionJoin"/>
+        JOIN plan_revision p ON p.tenant_id=r.tenant_id AND p.project_id=r.project_id AND p.task_id=r.task_id AND p.task_revision=r.task_revision
+          AND p.plan_revision=r.plan_revision AND p.template_version=r.template_version AND p.snapshot_id=r.snapshot_id
+        <include refid="whereDocument"/><include refid="lock"/>
+    </select>
+    <select id="snapshot" resultMap="snapshotRow" useCache="false" flushCache="true">
+        SELECT ss.tenant_id,ss.project_id,ss.snapshot_id,ss.manifest,ss.manifest_sha256,ss.auth_epoch,ss.governance_epoch,ss.created_at
+        <include refid="taskJoin"/><include refid="revisionJoin"/><include refid="snapshotJoin"/>
+        <include refid="whereDocument"/><include refid="lock"/>
+    </select>
+    <select id="members" resultMap="memberRow" useCache="false" flushCache="true">
+        SELECT sm.tenant_id,sm.project_id,sm.snapshot_id,sm.source_id,sm.source_version,sm.parse_version,sm.index_version,sm.approval_revision,sm.binding_revision
+        <include refid="taskJoin"/><include refid="revisionJoin"/><include refid="snapshotJoin"/>
+        JOIN scope_member sm ON sm.tenant_id=ss.tenant_id AND sm.project_id=ss.project_id AND sm.snapshot_id=ss.snapshot_id
+        <include refid="whereDocument"/>ORDER BY sm.source_version,sm.parse_version LIMIT #{limit}<include refid="lock"/>
+    </select>
+</mapper>

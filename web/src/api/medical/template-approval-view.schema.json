@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:template-approval-view:1.0.0",
+  "type": "object", "additionalProperties": false,
+  "required": ["actor", "tenant_id", "template_version", "operation", "key", "context", "expected_revision", "decision", "body_sha256", "content_sha256"],
+  "properties": {
+    "actor": {"$ref": "urn:medical:template-approval:1.0.0#/$defs/Id"},
+    "tenant_id": {"$ref": "urn:medical:template-approval:1.0.0#/$defs/Id"},
+    "template_version": {"$ref": "urn:medical:template-approval:1.0.0#/$defs/Id"},
+    "operation": {"const": "TP-02"}, "key": {"$ref": "urn:medical:template-approval:1.0.0#/$defs/Id"},
+    "context": {"$ref": "urn:medical:template-approval:1.0.0#/$defs/Context"},
+    "expected_revision": {"$ref": "urn:medical:template-approval:1.0.0#/$defs/Revision"},
+    "decision": {"enum": ["APPROVE", "RETURN", "DISABLE"]},
+    "body_sha256": {"$ref": "urn:medical:template-approval:1.0.0#/$defs/Hash"},
+    "content_sha256": {"$ref": "urn:medical:template-approval:1.0.0#/$defs/Hash"}
+  }
+}

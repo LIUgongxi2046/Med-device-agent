@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.medical.persistence.mapper.AgentReleaseMapper">
+    <resultMap id="release" type="com.ruoyi.medical.persistence.AgentReleaseStoredProtocol$ReleaseRow">
+        <constructor>
+            <arg column="tenant_id" javaType="java.lang.String"/><arg column="project_id" javaType="java.lang.String"/>
+            <arg column="release_id" javaType="java.lang.String"/><arg column="agent_version_id" javaType="java.lang.String"/>
+            <arg column="manifest_artifact_id" javaType="java.lang.String"/><arg column="manifest" javaType="java.lang.String"/>
+            <arg column="manifest_sha256" javaType="java.lang.String"/><arg column="content_sha256" javaType="java.lang.String"/>
+            <arg column="approved_by" javaType="java.lang.String"/><arg column="released_at" javaType="java.time.LocalDateTime"/>
+            <arg column="schema_version" javaType="java.lang.String"/><arg column="schema_manifest_sha256" javaType="java.lang.String"/>
+            <arg column="created_by" javaType="java.lang.String"/><arg column="created_at" javaType="java.time.LocalDateTime"/>
+            <arg column="classification" javaType="java.lang.String"/><arg column="registered_project_id" javaType="java.lang.String"/>
+            <arg column="registered_kind" javaType="java.lang.String"/><arg column="registered_sha256" javaType="java.lang.String"/>
+        </constructor>
+    </resultMap>
+    <resultMap id="agent" type="com.ruoyi.medical.persistence.AgentReleaseStoredProtocol$AgentRow">
+        <constructor>
+            <arg column="tenant_id" javaType="java.lang.String"/><arg column="project_id" javaType="java.lang.String"/>
+            <arg column="agent_version_id" javaType="java.lang.String"/><arg column="agent_id" javaType="java.lang.String"/>
+            <arg column="status" javaType="java.lang.String"/><arg column="dependency_manifest" javaType="java.lang.String"/>
+            <arg column="limits" javaType="java.lang.String"/><arg column="evaluation_id" javaType="java.lang.String"/>
+            <arg column="content_sha256" javaType="java.lang.String"/><arg column="schema_version" javaType="java.lang.String"/>
+            <arg column="schema_manifest_sha256" javaType="java.lang.String"/><arg column="created_by" javaType="java.lang.String"/>
+            <arg column="created_at" javaType="java.time.LocalDateTime"/><arg column="classification" javaType="java.lang.String"/>
+            <arg column="revision" javaType="java.math.BigInteger"/><arg column="updated_at" javaType="java.time.LocalDateTime"/>
+            <arg column="registered_project_id" javaType="java.lang.String"/><arg column="registered_kind" javaType="java.lang.String"/>
+            <arg column="registered_sha256" javaType="java.lang.String"/>
+        </constructor>
+    </resultMap>
+    <resultMap id="evaluation" type="com.ruoyi.medical.persistence.AgentReleaseStoredProtocol$EvaluationRow">
+        <constructor>
+            <arg column="tenant_id" javaType="java.lang.String"/><arg column="project_id" javaType="java.lang.String"/>
+            <arg column="evaluation_id" javaType="java.lang.String"/><arg column="dataset_version" javaType="java.lang.String"/>
+            <arg column="sample_manifest" javaType="java.lang.String"/><arg column="sample_manifest_artifact_id" javaType="java.lang.String"/>
+            <arg column="rule_revision" javaType="java.lang.String"/><arg column="release_candidates" javaType="java.lang.String"/>
+            <arg column="authorized_use" javaType="java.lang.String"/><arg column="split_manifest" javaType="java.lang.String"/>
+            <arg column="variance_policy" javaType="java.lang.String"/><arg column="missing_requirements" javaType="java.lang.String"/>
+            <arg column="status" javaType="java.lang.String"/><arg column="content_sha256" javaType="java.lang.String"/>
+            <arg column="schema_version" javaType="java.lang.String"/><arg column="schema_manifest_sha256" javaType="java.lang.String"/>
+            <arg column="created_by" javaType="java.lang.String"/><arg column="created_at" javaType="java.time.LocalDateTime"/>
+            <arg column="classification" javaType="java.lang.String"/><arg column="revision" javaType="java.math.BigInteger"/>
+            <arg column="updated_at" javaType="java.time.LocalDateTime"/><arg column="registered_project_id" javaType="java.lang.String"/>
+            <arg column="registered_kind" javaType="java.lang.String"/><arg column="registered_sha256" javaType="java.lang.String"/>
+        </constructor>
+    </resultMap>
+    <sql id="registered">v.owner_project_id AS registered_project_id,v.entity_kind AS registered_kind,v.content_sha256 AS registered_sha256</sql>
+    <resultMap id="scope" type="com.ruoyi.medical.persistence.AgentReleaseStoredProtocol$ScopeRow">
+        <constructor>
+            <arg column="tenant_id" javaType="java.lang.String"/><arg column="project_id" javaType="java.lang.String"/>
+            <arg column="scope_revision" javaType="java.lang.String"/><arg column="release_id" javaType="java.lang.String"/>
+            <arg column="audience_manifest" javaType="java.lang.String"/><arg column="status" javaType="java.lang.String"/>
+            <arg column="content_sha256" javaType="java.lang.String"/><arg column="schema_version" javaType="java.lang.String"/>
+            <arg column="schema_manifest_sha256" javaType="java.lang.String"/><arg column="created_by" javaType="java.lang.String"/>
+            <arg column="created_at" javaType="java.time.LocalDateTime"/><arg column="classification" javaType="java.lang.String"/>
+            <arg column="revision" javaType="java.math.BigInteger"/><arg column="updated_at" javaType="java.time.LocalDateTime"/>
+            <arg column="registered_project_id" javaType="java.lang.String"/><arg column="registered_kind" javaType="java.lang.String"/>
+            <arg column="registered_sha256" javaType="java.lang.String"/>
+        </constructor>
+    </resultMap>
+    <resultMap id="origin" type="com.ruoyi.medical.persistence.AgentReleaseStoredProtocol$RoleOrigin">
+        <constructor>
+            <arg column="grant_id" javaType="java.lang.String"/><arg column="role_version" javaType="java.lang.String"/>
+            <arg column="role_id" javaType="java.lang.String"/><arg column="invitation_id" javaType="java.lang.String"/>
+        </constructor>
+    </resultMap>
+    <select id="release" resultMap="release" useCache="false" flushCache="true">
+        SELECT r.tenant_id,r.project_id,r.release_id,r.agent_version_id,r.manifest_artifact_id,r.manifest,r.manifest_sha256,
+            r.content_sha256,r.approved_by,r.released_at,r.schema_version,r.schema_manifest_sha256,r.created_by,r.created_at,
+            r.classification,<include refid="registered"/>
+        FROM release_record r JOIN version_registry v ON v.tenant_id=r.tenant_id AND v.version_id=r.release_id
+        WHERE r.release_id=#{id} FOR UPDATE
+    </select>
+    <select id="agent" resultMap="agent" useCache="false" flushCache="true">
+        SELECT a.tenant_id,a.project_id,a.agent_version_id,a.agent_id,a.status,a.dependency_manifest,a.limits,a.evaluation_id,
+            a.content_sha256,a.schema_version,a.schema_manifest_sha256,a.created_by,a.created_at,a.classification,a.revision,
+            a.updated_at,<include refid="registered"/>
+        FROM agent_version a JOIN version_registry v ON v.tenant_id=a.tenant_id AND v.version_id=a.agent_version_id
+        WHERE a.agent_version_id=#{id} FOR UPDATE
+    </select>
+    <select id="evaluation" resultMap="evaluation" useCache="false" flushCache="true">
+        SELECT e.tenant_id,e.project_id,e.evaluation_id,e.dataset_version,e.sample_manifest,e.sample_manifest_artifact_id,
+            e.rule_revision,e.release_candidates,e.authorized_use,e.split_manifest,e.variance_policy,e.missing_requirements,
+            e.status,e.content_sha256,e.schema_version,e.schema_manifest_sha256,e.created_by,e.created_at,e.classification,
+            e.revision,e.updated_at,<include refid="registered"/>
+        FROM evaluation_batch e JOIN version_registry v ON v.tenant_id=e.tenant_id AND v.version_id=e.evaluation_id
+        WHERE e.evaluation_id=#{id} FOR UPDATE
+    </select>
+    <select id="scopes" resultMap="scope" useCache="false" flushCache="true">
+        SELECT s.tenant_id,s.project_id,s.scope_revision,s.release_id,s.audience_manifest,s.status,s.content_sha256,
+            s.schema_version,s.schema_manifest_sha256,s.created_by,s.created_at,s.classification,s.revision,s.updated_at,
+            <include refid="registered"/>
+        FROM release_scope s JOIN version_registry v ON v.tenant_id=s.tenant_id AND v.version_id=s.scope_revision
+        WHERE s.release_id=#{id} AND s.status='ACTIVE' AND (s.project_id IS NULL OR s.project_id=#{projectId})
+        ORDER BY s.scope_revision LIMIT #{limit} FOR UPDATE
+    </select>
+    <select id="roleOrigins" resultMap="origin" useCache="false" flushCache="true">
+        SELECT o.grant_id,o.role_version,r.role_id,o.invitation_id FROM member_role_grant o
+        JOIN permission_grant g ON g.tenant_id=o.tenant_id AND g.grant_id=o.grant_id
+        JOIN enterprise_role_version r ON r.tenant_id=o.tenant_id AND r.version_id=o.role_version
+        JOIN member_invitation i ON i.tenant_id=o.tenant_id AND i.invitation_id=o.invitation_id
+        WHERE g.subject_id=#{userId} AND g.action=#{action} AND g.status='ACTIVE'
+            AND (g.project_id IS NULL OR g.project_id=#{projectId})
+            AND g.valid_from &lt;= UTC_TIMESTAMP(6) AND (g.valid_to IS NULL OR g.valid_to &gt; UTC_TIMESTAMP(6))
+            AND r.status='ACTIVE' AND r.valid_from &lt;= UTC_TIMESTAMP(6) AND (r.valid_to IS NULL OR r.valid_to &gt; UTC_TIMESTAMP(6))
+            AND i.user_id=g.subject_id AND i.status='ACCEPTED' AND r.role_id IN
+            <foreach collection="roleIds" item="role" open="(" separator="," close=")">#{role}</foreach>
+        ORDER BY o.grant_id LIMIT #{limit} FOR UPDATE
+    </select>
+</mapper>

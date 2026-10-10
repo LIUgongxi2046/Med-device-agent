@@ -1,0 +1,10 @@
+asset_id,generation_tool,prompt_summary,source_image_path,output_file_path
+scene_document,image_gen.imagegen,蓝白等距立体文档册与钢笔；提示词见assets/scene-prompts.md,assets/scenes/scene-document.png,assets/scenes/scene-document.png
+scene_quality,image_gen.imagegen,蓝白检查页盾牌与放大镜；提示词见assets/scene-prompts.md,assets/scenes/scene-quality.png,assets/scenes/scene-quality.png
+scene_regulation,image_gen.imagegen,并列法规册与条款连接；提示词见assets/scene-prompts.md,assets/scenes/scene-regulation.png,assets/scenes/scene-regulation.png
+scene_report,image_gen.imagegen,研究报告与立体图表；提示词见assets/scene-prompts.md,assets/scenes/scene-report.png,assets/scenes/scene-report.png
+scene_translation,image_gen.imagegen,语言卡片与转换轨道；提示词见assets/scene-prompts.md,assets/scenes/scene-translation.png,assets/scenes/scene-translation.png
+scene_market,image_gen.imagegen,地球与商业分析图表；提示词见assets/scene-prompts.md,assets/scenes/scene-market.png,assets/scenes/scene-market.png
+scene_question,image_gen.imagegen,对话气泡及图片文档音频；提示词见assets/scene-prompts.md,assets/scenes/scene-question.png,assets/scenes/scene-question.png
+brand_mark_master,OpenAI image generation,透明背景的医疗合规文档盾牌图形；深蓝绿色几何标识，无文字；源文件为原始生成文件,assets/master/medical-agent-brand.png,assets/master/medical-agent-brand.png
+gru_avatar_master,OpenAI image generation built-in,透明背景的原创拟人男性 Gru；短深蓝黑发与蓝白衣装及智能耳机；正面头肩构图；完整提示词见 assets/gru-prompt.md,assets/master/gru-avatar-human.png,assets/master/gru-avatar-human.png

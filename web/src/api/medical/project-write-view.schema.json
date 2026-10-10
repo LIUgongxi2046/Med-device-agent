@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:project-write-view:1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["actor", "tenant_id", "operation", "project_id", "key", "context", "body_sha256", "expected_revision", "based_on_profile_revision", "decision"],
+  "properties": {
+    "actor": {"$ref": "#/$defs/Id"},
+    "tenant_id": {"$ref": "#/$defs/Id"},
+    "operation": {"enum": ["PJ-02", "PJ-04", "PJ-05"]},
+    "project_id": {"anyOf": [{"$ref": "#/$defs/Id"}, {"type": "null"}]},
+    "key": {"type": "string", "minLength": 16, "maxLength": 128, "pattern": "^[\\x21-\\x7e]+$"},
+    "context": {"$ref": "urn:medical:projects:1.0.0#/$defs/Context"},
+    "body_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "expected_revision": {"anyOf": [{"$ref": "urn:medical:projects:1.0.0#/$defs/Revision"}, {"type": "null"}]},
+    "based_on_profile_revision": {"anyOf": [{"$ref": "#/$defs/Id"}, {"type": "null"}]},
+    "decision": {"enum": ["CREATE", "REVISE", "ACTIVATE", "PAUSE", "ARCHIVE", "RESTORE"]}
+  },
+  "$defs": {"Id": {"type": "string", "format": "uuid", "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"}},
+  "oneOf": [
+    {"properties": {"operation": {"const": "PJ-02"}, "project_id": {"type": "null"}, "expected_revision": {"type": "null"}, "based_on_profile_revision": {"type": "null"}, "decision": {"const": "CREATE"}}},
+    {"properties": {"operation": {"const": "PJ-04"}, "project_id": {"$ref": "#/$defs/Id"}, "expected_revision": {"type": "string"}, "based_on_profile_revision": {"$ref": "#/$defs/Id"}, "decision": {"const": "REVISE"}}},
+    {"properties": {"operation": {"const": "PJ-05"}, "project_id": {"$ref": "#/$defs/Id"}, "expected_revision": {"type": "string"}, "based_on_profile_revision": {"type": "null"}, "decision": {"enum": ["ACTIVATE", "PAUSE", "ARCHIVE", "RESTORE"]}}}
+  ]
+}

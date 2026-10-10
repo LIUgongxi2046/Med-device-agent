@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:role-write-view:1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["actor", "tenant_id", "role_id", "version_id", "operation", "key", "context", "body_sha256", "expected_revision"],
+  "properties": {
+    "actor": {"$ref": "urn:medical:enterprise-roles:1.0.0#/$defs/Id"},
+    "tenant_id": {"$ref": "urn:medical:enterprise-roles:1.0.0#/$defs/Id"},
+    "role_id": {"$ref": "urn:medical:enterprise-roles:1.0.0#/$defs/Id"},
+    "version_id": {"anyOf": [{"$ref": "urn:medical:enterprise-roles:1.0.0#/$defs/Id"}, {"type": "null"}]},
+    "operation": {"enum": ["ROLE-03", "ROLE-04"]},
+    "key": {"type": "string", "format": "uuid"},
+    "context": {"$ref": "urn:medical:enterprise-roles:1.0.0#/$defs/Context"},
+    "body_sha256": {"$ref": "urn:medical:enterprise-roles:1.0.0#/$defs/Hash"},
+    "expected_revision": {"$ref": "urn:medical:enterprise-roles:1.0.0#/$defs/Revision"}
+  },
+  "oneOf": [
+    {"properties": {"operation": {"const": "ROLE-03"}, "version_id": {"type": "null"}}},
+    {"properties": {"operation": {"const": "ROLE-04"}, "version_id": {"type": "string"}}}
+  ]
+}

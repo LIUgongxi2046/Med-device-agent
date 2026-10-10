@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:task-create-view:1.0.0",
+  "type": "object", "additionalProperties": false,
+  "required": ["actor_id", "tenant_id", "project_id", "key", "body_sha256", "operation"],
+  "properties": {
+    "actor_id": {"$ref": "urn:medical:task-plan-decision:1.0.0#/$defs/Id"},
+    "tenant_id": {"$ref": "urn:medical:task-plan-decision:1.0.0#/$defs/Id"},
+    "project_id": {"$ref": "urn:medical:task-plan-decision:1.0.0#/$defs/Id"},
+    "key": {"$ref": "urn:medical:task-plan-decision:1.0.0#/$defs/Id"},
+    "body_sha256": {"$ref": "urn:medical:task-plan-decision:1.0.0#/$defs/Hash"},
+    "operation": {"const": "TK-01"}
+  }
+}

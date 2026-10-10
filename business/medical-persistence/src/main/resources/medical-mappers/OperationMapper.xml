@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.medical.persistence.mapper.OperationMapper">
+  <resultMap id="operation" type="com.ruoyi.medical.persistence.OperationRow">
+    <constructor>
+      <arg column="operation_id" javaType="java.lang.String"/><arg column="subject_id" javaType="java.lang.String"/>
+      <arg column="target_id" javaType="java.lang.String"/><arg column="state" javaType="java.lang.String"/>
+      <arg column="expired" javaType="_boolean"/>
+    </constructor>
+  </resultMap>
+  <sql id="metadata">
+    operation_id,subject_id,target_id,state,
+    (dedup_expires_at IS NOT NULL AND dedup_policy_revision IS NOT NULL AND dedup_expires_at &lt;= UTC_TIMESTAMP(6)) AS expired
+  </sql>
+  <select id="lookup" resultMap="operation" useCache="false" flushCache="true">
+    SELECT <include refid="metadata"/> FROM operation_record o
+    WHERE subject_id=#{userId} AND operation_name=#{operationName} AND idempotency_key=#{key}
+  </select>
+  <select id="operation" resultMap="operation" useCache="false" flushCache="true">
+    SELECT <include refid="metadata"/> FROM operation_record o WHERE operation_id=#{operationId}
+      AND (subject_id=#{userId} OR #{enterpriseReader}=TRUE)
+  </select>
+  <select id="readers" resultMap="com.ruoyi.medical.persistence.mapper.PermissionMapper.grant" useCache="false" flushCache="true">
+    SELECT grant_id,subject_id,project_id,resource_kind,resource_id,action,`condition`,status,valid_from,valid_to,
+           basis_version,schema_version,schema_manifest_sha256,revision FROM permission_grant g
+    WHERE subject_id=#{userId} AND action='operation.read' AND status='ACTIVE'
+      AND project_id IS NULL AND resource_kind='ENTERPRISE'
+      AND valid_from &lt;= UTC_TIMESTAMP(6) AND (valid_to IS NULL OR valid_to &gt; UTC_TIMESTAMP(6)) ORDER BY grant_id FOR UPDATE
+  </select>
+</mapper>

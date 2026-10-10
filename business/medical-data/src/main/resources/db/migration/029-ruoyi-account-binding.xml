@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.31.xsd">
+    <changeSet id="1.0.0-212-ruoyi-account-id" author="medical-agent" dbms="mysql" runInTransaction="false" failOnError="true">
+        <addColumn tableName="platform_local_account"><column name="ruoyi_user_id" type="BIGINT"/></addColumn>
+    </changeSet>
+    <changeSet id="1.0.0-213-ruoyi-existing-accounts" author="medical-agent" dbms="mysql" runInTransaction="false" failOnError="true">
+        <preConditions onFail="HALT" onError="HALT"><sqlCheck expectedResult="0">SELECT COUNT(*) FROM sys_user</sqlCheck></preConditions>
+        <sql>INSERT INTO sys_user (user_name,nick_name,password,status,del_flag,create_by,create_time,update_time)
+             SELECT username,display_name,password_hash,IF(status='ACTIVE','0','1'),'0',created_by,created_at,updated_at
+             FROM platform_local_account ORDER BY user_id</sql>
+    </changeSet>
+    <changeSet id="1.0.0-214-ruoyi-bind-existing-identities" author="medical-agent" dbms="mysql" runInTransaction="false" failOnError="true">
+        <sql>UPDATE platform_local_account m JOIN sys_user u ON u.user_name=m.username SET m.ruoyi_user_id=u.user_id</sql>
+    </changeSet>
+    <changeSet id="1.0.0-215-ruoyi-account-integrity" author="medical-agent" dbms="mysql" runInTransaction="false" failOnError="true">
+        <preConditions onFail="HALT" onError="HALT"><sqlCheck expectedResult="0">SELECT COUNT(*) FROM platform_local_account m LEFT JOIN sys_user u ON u.user_id=m.ruoyi_user_id WHERE u.user_id IS NULL OR BINARY u.user_name != BINARY m.username OR BINARY u.nick_name != BINARY m.display_name OR BINARY u.password != BINARY m.password_hash OR u.status != IF(m.status='ACTIVE','0','1')</sqlCheck></preConditions>
+        <addNotNullConstraint tableName="platform_local_account" columnName="ruoyi_user_id" columnDataType="BIGINT"/>
+        <addUniqueConstraint tableName="platform_local_account" columnNames="ruoyi_user_id" constraintName="uq_local_ruoyi_identity"/>
+        <addForeignKeyConstraint baseTableName="platform_local_account" baseColumnNames="ruoyi_user_id"
+            referencedTableName="sys_user" referencedColumnNames="user_id" constraintName="fk_local_ruoyi_identity"/>
+    </changeSet>
+    <changeSet id="1.0.0-216-ruoyi-profile-constraints" author="medical-agent" dbms="mysql" runInTransaction="false" failOnError="true">
+        <sql>ALTER TABLE platform_local_account DROP CHECK platform_local_account_chk_1, DROP CHECK platform_local_account_chk_4, DROP INDEX uq_platform_local_username</sql>
+    </changeSet>
+    <changeSet id="1.0.0-217-ruoyi-identity-metadata" author="medical-agent" dbms="mysql" runInTransaction="false" failOnError="true">
+        <renameTable oldTableName="platform_local_account" newTableName="platform_local_identity_metadata"/>
+    </changeSet>
+    <changeSet id="1.0.0-218-ruoyi-account-projection" author="medical-agent" dbms="mysql" runInTransaction="false" failOnError="true">
+        <dropColumn tableName="platform_local_identity_metadata"><column name="username"/><column name="display_name"/><column name="password_hash"/><column name="status"/></dropColumn>
+    </changeSet>
+    <changeSet id="1.0.0-219-ruoyi-directory-view" author="medical-agent" dbms="mysql" runInTransaction="false" failOnError="true">
+        <createView viewName="platform_local_account">SELECT m.user_id,u.user_name AS username,u.password AS password_hash,
+            u.nick_name AS display_name,IF(u.status='0' AND u.del_flag='0','ACTIVE','DISABLED') AS status,
+            m.platform_role,m.failed_attempts,m.locked_until,m.credential_revision,m.created_by,m.created_at,m.classification,
+            m.revision,m.updated_at,m.ruoyi_user_id FROM platform_local_identity_metadata m JOIN sys_user u ON u.user_id=m.ruoyi_user_id</createView>
+    </changeSet>
+</databaseChangeLog>

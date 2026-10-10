@@ -1,0 +1,251 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.medical.persistence.mapper.TaskPlanWriteMapper">
+    <resultMap id="head" type="com.ruoyi.medical.persistence.TaskPlanWriteProtocol$Head">
+        <constructor>
+            <arg column="tenant_id" javaType="java.lang.String"/><arg column="project_id" javaType="java.lang.String"/>
+            <arg column="task_id" javaType="java.lang.String"/><arg column="plan_revision" javaType="java.lang.String"/>
+            <arg column="revision" javaType="java.math.BigInteger"/><arg column="created_by" javaType="java.lang.String"/>
+            <arg column="created_at" javaType="java.time.LocalDateTime"/><arg column="updated_at" javaType="java.time.LocalDateTime"/>
+            <arg column="classification" javaType="java.lang.String"/>
+        </constructor>
+    </resultMap>
+    <resultMap id="operation" type="com.ruoyi.medical.persistence.SelectionOperationRow">
+        <constructor>
+            <arg column="operation_id" javaType="java.lang.String"/><arg column="request_sha256" javaType="java.lang.String"/>
+            <arg column="state" javaType="java.lang.String"/><arg column="http_status" javaType="java.lang.Integer"/>
+            <arg column="response_ref" javaType="java.lang.String"/><arg column="target_id" javaType="java.lang.String"/>
+            <arg column="schema_version" javaType="java.lang.String"/><arg column="schema_manifest_sha256" javaType="java.lang.String"/>
+        </constructor>
+    </resultMap>
+    <select id="currentPlanHead" resultMap="head" useCache="false" flushCache="true">
+        SELECT tenant_id,project_id,task_id,plan_revision,revision,created_by,created_at,updated_at,classification
+        FROM task_plan_head WHERE project_id=#{projectId} AND task_id=#{taskId} FOR UPDATE
+    </select>
+    <select id="operation" resultMap="operation" useCache="false" flushCache="true">
+        SELECT operation_id,request_sha256,state,http_status,response_ref,target_id,schema_version,schema_manifest_sha256
+        FROM operation_record WHERE subject_id=#{userId} AND operation_name=#{operationName} AND idempotency_key=#{key} FOR UPDATE
+    </select>
+    <resultMap id="decision" type="com.ruoyi.medical.persistence.TaskPlanDecisionProtocol$Row">
+        <constructor>
+            <arg column="tenant_id" javaType="java.lang.String"/><arg column="project_id" javaType="java.lang.String"/>
+            <arg column="task_id" javaType="java.lang.String"/><arg column="decision_id" javaType="java.lang.String"/>
+            <arg column="operation_id" javaType="java.lang.String"/><arg column="target_plan_revision" javaType="java.lang.String"/>
+            <arg column="target_plan_sha256" javaType="java.lang.String"/><arg column="basis_task_revision" javaType="java.lang.String"/>
+            <arg column="resulting_task_revision" javaType="java.lang.String"/><arg column="resulting_plan_revision" javaType="java.lang.String"/>
+            <arg column="decision" javaType="java.lang.String"/><arg column="from_status" javaType="java.lang.String"/>
+            <arg column="to_status" javaType="java.lang.String"/><arg column="expected_revision" javaType="java.math.BigInteger"/>
+            <arg column="resulting_revision" javaType="java.math.BigInteger"/><arg column="reason" javaType="java.lang.String"/>
+            <arg column="request_json" javaType="java.lang.String"/><arg column="baseline_manifest" javaType="java.lang.String"/>
+            <arg column="baseline_sha256" javaType="java.lang.String"/><arg column="dependency_authorizations" javaType="java.lang.String"/>
+            <arg column="receipt_json" javaType="java.lang.String"/><arg column="receipt_sha256" javaType="java.lang.String"/>
+            <arg column="authority_grant" javaType="java.lang.String"/><arg column="authority_revision" javaType="java.math.BigInteger"/>
+            <arg column="auth_epoch" javaType="java.math.BigInteger"/><arg column="governance_epoch" javaType="java.math.BigInteger"/>
+            <arg column="schema_version" javaType="java.lang.String"/><arg column="schema_manifest_sha256" javaType="java.lang.String"/>
+            <arg column="created_by" javaType="java.lang.String"/><arg column="created_at" javaType="java.time.LocalDateTime"/>
+            <arg column="classification" javaType="java.lang.String"/>
+        </constructor>
+    </resultMap>
+    <select id="decision" resultMap="decision" useCache="false" flushCache="true">
+        SELECT tenant_id,project_id,task_id,decision_id,operation_id,target_plan_revision,target_plan_sha256,
+            basis_task_revision,resulting_task_revision,resulting_plan_revision,decision,from_status,to_status,
+            expected_revision,resulting_revision,reason,request_json,baseline_manifest,baseline_sha256,dependency_authorizations,
+            receipt_json,receipt_sha256,authority_grant,authority_revision,auth_epoch,governance_epoch,schema_version,
+            schema_manifest_sha256,created_by,created_at,classification
+        FROM task_plan_decision WHERE project_id=#{projectId} AND task_id=#{taskId} AND operation_id=#{operationId} FOR UPDATE
+    </select>
+    <select id="decisionAudit" resultType="java.lang.String" useCache="false" flushCache="true">
+        SELECT resource_ref FROM audit_event WHERE project_id=#{projectId} AND subject_id=#{userId}
+            AND action=#{action} AND result='SUCCESS' AND reason_code IS NULL
+            AND request_id=#{requestId} AND trace_id=#{requestId} AND schema_version='1.0.0'
+            AND schema_manifest_sha256=#{operationManifest} AND created_by=#{userId} AND classification=#{classification}
+            AND resource_ref-&gt;&gt;'$.decision_id'=#{decisionId} AND resource_ref-&gt;&gt;'$.operation_id'=#{operationId}
+    </select>
+    <resultMap id="decisionTask" type="com.ruoyi.medical.persistence.TaskPlanDecisionProtocol$TaskRevision">
+        <constructor>
+            <arg column="tenant_id" javaType="java.lang.String"/><arg column="project_id" javaType="java.lang.String"/>
+            <arg column="task_id" javaType="java.lang.String"/><arg column="task_revision" javaType="java.lang.String"/>
+            <arg column="profile_revision" javaType="java.lang.String"/><arg column="snapshot_id" javaType="java.lang.String"/>
+            <arg column="template_version" javaType="java.lang.String"/><arg column="agent_release_id" javaType="java.lang.String"/>
+            <arg column="plan_revision" javaType="java.lang.String"/><arg column="parent_revision" javaType="java.lang.String"/>
+            <arg column="reason" javaType="java.lang.String"/><arg column="content_sha256" javaType="java.lang.String"/>
+            <arg column="created_by" javaType="java.lang.String"/><arg column="created_at" javaType="java.time.LocalDateTime"/>
+            <arg column="classification" javaType="java.lang.String"/><arg column="registered_project_id" javaType="java.lang.String"/>
+            <arg column="registered_kind" javaType="java.lang.String"/><arg column="registered_sha256" javaType="java.lang.String"/>
+        </constructor>
+    </resultMap>
+    <select id="decisionTask" resultMap="decisionTask" useCache="false" flushCache="true">
+        SELECT t.tenant_id,t.project_id,t.task_id,t.task_revision,t.profile_revision,t.snapshot_id,t.template_version,t.agent_release_id,
+            t.plan_revision,t.parent_revision,t.reason,t.content_sha256,t.created_by,t.created_at,t.classification,
+            v.owner_project_id AS registered_project_id,v.entity_kind AS registered_kind,v.content_sha256 AS registered_sha256
+        FROM task_revision t JOIN version_registry v ON v.tenant_id=t.tenant_id AND v.version_id=t.task_revision
+        WHERE t.project_id=#{projectId} AND t.task_id=#{taskId} AND t.task_revision=#{taskRevision} FOR UPDATE
+    </select>
+    <select id="decisionEvent" resultType="java.lang.String" useCache="false" flushCache="true">
+        SELECT payload FROM outbox_event WHERE aggregate_id=#{taskId} AND aggregate_revision=#{resultingRevision}
+            AND event_type=#{action} AND payload-&gt;&gt;'$.data.decision_id'=#{decisionId}
+            AND payload-&gt;&gt;'$.data.operation_id'=#{operationId}
+    </select>
+    <select id="draftOperationTime" resultType="java.time.LocalDateTime" useCache="false" flushCache="true">
+        SELECT created_at FROM operation_record WHERE operation_id=#{operationId} AND subject_id=#{userId}
+            AND operation_name='TK-01-DRAFT' AND idempotency_key=#{key} AND target_id=#{projectId}
+            AND state='COMPLETED' AND revision=2 AND error_code IS NULL AND http_status=201
+            AND schema_version='1.0.0' AND schema_manifest_sha256=#{operationManifest}
+            AND created_by=#{userId} AND classification=#{classification}
+    </select>
+    <select id="draftAudit" resultType="java.lang.String" useCache="false" flushCache="true">
+        SELECT resource_ref FROM audit_event WHERE project_id=#{projectId} AND subject_id=#{userId}
+            AND action='task.input_draft.saved' AND result='SUCCESS' AND reason_code IS NULL
+            AND request_id=#{requestId} AND trace_id=#{requestId} AND schema_version='1.0.0'
+            AND schema_manifest_sha256=#{operationManifest} AND created_by=#{userId} AND classification=#{classification}
+            AND resource_ref-&gt;&gt;'$.operation_id'=#{operationId}
+    </select>
+    <select id="draftEvent" resultType="java.lang.String" useCache="false" flushCache="true">
+        SELECT payload FROM outbox_event WHERE aggregate_id=#{operationId} AND aggregate_revision=1
+            AND event_type='task.input_draft.saved' AND payload-&gt;&gt;'$.operation_id'=#{operationId}
+    </select>
+    <insert id="beginOperation">
+        INSERT INTO operation_record(operation_id,subject_id,operation_name,idempotency_key,request_sha256,state,http_status,response_ref,
+            target_id,error_code,schema_version,schema_manifest_sha256,created_by,created_at,classification,revision,updated_at)
+        VALUES(#{operationId},#{userId},#{operationName},#{key},#{requestHash},'PROCESSING',NULL,NULL,#{taskId},NULL,
+            '1.0.0',#{operationManifest},#{userId},#{now},#{classification},1,#{now})
+    </insert>
+    <select id="ownerGrants" resultMap="com.ruoyi.medical.persistence.mapper.PermissionMapper.grant" useCache="false" flushCache="true">
+        SELECT grant_id,subject_id,project_id,resource_kind,resource_id,action,`condition`,status,valid_from,valid_to,
+            basis_version,schema_version,schema_manifest_sha256,revision
+        FROM permission_grant g WHERE subject_id=#{ownerId} AND action='task.read' AND status='ACTIVE'
+            AND valid_from &lt;= UTC_TIMESTAMP(6) AND (valid_to IS NULL OR valid_to &gt; UTC_TIMESTAMP(6))
+            ORDER BY grant_id FOR UPDATE
+    </select>
+    <select id="creationOwnerCandidates" resultMap="com.ruoyi.medical.persistence.mapper.TenantMemberMapper.member" useCache="false" flushCache="true">
+        SELECT m.tenant_id,m.member_id,m.user_id,m.status,m.valid_from,m.valid_to,m.revision FROM tenant_member m
+        WHERE m.status='ACTIVE' AND m.valid_from &lt;= UTC_TIMESTAMP(6) AND (m.valid_to IS NULL OR m.valid_to &gt; UTC_TIMESTAMP(6))
+            <if test="after != null">AND m.user_id &gt; #{after}</if>
+            AND EXISTS (SELECT 1 FROM identity_binding i WHERE i.tenant_id=m.tenant_id AND i.user_id=m.user_id AND i.status='ACTIVE')
+            AND EXISTS (SELECT 1 FROM permission_grant g WHERE g.tenant_id=m.tenant_id AND g.subject_id=m.user_id
+                AND g.action='task.read' AND g.status='ACTIVE' AND g.valid_from &lt;= UTC_TIMESTAMP(6)
+                AND (g.valid_to IS NULL OR g.valid_to &gt; UTC_TIMESTAMP(6))
+                AND ((g.resource_kind='ENTERPRISE' AND g.project_id IS NULL AND g.resource_id=m.tenant_id)
+                    OR (g.resource_kind='PROJECT' AND g.project_id=#{projectId} AND g.resource_id=#{projectId})
+                    OR (g.resource_kind='TASK' AND g.project_id=#{projectId} AND g.resource_id IS NULL)))
+        ORDER BY m.user_id LIMIT #{limit} FOR UPDATE
+    </select>
+    <update id="completeOperation">
+        UPDATE operation_record SET state='COMPLETED',http_status=#{httpStatus},response_ref=CAST(#{response} AS JSON),
+            revision=2,updated_at=#{now}
+        WHERE operation_id=#{operationId} AND subject_id=#{userId} AND operation_name=#{operationName}
+            AND idempotency_key=#{key} AND request_sha256=#{requestHash} AND state='PROCESSING'
+            AND revision=1 AND target_id=#{taskId} AND schema_manifest_sha256=#{operationManifest}
+    </update>
+    <insert id="insertRegisteredVersion">
+        INSERT INTO version_registry(version_id,owner_project_id,entity_kind,content_sha256)
+        VALUES(#{versionId},#{projectId},#{versionKind},#{versionHash})
+    </insert>
+    <insert id="insertPlan">
+        INSERT INTO plan_revision(project_id,plan_revision,task_id,task_revision,template_version,snapshot_id,status,decision_id,
+            content_sha256,created_by,created_at,classification)
+        VALUES(#{projectId},#{planRevision},#{taskId},#{taskRevision},#{templateVersion},#{snapshotId},#{planStatus},NULL,
+            #{contentHash},#{userId},#{now},#{classification})
+    </insert>
+    <insert id="insertContent">
+        INSERT INTO plan_content_revision(project_id,task_id,task_revision,plan_revision,template_version,snapshot_id,content_sha256,
+            content_json,base_version,base_version_sha256,operation_id,expected_revision,reason,schema_ref,schema_version,schema_manifest_sha256,
+            authority_grant,authority_revision,auth_epoch,governance_epoch,created_by,created_at,classification)
+        VALUES(#{projectId},#{taskId},#{taskRevision},#{planRevision},#{templateVersion},#{snapshotId},#{contentHash},
+            CAST(#{content} AS JSON),#{basePlanRevision},#{basePlanHash},#{operationId},#{expectedRevision},#{reason},#{schemaRef},'1.0.0',#{manifest},
+            #{authorityGrant},#{authorityRevision},#{authEpoch},#{governanceEpoch},#{userId},#{now},#{classification})
+    </insert>
+    <insert id="insertPlanHead">
+        INSERT INTO task_plan_head(project_id,task_id,plan_revision,revision,created_by,created_at,updated_at,classification)
+        VALUES(#{projectId},#{taskId},#{planRevision},1,#{userId},#{now},#{now},#{classification})
+    </insert>
+    <update id="advancePlanHead">
+        UPDATE task_plan_head SET plan_revision=#{planRevision},revision=#{resultingPlanHeadRevision},updated_at=#{now}
+        WHERE project_id=#{projectId} AND task_id=#{taskId} AND plan_revision=#{basePlanRevision} AND revision=#{expectedPlanHeadRevision}
+    </update>
+    <insert id="insertTaskRevision">
+        INSERT INTO task_revision(project_id,task_revision,task_id,profile_revision,snapshot_id,template_version,agent_release_id,
+            plan_revision,parent_revision,reason,content_sha256,created_by,created_at,classification)
+        VALUES(#{projectId},#{taskRevision},#{taskId},#{profileRevision},#{snapshotId},#{templateVersion},#{agentReleaseId},
+            NULL,#{basisTaskRevision},#{reason},#{taskRevisionHash},#{userId},#{now},#{classification})
+    </insert>
+    <insert id="copyTaskInput">
+        INSERT INTO task_input_revision(project_id,task_id,task_revision,operation_id,document_type,owner_id,goal,based_on_document_revision,
+            request_json,request_sha256,scope_json,scope_sha256,missing_requirements,requirements_sha256,authority_grant,authority_revision,
+            auth_epoch,governance_epoch,schema_version,schema_manifest_sha256,created_by,created_at,classification)
+        SELECT i.project_id,i.task_id,#{taskRevision},#{operationId},i.document_type,i.owner_id,i.goal,i.based_on_document_revision,
+            i.request_json,i.request_sha256,i.scope_json,i.scope_sha256,i.missing_requirements,i.requirements_sha256,
+            #{authorityGrant},#{authorityRevision},#{authEpoch},#{governanceEpoch},i.schema_version,i.schema_manifest_sha256,
+            #{userId},#{now},i.classification
+        FROM task_input_revision i WHERE i.project_id=#{projectId} AND i.task_id=#{taskId} AND i.task_revision=#{basisTaskRevision}
+            AND i.request_sha256=#{inputHash} AND i.scope_sha256=#{scopeHash} AND i.requirements_sha256=#{requirementsHash}
+            AND i.schema_version='1.0.0' AND i.schema_manifest_sha256=#{manifest} AND i.classification=#{classification}
+    </insert>
+    <insert id="insertTaskHead">
+        INSERT INTO task_head(project_id,task_id,status,current_revision,owner_id,created_by,created_at,classification,revision,updated_at)
+        VALUES(#{projectId},#{taskId},#{taskStatus},NULL,#{ownerId},#{userId},#{now},#{classification},1,#{now})
+    </insert>
+    <insert id="insertTaskInput">
+        INSERT INTO task_input_revision(project_id,task_id,task_revision,operation_id,document_type,owner_id,goal,based_on_document_revision,
+            request_json,request_sha256,scope_json,scope_sha256,missing_requirements,requirements_sha256,authority_grant,authority_revision,
+            auth_epoch,governance_epoch,schema_version,schema_manifest_sha256,created_by,created_at,classification)
+        VALUES(#{projectId},#{taskId},#{taskRevision},#{operationId},#{documentType},#{ownerId},#{goal},#{basedOnDocumentRevision},
+            CAST(#{request} AS JSON),#{inputHash},CAST(#{scopeJson} AS JSON),#{scopeHash},CAST(#{requirements} AS JSON),#{requirementsHash},
+            #{authorityGrant},#{authorityRevision},#{authEpoch},#{governanceEpoch},'1.0.0',#{manifest},#{userId},#{now},#{classification})
+    </insert>
+    <update id="bindCreatedTask">
+        UPDATE task_head SET current_revision=#{taskRevision}
+        WHERE project_id=#{projectId} AND task_id=#{taskId} AND current_revision IS NULL AND revision=1
+            AND status=#{taskStatus} AND owner_id=#{ownerId} AND created_by=#{userId} AND created_at=#{now}
+    </update>
+    <select id="creationInputOperation" resultType="java.lang.String" useCache="false" flushCache="true">
+        SELECT operation_id FROM task_input_revision WHERE project_id=#{projectId} AND task_id=#{taskId} AND task_revision=#{taskRevision}
+            AND created_by=#{userId} AND schema_version='1.0.0' AND schema_manifest_sha256=#{manifest}
+    </select>
+    <select id="creationAudit" resultType="java.lang.String" useCache="false" flushCache="true">
+        SELECT resource_ref FROM audit_event WHERE project_id=#{projectId} AND subject_id=#{userId} AND action='task.created'
+            AND result='SUCCESS' AND schema_version='1.0.0' AND schema_manifest_sha256=#{manifest}
+            AND resource_ref-&gt;&gt;'$.operation_id'=#{operationId} AND resource_ref-&gt;&gt;'$.task_id'=#{taskId}
+    </select>
+    <select id="creationEvent" resultType="java.lang.String" useCache="false" flushCache="true">
+        SELECT payload FROM outbox_event WHERE aggregate_id=#{taskId} AND aggregate_revision=1 AND event_type='task.created'
+    </select>
+    <update id="bindConfirmedPlan">
+        UPDATE task_revision SET plan_revision=#{planRevision}
+        WHERE project_id=#{projectId} AND task_id=#{taskId} AND task_revision=#{taskRevision} AND parent_revision=#{basisTaskRevision}
+            AND plan_revision IS NULL AND content_sha256=#{taskRevisionHash} AND created_by=#{userId} AND created_at=#{now}
+    </update>
+    <update id="advanceTaskHead">
+        UPDATE task_head SET current_revision=#{taskRevision},status=#{taskStatus},revision=#{resultingRevision},updated_at=#{now}
+        WHERE project_id=#{projectId} AND task_id=#{taskId} AND current_revision=#{basisTaskRevision}
+            AND status=#{fromStatus} AND revision=#{expectedRevision}
+    </update>
+    <insert id="insertDecision">
+        INSERT INTO task_plan_decision(project_id,task_id,decision_id,operation_id,target_plan_revision,target_plan_sha256,basis_task_revision,
+            resulting_task_revision,resulting_plan_revision,decision,from_status,to_status,expected_revision,resulting_revision,reason,
+            request_json,baseline_manifest,baseline_sha256,dependency_authorizations,receipt_json,receipt_sha256,authority_grant,
+            authority_revision,auth_epoch,governance_epoch,schema_version,schema_manifest_sha256,created_by,created_at,classification)
+        VALUES(#{projectId},#{taskId},#{decisionId},#{operationId},#{basePlanRevision},#{basePlanHash},#{basisTaskRevision},
+            #{taskRevision},#{resultingPlanRevision},#{decision},#{fromStatus},#{taskStatus},#{expectedRevision},#{resultingRevision},#{reason},
+            CAST(#{request} AS JSON),CAST(#{baseline} AS JSON),#{baselineHash},CAST(#{authorizations} AS JSON),CAST(#{response} AS JSON),
+            #{responseHash},#{authorityGrant},#{authorityRevision},#{authEpoch},#{governanceEpoch},'1.0.0',#{operationManifest},#{userId},#{now},#{classification})
+    </insert>
+    <update id="bindDecision">
+        UPDATE plan_revision SET decision_id=#{decisionId}
+        WHERE project_id=#{projectId} AND task_id=#{taskId} AND task_revision=#{taskRevision} AND plan_revision=#{planRevision}
+            AND content_sha256=#{contentHash} AND status='CONFIRMED' AND decision_id IS NULL AND created_by=#{userId} AND created_at=#{now}
+    </update>
+    <insert id="insertLineage">
+        INSERT INTO lineage_edge(consumer_version_id,upstream_version_id,relation_kind,actor_id,decision_ref,created_at)
+        VALUES(#{consumerVersion},#{upstreamVersion},#{relationKind},#{userId},#{lineageDecisionId},#{now})
+    </insert>
+    <select id="audit" resultType="java.lang.String" useCache="false" flushCache="true">
+        SELECT resource_ref FROM audit_event WHERE project_id=#{projectId} AND audit_id=#{auditId} AND subject_id=#{userId}
+            AND action=#{action} AND result='SUCCESS' AND reason_code IS NULL AND request_id=#{requestId} AND trace_id=#{requestId}
+            AND schema_version='1.0.0' AND schema_manifest_sha256=#{operationManifest} AND created_by=#{userId} AND classification=#{classification}
+    </select>
+    <select id="event" resultType="java.lang.String" useCache="false" flushCache="true">
+        SELECT payload FROM outbox_event WHERE event_id=#{eventId} AND aggregate_id=#{taskId}
+            AND aggregate_revision=#{resultingRevision} AND event_type=#{action}
+    </select>
+</mapper>

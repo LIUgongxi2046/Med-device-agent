@@ -1,0 +1,185 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.medical.persistence.mapper.SourceUploadMapper">
+  <resultMap id="declaration" type="com.ruoyi.medical.persistence.SourceUploadProtocol$Declaration">
+    <constructor>
+      <arg column="tenant_id" javaType="java.lang.String"/><arg column="project_id" javaType="java.lang.String"/>
+      <arg column="upload_id" javaType="java.lang.String"/><arg column="operation_id" javaType="java.lang.String"/>
+      <arg column="source_id" javaType="java.lang.String"/><arg column="version_intent" javaType="java.lang.String"/>
+      <arg column="maintainer_id" javaType="java.lang.String"/><arg column="request_json" javaType="java.lang.String"/>
+      <arg column="request_sha256" javaType="java.lang.String"/><arg column="schema_ref" javaType="java.lang.String"/>
+      <arg column="schema_document_sha256" javaType="java.lang.String"/><arg column="authority_grant" javaType="java.lang.String"/>
+      <arg column="authority_revision" javaType="java.math.BigInteger"/><arg column="context_revision" javaType="java.math.BigInteger"/>
+      <arg column="auth_epoch" javaType="java.math.BigInteger"/><arg column="governance_epoch" javaType="java.math.BigInteger"/>
+      <arg column="schema_version" javaType="java.lang.String"/><arg column="schema_manifest_sha256" javaType="java.lang.String"/>
+      <arg column="created_by" javaType="java.lang.String"/><arg column="created_at" javaType="java.time.LocalDateTime"/>
+      <arg column="classification" javaType="java.lang.String"/>
+    </constructor>
+  </resultMap>
+  <resultMap id="owner" type="com.ruoyi.medical.persistence.SourceUploadProtocol$Owner">
+    <constructor>
+      <arg column="source_id" javaType="java.lang.String"/><arg column="owner_project_id" javaType="java.lang.String"/>
+      <arg column="ownership" javaType="java.lang.String"/><arg column="classification" javaType="java.lang.String"/>
+    </constructor>
+  </resultMap>
+  <resultMap id="completionDelivery" type="com.ruoyi.medical.persistence.SourceUploadProtocol$CompletionDelivery">
+    <constructor>
+      <arg column="tenant_id" javaType="java.lang.String"/><arg column="event_id" javaType="java.lang.String"/>
+      <arg column="consumer_id" javaType="java.lang.String"/><arg column="status" javaType="java.lang.String"/>
+      <arg column="attempt_no" javaType="java.math.BigInteger"/><arg column="next_attempt_at" javaType="java.time.LocalDateTime"/>
+      <arg column="lease_owner" javaType="java.lang.String"/><arg column="lease_until" javaType="java.time.LocalDateTime"/>
+      <arg column="lease_generation" javaType="java.math.BigInteger"/><arg column="last_error" javaType="java.lang.String"/>
+      <arg column="created_by" javaType="java.lang.String"/><arg column="created_at" javaType="java.time.LocalDateTime"/>
+      <arg column="classification" javaType="java.lang.String"/><arg column="revision" javaType="java.math.BigInteger"/>
+      <arg column="updated_at" javaType="java.time.LocalDateTime"/>
+    </constructor>
+  </resultMap>
+  <select id="currentOperation" resultMap="com.ruoyi.medical.persistence.mapper.UploadIssuanceMapper.operation" useCache="false" flushCache="true">
+    SELECT tenant_id,operation_id,subject_id,operation_name,idempotency_key,request_sha256,state,http_status,response_ref,
+      target_id,error_code,schema_version,schema_manifest_sha256,created_by,created_at,classification,revision,updated_at,
+      dedup_expires_at,dedup_policy_revision FROM operation_record o
+    WHERE subject_id=#{userId} AND operation_name='KN-01' AND idempotency_key=#{key} FOR UPDATE
+  </select>
+  <insert id="saveOperation">
+    INSERT INTO operation_record (operation_id,subject_id,operation_name,idempotency_key,request_sha256,state,http_status,response_ref,
+      target_id,error_code,schema_version,schema_manifest_sha256,created_by,created_at,classification,revision,updated_at,
+      dedup_expires_at,dedup_policy_revision)
+    VALUES (#{operation.operationId},#{userId},'KN-01',#{key},#{operation.requestSha256},'COMPLETED',201,#{operation.responseRef},
+      #{operation.targetId},NULL,'1.0.0',#{operation.schemaManifestSha256},#{userId},#{operation.createdAt},#{operation.classification},
+      1,#{operation.updatedAt},NULL,NULL)
+  </insert>
+  <insert id="saveUpload">
+    INSERT INTO upload_item (project_id,upload_id,batch_id,session_id,ownership,file_name,expected_size,received_size,expected_sha256,
+      actual_sha256,object_ref,status,expires_at,schema_version,schema_manifest_sha256,created_by,created_at,classification,revision,updated_at)
+    VALUES (#{row.projectId},#{row.uploadId},#{row.batchId},#{row.sessionId},#{row.ownership},#{row.fileName},#{row.expectedSize},0,
+      #{row.expectedSha256},NULL,NULL,'PENDING',#{row.expiresAt},'1.0.0',#{row.schemaManifestSha256},#{userId},#{row.createdAt},
+      #{row.classification},1,#{row.updatedAt})
+  </insert>
+  <select id="partOperation" resultMap="com.ruoyi.medical.persistence.mapper.UploadIssuanceMapper.operation" useCache="false" flushCache="true">
+    SELECT tenant_id,operation_id,subject_id,operation_name,idempotency_key,request_sha256,state,http_status,response_ref,
+      target_id,error_code,schema_version,schema_manifest_sha256,created_by,created_at,classification,revision,updated_at,
+      dedup_expires_at,dedup_policy_revision FROM operation_record o
+    WHERE subject_id=#{userId} AND operation_name='KN-02' AND idempotency_key=#{key} FOR UPDATE
+  </select>
+  <select id="completionOperation" resultMap="com.ruoyi.medical.persistence.mapper.UploadIssuanceMapper.operation" useCache="false" flushCache="true">
+    SELECT tenant_id,operation_id,subject_id,operation_name,idempotency_key,request_sha256,state,http_status,response_ref,
+      target_id,error_code,schema_version,schema_manifest_sha256,created_by,created_at,classification,revision,updated_at,
+      dedup_expires_at,dedup_policy_revision FROM operation_record o
+    WHERE subject_id=#{userId} AND operation_name='KN-03' AND idempotency_key=#{key} FOR UPDATE
+  </select>
+  <insert id="startCompletionOperation">
+    INSERT INTO operation_record (operation_id,subject_id,operation_name,idempotency_key,request_sha256,state,http_status,response_ref,
+      target_id,error_code,schema_version,schema_manifest_sha256,created_by,created_at,classification,revision,updated_at,
+      dedup_expires_at,dedup_policy_revision)
+    VALUES (#{operationId},#{userId},'KN-03',#{key},#{requestSha256},'PROCESSING',NULL,NULL,#{uploadId},NULL,
+      '1.0.0',#{manifest},#{userId},#{now},#{classification},1,#{now},NULL,NULL)
+  </insert>
+  <select id="completionCommand" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT payload FROM outbox_event e WHERE aggregate_id=#{uploadId} AND event_type='source.upload.completion.requested'
+      AND JSON_UNQUOTE(JSON_EXTRACT(payload,'$.operation_id'))=#{operationId} FOR UPDATE
+  </select>
+  <insert id="saveCompletionDelivery">
+    INSERT INTO outbox_delivery (event_id,consumer_id,status,attempt_no,next_attempt_at,lease_owner,lease_until,
+      lease_generation,last_error,created_by,created_at,classification,revision,updated_at)
+    VALUES (#{eventId},#{consumerId},'PENDING',0,#{now},NULL,NULL,0,NULL,#{userId},#{now},#{classification},1,#{now})
+  </insert>
+  <select id="completionDelivery" resultMap="completionDelivery" useCache="false" flushCache="true">
+    SELECT d.tenant_id,d.event_id,d.consumer_id,d.status,d.attempt_no,d.next_attempt_at,d.lease_owner,d.lease_until,
+      d.lease_generation,d.last_error,d.created_by,d.created_at,d.classification,d.revision,d.updated_at
+    FROM outbox_delivery d JOIN outbox_event e ON e.tenant_id=d.tenant_id AND e.event_id=d.event_id
+    WHERE e.aggregate_id=#{uploadId} AND e.event_type='source.upload.completion.requested'
+      AND JSON_UNQUOTE(JSON_EXTRACT(e.payload,'$.operation_id'))=#{operationId}
+      AND d.event_id=#{eventId} AND d.consumer_id=#{consumerId} AND d.created_by=#{userId} FOR UPDATE
+  </select>
+  <select id="completionAudit" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT resource_ref FROM audit_event a WHERE audit_id=#{auditId} AND project_id=#{projectId} AND subject_id=#{userId}
+      AND action='source.upload.completion.requested' AND result='SUCCESS' AND request_id=#{requestId} AND trace_id=#{requestId}
+      AND schema_version='1.0.0' AND schema_manifest_sha256=#{manifest} AND created_by=#{userId} AND classification=#{classification} FOR UPDATE
+  </select>
+  <update id="claimCompletionDelivery">
+    UPDATE outbox_delivery SET status='DELIVERING',attempt_no=attempt_no+1,lease_owner=#{leaseOwner},lease_until=#{leaseUntil},
+      lease_generation=lease_generation+1,revision=revision+1,updated_at=#{now}
+    WHERE event_id=#{eventId} AND consumer_id=#{consumerId} AND created_by=#{userId}
+      AND revision=#{revision} AND lease_generation=#{generation} AND attempt_no &lt; 6 AND next_attempt_at &lt;= #{now}
+      AND ((status='PENDING' AND lease_owner IS NULL AND lease_until IS NULL)
+        OR (status='DELIVERING' AND lease_owner IS NOT NULL AND lease_until &lt;= #{now}))
+  </update>
+  <update id="renewCompletionDelivery">
+    UPDATE outbox_delivery SET lease_until=#{leaseUntil},revision=revision+1,updated_at=#{now}
+    WHERE event_id=#{eventId} AND consumer_id=#{consumerId} AND created_by=#{userId} AND status='DELIVERING'
+      AND lease_owner=#{leaseOwner} AND lease_generation=#{generation} AND revision=#{revision}
+      AND attempt_no=#{attempt} AND lease_until &gt; #{now}
+  </update>
+  <insert id="startPartOperation">
+    INSERT INTO operation_record (operation_id,subject_id,operation_name,idempotency_key,request_sha256,state,http_status,response_ref,
+      target_id,error_code,schema_version,schema_manifest_sha256,created_by,created_at,classification,revision,updated_at,
+      dedup_expires_at,dedup_policy_revision)
+    VALUES (#{operationId},#{userId},'KN-02',#{key},#{requestSha256},'PROCESSING',NULL,NULL,#{uploadId},NULL,
+      '1.0.0',#{manifest},#{userId},#{now},#{classification},1,#{now},NULL,NULL)
+  </insert>
+  <update id="completePartOperation">
+    UPDATE operation_record SET state='COMPLETED',http_status=200,response_ref=#{response},revision=revision+1,updated_at=UTC_TIMESTAMP(6)
+    WHERE operation_id=#{operationId} AND subject_id=#{userId} AND created_by=#{userId} AND operation_name='KN-02'
+      AND idempotency_key=#{key} AND request_sha256=#{requestSha256} AND target_id=#{uploadId}
+      AND state='PROCESSING' AND revision=1 AND http_status IS NULL AND response_ref IS NULL AND error_code IS NULL
+      AND schema_version='1.0.0' AND schema_manifest_sha256=#{manifest}
+  </update>
+  <select id="partAudit" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT resource_ref FROM audit_event a WHERE audit_id=#{auditId} AND project_id=#{projectId} AND subject_id=#{userId}
+      AND action='source.upload.part.stored' AND result='SUCCESS' AND request_id=#{requestId} AND trace_id=#{requestId}
+      AND schema_version='1.0.0' AND schema_manifest_sha256=#{manifest} AND created_by=#{userId} AND classification=#{classification} FOR UPDATE
+  </select>
+  <select id="partEvent" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT payload FROM outbox_event e WHERE event_id=#{eventId} AND aggregate_id=#{uploadId} AND aggregate_revision=#{sourceRevision}
+      AND event_type='source.upload.part.stored' AND published_at IS NULL FOR UPDATE
+  </select>
+  <select id="documentPartAudit" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT resource_ref FROM audit_event a WHERE audit_id=#{auditId} AND project_id=#{projectId} AND subject_id=#{userId}
+      AND action='document.upload.part.stored' AND result='SUCCESS' AND reason_code IS NULL
+      AND request_id=#{requestId} AND trace_id=#{requestId} AND schema_version='1.0.0'
+      AND schema_manifest_sha256=#{manifest} AND created_by=#{userId} AND classification=#{classification} FOR UPDATE
+  </select>
+  <select id="documentPartEvent" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT payload FROM outbox_event e WHERE event_id=#{eventId} AND aggregate_id=#{uploadId} AND aggregate_revision=#{uploadRevision}
+      AND event_type='document.upload.part.stored' AND published_at IS NULL FOR UPDATE
+  </select>
+  <insert id="saveDeclaration">
+    INSERT INTO source_upload_request (project_id,upload_id,operation_id,source_id,version_intent,maintainer_id,request_json,
+      request_sha256,schema_ref,schema_document_sha256,authority_grant,authority_revision,context_revision,auth_epoch,governance_epoch,
+      schema_version,schema_manifest_sha256,created_by,created_at,classification)
+    VALUES (#{declaration.projectId},#{declaration.uploadId},#{declaration.operationId},#{declaration.sourceId},#{declaration.versionIntent},
+      #{declaration.maintainerId},#{declaration.requestJson},#{declaration.requestSha256},#{declaration.schemaRef},#{declaration.schemaDocumentSha256},
+      #{declaration.authorityGrant},#{declaration.authorityRevision},#{declaration.contextRevision},#{declaration.authEpoch},
+      #{declaration.governanceEpoch},'1.0.0',#{declaration.schemaManifestSha256},#{userId},#{declaration.createdAt},#{declaration.classification})
+  </insert>
+  <select id="declaration" resultMap="declaration" useCache="false" flushCache="true">
+    SELECT tenant_id,project_id,upload_id,operation_id,source_id,version_intent,maintainer_id,request_json,request_sha256,schema_ref,
+      schema_document_sha256,authority_grant,authority_revision,context_revision,auth_epoch,governance_epoch,schema_version,
+      schema_manifest_sha256,created_by,created_at,classification FROM source_upload_request d
+    WHERE upload_id=#{uploadId} AND created_by=#{userId} FOR UPDATE
+  </select>
+  <update id="receive">
+    UPDATE upload_item SET received_size=#{receivedSize},status='UPLOADING',revision=revision+1,updated_at=UTC_TIMESTAMP(6)
+    WHERE upload_id=#{uploadId} AND created_by=#{userId} AND revision=#{revision}
+      AND received_size=#{previousSize} AND status IN ('PENDING','UPLOADING') AND #{receivedSize}&lt;=expected_size
+  </update>
+  <select id="sourceOwner" resultMap="owner" useCache="false" flushCache="true">
+    SELECT source_id,owner_project_id,ownership,classification FROM source s WHERE source_id=#{sourceId} FOR UPDATE
+  </select>
+  <select id="conversation" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT conversation_id FROM conversation c
+    WHERE project_id=#{projectId} AND conversation_id=#{sessionId} AND owner_id=#{userId} AND status='ACTIVE' FOR UPDATE
+  </select>
+  <select id="sourceSession" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT session_id FROM source_session_binding b WHERE project_id=#{projectId} AND source_id=#{sourceId} AND session_id=#{sessionId} FOR UPDATE
+  </select>
+  <select id="audit" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT resource_ref FROM audit_event a WHERE audit_id=#{auditId} AND project_id=#{projectId} AND subject_id=#{userId}
+      AND action='source.upload.created' AND result='SUCCESS' AND request_id=#{requestId} AND trace_id=#{requestId}
+      AND schema_version='1.0.0' AND schema_manifest_sha256=#{manifest} AND created_by=#{userId} AND classification=#{classification} FOR UPDATE
+  </select>
+  <select id="event" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT payload FROM outbox_event e WHERE event_id=#{eventId} AND aggregate_id=#{uploadId} AND aggregate_revision=1
+      AND event_type='source.upload.created' AND published_at IS NULL FOR UPDATE
+  </select>
+</mapper>

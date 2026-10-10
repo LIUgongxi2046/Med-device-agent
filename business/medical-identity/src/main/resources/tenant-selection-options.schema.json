@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "user_id", "expected_context_revision", "selected_tenant_id", "memberships"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "user_id": {"$ref": "#/$defs/Id"},
+    "expected_context_revision": {"$ref": "#/$defs/Revision"},
+    "selected_tenant_id": {"anyOf": [{"type": "null"}, {"$ref": "#/$defs/Id"}]},
+    "memberships": {"type": "array", "items": {"$ref": "#/$defs/Member"}}
+  }
+}

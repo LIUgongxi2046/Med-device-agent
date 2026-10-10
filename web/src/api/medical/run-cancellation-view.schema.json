@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:run-cancellation-view:1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["operation", "actor_id", "tenant_id", "project_id", "task_id", "run_id", "expected_revision", "key", "body_sha256"],
+  "properties": {
+    "operation": {"const": "RN-04"},
+    "actor_id": {"$ref": "urn:medical:shared#/$defs/Id"},
+    "tenant_id": {"$ref": "urn:medical:shared#/$defs/Id"},
+    "project_id": {"$ref": "urn:medical:shared#/$defs/Id"},
+    "task_id": {"$ref": "urn:medical:shared#/$defs/Id"},
+    "run_id": {"$ref": "urn:medical:shared#/$defs/Id"},
+    "expected_revision": {"$ref": "urn:medical:shared#/$defs/Revision"},
+    "key": {"$ref": "urn:medical:shared#/$defs/Id"},
+    "body_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

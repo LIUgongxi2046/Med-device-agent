@@ -1,0 +1,117 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:upload-authorization:1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "tenant_id", "subject_id", "project_id", "purpose", "auth_epoch", "governance_epoch", "schema_ref", "schema_document_sha256", "artifact_schema_manifest", "dependency_access_set_id", "dependency_manifest_sha256", "dependency_requirement", "sources", "context", "upstream_artifacts", "document_basis"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "tenant_id": {"$ref": "#/$defs/Uuid"},
+    "subject_id": {"$ref": "#/$defs/Uuid"},
+    "project_id": {"$ref": "#/$defs/NullableUuid"},
+    "purpose": {"enum": ["DOCUMENT_BODY", "AGENT_ARTIFACT"]},
+    "auth_epoch": {"$ref": "#/$defs/U64"},
+    "governance_epoch": {"$ref": "#/$defs/U64"},
+    "schema_ref": {"type": "string", "minLength": 1, "maxLength": 512},
+    "schema_document_sha256": {"$ref": "#/$defs/Hash"},
+    "artifact_schema_manifest": {"$ref": "#/$defs/Hash"},
+    "dependency_access_set_id": {"$ref": "#/$defs/Uuid"},
+    "dependency_manifest_sha256": {"$ref": "#/$defs/Hash"},
+    "dependency_requirement": {"$ref": "#/$defs/DependencyRequirement"},
+    "sources": {"type": "array", "items": {"$ref": "#/$defs/SourceRequirement"}},
+    "context": {"$ref": "#/$defs/ReadContext"},
+    "document_basis": {"anyOf": [{"type": "null"}, {"$ref": "#/$defs/DocumentBasis"}]},
+    "upstream_artifacts": {
+      "type": "object", "propertyNames": {"$ref": "#/$defs/Uuid"},
+      "additionalProperties": {"$ref": "#/$defs/ArtifactRequirement"}
+    }
+  },
+  "allOf": [
+    {"if": {"properties": {"purpose": {"const": "DOCUMENT_BODY"}}}, "then": {"properties": {
+      "document_basis": {"$ref": "#/$defs/DocumentBasis"}, "project_id": {"$ref": "#/$defs/Uuid"},
+      "context": {"properties": {"use": {"const": "FORMAL"}, "conversation_id": {"type": "null"}}}
+    }}, "else": {"properties": {"document_basis": {"type": "null"}}}}
+  ],
+  "$defs": {
+    "Uuid": {"type": "string", "format": "uuid", "pattern": "^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$"},
+    "NullableUuid": {"anyOf": [{"type": "null"}, {"$ref": "#/$defs/Uuid"}]},
+    "Hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "U64": {"type": "string", "maxLength": 20, "pattern": "^(0|[1-9][0-9]*)$"},
+    "Use": {"enum": ["REVIEW", "HISTORY", "FORMAL", "MODEL_SEND"]},
+    "Purpose": {"type": "string", "pattern": "^[A-Z][A-Z0-9_]{0,127}$"},
+    "Text": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "\\S"},
+    "BasisSettings": {
+      "type": "object", "additionalProperties": false,
+      "required": ["environment", "region", "maximum_sources"],
+      "properties": {
+        "environment": {"$ref": "#/$defs/Text"}, "region": {"$ref": "#/$defs/Text"},
+        "maximum_sources": {"type": "integer", "minimum": 1, "maximum": 2147483646}
+      }
+    },
+    "DocumentBasis": {
+      "type": "object", "additionalProperties": false,
+      "required": ["task_id", "task_revision", "plan_revision", "snapshot_id", "basis_sha256", "settings"],
+      "properties": {
+        "task_id": {"$ref": "#/$defs/Uuid"}, "task_revision": {"$ref": "#/$defs/Uuid"},
+        "plan_revision": {"$ref": "#/$defs/Uuid"}, "snapshot_id": {"$ref": "#/$defs/Uuid"},
+        "basis_sha256": {"$ref": "#/$defs/Hash"}, "settings": {"$ref": "#/$defs/BasisSettings"}
+      }
+    },
+    "SourceRequirement": {
+      "type": "object", "additionalProperties": false,
+      "required": ["source_version", "rights_revision", "project_id", "snapshot_id", "parse_version", "conversation_id", "use", "purpose", "environment", "region", "provider"],
+      "properties": {
+        "source_version": {"$ref": "#/$defs/Uuid"}, "rights_revision": {"$ref": "#/$defs/Uuid"},
+        "project_id": {"$ref": "#/$defs/NullableUuid"}, "snapshot_id": {"$ref": "#/$defs/NullableUuid"},
+        "parse_version": {"$ref": "#/$defs/NullableUuid"}, "conversation_id": {"$ref": "#/$defs/NullableUuid"},
+        "use": {"$ref": "#/$defs/Use"}, "purpose": {"$ref": "#/$defs/Purpose"},
+        "environment": {"$ref": "#/$defs/Text"}, "region": {"$ref": "#/$defs/Text"},
+        "provider": {"anyOf": [{"type": "null"}, {"$ref": "#/$defs/Text"}]}
+      },
+      "allOf": [
+        {"if": {"properties": {"use": {"const": "MODEL_SEND"}}}, "then": {"properties": {"provider": {"$ref": "#/$defs/Text"}}}, "else": {"properties": {"provider": {"type": "null"}}}},
+        {"if": {"properties": {"use": {"enum": ["HISTORY", "FORMAL", "MODEL_SEND"]}}}, "then": {"properties": {"project_id": {"$ref": "#/$defs/Uuid"}, "snapshot_id": {"$ref": "#/$defs/Uuid"}, "parse_version": {"$ref": "#/$defs/Uuid"}}}},
+        {"if": {"properties": {"snapshot_id": {"type": "null"}}}, "then": {"properties": {"parse_version": {"type": "null"}}}, "else": {"properties": {"project_id": {"$ref": "#/$defs/Uuid"}, "parse_version": {"$ref": "#/$defs/Uuid"}}}},
+        {"if": {"properties": {"conversation_id": {"type": "string"}}}, "then": {"properties": {"project_id": {"$ref": "#/$defs/Uuid"}}}}
+      ]
+    },
+    "Scope": {
+      "type": "object", "additionalProperties": false,
+      "required": ["tenant_id", "project_id", "resource_kind", "resource_id"],
+      "properties": {
+        "tenant_id": {"$ref": "#/$defs/Uuid"}, "project_id": {"$ref": "#/$defs/NullableUuid"},
+        "resource_kind": {"type": "string", "minLength": 1, "maxLength": 64}, "resource_id": {"$ref": "#/$defs/Uuid"}
+      }
+    },
+    "LineageLimits": {
+      "type": "object", "additionalProperties": false,
+      "required": ["maximum_versions", "maximum_relations"],
+      "properties": {
+        "maximum_versions": {"type": "integer", "minimum": 1, "maximum": 2147483647},
+        "maximum_relations": {"type": "integer", "minimum": 1, "maximum": 2147483647}
+      }
+    },
+    "ArtifactRequirement": {
+      "type": "object", "additionalProperties": false,
+      "required": ["scope", "action", "purpose", "schema_ref", "schema_document_sha256", "artifact_schema_manifest", "lineage_limits"],
+      "properties": {
+        "scope": {"$ref": "#/$defs/Scope"}, "action": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-z][a-z0-9_.]*$"},
+        "purpose": {"$ref": "#/$defs/Purpose"}, "schema_ref": {"type": "string", "minLength": 1, "maxLength": 512},
+        "schema_document_sha256": {"$ref": "#/$defs/Hash"}, "artifact_schema_manifest": {"$ref": "#/$defs/Hash"},
+        "lineage_limits": {"$ref": "#/$defs/LineageLimits"}
+      }
+    },
+    "DependencyRequirement": {
+      "type": "object", "additionalProperties": false,
+      "required": ["project_id", "purpose", "lineage_limits"],
+      "properties": {
+        "project_id": {"$ref": "#/$defs/NullableUuid"}, "purpose": {"$ref": "#/$defs/Purpose"}, "lineage_limits": {"$ref": "#/$defs/LineageLimits"}
+      }
+    },
+    "ReadContext": {
+      "type": "object", "additionalProperties": false,
+      "required": ["use", "conversation_id"],
+      "properties": {"use": {"$ref": "#/$defs/Use"}, "conversation_id": {"$ref": "#/$defs/NullableUuid"}}
+    }
+  }
+}

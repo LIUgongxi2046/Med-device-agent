@@ -1,0 +1,109 @@
+server:
+  address: 127.0.0.1
+  port: 18080
+  servlet:
+    session:
+      timeout: 30m
+user:
+  password:
+    maxRetryCount: 5
+    lockTime: 10
+token:
+  header: Authorization
+  secret: ${MEDICAL_RUOYI_TOKEN_SECRET}
+  expireTime: 30
+spring:
+  mvc:
+    servlet:
+      load-on-startup: 1
+  messages:
+    basename: i18n/messages
+  session:
+    store-type: redis
+    redis:
+      repository-type: indexed
+      namespace: medical:local:session
+  data:
+    redis:
+      host: 127.0.0.1
+      port: 16379
+      password: ${MEDICAL_LOCAL_REDIS_PASSWORD}
+      ssl:
+        enabled: false
+  datasource:
+    druid:
+      master:
+        url: jdbc:mysql://127.0.0.1:13306/medical_local?characterEncoding=UTF-8&serverTimezone=UTC&connectionTimeZone=UTC&useSSL=false&allowPublicKeyRetrieval=true
+        username: medical_runtime
+        password: ${MEDICAL_LOCAL_DATABASE_PASSWORD}
+        driver-class-name: com.mysql.cj.jdbc.Driver
+        initial-size: 1
+        min-idle: 1
+        max-active: 20
+        fail-fast: true
+        connection-error-retry-attempts: 0
+        break-after-acquire-failure: true
+      stat-view-servlet:
+        enabled: false
+      web-stat-filter:
+        enabled: false
+medical:
+  run-events:
+    session-connections: 4
+    maximum-connections: 16
+    read-threads: 4
+    read-queue: 64
+    buffer-bytes: 1048576
+    heartbeat: 15s
+    polling: 250ms
+    lease: 45s
+    namespace: medical:run-events
+  source-upload-transport:
+    storage-directory: ${medical.projectRoot}/.implementation-work/runtime/object-storage
+    region: us-east-1
+    tenant-permits: 4
+    user-permits: 2
+    segment-bytes: 8192
+    demand: 2
+    maximum-duration: 60s
+    admission-interval: 100ms
+    namespace: medical:source-upload:transfer
+    revision: cc6f27c4-70c1-4e97-bed0-bcaa31d9aa16
+  source-uploads:
+    maximum-bytes: 104857600
+    expires-after-seconds: 3600
+  member-governance:
+    maximum-read-candidates: 10000
+  collections:
+    environment: LOCAL
+    region: LOCAL
+    maximum-members: 1000
+    maximum-versions: 10000
+    maximum-relations: 40000
+    artifact-profiles: []
+  templates:
+    environment: LOCAL
+    region: LOCAL
+    maximum-versions: 10000
+    maximum-relations: 40000
+    artifact-profiles: []
+  invitation:
+    response-key: ${MEDICAL_INVITATION_RESPONSE_KEY}
+    response-key-id: ${MEDICAL_INVITATION_RESPONSE_KEY_ID}
+  identity:
+    mode: local
+    local:
+      browser-origin: http://127.0.0.1:18080
+    local-management:
+      hmac-key: ${MEDICAL_LOCAL_MANAGEMENT_HMAC_KEY}
+      hmac-key-id: ${MEDICAL_LOCAL_MANAGEMENT_HMAC_KEY_ID}
+    directory:
+      classification: LOCAL_AUTH_METADATA
+logging:
+  config: classpath:logback-medical.xml
+  level:
+    com.ruoyi: info
+    org.springframework: warn
+springdoc:
+  swagger-ui:
+    enabled: false

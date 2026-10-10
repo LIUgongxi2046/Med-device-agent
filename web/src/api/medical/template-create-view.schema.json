@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:template-create-view:1.0.0",
+  "type": "object", "additionalProperties": false,
+  "required": ["actor", "tenant_id", "operation", "key", "context", "body_sha256", "content_sha256"],
+  "properties": {
+    "actor": {"$ref": "urn:medical:templates:1.0.0#/$defs/Id"},
+    "tenant_id": {"$ref": "urn:medical:templates:1.0.0#/$defs/Id"},
+    "operation": {"const": "TP-01"},
+    "key": {"$ref": "urn:medical:templates:1.0.0#/$defs/Id"},
+    "context": {"$ref": "urn:medical:template-approval:1.0.0#/$defs/Context"},
+    "body_sha256": {"$ref": "urn:medical:templates:1.0.0#/$defs/Hash"},
+    "content_sha256": {"$ref": "urn:medical:templates:1.0.0#/$defs/Hash"}
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:task-scope-selection:1.0.0",
+  "$ref": "#/$defs/Page",
+  "$defs": {
+    "Id": {"$ref": "https://schemas.medical-agent.invalid/1.0.0/backend-design/interfaces.schema.yaml#/$defs/Id"},
+    "Revision": {"$ref": "https://schemas.medical-agent.invalid/1.0.0/backend-design/interfaces.schema.yaml#/$defs/Revision"},
+    "Hash": {"$ref": "https://schemas.medical-agent.invalid/1.0.0/backend-design/interfaces.schema.yaml#/$defs/Hash"},
+    "Query": {
+      "type": "object", "additionalProperties": false, "required": ["limit"],
+      "properties": {"limit": {"type": "integer", "minimum": 1, "maximum": 100}, "after": {"$ref": "#/$defs/Id"}, "dataset_watermark": {"$ref": "#/$defs/Hash"}},
+      "dependentRequired": {"after": ["dataset_watermark"]}
+    },
+    "Source": {
+      "type": "object", "additionalProperties": false,
+      "required": ["kind", "version_id", "source_id", "rights_revision", "parse_version", "index_version", "approval_revision", "binding_revision", "gate_revision", "original_sha256"],
+      "properties": {
+        "kind": {"const": "SOURCE"}, "version_id": {"$ref": "#/$defs/Id"}, "source_id": {"$ref": "#/$defs/Id"},
+        "rights_revision": {"$ref": "#/$defs/Id"}, "parse_version": {"$ref": "#/$defs/Id"}, "index_version": {"$ref": "#/$defs/Id"},
+        "approval_revision": {"$ref": "#/$defs/Id"}, "binding_revision": {"$ref": "#/$defs/Id"}, "gate_revision": {"$ref": "#/$defs/Revision"}, "original_sha256": {"$ref": "#/$defs/Hash"}
+      }
+    },
+    "Collection": {
+      "type": "object", "additionalProperties": false, "required": ["kind", "version_id", "collection_id", "title", "content_sha256", "member_count", "source_scope_sha256"],
+      "properties": {"kind": {"const": "COLLECTION"}, "version_id": {"$ref": "#/$defs/Id"}, "collection_id": {"$ref": "#/$defs/Id"},
+        "title": {"type": "string", "minLength": 1, "maxLength": 256}, "content_sha256": {"$ref": "#/$defs/Hash"}, "member_count": {"type": "integer", "minimum": 0}, "source_scope_sha256": {"$ref": "#/$defs/Hash"}}
+    },
+    "Page": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "tenant_id", "project_id", "context_revision", "auth_epoch", "governance_epoch", "scope_kind", "limit", "items", "next_after", "filter_sha256", "dataset_watermark"],
+      "properties": {
+        "schema_version": {"const": "1.0.0"}, "tenant_id": {"$ref": "#/$defs/Id"}, "project_id": {"$ref": "#/$defs/Id"},
+        "context_revision": {"$ref": "#/$defs/Revision"}, "auth_epoch": {"$ref": "#/$defs/Revision"}, "governance_epoch": {"$ref": "#/$defs/Revision"},
+        "scope_kind": {"enum": ["SOURCE", "COLLECTION"]}, "limit": {"type": "integer", "minimum": 1, "maximum": 100},
+        "items": {"type": "array", "maxItems": 100, "items": {"oneOf": [{"$ref": "#/$defs/Source"}, {"$ref": "#/$defs/Collection"}]}},
+        "next_after": {"oneOf": [{"$ref": "#/$defs/Id"}, {"type": "null"}]}, "filter_sha256": {"$ref": "#/$defs/Hash"}, "dataset_watermark": {"$ref": "#/$defs/Hash"}
+      },
+      "allOf": [
+        {"if": {"properties": {"scope_kind": {"const": "SOURCE"}}}, "then": {"properties": {"items": {"items": {"$ref": "#/$defs/Source"}}}}},
+        {"if": {"properties": {"scope_kind": {"const": "COLLECTION"}}}, "then": {"properties": {"items": {"items": {"$ref": "#/$defs/Collection"}}}}}
+      ]
+    }
+  }
+}

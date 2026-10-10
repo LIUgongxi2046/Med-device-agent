@@ -1,0 +1,516 @@
+{
+  "schema_version": "1.0.0",
+  "dataset_version": "local-evidence-2026-09-28-v1",
+  "created_at": "2026-09-28T09:45:22.625870+00:00",
+  "sources": [
+    {
+      "source_id": "official-clinical-2021-73-a4",
+      "source_ref": "ui-delivery/assets/public-evidence/clinical-evaluation-2021.docx",
+      "owner": "国家药品监督管理局",
+      "official_url": "https://www.beijing.gov.cn/zhengce/zhengcefagui/qtwj/202204/t20220408_2669595.html",
+      "publisher_version": "2021年第73号附件4",
+      "sha256": "a70e1b2c0407416a2ea5a076c96e4fd85ea6edf2fcbf5235d0a6581e5a43d7ee",
+      "size_bytes": 37870,
+      "format": "DOCX",
+      "nature": "OFFICIAL_ORIGINAL",
+      "parent_source_id": null,
+      "license": "未取得生产使用和外部分发授权记录；当前按用户要求开展本地资料审查",
+      "allowed_use": [
+        "LOCAL_DESIGN_REVIEW",
+        "LOCAL_PARSER_CHECK"
+      ],
+      "sensitivity": "PUBLIC",
+      "retention": "待企业批准；禁止自动永久清理",
+      "production_status": "PENDING_APPROVAL"
+    },
+    {
+      "source_id": "official-safety-2021-121-a9",
+      "source_ref": "ui-delivery/assets/public-evidence/safety-principles-2021.doc",
+      "owner": "国家药品监督管理局",
+      "official_url": "https://www.beijing.gov.cn/zhengce/zhengcefagui/qtwj/202307/t20230721_3204148.html",
+      "publisher_version": "2021年第121号附件9",
+      "sha256": "84f97d0fb9a587d4d1dfbc22da619b8616eac3907ab2999ce33d66739d081292",
+      "size_bytes": 120832,
+      "format": "DOC_REFERENCE",
+      "nature": "OFFICIAL_ORIGINAL",
+      "parent_source_id": null,
+      "license": "未取得生产使用和外部分发授权记录；当前按用户要求开展本地资料审查",
+      "allowed_use": [
+        "LOCAL_DESIGN_REVIEW",
+        "LOCAL_PARSER_CHECK"
+      ],
+      "sensitivity": "PUBLIC",
+      "retention": "待企业批准；禁止自动永久清理",
+      "production_status": "PENDING_APPROVAL"
+    },
+    {
+      "source_id": "official-format-2021-121-a4",
+      "source_ref": "ui-delivery/research/official/registration-format-2021-121.doc",
+      "owner": "国家药品监督管理局",
+      "official_url": "https://www.beijing.gov.cn/zhengce/zhengcefagui/qtwj/202307/t20230721_3204148.html",
+      "publisher_version": "2021年第121号附件4",
+      "sha256": "918de55c070b86dfbcae6d013dcf2ce8afbc1fedd5a1aa84e2c2962ba842c5db",
+      "size_bytes": 32256,
+      "format": "DOC_REFERENCE",
+      "nature": "OFFICIAL_ORIGINAL",
+      "parent_source_id": null,
+      "license": "未取得生产使用和外部分发授权记录；当前按用户要求开展本地资料审查",
+      "allowed_use": [
+        "LOCAL_DESIGN_REVIEW",
+        "LOCAL_PARSER_CHECK"
+      ],
+      "sensitivity": "PUBLIC",
+      "retention": "待企业批准；禁止自动永久清理",
+      "production_status": "PENDING_APPROVAL"
+    },
+    {
+      "source_id": "official-format-2021-121-a4-text",
+      "source_ref": "ui-delivery/research/official/registration-format-2021-121.txt",
+      "owner": "国家药品监督管理局",
+      "official_url": "https://www.beijing.gov.cn/zhengce/zhengcefagui/qtwj/202307/t20230721_3204148.html",
+      "publisher_version": "2021年第121号附件4",
+      "sha256": "2fdc36f675104e60caf17e8c2f40772eeee1de5c67ef015e89e05a4296be0b36",
+      "size_bytes": 5552,
+      "format": "TXT",
+      "nature": "DERIVED_TEXT",
+      "parent_source_id": "official-format-2021-121-a4",
+      "license": "未取得生产使用和外部分发授权记录；当前按用户要求开展本地资料审查",
+      "allowed_use": [
+        "LOCAL_DESIGN_REVIEW",
+        "LOCAL_PARSER_CHECK"
+      ],
+      "sensitivity": "PUBLIC",
+      "retention": "待企业批准；禁止自动永久清理",
+      "production_status": "PENDING_APPROVAL"
+    },
+    {
+      "source_id": "official-requirements-2021-121-a5",
+      "source_ref": "ui-delivery/research/official/registration-requirements-2021-121.doc",
+      "owner": "国家药品监督管理局",
+      "official_url": "https://www.beijing.gov.cn/zhengce/zhengcefagui/qtwj/202307/t20230721_3204148.html",
+      "publisher_version": "2021年第121号附件5",
+      "sha256": "9cec3ef722dfe4c9b4f4b7caf1e3d208ac4ba8c6bdca67bf22a01c934b33fee5",
+      "size_bytes": 61440,
+      "format": "DOC_REFERENCE",
+      "nature": "OFFICIAL_ORIGINAL",
+      "parent_source_id": null,
+      "license": "未取得生产使用和外部分发授权记录；当前按用户要求开展本地资料审查",
+      "allowed_use": [
+        "LOCAL_DESIGN_REVIEW",
+        "LOCAL_PARSER_CHECK"
+      ],
+      "sensitivity": "PUBLIC",
+      "retention": "待企业批准；禁止自动永久清理",
+      "production_status": "PENDING_APPROVAL"
+    },
+    {
+      "source_id": "official-requirements-2021-121-a5-text",
+      "source_ref": "ui-delivery/research/official/registration-requirements-2021-121.txt",
+      "owner": "国家药品监督管理局",
+      "official_url": "https://www.beijing.gov.cn/zhengce/zhengcefagui/qtwj/202307/t20230721_3204148.html",
+      "publisher_version": "2021年第121号附件5",
+      "sha256": "65877d3a85d80bd867ffbf719908457d39d956a15e7a77a382934809fb569b56",
+      "size_bytes": 29834,
+      "format": "TXT",
+      "nature": "DERIVED_TEXT",
+      "parent_source_id": "official-requirements-2021-121-a5",
+      "license": "未取得生产使用和外部分发授权记录；当前按用户要求开展本地资料审查",
+      "allowed_use": [
+        "LOCAL_DESIGN_REVIEW",
+        "LOCAL_PARSER_CHECK"
+      ],
+      "sensitivity": "PUBLIC",
+      "retention": "待企业批准；禁止自动永久清理",
+      "production_status": "PENDING_APPROVAL"
+    },
+    {
+      "source_id": "official-ptr-2022-8",
+      "source_ref": "ui-delivery/research/official/technical-requirements-2022-8.doc",
+      "owner": "国家药品监督管理局",
+      "official_url": "https://mpa.hunan.gov.cn/mpa/yszx/jssp/jsbzx/202202/t20220215_22482327.html",
+      "publisher_version": "2022年第8号附件",
+      "sha256": "466c5784ecb9d5dd6675cac84bafe9f0ab3fd9e2975a7d85796d1974a4a6134f",
+      "size_bytes": 34816,
+      "format": "DOC_REFERENCE",
+      "nature": "OFFICIAL_ORIGINAL",
+      "parent_source_id": null,
+      "license": "未取得生产使用和外部分发授权记录；当前按用户要求开展本地资料审查",
+      "allowed_use": [
+        "LOCAL_DESIGN_REVIEW",
+        "LOCAL_PARSER_CHECK"
+      ],
+      "sensitivity": "PUBLIC",
+      "retention": "待企业批准；禁止自动永久清理",
+      "production_status": "PENDING_APPROVAL"
+    },
+    {
+      "source_id": "official-ptr-2022-8-text",
+      "source_ref": "ui-delivery/research/official/technical-requirements-2022-8.txt",
+      "owner": "国家药品监督管理局",
+      "official_url": "https://mpa.hunan.gov.cn/mpa/yszx/jssp/jsbzx/202202/t20220215_22482327.html",
+      "publisher_version": "2022年第8号附件",
+      "sha256": "c8204a2a500ab251e4d3e141d7168c1e4c4115494ba7fad33b33fafdb04793fa",
+      "size_bytes": 9899,
+      "format": "TXT",
+      "nature": "DERIVED_TEXT",
+      "parent_source_id": "official-ptr-2022-8",
+      "license": "未取得生产使用和外部分发授权记录；当前按用户要求开展本地资料审查",
+      "allowed_use": [
+        "LOCAL_DESIGN_REVIEW",
+        "LOCAL_PARSER_CHECK"
+      ],
+      "sensitivity": "PUBLIC",
+      "retention": "待企业批准；禁止自动永久清理",
+      "production_status": "PENDING_APPROVAL"
+    },
+    {
+      "source_id": "official-clinical-2021-73-a4-preview",
+      "source_ref": "ui-delivery/assets/public-evidence/clinical-evaluation-2021.pdf",
+      "owner": "国家药品监督管理局",
+      "official_url": "https://www.beijing.gov.cn/zhengce/zhengcefagui/qtwj/202204/t20220408_2669595.html",
+      "publisher_version": "2021年第73号附件4",
+      "sha256": "de3c22d2401c1e5338145b5714045bd46030db7b9f0da7199a6ab1db8f148026",
+      "size_bytes": 492488,
+      "format": "PDF",
+      "nature": "DERIVED_PREVIEW",
+      "parent_source_id": "official-clinical-2021-73-a4",
+      "license": "未取得生产使用和外部分发授权记录；当前按用户要求开展本地资料审查",
+      "allowed_use": [
+        "LOCAL_DESIGN_REVIEW",
+        "LOCAL_PARSER_CHECK"
+      ],
+      "sensitivity": "PUBLIC",
+      "retention": "待企业批准；禁止自动永久清理",
+      "production_status": "PENDING_APPROVAL"
+    },
+    {
+      "source_id": "official-safety-2021-121-a9-preview",
+      "source_ref": "ui-delivery/assets/public-evidence/safety-principles-2021.pdf",
+      "owner": "国家药品监督管理局",
+      "official_url": "https://www.beijing.gov.cn/zhengce/zhengcefagui/qtwj/202307/t20230721_3204148.html",
+      "publisher_version": "2021年第121号附件9",
+      "sha256": "5179d8baeded33b57c52f10df9f3c3628ea9e4c1db3c29e0db6ce21ff6648c81",
+      "size_bytes": 547561,
+      "format": "PDF",
+      "nature": "DERIVED_PREVIEW",
+      "parent_source_id": "official-safety-2021-121-a9",
+      "license": "未取得生产使用和外部分发授权记录；当前按用户要求开展本地资料审查",
+      "allowed_use": [
+        "LOCAL_DESIGN_REVIEW",
+        "LOCAL_PARSER_CHECK"
+      ],
+      "sensitivity": "PUBLIC",
+      "retention": "待企业批准；禁止自动永久清理",
+      "production_status": "PENDING_APPROVAL"
+    },
+    {
+      "source_id": "project-prd-v1.3.0",
+      "source_ref": "PRD.md",
+      "owner": "项目资料所有者",
+      "official_url": null,
+      "publisher_version": "V1.3.0",
+      "sha256": "7e8b1cf75b016db541d568d619fc6e41428c3e36f62398d0bfa4a34d74466146",
+      "size_bytes": 134676,
+      "format": "MARKDOWN",
+      "nature": "PROJECT_SPECIFICATION",
+      "parent_source_id": null,
+      "license": "未取得生产使用和外部分发授权记录；当前按用户要求开展本地资料审查",
+      "allowed_use": [
+        "LOCAL_DESIGN_REVIEW",
+        "LOCAL_PARSER_CHECK"
+      ],
+      "sensitivity": "INTERNAL",
+      "retention": "待企业批准；禁止自动永久清理",
+      "production_status": "PENDING_APPROVAL"
+    }
+  ],
+  "records": [
+    {
+      "record_id": "sample-61a3722db5d38d8064f0d9f9",
+      "source_id": "official-format-2021-121-a4-text",
+      "source_version": "2fdc36f675104e60caf17e8c2f40772eeee1de5c67ef015e89e05a4296be0b36",
+      "parse_version": "utf8-codepoint-v1",
+      "chunk_id": "61a3722db5d38d8064f0d9f950dda275642af9a931f4594ac50575122f4d22cf",
+      "section_title": "2021年第121号附件4",
+      "text": "5.各项申报资料中的申请内容应当具有一致性。",
+      "quote_hash": "707f47faa4f5f790eaf5a12b3bb7a2090e2cb1769258a77f27fae0a8b45092a3",
+      "locator": {
+        "kind": "TXT",
+        "encoding": "UTF-8",
+        "newline_policy": "PRESERVE",
+        "char_start": 351,
+        "char_end": 373,
+        "line_start": 12,
+        "line_end": 12
+      },
+      "checks": [
+        "EXACT_TEXT_RANGE",
+        "DERIVATION_REVIEW_REQUIRED"
+      ],
+      "formal_evidence_eligible": false
+    },
+    {
+      "record_id": "sample-53cc3d876181c4bf1f9001cd",
+      "source_id": "official-requirements-2021-121-a5-text",
+      "source_version": "65877d3a85d80bd867ffbf719908457d39d956a15e7a77a382934809fb569b56",
+      "parse_version": "utf8-codepoint-v1",
+      "chunk_id": "53cc3d876181c4bf1f9001cde91d7068009a0b81ce54ea8db74035b6a4c375e1",
+      "section_title": "2021年第121号附件5",
+      "text": "6.1综述",
+      "quote_hash": "f715575429809b01717834fd8cd8b3e5dcd152b3a32caaefebd8e2eedd8a0fd1",
+      "locator": {
+        "kind": "TXT",
+        "encoding": "UTF-8",
+        "newline_policy": "PRESERVE",
+        "char_start": 372,
+        "char_end": 377,
+        "line_start": 39,
+        "line_end": 39
+      },
+      "checks": [
+        "EXACT_TEXT_RANGE",
+        "DERIVATION_REVIEW_REQUIRED"
+      ],
+      "formal_evidence_eligible": false
+    },
+    {
+      "record_id": "sample-0f71159addf0dffbe8d56832",
+      "source_id": "official-requirements-2021-121-a5-text",
+      "source_version": "65877d3a85d80bd867ffbf719908457d39d956a15e7a77a382934809fb569b56",
+      "parse_version": "utf8-codepoint-v1",
+      "chunk_id": "0f71159addf0dffbe8d568327842ed2de94f05c96a63aff849f51348c0ca3b65",
+      "section_title": "2021年第121号附件5",
+      "text": "6.2章节目录",
+      "quote_hash": "7e66e2a1b57a282ff438beefc20bd641059825661053ab74e31181ddf8297822",
+      "locator": {
+        "kind": "TXT",
+        "encoding": "UTF-8",
+        "newline_policy": "PRESERVE",
+        "char_start": 378,
+        "char_end": 385,
+        "line_start": 40,
+        "line_end": 40
+      },
+      "checks": [
+        "EXACT_TEXT_RANGE",
+        "DERIVATION_REVIEW_REQUIRED"
+      ],
+      "formal_evidence_eligible": false
+    },
+    {
+      "record_id": "sample-d0f623241d7bc55892827735",
+      "source_id": "official-ptr-2022-8-text",
+      "source_version": "c8204a2a500ab251e4d3e141d7168c1e4c4115494ba7fad33b33fafdb04793fa",
+      "parse_version": "utf8-codepoint-v1",
+      "chunk_id": "d0f623241d7bc55892827735bd7943b84e62d4b05ed68d457ef71f89fdd1c2f5",
+      "section_title": "2022年第8号附件",
+      "text": "（五）如产品技术要求中的内容引用国家标准、行业标准的，应注明相应标准的编号和年代号。",
+      "quote_hash": "e1b216bc044918fca0d4761bb364dc3120f1795b97194a8c3502b7d2616f1a06",
+      "locator": {
+        "kind": "TXT",
+        "encoding": "UTF-8",
+        "newline_policy": "PRESERVE",
+        "char_start": 495,
+        "char_end": 537,
+        "line_start": 14,
+        "line_end": 14
+      },
+      "checks": [
+        "EXACT_TEXT_RANGE",
+        "DERIVATION_REVIEW_REQUIRED"
+      ],
+      "formal_evidence_eligible": false
+    },
+    {
+      "record_id": "sample-48d4924935e1fba269841254",
+      "source_id": "official-ptr-2022-8-text",
+      "source_version": "c8204a2a500ab251e4d3e141d7168c1e4c4115494ba7fad33b33fafdb04793fa",
+      "parse_version": "utf8-codepoint-v1",
+      "chunk_id": "48d4924935e1fba2698412541d6d28d720c864cdccb446504552f9880da2cf56",
+      "section_title": "2022年第8号附件",
+      "text": "（六）产品技术要求编号为相应产品的注册证号（备案号）。拟注册（备案）的产品技术要求编号可留空。",
+      "quote_hash": "7cf759b0f4bebdce21296c58b376629b032f7b7d87535a089154dc4cc813abff",
+      "locator": {
+        "kind": "TXT",
+        "encoding": "UTF-8",
+        "newline_policy": "PRESERVE",
+        "char_start": 1615,
+        "char_end": 1662,
+        "line_start": 35,
+        "line_end": 35
+      },
+      "checks": [
+        "EXACT_TEXT_RANGE",
+        "DERIVATION_REVIEW_REQUIRED"
+      ],
+      "formal_evidence_eligible": false
+    },
+    {
+      "record_id": "sample-bd2acb084969ce6db8cacd55",
+      "source_id": "official-clinical-2021-73-a4",
+      "source_version": "a70e1b2c0407416a2ea5a076c96e4fd85ea6edf2fcbf5235d0a6581e5a43d7ee",
+      "parse_version": "python-docx-1.2.0:document-paragraphs-v1",
+      "chunk_id": "bd2acb084969ce6db8cacd55da899846b023862e30468c9304d6b64b62e92981",
+      "section_title": "适用范围",
+      "text": "本指导原则适用于需要开展临床评价的第二类、第三类医疗器械产品注册时临床评价报告的编写工作，不适用于按医疗器械管理的体外诊断试剂。",
+      "quote_hash": "c09cf43710e00952d45f7ebd326fb69aaf1f0592dd096bda896b0267af67f4b4",
+      "locator": {
+        "kind": "DOCX",
+        "part": "word/document.xml",
+        "address": {
+          "kind": "PARAGRAPH",
+          "paragraph_index": 10
+        }
+      },
+      "checks": [
+        "EXACT_PARAGRAPH"
+      ],
+      "formal_evidence_eligible": false
+    },
+    {
+      "record_id": "sample-db1dad48a393fec29da0b347",
+      "source_id": "official-clinical-2021-73-a4",
+      "source_version": "a70e1b2c0407416a2ea5a076c96e4fd85ea6edf2fcbf5235d0a6581e5a43d7ee",
+      "parse_version": "python-docx-1.2.0:document-paragraphs-v1",
+      "chunk_id": "db1dad48a393fec29da0b34755687e60a1a44c237884709f36e81694418f4f7a",
+      "section_title": "临床试验概述",
+      "text": "注册申请人需概述临床试验的基本信息，包括临床试验机",
+      "quote_hash": "fcd2fc90998d6a7300c4956b0c20a622d0df10d91bd9ae25c27c57b358a73145",
+      "locator": {
+        "kind": "DOCX",
+        "part": "word/document.xml",
+        "address": {
+          "kind": "PARAGRAPH",
+          "paragraph_index": 159
+        }
+      },
+      "checks": [
+        "EXACT_PARAGRAPH",
+        "CONTINUATION_REQUIRED"
+      ],
+      "formal_evidence_eligible": false
+    },
+    {
+      "record_id": "sample-2c67ee8d5f11f2ac4e74c823",
+      "source_id": "official-clinical-2021-73-a4",
+      "source_version": "a70e1b2c0407416a2ea5a076c96e4fd85ea6edf2fcbf5235d0a6581e5a43d7ee",
+      "parse_version": "python-docx-1.2.0:document-paragraphs-v1",
+      "chunk_id": "2c67ee8d5f11f2ac4e74c8235bdab451193e8e574efc9ae73f767737d95060e1",
+      "section_title": "临床试验概述",
+      "text": "构信息、开展时间、临床试验目的、观察指标、入选/排除标准、样本量、随访时间和试验结果等。对于提交多个临床试验的情形，应阐述各临床试验之间的关系，试验产品是否存在设计变更，并将多个试验和亚组人群的安全性和有效性数据汇总。",
+      "quote_hash": "df5c9a274bd7ed01fdcf325f32dbb9a54e8c8ecc2460890c11d00a56ad2e324b",
+      "locator": {
+        "kind": "DOCX",
+        "part": "word/document.xml",
+        "address": {
+          "kind": "PARAGRAPH",
+          "paragraph_index": 160
+        }
+      },
+      "checks": [
+        "EXACT_PARAGRAPH",
+        "CONTINUATION_REQUIRED"
+      ],
+      "formal_evidence_eligible": false
+    },
+    {
+      "record_id": "sample-348313d9568032ecb29392eb",
+      "source_id": "official-clinical-2021-73-a4",
+      "source_version": "a70e1b2c0407416a2ea5a076c96e4fd85ea6edf2fcbf5235d0a6581e5a43d7ee",
+      "parse_version": "python-docx-1.2.0:document-paragraphs-v1",
+      "chunk_id": "348313d9568032ecb29392eb6a4fc0f742410eb1b396d419ef147d1d53ef4584",
+      "section_title": "产品对比表表头",
+      "text": "支持性\n资料概述\n（可以附件形式提供）",
+      "quote_hash": "db19f8f88f170addb323c60a02c7be494e2af875022f61fecb36c4d99a144350",
+      "locator": {
+        "kind": "DOCX",
+        "part": "word/document.xml",
+        "address": {
+          "kind": "CELL",
+          "table_index": 1,
+          "row_index": 0,
+          "column_index": 4
+        }
+      },
+      "checks": [
+        "EXACT_TABLE_CELL",
+        "MULTILINE_CELL"
+      ],
+      "formal_evidence_eligible": false
+    },
+    {
+      "record_id": "sample-4c108c5d4523f7ae0cfb6837",
+      "source_id": "official-clinical-2021-73-a4-preview",
+      "source_version": "de3c22d2401c1e5338145b5714045bd46030db7b9f0da7199a6ab1db8f148026",
+      "parse_version": "pypdf-6.9.2:plain-v1",
+      "chunk_id": "4c108c5d4523f7ae0cfb6837c348a1e7db317a6ad749aa297a80f5dc32f18df3",
+      "section_title": "转换预览第一页",
+      "text": "附件 4\n医疗器械注册申报临床评价报告技术指导原则\n一、前言\n医疗器械临床评价是采用科学合理的方法对临床数据进行评\n价、分析，以确认医疗器械在其适用范围下的安全性、临床性\n能和/或有效性的持续进行的活动。\n临床评价需持续开展，贯穿医疗器械全生命周期。产品注册\n时，注册申请人使用临床评价产生的临床证据，以及其他设计\n验证和确认文件、器械描述、说明书和标签、风险分析以及生\n产信息，论证产品对安全和有效基本原则的符合性。产品上市\n后，随着产品安全性、临床性能和 /或有效性信息的不断更新，\n需周期性地进行临床评价。\n本指导原则在《医疗器械临床评价技术指导原则》的框架下 ，\n针对上市前临床评价，阐明用于医疗器械注册申报的临床评价\n报告需包含的主要内容并细化相应要求，为注册人编写上市前\n临床评价报告以及药品监督管理部门审评上市前临床评价报告\n提供技术指导。\n本指导原则是医疗器械临床评价通用指导原则体系的一部分 ，\n与《医疗器械临床评价技术指导原则》《决策是否开展医疗器\n械临床试验技术指导原则》《医疗器械临床试验设计指导原\n则》《接受医疗器械境外临床试验数据技术指导原则》《医疗\n器械临床评价等同性论证技术指导原则》等文件相互引用。",
+      "quote_hash": "d30f92c2c0964c5a9538443b1bc931a1e46cf316b4eb07a3358f0cee72201450",
+      "locator": {
+        "kind": "PDF",
+        "page_index": 0,
+        "page_basis": "CONVERTED_PREVIEW",
+        "printed_label": null,
+        "region": {
+          "kind": "WHOLE_PAGE"
+        }
+      },
+      "checks": [
+        "EXACT_PAGE_TEXT",
+        "NATIVE_LOCATOR_REQUIRED",
+        "LAYOUT_NOT_VERIFIED"
+      ],
+      "formal_evidence_eligible": false
+    },
+    {
+      "record_id": "sample-53812d8507cef9132cac1db0",
+      "source_id": "official-safety-2021-121-a9-preview",
+      "source_version": "5179d8baeded33b57c52f10df9f3c3628ea9e4c1db3c29e0db6ce21ff6648c81",
+      "parse_version": "pypdf-6.9.2:plain-v1",
+      "chunk_id": "53812d8507cef9132cac1db0ffb5bd9fbd96d7cafc5085a73a05eb165b7862ce",
+      "section_title": "转换预览第一页",
+      "text": "—— 1 ——\n附件 9\n医疗器械安全和性能基本原则清单\n条款号 要求 适用 证明符合性\n采用的方法\n为 符 合 性 提 供\n客 观 证 据 的 文\n件\nA 安全和性能的通用基本原则\nA1 一般原则\nA1.1\n医疗器械应当实现申请人的预期性能，其设计\n和生产应当确保器械在预期使用条件下达到预\n期目的。这些器械应当是安全的并且能够实现\n其预期性能，与患者受益相比，其风险应当是\n可接受的，且不会损害医疗环境、患者安全、\n使用者及他人的安全和健康。\nA1.2\n申请人应当建立、实施、形成文件和维护风险\n管理体系，确保医疗器械安全、有效且质量可\n控。在医疗器械全生命周期内，风险管理是一\n个持续、反复的过程，需要定期进行系统性的\n改进更新。在开展风险管理时，申请人应当：\na) 建立涵盖所有医疗器械风险管理计划并形\n成文件；\nb) 识别并分析涵盖所有医疗器械的相关的已\n知和可预见的危险（源）；\nc) 估计和评价在预期使用和可合理预见的误\n使用过程中，发生的相关风险；\nd) 依据 A1.3 和 A1.4 相关要求，消除或控制\nc）点所述的风险；\ne) 评价生产和生产后阶段信息对综合风险、\n风险受益判定和风险可接受性的影响。上述评\n价应当包括先前未识别的危险（源）或危险情\n况，由危险情况导致的一个或多个风险对可接\n受性的影响，以及对先进技术水平的改变等。\nf) 基于对 e）点所述信息影响的评价，必要\n时修改控制措施以符合 A1.3 和 A1.4 相关要\n求。\nA1.3\n医疗器械的申请人在设计和生产过程中采取的\n风险控制措施，应当遵循安全原则，采用先进\n技术。需要降低风险时，申请人应当控制风\n险，确保每个危险（源）相关的剩余风险和总",
+      "quote_hash": "cdd249388b9aece9bb01723ce3cc967119689b6c2e998546e48ffd1369e7b586",
+      "locator": {
+        "kind": "PDF",
+        "page_index": 0,
+        "page_basis": "CONVERTED_PREVIEW",
+        "printed_label": null,
+        "region": {
+          "kind": "WHOLE_PAGE"
+        }
+      },
+      "checks": [
+        "EXACT_PAGE_TEXT",
+        "NATIVE_LOCATOR_REQUIRED",
+        "LAYOUT_NOT_VERIFIED"
+      ],
+      "formal_evidence_eligible": false
+    },
+    {
+      "record_id": "sample-2255bcdd9731ab29c8033d27",
+      "source_id": "project-prd-v1.3.0",
+      "source_version": "7e8b1cf75b016db541d568d619fc6e41428c3e36f62398d0bfa4a34d74466146",
+      "parse_version": "markdown-it-py-4.0.0:commonmark-v1",
+      "chunk_id": "2255bcdd9731ab29c8033d2743b5d7015ab0683be5e80f7deadf896cc37fd920",
+      "section_title": "项目需求文档标题",
+      "text": "# 医疗器械企业 Agent 平台产品需求规格说明书\n",
+      "quote_hash": "5ef2861f912568c545d8c7afd173b400d4006dcb5a4a64a1d2726526328e4917",
+      "locator": {
+        "kind": "MARKDOWN",
+        "node_index": 0,
+        "line_start": 1,
+        "line_end": 1,
+        "heading_path": [
+          "医疗器械企业 Agent 平台产品需求规格说明书"
+        ]
+      },
+      "checks": [
+        "PROJECT_SPECIFICATION_ONLY",
+        "EXACT_SOURCE_LINES"
+      ],
+      "formal_evidence_eligible": false
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.medical.persistence.mapper.DependencyAccessMapper">
+    <resultMap id="header" type="com.ruoyi.medical.persistence.DependencyAccessProtocol$HeaderRow">
+        <constructor>
+            <arg column="tenant_id" javaType="java.lang.String"/><arg column="project_id" javaType="java.lang.String"/>
+            <arg column="access_set_id" javaType="java.lang.String"/><arg column="manifest_sha256" javaType="java.lang.String"/>
+            <arg column="content_sha256" javaType="java.lang.String"/><arg column="created_by" javaType="java.lang.String"/>
+            <arg column="created_at" javaType="java.time.LocalDateTime"/><arg column="classification" javaType="java.lang.String"/>
+        </constructor>
+    </resultMap>
+    <select id="header" resultMap="header" useCache="false" flushCache="true">
+        SELECT tenant_id,project_id,access_set_id,manifest_sha256,content_sha256,created_by,created_at,classification
+        FROM dependency_access_set d WHERE access_set_id=#{id}
+    </select>
+</mapper>

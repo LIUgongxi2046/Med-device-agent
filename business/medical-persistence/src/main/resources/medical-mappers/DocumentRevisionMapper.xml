@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.medical.persistence.mapper.DocumentRevisionMapper">
+  <select id="operation" resultMap="com.ruoyi.medical.persistence.mapper.UploadIssuanceMapper.operation" useCache="false" flushCache="true">
+    SELECT tenant_id,operation_id,subject_id,operation_name,idempotency_key,request_sha256,state,http_status,response_ref,
+      target_id,error_code,schema_version,schema_manifest_sha256,created_by,created_at,classification,revision,updated_at,
+      dedup_expires_at,dedup_policy_revision FROM operation_record o
+    WHERE subject_id=#{userId} AND operation_name='DC-02' AND idempotency_key=#{key} FOR UPDATE
+  </select>
+  <select id="completedUpload" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT s.upload_id FROM object_upload_session s JOIN artifact_upload_grant g
+      ON g.tenant_id=s.tenant_id AND g.project_key=s.project_key AND g.grant_id=s.grant_id
+    JOIN artifact_upload_binding b ON b.tenant_id=s.tenant_id AND b.upload_id=s.upload_id
+    WHERE s.project_id=#{projectId} AND s.subject_id=#{userId} AND s.purpose='DOCUMENT_BODY' AND s.state='COMPLETED'
+      AND g.status='COMPLETED' AND g.artifact_id=#{input.bodyArtifactId} AND b.document_id=#{documentId}
+      AND b.subject_id=#{userId} AND b.expected_revision=#{input.expectedRevision} FOR UPDATE
+  </select>
+  <insert id="startOperation">
+    INSERT INTO operation_record (operation_id,subject_id,operation_name,idempotency_key,request_sha256,state,http_status,response_ref,
+      target_id,error_code,schema_version,schema_manifest_sha256,created_by,created_at,classification,revision,updated_at)
+    VALUES (#{operationId},#{userId},'DC-02',#{key},#{requestHash},'PROCESSING',NULL,#{commandJson},#{documentId},NULL,
+      '1.0.0',#{manifest},#{userId},#{now},#{classification},1,#{now})
+  </insert>
+  <update id="updateCommand">
+    UPDATE operation_record o SET response_ref=#{commandJson},revision=revision+1,updated_at=#{now}
+    WHERE subject_id=#{userId} AND operation_name='DC-02' AND idempotency_key=#{key} AND operation_id=#{operationId}
+      AND request_sha256=#{requestHash} AND target_id=#{documentId} AND state='PROCESSING' AND revision=#{operationRevision}
+  </update>
+  <update id="completeOperation">
+    UPDATE operation_record o SET state='COMPLETED',http_status=201,response_ref=#{response},revision=revision+1,updated_at=#{now}
+    WHERE subject_id=#{userId} AND operation_name='DC-02' AND idempotency_key=#{key} AND operation_id=#{operationId}
+      AND request_sha256=#{requestHash} AND target_id=#{documentId} AND state='PROCESSING' AND revision=#{operationRevision}
+  </update>
+  <insert id="saveVersion">
+    INSERT INTO version_registry (version_id,owner_project_id,entity_kind,content_sha256)
+    VALUES (#{versionId},#{projectId},#{versionKind},#{versionHash})
+  </insert>
+  <insert id="saveRevision">
+    INSERT INTO document_revision (project_id,document_revision,document_id,snapshot_id,body_sha256,body_object_key)
+    VALUES (#{projectId},#{documentRevision},#{documentId},#{basis.snapshot.snapshotId},#{input.bodySha256},#{bodyReference.objectKey})
+  </insert>
+  <insert id="saveMetadata">
+    INSERT INTO document_revision_meta (project_id,document_revision,document_id,task_id,task_revision,snapshot_id,
+      based_on_project_id,based_on_document_id,based_on_document_revision,body_object_version,schema_revision,body_schema_revision,
+      body_artifact_id,body_sha256,plan_revision,template_version,issue_watermark,dependency_access_set_id,content_sha256,
+      created_by,created_at,classification)
+    VALUES (#{projectId},#{documentRevision},#{documentId},#{basis.task.taskId},#{basis.taskRevision.taskRevision},#{basis.snapshot.snapshotId},
+      #{projectId},#{documentId},#{input.baseRevision},#{bodyReference.objectVersion},'1.0.0',#{input.bodySchemaRevision},
+      #{input.bodyArtifactId},#{input.bodySha256},#{basis.plan.planRevision},#{body.templateVersion},0,#{accessSetId},#{input.bodySha256},
+      #{userId},#{now},#{classification})
+  </insert>
+  <update id="adoptBody">
+    UPDATE artifact a SET document_revision=#{documentRevision}
+    WHERE project_id=#{projectId} AND artifact_id=#{input.bodyArtifactId} AND document_revision IS NULL AND artifact_kind='DOCUMENT_BODY'
+      AND sha256=#{input.bodySha256} AND object_key=#{bodyReference.objectKey} AND object_version=#{bodyReference.objectVersion}
+      AND dependency_access_set_id=#{accessSetId}
+  </update>
+  <insert id="saveArtifact">
+    INSERT INTO artifact (project_id,artifact_id,run_id,document_revision,artifact_kind,object_ref,object_key,object_version,sha256,
+      size_bytes,media_type,dependency_access_set_id,content_sha256,schema_version,schema_manifest_sha256,created_by,created_at,classification)
+    VALUES (#{projectId},#{projection.artifactId},NULL,#{documentRevision},#{projection.kind},#{storedObject},#{projection.reference.objectKey},
+      #{projection.reference.objectVersion},#{projection.reference.sha256},#{projection.reference.sizeBytes},'application/json',#{accessSetId},
+      #{projection.reference.sha256},'1.0.0',#{artifactManifest},#{userId},#{now},#{classification})
+  </insert>
+  <insert id="saveBinding">
+    INSERT INTO artifact_content_binding (project_id,artifact_id,resource_kind,resource_id,schema_ref,schema_document_sha256,
+      dependency_access_set_id,dependency_manifest_sha256,created_by,created_at,classification)
+    VALUES (#{projectId},#{projection.artifactId},'DOCUMENT',#{documentId},#{projection.schemaRef},#{interfacesHash},
+      #{accessSetId},#{dependencyHash},#{userId},#{now},#{classification})
+  </insert>
+  <insert id="saveLineage">
+    INSERT INTO lineage_edge (consumer_version_id,upstream_version_id,relation_kind,actor_id,decision_ref,created_at)
+    VALUES (#{consumerId},#{upstreamId},#{relationKind},#{userId},NULL,#{now})
+  </insert>
+  <insert id="saveNode">
+    INSERT INTO document_node (project_id,document_revision,node_id,node_kind,parent_id,ordinal,node_sha256,created_by,created_at,classification)
+    VALUES (#{projectId},#{documentRevision},#{node.nodeId},#{node.kind},#{node.parentId},#{node.ordinal},#{node.sha256},#{userId},#{now},#{classification})
+  </insert>
+  <insert id="saveField">
+    INSERT INTO field_value (project_id,document_revision,template_version,field_id,field_definition_id,row_id,node_id,value_json,
+      raw_value,status,source_refs,fact_version,model_ids,condition_id,empty_reason,schema_version,schema_manifest_sha256,created_by,created_at,classification)
+    VALUES (#{projectId},#{documentRevision},#{body.templateVersion},#{field.fieldId},#{field.fieldDefinitionId},NULL,#{field.nodeId},#{fieldJson},
+      #{field.originalValue},'DRAFT',#{fieldEvidence},NULL,'[]',NULL,NULL,'1.0.0',#{manifest},#{userId},#{now},#{classification})
+  </insert>
+  <insert id="saveClaim">
+    INSERT INTO claim (project_id,document_revision,claim_id,node_id,field_id,row_id,statement_sha256)
+    VALUES (#{projectId},#{documentRevision},#{claimId},#{nodeId},NULL,NULL,#{statementHash})
+  </insert>
+  <insert id="saveEvidence">
+    INSERT INTO evidence_link (project_id,evidence_id,document_revision,claim_id,source_version,parse_version,chunk_id,approval_revision,relation_kind,checks)
+    VALUES (#{projectId},#{evidenceId},#{documentRevision},#{claimId},#{link.evidence.sourceVersion},#{link.evidence.parseVersion},
+      #{link.evidence.chunkId},#{link.evidence.approvalRevision},#{evidenceRelation},#{linkJson})
+  </insert>
+  <insert id="saveEvidenceProjection">
+    INSERT INTO document_evidence_projection (project_id,document_revision,link_id,node_id,evidence_id,claim_id,value_json,
+      schema_version,schema_manifest_sha256,created_by,created_at,classification)
+    VALUES (#{projectId},#{documentRevision},#{link.evidenceLinkId},#{nodeId},#{evidenceId},#{claimId},#{linkJson},
+      '1.0.0',#{manifest},#{userId},#{now},#{classification})
+  </insert>
+  <insert id="saveUsage">
+    INSERT INTO fact_usage (project_id,usage_id,fact_version,document_revision,node_id,field_id,row_id,created_by,created_at,classification)
+    VALUES (#{projectId},#{usageId},#{usage.factId},#{documentRevision},#{usage.nodeId},#{usage.fieldId},NULL,#{userId},#{now},#{classification})
+  </insert>
+  <select id="planSections" resultType="com.ruoyi.medical.persistence.DocumentRevisionProtocol$Section" useCache="false" flushCache="true">
+    SELECT s.section_id AS sectionId,n.node_id AS nodeId FROM plan_section s JOIN plan_section_node n
+      ON n.tenant_id=s.tenant_id AND n.project_id=s.project_id AND n.plan_revision=s.plan_revision AND n.section_id=s.section_id
+    WHERE s.project_id=#{projectId} AND s.plan_revision=#{basis.plan.planRevision} ORDER BY s.section_id,n.position FOR UPDATE
+  </select>
+  <select id="planContent" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT content_json FROM plan_content_revision p WHERE project_id=#{projectId} AND plan_revision=#{basis.plan.planRevision} FOR UPDATE
+  </select>
+  <insert id="saveSection">
+    INSERT INTO section_revision (project_id,section_revision,section_id,plan_revision,body_ref,evidence_manifest,status,content_sha256,
+      schema_version,schema_manifest_sha256,created_by,created_at,classification)
+    VALUES (#{projectId},#{sectionRevision},#{section.sectionId},#{basis.plan.planRevision},#{sectionBody},#{sectionEvidence},'DRAFT',#{sectionHash},
+      '1.0.0',#{manifest},#{userId},#{now},#{classification})
+  </insert>
+  <insert id="saveDocumentSection">
+    INSERT INTO document_section (project_id,document_revision,section_id,section_revision,ordinal,created_by,created_at,classification)
+    VALUES (#{projectId},#{documentRevision},#{section.sectionId},#{sectionRevision},#{sectionOrdinal},#{userId},#{now},#{classification})
+  </insert>
+  <insert id="saveWatermarks">
+    INSERT INTO document_revision_state (project_id,document_revision,issue_watermark,evidence_watermark,created_by,created_at,classification,revision,updated_at)
+    VALUES (#{projectId},#{documentRevision},0,0,#{userId},#{now},#{classification},1,#{now})
+  </insert>
+  <update id="advanceHead">
+    UPDATE document_head d SET current_document_revision=#{documentRevision},status='DRAFT',revision=revision+1,updated_at=#{now}
+    WHERE project_id=#{projectId} AND document_id=#{documentId} AND current_document_revision=#{input.baseRevision}
+      AND revision=#{input.expectedRevision} AND status&lt;&gt;'SIGNED'
+  </update>
+  <update id="invalidateChecks">
+    UPDATE check_run c SET invalidation_reason='DOCUMENT_REVISION_CHANGED',revision=revision+1,updated_at=#{now}
+    WHERE project_id=#{projectId} AND document_id=#{documentId} AND document_revision=#{input.baseRevision} AND invalidation_reason IS NULL
+  </update>
+  <update id="invalidateEvidence">
+    UPDATE evidence_review_decision e SET validity='INVALIDATED',invalidation_reason='DOCUMENT_REVISION_CHANGED',revision=revision+1,updated_at=#{now}
+    WHERE project_id=#{projectId} AND document_revision=#{input.baseRevision} AND validity='VALID'
+  </update>
+  <insert id="invalidateReview">
+    INSERT INTO review_invalidation (project_id,invalidation_id,review_id,trigger_version,reason_code,created_by,created_at,classification)
+    VALUES (#{projectId},#{invalidationId},#{reviewId},#{documentRevision},'DOCUMENT_REVISION_CHANGED',#{userId},#{now},#{classification})
+  </insert>
+  <select id="nodes" resultType="com.ruoyi.medical.persistence.DocumentRevisionProtocol$NodeRow" useCache="false" flushCache="true">
+    SELECT node_id AS nodeId,parent_id AS parentId,ordinal,node_kind AS kind,node_sha256 AS sha256 FROM document_node n
+    WHERE project_id=#{projectId} AND document_revision=#{documentRevision} ORDER BY node_id FOR UPDATE
+  </select>
+  <select id="fields" resultType="com.ruoyi.medical.persistence.DocumentRevisionProtocol$FieldRow" useCache="false" flushCache="true">
+    SELECT field_id AS fieldId,node_id AS nodeId,field_definition_id AS definitionId,value_json AS valueJson FROM field_value f
+    WHERE project_id=#{projectId} AND document_revision=#{documentRevision} ORDER BY field_id FOR UPDATE
+  </select>
+  <select id="evidence" resultType="com.ruoyi.medical.persistence.DocumentRevisionProtocol$EvidenceRow" useCache="false" flushCache="true">
+    SELECT link_id AS linkId,node_id AS nodeId,evidence_id AS evidenceId,claim_id AS claimId,value_json AS valueJson FROM document_evidence_projection e
+    WHERE project_id=#{projectId} AND document_revision=#{documentRevision} ORDER BY link_id,node_id FOR UPDATE
+  </select>
+  <select id="usages" resultType="com.ruoyi.medical.persistence.DocumentRevisionProtocol$UsageRow" useCache="false" flushCache="true">
+    SELECT fact_version AS factId,node_id AS nodeId,field_id AS fieldId FROM fact_usage f
+    WHERE project_id=#{projectId} AND document_revision=#{documentRevision} ORDER BY fact_version,node_id,field_id FOR UPDATE
+  </select>
+</mapper>

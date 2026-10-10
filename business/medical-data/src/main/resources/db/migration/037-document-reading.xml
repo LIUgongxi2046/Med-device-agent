@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.31.xsd"
+    logicalFilePath="medical-agent/db/migration/037-document-reading.xml">
+  <changeSet id="1.0.0-250-document-projection-identity" author="medical-agent" dbms="mysql" runInTransaction="false" failOnError="true">
+    <preConditions onFail="HALT" onError="HALT"><sqlCheck expectedResult="0">
+      SELECT COUNT(*) FROM (SELECT tenant_id,project_id,document_revision,artifact_kind FROM artifact
+        WHERE document_revision IS NOT NULL GROUP BY tenant_id,project_id,document_revision,artifact_kind HAVING COUNT(*) &gt; 1) duplicates
+    </sqlCheck></preConditions>
+    <addUniqueConstraint tableName="artifact" columnNames="tenant_id,project_id,document_revision,artifact_kind"
+      constraintName="uq_document_artifact_kind"/>
+  </changeSet>
+  <changeSet id="1.0.0-251-document-revision-state" author="medical-agent" dbms="mysql" runInTransaction="false" failOnError="true">
+    <createTable tableName="document_revision_state">
+      <column name="tenant_id" type="CHAR(36)"><constraints nullable="false" primaryKey="true" primaryKeyName="pk_document_revision_state"/></column>
+      <column name="project_id" type="CHAR(36)"><constraints nullable="false" primaryKey="true" primaryKeyName="pk_document_revision_state"/></column>
+      <column name="document_revision" type="CHAR(36)"><constraints nullable="false" primaryKey="true" primaryKeyName="pk_document_revision_state"/></column>
+      <column name="issue_watermark" type="BIGINT UNSIGNED"><constraints nullable="false"/></column>
+      <column name="evidence_watermark" type="BIGINT UNSIGNED"><constraints nullable="false"/></column>
+      <column name="created_by" type="CHAR(36)"><constraints nullable="false"/></column>
+      <column name="created_at" type="DATETIME(6)"><constraints nullable="false"/></column>
+      <column name="classification" type="VARCHAR(24)"><constraints nullable="false"/></column>
+      <column name="revision" type="BIGINT UNSIGNED"><constraints nullable="false"/></column>
+      <column name="updated_at" type="DATETIME(6)"><constraints nullable="false"/></column>
+    </createTable>
+    <sql>ALTER TABLE document_revision_state
+      MODIFY tenant_id CHAR(36) CHARACTER SET ascii NOT NULL,
+      MODIFY project_id CHAR(36) CHARACTER SET ascii NOT NULL,
+      MODIFY document_revision CHAR(36) CHARACTER SET ascii NOT NULL,
+      MODIFY created_by CHAR(36) CHARACTER SET ascii NOT NULL</sql>
+    <addForeignKeyConstraint baseTableName="document_revision_state" baseColumnNames="tenant_id,project_id,document_revision"
+      referencedTableName="document_revision_meta" referencedColumnNames="tenant_id,project_id,document_revision"
+      constraintName="fk_document_revision_state"/>
+    <addForeignKeyConstraint baseTableName="document_revision_state" baseColumnNames="tenant_id,created_by"
+      referencedTableName="tenant_member" referencedColumnNames="tenant_id,user_id" constraintName="fk_document_state_actor"/>
+    <sql>ALTER TABLE document_revision_state ADD CONSTRAINT ck_document_state_time CHECK (revision &gt; 0 AND updated_at &gt;= created_at)</sql>
+  </changeSet>
+</databaseChangeLog>

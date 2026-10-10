@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.medical.persistence.mapper.BudgetMapper">
+  <resultMap id="account" type="com.ruoyi.medical.persistence.BudgetProtocol$Account">
+    <constructor>
+      <arg column="tenant_id" javaType="java.lang.String"/><arg column="project_id" javaType="java.lang.String"/>
+      <arg column="budget_id" javaType="java.lang.String"/><arg column="current_budget_revision" javaType="java.lang.String"/>
+      <arg column="currency" javaType="java.lang.String"/><arg column="spent" javaType="java.math.BigDecimal"/>
+      <arg column="reserved" javaType="java.math.BigDecimal"/><arg column="spent_tokens" javaType="java.math.BigInteger"/>
+      <arg column="reserved_tokens" javaType="java.math.BigInteger"/><arg column="spent_calls" javaType="java.math.BigInteger"/>
+      <arg column="reserved_calls" javaType="java.math.BigInteger"/><arg column="created_by" javaType="java.lang.String"/>
+      <arg column="created_at" javaType="java.time.LocalDateTime"/><arg column="classification" javaType="java.lang.String"/>
+      <arg column="revision" javaType="java.math.BigInteger"/><arg column="updated_at" javaType="java.time.LocalDateTime"/>
+    </constructor>
+  </resultMap>
+  <resultMap id="approval" type="com.ruoyi.medical.persistence.BudgetProtocol$Revision">
+    <constructor>
+      <arg column="project_id" javaType="java.lang.String"/><arg column="budget_revision" javaType="java.lang.String"/>
+      <arg column="budget_id" javaType="java.lang.String"/><arg column="currency" javaType="java.lang.String"/>
+      <arg column="limits" javaType="java.lang.String"/><arg column="approver_id" javaType="java.lang.String"/>
+      <arg column="reason" javaType="java.lang.String"/><arg column="content_sha256" javaType="java.lang.String"/>
+      <arg column="schema_version" javaType="java.lang.String"/><arg column="schema_manifest_sha256" javaType="java.lang.String"/>
+      <arg column="created_by" javaType="java.lang.String"/><arg column="created_at" javaType="java.time.LocalDateTime"/>
+      <arg column="classification" javaType="java.lang.String"/>
+    </constructor>
+  </resultMap>
+  <select id="grants" resultMap="com.ruoyi.medical.persistence.mapper.PermissionMapper.grant" useCache="false" flushCache="true">
+    SELECT grant_id,subject_id,project_id,resource_kind,resource_id,action,`condition`,status,valid_from,valid_to,
+        basis_version,schema_version,schema_manifest_sha256,revision
+    FROM permission_grant g WHERE subject_id=#{userId} AND status='ACTIVE' AND action IN ('budget.read','budget.approve')
+      AND valid_from &lt;= UTC_TIMESTAMP(6) AND (valid_to IS NULL OR valid_to &gt; UTC_TIMESTAMP(6)) ORDER BY grant_id FOR UPDATE
+  </select>
+  <sql id="filter">
+    <choose>
+      <when test="scopes != null and !scopes.isEmpty()">
+        <foreach collection="scopes" item="scope" open="(" separator=" OR " close=")">
+          <choose>
+            <when test="scope.kind == 'ENTERPRISE'">1=1</when>
+            <when test="scope.kind == 'PROJECT'">b.project_id=#{scope.projectId}</when>
+            <otherwise>(1=1 <if test="scope.projectId != null">AND b.project_id=#{scope.projectId}</if>
+              <if test="scope.resourceId != null">AND b.budget_id=#{scope.resourceId}</if>)</otherwise>
+          </choose>
+        </foreach>
+      </when>
+      <otherwise>1=0</otherwise>
+    </choose>
+    <if test="after != null">AND b.budget_id &gt; #{after}</if>
+    <if test="filterProject != null">AND b.project_id=#{filterProject}</if>
+  </sql>
+  <select id="accounts" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT b.budget_id FROM budget_account b WHERE <include refid="filter"/> ORDER BY b.budget_id LIMIT #{limit}
+  </select>
+  <select id="count" resultType="java.math.BigInteger" useCache="false" flushCache="true">
+    SELECT COUNT(*) FROM budget_account b WHERE <include refid="filter"/>
+  </select>
+  <select id="account" resultMap="account" useCache="false" flushCache="true">
+    SELECT tenant_id,project_id,budget_id,current_budget_revision,currency,spent,reserved,spent_tokens,reserved_tokens,
+        spent_calls,reserved_calls,created_by,created_at,classification,revision,updated_at
+    FROM budget_account b WHERE budget_id=#{budgetId} <if test="lock">FOR UPDATE</if>
+  </select>
+  <select id="approval" resultMap="approval" useCache="false" flushCache="true">
+    SELECT project_id,budget_revision,budget_id,currency,limits,approver_id,reason,content_sha256,
+        schema_version,schema_manifest_sha256,created_by,created_at,classification
+    FROM budget_revision r WHERE budget_id=#{budgetId} AND budget_revision=#{approvalId}
+  </select>
+  <sql id="historyFilter">
+    r.budget_id=#{budgetId} <if test="after != null">AND r.budget_revision &gt; #{after}</if>
+  </sql>
+  <select id="history" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT r.budget_revision FROM budget_revision r WHERE <include refid="historyFilter"/> ORDER BY r.budget_revision LIMIT #{limit}
+  </select>
+  <select id="historyCount" resultType="java.math.BigInteger" useCache="false" flushCache="true">
+    SELECT COUNT(*) FROM budget_revision r WHERE <include refid="historyFilter"/>
+  </select>
+  <select id="registry" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT content_sha256 FROM version_registry v WHERE version_id=#{approvalId} AND entity_kind='BUDGET'
+      <choose><when test="projectId == null">AND owner_project_id IS NULL</when><otherwise>AND owner_project_id=#{projectId}</otherwise></choose>
+  </select>
+  <insert id="insertAccount">
+    INSERT INTO budget_account (project_id,budget_id,current_budget_revision,currency,spent,reserved,spent_tokens,reserved_tokens,
+        spent_calls,reserved_calls,created_by,created_at,classification,revision,updated_at)
+    VALUES (#{projectId},#{budgetId},NULL,#{currency},0,0,0,0,0,0,#{userId},#{now},#{classification},1,#{now})
+  </insert>
+  <insert id="insertVersion">
+    INSERT INTO version_registry (version_id,owner_project_id,entity_kind,content_sha256)
+    VALUES (#{approvalId},#{projectId},'BUDGET',#{contentHash})
+  </insert>
+  <insert id="insertApproval">
+    INSERT INTO budget_revision (project_id,budget_revision,budget_id,currency,limits,approver_id,reason,content_sha256,
+        schema_version,schema_manifest_sha256,created_by,created_at,classification)
+    VALUES (#{projectId},#{approvalId},#{budgetId},#{currency},#{definition},#{userId},#{reason},#{contentHash},
+        '1.0.0',#{manifest},#{userId},#{now},#{classification})
+  </insert>
+  <update id="initializeApproval">
+    UPDATE budget_account SET current_budget_revision=#{approvalId} WHERE budget_id=#{budgetId}
+      AND current_budget_revision IS NULL AND revision=1
+  </update>
+  <update id="advanceApproval">
+    UPDATE budget_account SET current_budget_revision=#{approvalId},revision=revision+1,updated_at=UTC_TIMESTAMP(6)
+    WHERE budget_id=#{budgetId} AND currency=#{currency} AND current_budget_revision=#{oldApproval} AND revision=#{expected}
+  </update>
+  <select id="currentOperation" resultMap="com.ruoyi.medical.persistence.mapper.TenantSelectionMapper.operation" useCache="false" flushCache="true">
+    SELECT operation_id,request_sha256,state,http_status,response_ref,target_id,schema_version,schema_manifest_sha256
+    FROM operation_record o WHERE subject_id=#{userId} AND operation_name=#{operation} AND idempotency_key=#{key}
+  </select>
+  <insert id="saveOperation">
+    INSERT INTO operation_record (operation_id,subject_id,operation_name,idempotency_key,request_sha256,state,http_status,response_ref,
+        target_id,error_code,schema_version,schema_manifest_sha256,created_by,created_at,classification,revision,updated_at)
+    VALUES (#{operationId},#{userId},#{operation},#{key},#{requestHash},'COMPLETED',#{httpStatus},#{response},#{budgetId},NULL,
+        '1.0.0',#{manifest},#{userId},#{now},#{classification},1,#{now})
+  </insert>
+  <update id="advanceGovernance">
+    UPDATE tenant SET governance_epoch=governance_epoch+1 WHERE governance_epoch=#{governanceEpoch} AND auth_epoch=#{authEpoch}
+  </update>
+  <select id="audit" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT resource_ref FROM audit_event a WHERE audit_id=#{auditId} AND subject_id=#{userId}
+      <choose><when test="projectId == null">AND project_id IS NULL</when><otherwise>AND project_id=#{projectId}</otherwise></choose>
+      AND action=#{eventType} AND result='SUCCESS' AND reason_code IS NULL AND request_id=#{requestId} AND trace_id=#{requestId}
+      AND schema_version='1.0.0' AND schema_manifest_sha256=#{manifest} AND created_by=#{userId} AND classification=#{classification}
+  </select>
+  <select id="event" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT payload FROM outbox_event e WHERE event_id=#{eventId} AND aggregate_id=#{budgetId} AND aggregate_revision=#{resulting} AND event_type=#{eventType}
+  </select>
+</mapper>

@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.medical.persistence.mapper.EnterpriseProvisioningMapper">
+    <select id="lockTenant" resultType="map" useCache="false" flushCache="true">
+        SELECT auth_epoch,governance_epoch FROM tenant FOR UPDATE
+    </select>
+    <insert id="insertTenant">
+        INSERT INTO tenant (auth_epoch,governance_epoch) VALUES (1,1)
+    </insert>
+    <insert id="insertBinding">
+        INSERT INTO identity_binding (identity_id,user_id,mode,local_user_id,issuer,subject,status,created_by,created_at,classification,revision,updated_at)
+        VALUES (#{identityId},#{adminId},'local',#{adminId},NULL,NULL,'ACTIVE',#{userId},#{now},#{classification},1,#{now})
+    </insert>
+    <insert id="insertMember">
+        INSERT INTO tenant_member (member_id,user_id,status,valid_from,valid_to,created_by,created_at,classification,revision,updated_at)
+        VALUES (#{memberId},#{adminId},'ACTIVE',#{now},NULL,#{userId},#{now},#{classification},1,#{now})
+    </insert>
+    <insert id="insertBasis">
+        INSERT INTO version_registry (version_id,owner_project_id,entity_kind,content_sha256)
+        VALUES (#{basisId},NULL,'ENTERPRISE_GOVERNANCE',#{basisHash})
+    </insert>
+    <insert id="insertGrant">
+        INSERT INTO permission_grant (grant_id,subject_id,project_id,resource_kind,resource_id,action,`condition`,status,valid_from,valid_to,
+            basis_version,schema_version,schema_manifest_sha256,created_by,created_at,classification,revision,updated_at)
+        VALUES (#{grantId},#{adminId},NULL,'ENTERPRISE',#{enterpriseId},#{action},#{condition},'ACTIVE',#{now},#{validTo},#{basisId},
+            '1.0.0',#{permissionManifest},#{userId},#{now},#{classification},1,#{now})
+    </insert>
+    <insert id="saveEvent">
+        INSERT INTO outbox_event (event_id,aggregate_id,aggregate_revision,event_type,payload,occurred_at,published_at)
+        VALUES (#{eventId},#{enterpriseId},1,'ENTERPRISE_APPROVED',#{payload},#{now},NULL)
+    </insert>
+    <select id="state" resultType="map" useCache="false" flushCache="true">
+        SELECT m.member_id,m.user_id,m.status AS member_status,i.status AS binding_status,i.mode,i.local_user_id,i.issuer,i.subject,
+            v.version_id,v.content_sha256,v.entity_kind
+        FROM tenant_member m INNER JOIN identity_binding i ON i.user_id=m.user_id
+            INNER JOIN version_registry v ON v.version_id=#{basisId}
+        WHERE m.member_id=#{memberId} AND m.user_id=#{adminId}
+            AND m.valid_from &lt;= UTC_TIMESTAMP(6) AND (m.valid_to IS NULL OR m.valid_to>UTC_TIMESTAMP(6)) FOR UPDATE
+    </select>
+    <select id="grants" resultMap="com.ruoyi.medical.persistence.mapper.PermissionMapper.grant" useCache="false" flushCache="true">
+        SELECT grant_id,subject_id,project_id,resource_kind,resource_id,action,`condition`,status,valid_from,valid_to,
+            basis_version,schema_version,schema_manifest_sha256,revision
+        FROM permission_grant g WHERE subject_id=#{adminId} AND basis_version=#{basisId} ORDER BY grant_id FOR UPDATE
+    </select>
+</mapper>

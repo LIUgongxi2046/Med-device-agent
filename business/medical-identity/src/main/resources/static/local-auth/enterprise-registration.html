@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>企业登记申请 · 医疗器械资料平台</title><link rel="stylesheet" href="/local-auth/auth.css"><link rel="stylesheet" href="/local-auth/enterprise-registration.css"><script type="module" src="/local-auth/enterprise-registration.js"></script></head>
+<body><main><p class="brand">医疗器械资料平台</p><h1>企业登记申请</h1><a href="/local-auth/account.html">返回当前账户</a><a href="/local-auth/enterprise-registration-review.html">审查企业申请</a>
+<p>填写获授权的真实企业信息，并指定已有系统账户作为首位管理员。申请保存后进入待审查状态，企业启用及岗位授权需要后续批准。</p>
+<form data-registration><fieldset disabled><legend>企业及授权信息</legend>
+<label>企业法定名称<input name="legal_name" required data-code-point-limit="512" autocomplete="organization"></label>
+<label>登记地区<input name="jurisdiction" required data-code-point-limit="128" autocomplete="off"></label>
+<label>企业登记标识<input name="legal_identifier" required data-code-point-limit="256" autocomplete="off"></label>
+<label for="first-admin">指定首位管理员</label><select id="first-admin" name="first_admin_user_id" required><option value="">请选择已有有效账户</option></select>
+<p>需要新增人员时，可以使用<a href="/local-auth/management.html">系统账户管理</a>登记真实账户。</p>
+<label>授权依据<textarea name="authorization_basis" required data-code-point-limit="4096" rows="5"></textarea></label>
+<label class="attestation"><input name="authorization_attested" type="checkbox" required>确认企业信息真实，并已取得提交申请及指定管理员的授权。</label>
+<button type="submit">提交企业登记申请</button><button type="button" data-abandon>清除待提交请求</button>
+</fieldset></form>
+<p role="status" aria-live="polite" data-status>正在核验当前账户</p>
+<section><h2>本人提交的申请</h2><div data-registrations></div><button type="button" data-next hidden disabled>读取更多申请</button></section>
+<section data-detail hidden><h2>申请详情</h2><dl></dl></section>
+</main></body></html>

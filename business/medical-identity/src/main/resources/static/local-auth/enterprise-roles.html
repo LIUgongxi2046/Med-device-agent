@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>管理企业岗位 · 医疗器械资料平台</title><link rel="stylesheet" href="/local-auth/auth.css"><link rel="stylesheet" href="/local-auth/enterprise-registration.css"><script type="module" src="/local-auth/enterprise-roles.js"></script></head>
+<body><main class="management"><p class="brand">医疗器械资料平台</p><h1>管理企业岗位</h1><a href="/local-auth/account.html">返回当前账户</a><a href="/local-auth/enterprise-context.html">选择企业空间</a>
+<p>根据企业批准范围发布岗位。新邀请使用当前发布版本；撤销版本将终止相关待接受邀请，并撤销通过该版本取得的授权。</p>
+<button type="button" data-refresh disabled>重新读取岗位权限</button>
+<section data-role-content hidden><h2>当前批准岗位</h2><p data-context></p><div data-roles></div><button type="button" data-more hidden>读取更多岗位</button>
+<form data-history><fieldset disabled><legend>读取指定历史版本</legend><label>批准岗位标识<input name="role_id" required></label><label>历史版本标识<input name="version_id" required></label><button type="submit">读取历史岗位版本</button></fieldset></form>
+<section data-selected hidden><h2>岗位版本及批准来源</h2><dl></dl><button type="button" data-copy>将此版本作为发布表单内容</button></section>
+<form data-publish><fieldset disabled><legend>发布明确批准的岗位版本</legend>
+<label>批准岗位标识<input name="role_id" required></label><label>岗位名称<input name="name" required data-limit="120"></label><label>预期当前发布版本<input name="expected_head_revision" required inputmode="numeric"></label><p>首次发布填写0，更新使用当前岗位的发布版本。岗位标识必须在本人获准范围内。</p>
+<label>岗位动作，每行填写一个批准动作<textarea name="actions" rows="4"></textarea></label>
+<p>允许使用岗位的登录方式：</p><label class="attestation"><input type="checkbox" name="identity_mode" value="local">本地账户</label><label class="attestation"><input type="checkbox" name="identity_mode" value="oidc">OIDC账户</label>
+<label>批准用途，每行填写一个用途标识<textarea name="purposes" rows="3"></textarea></label><label class="attestation"><input type="checkbox" name="all_purposes">明确批准该岗位适用于全部用途</label>
+<label>允许继续委派的动作，每行填写一个标识<textarea name="delegated_actions" rows="3"></textarea></label><label>允许继续配置和邀请的岗位，每行填写一个UUID<textarea name="delegated_roles" rows="3"></textarea></label>
+<p>允许继续委派的资源类别：</p><div data-kinds></div>
+<label>允许继续委派的项目，每行填写一个UUID<textarea name="project_ids" rows="2"></textarea></label><label class="attestation"><input type="checkbox" name="all_projects">明确批准全部项目范围</label>
+<label>允许继续委派的对象，每行填写一个UUID<textarea name="resource_ids" rows="2"></textarea></label><label class="attestation"><input type="checkbox" name="all_resources">明确批准已选资源类别的全部对象范围</label>
+<label>岗位生效时间<input name="valid_from" type="datetime-local" step="1" required></label><label>岗位截止时间<input name="valid_to" type="datetime-local" step="1"></label><label class="attestation"><input type="checkbox" name="unlimited_validity">明确批准岗位没有固定截止时间</label>
+<label>批准依据版本标识<input name="basis_id" required></label><label>批准依据SHA-256<input name="basis_hash" required></label><label>批准原因<textarea name="reason" rows="4" required data-limit="2000"></textarea></label>
+<label class="attestation"><input type="checkbox" name="approval_attested" required>确认名称、动作、条件及期限均已取得企业批准，由本人发布本次版本。</label><button type="submit">发布批准岗位版本</button></fieldset></form>
+<form data-revoke><fieldset disabled><legend>撤销已读取的指定岗位版本</legend><p data-revoke-target>需要读取目标岗位版本</p><label>预期岗位版本<input name="expected_revision" required inputmode="numeric"></label><label>撤销原因<textarea name="reason" rows="4" required data-limit="2000"></textarea></label><label class="attestation"><input type="checkbox" name="approval_attested" required>确认已取得撤销批准，并终止该版本关联邀请及授权。</label><button type="submit">撤销指定岗位版本</button></fieldset></form>
+</section><section data-pending hidden><h2>原请求身份</h2><p data-pending-id></p><p>请求结果未确认时，需要使用相同内容和原版本重放。页面关闭不会取消已提交的操作。</p><label class="attestation"><input type="checkbox" data-resolution>已经核查原请求结果，确认结束本次请求身份。</label><button type="button" data-clear>结束原请求身份</button></section><p role="status" aria-live="polite" data-status>正在读取当前企业身份</p>
+</main></body></html>

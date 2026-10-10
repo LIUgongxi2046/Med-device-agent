@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:collection-view:1.0.0",
+  "type": "object", "additionalProperties": false,
+  "required": ["actor", "tenant_id", "collection_id", "owner_project_id", "operation", "key", "context", "expected_revision", "base_version", "body_sha256"],
+  "properties": {
+    "actor": {"$ref": "urn:medical:templates:1.0.0#/$defs/Id"},
+    "tenant_id": {"$ref": "urn:medical:templates:1.0.0#/$defs/Id"},
+    "collection_id": {"$ref": "urn:medical:templates:1.0.0#/$defs/NullableId"},
+    "owner_project_id": {"$ref": "urn:medical:templates:1.0.0#/$defs/NullableId"},
+    "operation": {"enum": ["KN-11", "KN-12"]},
+    "key": {"$ref": "urn:medical:templates:1.0.0#/$defs/Id"},
+    "context": {"$ref": "urn:medical:template-approval:1.0.0#/$defs/Context"},
+    "expected_revision": {"type": ["string", "null"], "pattern": "^[1-9][0-9]{0,19}$"},
+    "base_version": {"$ref": "urn:medical:templates:1.0.0#/$defs/NullableBasis"},
+    "body_sha256": {"$ref": "urn:medical:templates:1.0.0#/$defs/Hash"}
+  },
+  "oneOf": [
+    {"properties": {"operation": {"const": "KN-11"}, "collection_id": {"type": "null"}, "expected_revision": {"type": "null"}, "base_version": {"type": "null"}}},
+    {"properties": {"operation": {"const": "KN-12"}, "collection_id": {"type": "string"}, "expected_revision": {"type": "string"}, "base_version": {"type": "object"}}}
+  ]
+}

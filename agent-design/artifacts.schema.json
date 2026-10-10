@@ -1,0 +1,249 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ProfessionalArtifact",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema_version", "execution_kind", "tenant_id", "project_id", "run_id", "step_id", "input_manifest_sha256", "plan_revision", "snapshot_id", "target_section_ids", "dependency_access_set_id", "content_sha256", "output"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "execution_kind": {"enum": ["TASK", "SYSTEM_JOB"]},
+    "tenant_id": {"$ref": "#/$defs/Id"}, "project_id": {"$ref": "#/$defs/NullableId"},
+    "run_id": {"$ref": "#/$defs/Id"}, "step_id": {"$ref": "#/$defs/Id"},
+    "input_manifest_sha256": {"$ref": "#/$defs/Hash"},
+    "plan_revision": {"$ref": "#/$defs/NullableId"}, "snapshot_id": {"$ref": "#/$defs/NullableId"},
+    "target_section_ids": {"$ref": "#/$defs/Ids"},
+    "dependency_access_set_id": {"$ref": "#/$defs/Id"},
+    "content_sha256": {"$ref": "#/$defs/Hash"},
+    "output": {"$ref": "#/$defs/ArtifactOutput"}
+  },
+  "allOf": [{"if": {"properties": {"execution_kind": {"const": "TASK"}}}, "then": {"properties": {"project_id": {"$ref": "#/$defs/Id"}, "plan_revision": {"$ref": "#/$defs/Id"}, "snapshot_id": {"$ref": "#/$defs/Id"}}}}],
+  "$defs": {
+    "Id": {"type": "string", "format": "uuid"},
+    "NullableId": {"type": ["string", "null"], "format": "uuid"},
+    "Ids": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/Id"}},
+    "Text": {"type": "string", "minLength": 1},
+    "NullableText": {"type": ["string", "null"], "minLength": 1},
+    "Hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "Decimal": {"type": "string", "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$"},
+    "Key": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_-]*$"},
+    "Keys": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/Key"}},
+    "EvidenceRef": {"$ref": "../data-design/dataset.schema.json#/$defs/EvidenceRef"},
+    "EvidenceRefs": {"type": "array", "items": {"$ref": "#/$defs/EvidenceRef"}},
+    "ObjectRef": {
+      "type": "object", "additionalProperties": false,
+      "required": ["object_key", "object_version", "sha256", "size_bytes", "media_type"],
+      "properties": {"object_key": {"$ref": "#/$defs/Text"}, "object_version": {"$ref": "#/$defs/Text"}, "sha256": {"$ref": "#/$defs/Hash"}, "size_bytes": {"type": "integer", "minimum": 1}, "media_type": {"$ref": "#/$defs/Text"}}
+    },
+    "ArtifactOutput": {
+      "oneOf": [
+        {"$ref": "#/$defs/PlanOutput"}, {"$ref": "#/$defs/EvidenceOutput"},
+        {"$ref": "#/$defs/FieldOutput"}, {"$ref": "#/$defs/SectionOutput"},
+        {"$ref": "#/$defs/ClaimOutput"}, {"$ref": "#/$defs/ReviewOutput"},
+        {"$ref": "#/$defs/AssemblyOutput"}, {"$ref": "#/$defs/HandoffOutput"}
+      ]
+    },
+    "PlanOutput": {"type": "object", "additionalProperties": false, "required": ["artifact_kind", "content"], "properties": {"artifact_kind": {"const": "PLAN_CANDIDATE"}, "content": {"$ref": "#/$defs/PlanCandidate"}}},
+    "EvidenceOutput": {"type": "object", "additionalProperties": false, "required": ["artifact_kind", "content"], "properties": {"artifact_kind": {"const": "EVIDENCE_BUNDLE"}, "content": {"$ref": "#/$defs/EvidenceBundle"}}},
+    "FieldOutput": {"type": "object", "additionalProperties": false, "required": ["artifact_kind", "content"], "properties": {"artifact_kind": {"const": "FIELD_CHECK_RESULT"}, "content": {"$ref": "#/$defs/FieldCheckResult"}}},
+    "SectionOutput": {"type": "object", "additionalProperties": false, "required": ["artifact_kind", "content"], "properties": {"artifact_kind": {"const": "SECTION_CANDIDATE"}, "content": {"$ref": "#/$defs/SectionCandidate"}}},
+    "ClaimOutput": {"type": "object", "additionalProperties": false, "required": ["artifact_kind", "content"], "properties": {"artifact_kind": {"const": "CLAIM_RECORD"}, "content": {"$ref": "#/$defs/ClaimRecord"}}},
+    "ReviewOutput": {"type": "object", "additionalProperties": false, "required": ["artifact_kind", "content"], "properties": {"artifact_kind": {"const": "REVIEW_FINDINGS"}, "content": {"$ref": "#/$defs/ReviewFindings"}}},
+    "AssemblyOutput": {"type": "object", "additionalProperties": false, "required": ["artifact_kind", "content"], "properties": {"artifact_kind": {"const": "ASSEMBLY_MANIFEST"}, "content": {"$ref": "#/$defs/AssemblyManifest"}}},
+    "HandoffOutput": {"type": "object", "additionalProperties": false, "required": ["artifact_kind", "content"], "properties": {"artifact_kind": {"const": "HANDOFF_RECORD"}, "content": {"$ref": "#/$defs/HandoffRecord"}}},
+    "PlanCandidate": {
+      "type": "object", "additionalProperties": false,
+      "required": ["template_version", "profile_revision", "requirement_node_ids", "sections", "questions", "pending_condition_ids"],
+      "properties": {
+        "template_version": {"$ref": "#/$defs/Id"}, "profile_revision": {"$ref": "#/$defs/Id"},
+        "requirement_node_ids": {"$ref": "#/$defs/Ids"},
+        "sections": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/PlanSection"}},
+        "questions": {"type": "array", "items": {"$ref": "#/$defs/ResearchQuestion"}},
+        "pending_condition_ids": {"$ref": "#/$defs/Ids"}
+      }
+    },
+    "PlanSection": {
+      "type": "object", "additionalProperties": false,
+      "required": ["section_id", "requirement_node_ids", "goal", "owner_id", "method", "depends_on_section_ids", "completion_rule_ids"],
+      "properties": {
+        "section_id": {"$ref": "#/$defs/Id"}, "requirement_node_ids": {"$ref": "#/$defs/Ids"},
+        "goal": {"$ref": "#/$defs/Text"}, "owner_id": {"$ref": "#/$defs/NullableId"},
+        "method": {"enum": ["DETERMINISTIC", "MODEL_ASSISTED", "HUMAN_PROVIDED"]},
+        "depends_on_section_ids": {"$ref": "#/$defs/Ids"}, "completion_rule_ids": {"$ref": "#/$defs/Ids"}
+      }
+    },
+    "ResearchQuestion": {
+      "type": "object", "additionalProperties": false,
+      "required": ["question_key", "section_id", "question", "requirement_ids", "completion_rule_ids", "depends_on_question_keys"],
+      "properties": {"question_key": {"$ref": "#/$defs/Key"}, "section_id": {"$ref": "#/$defs/Id"}, "question": {"$ref": "#/$defs/Text"}, "requirement_ids": {"$ref": "#/$defs/Ids"}, "completion_rule_ids": {"$ref": "#/$defs/Ids"}, "depends_on_question_keys": {"$ref": "#/$defs/Keys"}}
+    },
+    "EvidenceLink": {
+      "type": "object", "additionalProperties": false, "required": ["evidence_ref", "relation"],
+      "properties": {"evidence_ref": {"$ref": "#/$defs/EvidenceRef"}, "relation": {"enum": ["SUPPORT", "CONFLICT", "BACKGROUND"]}}
+    },
+    "EvidenceBundle": {
+      "type": "object", "additionalProperties": false,
+      "required": ["retrieval_ids", "question_coverage", "selected_refs", "conflict_refs", "missing_requirement_ids", "read_receipt_ids"],
+      "properties": {
+        "retrieval_ids": {"$ref": "#/$defs/Ids"},
+        "question_coverage": {"type": "array", "items": {"$ref": "#/$defs/QuestionCoverage"}},
+        "selected_refs": {"$ref": "#/$defs/EvidenceRefs"}, "conflict_refs": {"$ref": "#/$defs/EvidenceRefs"},
+        "missing_requirement_ids": {"$ref": "#/$defs/Ids"}, "read_receipt_ids": {"$ref": "#/$defs/Ids"}
+      }
+    },
+    "QuestionCoverage": {
+      "type": "object", "additionalProperties": false,
+      "required": ["question_id", "status", "evidence_links", "completion_check_ids", "missing_requirement_ids"],
+      "properties": {"question_id": {"$ref": "#/$defs/Id"}, "status": {"enum": ["VERIFIED", "INSUFFICIENT", "CONFLICT"]}, "evidence_links": {"type": "array", "items": {"$ref": "#/$defs/EvidenceLink"}}, "completion_check_ids": {"$ref": "#/$defs/Ids"}, "missing_requirement_ids": {"$ref": "#/$defs/Ids"}}
+    },
+    "FieldValue": {
+      "type": "object", "additionalProperties": false,
+      "required": ["value_kind", "raw_text", "decimal_value", "precision", "unit", "selected_ids", "object_ref"],
+      "properties": {
+        "value_kind": {"enum": ["TEXT", "LONG_TEXT", "DATE", "DECIMAL", "ENUM", "MULTISELECT", "RELATION", "TABLE", "IMAGE", "FORMULA", "FILE", "EMPTY"]},
+        "raw_text": {"$ref": "#/$defs/NullableText"},
+        "decimal_value": {"anyOf": [{"$ref": "#/$defs/Decimal"}, {"type": "null"}]},
+        "precision": {"type": ["integer", "null"], "minimum": 0},
+        "unit": {"$ref": "#/$defs/NullableText"}, "selected_ids": {"$ref": "#/$defs/Ids"},
+        "object_ref": {"anyOf": [{"$ref": "#/$defs/ObjectRef"}, {"type": "null"}]}
+      },
+      "allOf": [{"if": {"properties": {"value_kind": {"const": "DECIMAL"}}}, "then": {"properties": {"raw_text": {"$ref": "#/$defs/Text"}, "decimal_value": {"$ref": "#/$defs/Decimal"}, "precision": {"type": "integer", "minimum": 0}}}}]
+    },
+    "FieldCheckResult": {
+      "type": "object", "additionalProperties": false,
+      "required": ["target_artifact_id", "rule_revision", "entries", "method_coverage", "missing_requirement_ids"],
+      "properties": {
+        "target_artifact_id": {"$ref": "#/$defs/Id"}, "rule_revision": {"$ref": "#/$defs/Id"},
+        "entries": {"type": "array", "items": {"$ref": "#/$defs/FieldComparison"}},
+        "method_coverage": {"type": "array", "items": {"$ref": "#/$defs/MethodCoverage"}},
+        "missing_requirement_ids": {"$ref": "#/$defs/Ids"}
+      }
+    },
+    "FieldComparison": {
+      "type": "object", "additionalProperties": false,
+      "required": ["field_id", "row_id", "model_ids", "condition_ids", "source_value", "candidate_value", "comparison_rule_id", "conversion_rule_id", "result", "evidence_refs"],
+      "properties": {
+        "field_id": {"$ref": "#/$defs/Id"}, "row_id": {"$ref": "#/$defs/NullableId"},
+        "model_ids": {"$ref": "#/$defs/Ids"}, "condition_ids": {"$ref": "#/$defs/Ids"},
+        "source_value": {"$ref": "#/$defs/FieldValue"}, "candidate_value": {"$ref": "#/$defs/FieldValue"},
+        "comparison_rule_id": {"$ref": "#/$defs/Id"}, "conversion_rule_id": {"$ref": "#/$defs/NullableId"},
+        "result": {"enum": ["MATCH", "CONFLICT", "MISSING", "UNKNOWN_CONDITION", "NOT_APPLICABLE"]},
+        "evidence_refs": {"$ref": "#/$defs/EvidenceRefs"}
+      }
+    },
+    "MethodCoverage": {
+      "type": "object", "additionalProperties": false,
+      "required": ["indicator_id", "model_id", "condition_id", "method_ids", "evidence_refs", "result"],
+      "properties": {"indicator_id": {"$ref": "#/$defs/Id"}, "model_id": {"$ref": "#/$defs/Id"}, "condition_id": {"$ref": "#/$defs/Id"}, "method_ids": {"$ref": "#/$defs/Ids"}, "evidence_refs": {"$ref": "#/$defs/EvidenceRefs"}, "result": {"enum": ["COMPLETE", "INCOMPLETE", "UNKNOWN_CONDITION"]}}
+    },
+    "TextAnchor": {
+      "type": "object", "additionalProperties": false,
+      "required": ["kind", "node_id", "start", "end", "text_sha256"],
+      "properties": {"kind": {"const": "TEXT"}, "node_id": {"$ref": "#/$defs/Id"}, "start": {"type": "integer", "minimum": 0}, "end": {"type": "integer", "minimum": 1}, "text_sha256": {"$ref": "#/$defs/Hash"}}
+    },
+    "StructuredAnchor": {
+      "type": "object", "additionalProperties": false,
+      "required": ["kind", "node_id", "row_id", "field_id", "content_sha256"],
+      "properties": {"kind": {"const": "STRUCTURED"}, "node_id": {"$ref": "#/$defs/Id"}, "row_id": {"$ref": "#/$defs/NullableId"}, "field_id": {"$ref": "#/$defs/NullableId"}, "content_sha256": {"$ref": "#/$defs/Hash"}}
+    },
+    "Anchor": {"oneOf": [{"$ref": "#/$defs/TextAnchor"}, {"$ref": "#/$defs/StructuredAnchor"}]},
+    "ClaimRecord": {
+      "type": "object", "additionalProperties": false,
+      "required": ["claim_id", "anchor", "claim_kind", "evidence_links"],
+      "properties": {"claim_id": {"$ref": "#/$defs/Id"}, "anchor": {"$ref": "#/$defs/Anchor"}, "claim_kind": {"enum": ["PRODUCT_FACT", "REGULATORY_REQUIREMENT", "METHOD_REQUIREMENT", "STUDY_RESULT", "TRANSITION"]}, "evidence_links": {"type": "array", "items": {"$ref": "#/$defs/EvidenceLink"}}},
+      "allOf": [{"if": {"properties": {"claim_kind": {"enum": ["PRODUCT_FACT", "REGULATORY_REQUIREMENT", "METHOD_REQUIREMENT", "STUDY_RESULT"]}}}, "then": {"properties": {"evidence_links": {"minItems": 1}}}}]
+    },
+    "NodeManifestItem": {
+      "type": "object", "additionalProperties": false,
+      "required": ["node_id", "parent_id", "section_id", "kind", "field_id", "row_id", "content_sha256"],
+      "properties": {"node_id": {"$ref": "#/$defs/Id"}, "parent_id": {"$ref": "#/$defs/NullableId"}, "section_id": {"$ref": "#/$defs/Id"}, "kind": {"enum": ["ROOT", "SECTION", "PARAGRAPH", "TEXT", "TABLE", "ROW", "CELL", "IMAGE", "FORMULA", "LIST", "ITEM", "ATTACHMENT"]}, "field_id": {"$ref": "#/$defs/NullableId"}, "row_id": {"$ref": "#/$defs/NullableId"}, "content_sha256": {"$ref": "#/$defs/Hash"}}
+    },
+    "FieldAssignment": {
+      "type": "object", "additionalProperties": false, "required": ["field_id", "row_id", "node_id", "fact_version", "value", "evidence_refs"],
+      "properties": {"field_id": {"$ref": "#/$defs/Id"}, "row_id": {"$ref": "#/$defs/NullableId"}, "node_id": {"$ref": "#/$defs/Id"}, "fact_version": {"$ref": "#/$defs/NullableId"}, "value": {"$ref": "#/$defs/FieldValue"}, "evidence_refs": {"$ref": "#/$defs/EvidenceRefs"}}
+    },
+    "AttachmentBinding": {
+      "type": "object", "additionalProperties": false, "required": ["requirement_id", "node_id", "source_version", "evidence_refs"],
+      "properties": {"requirement_id": {"$ref": "#/$defs/Id"}, "node_id": {"$ref": "#/$defs/Id"}, "source_version": {"$ref": "#/$defs/Id"}, "evidence_refs": {"$ref": "#/$defs/EvidenceRefs"}}
+    },
+    "IssueProposal": {
+      "type": "object", "additionalProperties": false,
+      "required": ["issue_key", "code", "severity_code", "rule_id", "anchor", "claim_ids", "message", "evidence_refs"],
+      "properties": {"issue_key": {"$ref": "#/$defs/Key"}, "code": {"$ref": "#/$defs/Text"}, "severity_code": {"$ref": "#/$defs/Text"}, "rule_id": {"$ref": "#/$defs/Id"}, "anchor": {"$ref": "#/$defs/Anchor"}, "claim_ids": {"$ref": "#/$defs/Ids"}, "message": {"$ref": "#/$defs/Text"}, "evidence_refs": {"$ref": "#/$defs/EvidenceRefs"}}
+    },
+    "SectionDraft": {
+      "type": "object", "additionalProperties": false,
+      "required": ["body_schema_revision", "body_json", "claim_records", "field_assignments", "attachment_bindings", "issue_proposals"],
+      "properties": {
+        "body_schema_revision": {"$ref": "#/$defs/Id"}, "body_json": {"$ref": "#/$defs/Text"},
+        "claim_records": {"type": "array", "items": {"$ref": "#/$defs/ClaimRecord"}},
+        "field_assignments": {"type": "array", "items": {"$ref": "#/$defs/FieldAssignment"}},
+        "attachment_bindings": {"type": "array", "items": {"$ref": "#/$defs/AttachmentBinding"}},
+        "issue_proposals": {"type": "array", "items": {"$ref": "#/$defs/IssueProposal"}}
+      }
+    },
+    "SectionCandidate": {
+      "type": "object", "additionalProperties": false,
+      "required": ["base_document_revision", "target_sections", "body_object_ref", "body_schema_revision", "node_manifest", "claim_records", "field_assignments", "attachment_bindings", "issue_proposals"],
+      "properties": {
+        "base_document_revision": {"$ref": "#/$defs/Id"},
+        "target_sections": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"$ref": "#/$defs/Id"}},
+        "body_object_ref": {"$ref": "#/$defs/ObjectRef"}, "body_schema_revision": {"$ref": "#/$defs/Id"},
+        "node_manifest": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/NodeManifestItem"}},
+        "claim_records": {"type": "array", "items": {"$ref": "#/$defs/ClaimRecord"}},
+        "field_assignments": {"type": "array", "items": {"$ref": "#/$defs/FieldAssignment"}},
+        "attachment_bindings": {"type": "array", "items": {"$ref": "#/$defs/AttachmentBinding"}},
+        "issue_proposals": {"type": "array", "items": {"$ref": "#/$defs/IssueProposal"}}
+      }
+    },
+    "ClaimCheck": {
+      "type": "object", "additionalProperties": false,
+      "required": ["claim_id", "access_check", "locator_check", "support_check", "rule_ids", "read_receipt_ids", "rationale"],
+      "properties": {"claim_id": {"$ref": "#/$defs/Id"}, "access_check": {"enum": ["PASS", "FAIL"]}, "locator_check": {"enum": ["PASS", "FAIL", "BLOCKED"]}, "support_check": {"enum": ["SUPPORTED", "CONTRADICTED", "INSUFFICIENT", "NOT_APPLICABLE"]}, "rule_ids": {"$ref": "#/$defs/Ids"}, "read_receipt_ids": {"$ref": "#/$defs/Ids"}, "rationale": {"$ref": "#/$defs/Text"}}
+    },
+    "RuleCheck": {
+      "type": "object", "additionalProperties": false, "required": ["rule_id", "target_node_ids", "result", "evidence_refs", "rationale"],
+      "properties": {"rule_id": {"$ref": "#/$defs/Id"}, "target_node_ids": {"$ref": "#/$defs/Ids"}, "result": {"enum": ["PASS", "FAIL", "BLOCKED", "NOT_APPLICABLE"]}, "evidence_refs": {"$ref": "#/$defs/EvidenceRefs"}, "rationale": {"$ref": "#/$defs/Text"}}
+    },
+    "ReviewFindings": {
+      "type": "object", "additionalProperties": false,
+      "required": ["target_kind", "target_revision", "target_sha256", "rule_revision", "required_claim_ids", "required_rule_ids", "claim_checks", "rule_checks", "issue_proposals", "coverage_complete"],
+      "properties": {
+        "target_kind": {"enum": ["CANDIDATE", "DOCUMENT"]}, "target_revision": {"$ref": "#/$defs/Id"},
+        "target_sha256": {"$ref": "#/$defs/Hash"}, "rule_revision": {"$ref": "#/$defs/Id"},
+        "required_claim_ids": {"$ref": "#/$defs/Ids"}, "required_rule_ids": {"$ref": "#/$defs/Ids"},
+        "claim_checks": {"type": "array", "items": {"$ref": "#/$defs/ClaimCheck"}},
+        "rule_checks": {"type": "array", "items": {"$ref": "#/$defs/RuleCheck"}},
+        "issue_proposals": {"type": "array", "items": {"$ref": "#/$defs/IssueProposal"}},
+        "coverage_complete": {"type": "boolean"}
+      }
+    },
+    "SectionVersion": {
+      "type": "object", "additionalProperties": false, "required": ["section_id", "version_kind", "version_id", "ordinal", "content_sha256"],
+      "properties": {"section_id": {"$ref": "#/$defs/Id"}, "version_kind": {"enum": ["CANDIDATE", "DOCUMENT"]}, "version_id": {"$ref": "#/$defs/Id"}, "ordinal": {"type": "integer", "minimum": 0}, "content_sha256": {"$ref": "#/$defs/Hash"}}
+    },
+    "AssemblyManifest": {
+      "type": "object", "additionalProperties": false,
+      "required": ["target_kind", "document_revision", "sections", "requirement_node_ids", "fact_versions", "evidence_refs", "rule_revision", "check_ids", "review_ids", "unresolved_issue_ids", "format_profile_revision"],
+      "properties": {
+        "target_kind": {"enum": ["CANDIDATE_SET", "DOCUMENT"]}, "document_revision": {"$ref": "#/$defs/NullableId"},
+        "sections": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/SectionVersion"}},
+        "requirement_node_ids": {"$ref": "#/$defs/Ids"}, "fact_versions": {"$ref": "#/$defs/Ids"}, "evidence_refs": {"$ref": "#/$defs/EvidenceRefs"},
+        "rule_revision": {"$ref": "#/$defs/Id"}, "check_ids": {"$ref": "#/$defs/Ids"}, "review_ids": {"$ref": "#/$defs/Ids"}, "unresolved_issue_ids": {"$ref": "#/$defs/Ids"}, "format_profile_revision": {"$ref": "#/$defs/Id"}
+      },
+      "allOf": [{"if": {"properties": {"target_kind": {"const": "DOCUMENT"}}}, "then": {"properties": {"document_revision": {"$ref": "#/$defs/Id"}, "sections": {"items": {"properties": {"version_kind": {"const": "DOCUMENT"}}}}}}}]
+    },
+    "FailedAction": {
+      "type": "object", "additionalProperties": false, "required": ["action_id", "error_code", "receipt_id"],
+      "properties": {"action_id": {"$ref": "#/$defs/Id"}, "error_code": {"$ref": "#/$defs/Text"}, "receipt_id": {"$ref": "#/$defs/Id"}}
+    },
+    "RemainingLimits": {
+      "type": "object", "additionalProperties": false,
+      "required": ["wall_time_seconds", "model_requests", "tool_calls", "research_rounds", "revision_rounds", "total_tokens", "cost_amount", "currency"],
+      "properties": {"wall_time_seconds": {"type": "integer", "minimum": 0}, "model_requests": {"type": "integer", "minimum": 0}, "tool_calls": {"type": "integer", "minimum": 0}, "research_rounds": {"type": "integer", "minimum": 0}, "revision_rounds": {"type": "integer", "minimum": 0}, "total_tokens": {"type": "integer", "minimum": 0}, "cost_amount": {"type": "string", "pattern": "^(0|[1-9][0-9]*)(\\.[0-9]+)?$"}, "currency": {"type": "string", "pattern": "^[A-Z]{3}$"}}
+    },
+    "HandoffRecord": {
+      "type": "object", "additionalProperties": false,
+      "required": ["completed_action_refs", "artifact_refs", "evidence_refs", "unresolved_item_ids", "pending_decision_refs", "failed_action_refs", "inflight_invocation_ids", "budget_revision", "remaining_limits", "created_at"],
+      "properties": {"completed_action_refs": {"$ref": "#/$defs/Ids"}, "artifact_refs": {"$ref": "#/$defs/Ids"}, "evidence_refs": {"$ref": "#/$defs/EvidenceRefs"}, "unresolved_item_ids": {"$ref": "#/$defs/Ids"}, "pending_decision_refs": {"$ref": "#/$defs/Ids"}, "failed_action_refs": {"type": "array", "items": {"$ref": "#/$defs/FailedAction"}}, "inflight_invocation_ids": {"$ref": "#/$defs/Ids"}, "budget_revision": {"$ref": "#/$defs/Id"}, "remaining_limits": {"$ref": "#/$defs/RemainingLimits"}, "created_at": {"type": "string", "format": "date-time"}}
+    }
+  }
+}

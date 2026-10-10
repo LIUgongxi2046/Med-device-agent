@@ -1,0 +1,9 @@
+await import('./check-product-workspace.mjs');
+await import('./check-conversation-library.mjs');
+await import('./check-model-api.mjs');
+await import('./check-prd-v12.mjs');
+await import('./check-continuous-workspace.mjs');
+await import('./check-registration-dossier.mjs');
+await import('./check-prd-v13.mjs');
+await import('./check-document-reader.mjs');
+await import('./check-project-navigation.mjs');

@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:template-operations:1.0.0",
+  "$ref": "#/$defs/Created",
+  "$defs": {
+    "Stored": {
+      "type": "object", "additionalProperties": false,
+      "required": ["tenant_id", "template_version", "status", "revision", "content", "content_sha256", "base_version", "reason", "authority_grant_id", "authority_revision", "created_by", "created_at", "dependency_refs"],
+      "properties": {
+        "tenant_id": {"$ref": "urn:medical:templates:1.0.0#/$defs/Id"},
+        "template_version": {"$ref": "urn:medical:templates:1.0.0#/$defs/Id"},
+        "status": {"const": "DRAFT"},
+        "revision": {"const": "1"},
+        "content": {"$ref": "urn:medical:templates:1.0.0#/$defs/Content"},
+        "content_sha256": {"$ref": "urn:medical:templates:1.0.0#/$defs/Hash"},
+        "base_version": {"$ref": "urn:medical:templates:1.0.0#/$defs/NullableBasis"},
+        "reason": {"$ref": "urn:medical:templates:1.0.0#/$defs/Text"},
+        "authority_grant_id": {"$ref": "urn:medical:templates:1.0.0#/$defs/Id"},
+        "authority_revision": {"$ref": "urn:medical:templates:1.0.0#/$defs/Count"},
+        "created_by": {"$ref": "urn:medical:templates:1.0.0#/$defs/Id"},
+        "created_at": {"type": "string", "format": "date-time", "pattern": "(?:Z|[+]00:00)$"},
+        "dependency_refs": {"$ref": "urn:medical:templates:1.0.0#/$defs/Bases"}
+      }
+    },
+    "Created": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "operation_id", "template", "allowed_actions"],
+      "properties": {
+        "schema_version": {"const": "1.0.0"},
+        "operation_id": {"$ref": "urn:medical:templates:1.0.0#/$defs/Id"},
+        "template": {"$ref": "#/$defs/Stored"},
+        "allowed_actions": {"const": []}
+      }
+    }
+  }
+}

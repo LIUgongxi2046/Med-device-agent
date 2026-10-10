@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.31.xsd">
+    <changeSet id="1.0.0-226-task-missing-requirements" author="medical-agent" dbms="mysql" runInTransaction="false" failOnError="true">
+        <preConditions onFail="HALT" onError="HALT">
+            <sqlCheck expectedResult="0">SELECT COUNT(*) FROM task_input_revision</sqlCheck>
+        </preConditions>
+        <sql>ALTER TABLE task_input_revision
+            ADD COLUMN missing_requirements JSON NOT NULL,
+            ADD COLUMN requirements_sha256 CHAR(64) CHARACTER SET ascii NOT NULL,
+            ADD CONSTRAINT ck_task_input_requirements CHECK (JSON_TYPE(missing_requirements)='ARRAY'
+                AND requirements_sha256 REGEXP '^[a-f0-9]{64}$')
+        </sql>
+    </changeSet>
+</databaseChangeLog>

@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:invitation-accept-view:1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["actor", "tenant_id", "invitation_id", "expected_revision", "key"],
+  "$defs": {
+    "Selection": {
+      "type": "object", "additionalProperties": false,
+      "required": ["actor", "tenant_id", "expected_revision", "key"],
+      "properties": {
+        "actor": {"$ref": "urn:medical:member-invitations:1.0.0#/$defs/Id"},
+        "tenant_id": {"$ref": "urn:medical:member-invitations:1.0.0#/$defs/Id"},
+        "expected_revision": {"$ref": "urn:medical:member-invitations:1.0.0#/$defs/Revision"},
+        "key": {"$ref": "urn:medical:member-invitations:1.0.0#/$defs/Id"}
+      }
+    }
+  },
+  "properties": {
+    "actor": {"$ref": "urn:medical:member-invitations:1.0.0#/$defs/Id"},
+    "tenant_id": {"$ref": "urn:medical:member-invitations:1.0.0#/$defs/Id"},
+    "invitation_id": {"$ref": "urn:medical:member-invitations:1.0.0#/$defs/Id"},
+    "expected_revision": {"$ref": "urn:medical:member-invitations:1.0.0#/$defs/Revision"},
+    "key": {"$ref": "urn:medical:member-invitations:1.0.0#/$defs/Id"}
+  }
+}

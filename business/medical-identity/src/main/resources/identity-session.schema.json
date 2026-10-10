@@ -1,0 +1,154 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "user", "memberships", "current_context", "csrf", "action_summary", "invitation_entry"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "user": {"$ref": "#/$defs/User"},
+    "memberships": {"type": "array", "items": {"$ref": "#/$defs/Member"}},
+    "current_context": {"anyOf": [{"type": "null"}, {"$ref": "#/$defs/Context"}]},
+    "csrf": {
+      "type": "object", "additionalProperties": false, "required": ["header_name", "token"],
+      "properties": {"header_name": {"const": "X-CSRF-TOKEN"}, "token": {"type": "string", "minLength": 1}}
+    },
+    "action_summary": {"type": "array", "items": {"$ref": "#/$defs/Action"}},
+    "invitation_entry": {
+      "type": "object", "additionalProperties": false, "required": ["method", "path_template"],
+      "properties": {"method": {"const": "POST"}, "path_template": {"const": "/api/member-invitations/{id}/acceptances"}}
+    }
+  },
+  "$defs": {
+    "LocalAccountItem": {
+      "type": "object", "additionalProperties": false,
+      "required": ["user_id", "username", "display_name", "status", "platform_role", "revision", "credential_revision"],
+      "properties": {"user_id": {"$ref": "#/$defs/Id"}, "username": {"$ref": "#/$defs/LocalName"},
+        "display_name": {"$ref": "#/$defs/LocalName"}, "status": {"enum": ["ACTIVE", "DISABLED"]},
+        "platform_role": {"$ref": "#/$defs/LocalRole"}, "revision": {"$ref": "#/$defs/Revision"},
+        "credential_revision": {"$ref": "#/$defs/Revision"}}
+    },
+    "LocalAccountPage": {
+      "type": "object", "additionalProperties": false, "required": ["schema_version", "items", "next_cursor"],
+      "properties": {"schema_version": {"const": "1.0.0"},
+        "items": {"type": "array", "maxItems": 100, "items": {"$ref": "#/$defs/LocalAccountItem"}},
+        "next_cursor": {"anyOf": [{"type": "null"}, {"$ref": "#/$defs/Id"}]}}
+    },
+    "LocalAccountMutation": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "operation_id", "account", "reauthentication_required"],
+      "properties": {"schema_version": {"const": "1.0.0"}, "operation_id": {"$ref": "#/$defs/Id"},
+        "account": {"$ref": "#/$defs/LocalAccountItem"}, "reauthentication_required": {"type": "boolean"}}
+    },
+    "LocalAccountAudit": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "resource_kind", "user_id", "revision", "credential_revision", "status"],
+      "properties": {"schema_version": {"const": "1.0.0"}, "resource_kind": {"const": "LOCAL_ACCOUNT"},
+        "user_id": {"$ref": "#/$defs/Id"}, "revision": {"$ref": "#/$defs/Revision"},
+        "credential_revision": {"$ref": "#/$defs/Revision"}, "status": {"enum": ["ACTIVE", "DISABLED"]}}
+    },
+    "LocalAccountCreate": {
+      "type": "object", "additionalProperties": false, "required": ["username", "display_name", "password", "platform_role"],
+      "properties": {"username": {"$ref": "#/$defs/LocalName"}, "display_name": {"$ref": "#/$defs/LocalName"},
+        "password": {"$ref": "#/$defs/LocalPassword"}, "platform_role": {"$ref": "#/$defs/LocalRole"}}
+    },
+    "LocalAccountState": {
+      "type": "object", "additionalProperties": false, "required": ["decision", "expected_revision"],
+      "properties": {"decision": {"enum": ["ACTIVATE", "DISABLE"]}, "expected_revision": {"$ref": "#/$defs/Revision"}}
+    },
+    "LocalAccountProfile": {
+      "type": "object", "additionalProperties": false, "required": ["display_name", "platform_role", "expected_revision"],
+      "properties": {"display_name": {"$ref": "#/$defs/LocalName"}, "platform_role": {"$ref": "#/$defs/LocalRole"},
+        "expected_revision": {"$ref": "#/$defs/Revision"}}
+    },
+    "LocalAccountReset": {
+      "type": "object", "additionalProperties": false, "required": ["password", "expected_revision"],
+      "properties": {"password": {"$ref": "#/$defs/LocalPassword"}, "expected_revision": {"$ref": "#/$defs/Revision"}}
+    },
+    "LocalAccountCredential": {
+      "type": "object", "additionalProperties": false, "required": ["current_password", "password", "expected_revision"],
+      "properties": {"current_password": {"$ref": "#/$defs/LocalPassword"}, "password": {"$ref": "#/$defs/LocalPassword"},
+        "expected_revision": {"$ref": "#/$defs/Revision"}}
+    },
+    "LocalName": {"type": "string", "minLength": 1, "maxLength": 128},
+    "LocalPassword": {"type": "string", "minLength": 15, "maxLength": 72},
+    "LocalRole": {"enum": ["USER", "PLATFORM_ADMIN"]},
+    "SelectionRequest": {
+      "type": "object", "additionalProperties": false, "required": ["tenant_id", "expected_context_revision"],
+      "properties": {"tenant_id": {"$ref": "#/$defs/Id"}, "expected_context_revision": {"$ref": "#/$defs/Revision"}}
+    },
+    "SelectionReceipt": {
+      "type": "object", "additionalProperties": false, "required": ["schema_version", "operation_id", "current_context"],
+      "properties": {"schema_version": {"const": "1.0.0"}, "operation_id": {"$ref": "#/$defs/Id"},
+                     "current_context": {"$ref": "#/$defs/Context"}}
+    },
+    "SelectionAudit": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "resource_kind", "tenant_id", "subject_id", "session_id", "context_revision"],
+      "properties": {
+        "schema_version": {"const": "1.0.0"}, "resource_kind": {"const": "SESSION_CONTEXT"},
+        "tenant_id": {"$ref": "#/$defs/Id"}, "subject_id": {"$ref": "#/$defs/Id"},
+        "session_id": {"type": "string", "minLength": 1, "maxLength": 255}, "context_revision": {"$ref": "#/$defs/Revision"}
+      }
+    },
+    "SelectionEvent": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "event_type", "operation_id", "subject_id", "session_id", "current_context"],
+      "properties": {
+        "schema_version": {"const": "1.0.0"}, "event_type": {"const": "session.context_changed"},
+        "operation_id": {"$ref": "#/$defs/Id"}, "subject_id": {"$ref": "#/$defs/Id"},
+        "session_id": {"type": "string", "minLength": 1, "maxLength": 255}, "current_context": {"$ref": "#/$defs/Context"}
+      }
+    },
+    "IdentityManifest": {
+      "type": "object", "additionalProperties": false, "required": ["schema_version", "schemas"],
+      "properties": {
+        "schema_version": {"const": "1.0.0"},
+        "schemas": {"type": "array", "minItems": 2, "maxItems": 2, "uniqueItems": true,
+                    "items": {"$ref": "#/$defs/ManifestSchema"}}
+      }
+    },
+    "ManifestSchema": {
+      "type": "object", "additionalProperties": false, "required": ["path", "sha256"],
+      "properties": {"path": {"enum": ["identity-session.schema.json", "contracts/catalogue.json"]},
+                     "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}
+    },
+    "Id": {"type": "string", "format": "uuid", "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"},
+    "Revision": {"type": "string", "pattern": "^(0|[1-9][0-9]{0,19})$"},
+    "Time": {"type": "string", "format": "date-time", "pattern": "Z$"},
+    "User": {
+      "type": "object", "additionalProperties": false, "required": ["user_id", "username", "display_name", "platform_role"],
+      "properties": {
+        "user_id": {"$ref": "#/$defs/Id"},
+        "username": {"type": ["string", "null"], "minLength": 1, "maxLength": 128},
+        "display_name": {"type": ["string", "null"], "minLength": 1, "maxLength": 128},
+        "platform_role": {"enum": ["PLATFORM_ADMIN", "USER", null]}
+      }
+    },
+    "Member": {
+      "type": "object", "additionalProperties": false,
+      "required": ["tenant_id", "member_id", "status", "valid_from", "valid_to", "revision"],
+      "properties": {
+        "tenant_id": {"$ref": "#/$defs/Id"}, "member_id": {"$ref": "#/$defs/Id"},
+        "status": {"enum": ["INVITED", "ACTIVE"]}, "valid_from": {"$ref": "#/$defs/Time"},
+        "valid_to": {"anyOf": [{"type": "null"}, {"$ref": "#/$defs/Time"}]}, "revision": {"$ref": "#/$defs/Revision"}
+      }
+    },
+    "Context": {
+      "type": "object", "additionalProperties": false,
+      "required": ["tenant_id", "context_revision", "auth_epoch", "governance_epoch"],
+      "properties": {
+        "tenant_id": {"$ref": "#/$defs/Id"}, "context_revision": {"$ref": "#/$defs/Revision"},
+        "auth_epoch": {"$ref": "#/$defs/Revision"}, "governance_epoch": {"$ref": "#/$defs/Revision"}
+      }
+    },
+    "Action": {
+      "type": "object", "additionalProperties": false, "required": ["action", "project_id", "resource_kind", "resource_id"],
+      "properties": {
+        "action": {"type": "string", "minLength": 1, "maxLength": 64},
+        "project_id": {"anyOf": [{"type": "null"}, {"$ref": "#/$defs/Id"}]},
+        "resource_kind": {"type": "string", "minLength": 1, "maxLength": 32},
+        "resource_id": {"anyOf": [{"type": "null"}, {"$ref": "#/$defs/Id"}]}
+      }
+    }
+  }
+}

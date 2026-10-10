@@ -1,0 +1,18 @@
+asset_id,file_path,usage,width,height,format,transparency,source,license_or_restriction
+scene_document,assets/scenes/scene-document.png,注册文档场景插图,1536,1024,PNG,false,OpenAI image generation built-in,场景装饰；不能作为产品或医学证据
+scene_quality,assets/scenes/scene-quality.png,材料质量检查场景插图,1536,1024,PNG,false,OpenAI image generation built-in,场景装饰；不能作为产品或医学证据
+scene_regulation,assets/scenes/scene-regulation.png,法规版本比较场景插图,1536,1024,PNG,false,OpenAI image generation built-in,场景装饰；不能作为产品或医学证据
+scene_report,assets/scenes/scene-report.png,综述与报告场景插图,1536,1024,PNG,false,OpenAI image generation built-in,场景装饰；不能作为产品或医学证据
+scene_translation,assets/scenes/scene-translation.png,多语言翻译场景插图,1536,1024,PNG,false,OpenAI image generation built-in,场景装饰；不能作为产品或医学证据
+scene_market,assets/scenes/scene-market.png,市场分析场景插图,1536,1024,PNG,false,OpenAI image generation built-in,场景装饰；不能作为产品或医学证据
+scene_question,assets/scenes/scene-question.png,多模态问答场景插图,1536,1024,PNG,false,OpenAI image generation built-in,场景装饰；不能作为产品或医学证据
+public_safety_1,assets/public-evidence/safety-01.png,基本原则官方五列表格,849,1200,PNG,false,国家药监局2021年第121号附件9原件转换第1页,真实公开资料；转换预览；项目适用性待核准
+public_safety_2,assets/public-evidence/safety-02.png,基本原则风险控制表格,849,1200,PNG,false,国家药监局2021年第121号附件9原件转换第2页,真实公开资料；转换预览；项目适用性待核准
+public_clinical_11,assets/public-evidence/clinical-11.png,临床评价产品对比表,849,1200,PNG,false,国家药监局2021年第73号附件4原件转换第11页,真实公开资料；转换预览；项目适用性待核准
+brand_mark_master,assets/master/medical-agent-brand.png,品牌标识源图,1254,1254,PNG,true,OpenAI image generation,仅用于本产品设计稿；正式商标权待客户确认
+brand_mark_1x,assets/1x/medical-agent-brand.png,侧栏标识普通屏幕,32,32,PNG,true,derived from brand_mark_master,随源图许可范围
+brand_mark_2x,assets/2x/medical-agent-brand.png,侧栏标识高密度屏幕,64,64,PNG,true,derived from brand_mark_master,随源图许可范围
+gru_avatar_master,assets/master/gru-avatar-human.png,Gru 对话入口与标题及欢迎区域和回复头像,1254,1254,PNG,true,OpenAI image generation,按用户要求生成的原创拟人男性形象
+evidence_page_1,assets/evidence/design-evidence-v1-page-1.png,型号配置表原页,800,1040,PNG,false,rendered design-evidence-v1.html page 1,设计演示资料；不可用于注册申报
+evidence_page_2,assets/evidence/design-evidence-v1-page-2.png,验证条件表原页,800,1040,PNG,false,rendered design-evidence-v1.html page 2,设计演示资料；不代表真实检测报告
+evidence_page_3,assets/evidence/design-evidence-v1-page-3.png,软件界面样稿原页,800,1040,PNG,false,rendered design-evidence-v1.html page 3,设计演示资料；不代表真实设备截图
