@@ -15,5 +15,5 @@ public final class SourceUploadProtocol {
     public record CompletionDelivery(String tenantId, String eventId, String consumerId, String status,
             BigInteger attemptNo, LocalDateTime nextAttemptAt, String leaseOwner, LocalDateTime leaseUntil,
             BigInteger leaseGeneration, String lastError, String createdBy, LocalDateTime createdAt,
-            String classification, BigInteger revision, LocalDateTime updatedAt) { }
+            String classification, BigInteger revision, LocalDateTime updatedAt, String schemaVersion, String schemaManifestSha256) { }
 }

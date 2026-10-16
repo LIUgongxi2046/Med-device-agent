@@ -24,9 +24,12 @@ for (const prefix of ['/api', '/auth', '/local-auth']) proxy[prefix] = {
   }
 }
 const results = []
-for (const mode of ['development', 'production']) {
+const requestedMode = process.env.MEDICAL_BROWSER_MODE
+assert.ok(requestedMode === undefined || ['development', 'production'].includes(requestedMode))
+for (const mode of requestedMode === undefined ? ['development', 'production'] : [requestedMode]) {
   const origin = mode === 'development' ? 'http://127.0.0.1:18083' : 'http://127.0.0.1:18084'
   const configuration = { mode: 'medical', configFile: path.join(root, 'web/vite.config.js'),
+    cacheDir: path.join(root, '.implementation-work/project-browser-vite-cache'),
     build: { outDir: path.resolve(frontendValue) },
     server: { host: '127.0.0.1', port: 18083, strictPort: true, open: false, proxy },
     preview: { host: '127.0.0.1', port: 18084, strictPort: true, proxy } }
@@ -38,12 +41,14 @@ for (const mode of ['development', 'production']) {
       const context = await browser.newContext()
       try {
         const page = await context.newPage(); const errors = []; const writes = []; const checks = []
+        page.setDefaultNavigationTimeout(120000); page.setDefaultTimeout(60000)
         page.on('pageerror', error => { errors.push(error.name); console.error(error.message) })
         page.on('console', message => { if (message.type() === 'error') console.error(message.text()) })
         page.on('response', response => {
           const route = new URL(response.url()).pathname
           if (response.status() >= 400) console.error('HTTP', response.status(), route)
         })
+        page.on('requestfailed', request => console.error('REQUEST_FAILED', new URL(request.url()).pathname, request.failure()?.errorText))
         page.on('request', request => {
           if (request.method() === 'POST' && new URL(request.url()).pathname.startsWith('/api/projects')) {
             writes.push({ path: new URL(request.url()).pathname, key: request.headers()['idempotency-key'],
@@ -64,12 +69,15 @@ for (const mode of ['development', 'production']) {
           assert.deepEqual(await page.evaluate(() => Object.keys(sessionStorage).filter(key => key.startsWith('medical.project.write:'))), [])
           return result
         }
-        assert.equal((await page.goto(origin + '/access')).status(), 200)
-        await page.getByRole('heading', { name: '医疗器械业务平台', exact: true }).waitFor({ timeout: 60000 })
+        assert.equal((await page.goto(origin + '/access', { waitUntil: 'domcontentloaded' })).status(), 200)
+        await page.getByRole('heading', { name: '医疗器械业务平台', exact: true }).waitFor({ timeout: 120000 })
+        console.log(JSON.stringify({ mode, stage: 'LOGIN_READY' }))
         await page.getByRole('textbox', { name: '用户名', exact: true }).fill(owner.username)
         await page.getByLabel('密码', { exact: true }).fill(owner.password)
         await page.getByRole('button', { name: '登录账户', exact: true }).click()
-        await page.waitForURL(origin + '/projects')
+        await page.waitForURL(origin + '/index')
+        console.log(JSON.stringify({ mode, stage: 'LOGIN_COMPLETE' }))
+        await page.goto(origin + '/projects')
         await page.getByRole('region', { name: '当前账户和企业空间' }).getByRole('combobox').press('Enter')
         await page.getByRole('option', { name: tenant, exact: true }).click()
         await page.getByRole('button', { name: '确认选择企业', exact: true }).click()
@@ -89,6 +97,7 @@ for (const mode of ['development', 'production']) {
         await dialog.getByText('本人已核查本次项目请求的实际依据并获准执行', { exact: true }).click()
         assert.equal(await dialog.getByRole('checkbox').isChecked(), true)
         const created = await submit('/api/projects', 201)
+        console.log(JSON.stringify({ mode, stage: 'PROJECT_CREATED' }))
         assert.equal(created.status, 'PENDING'); assert.equal(created.revision, '1')
         checks.push('creation_and_operation_and_resource_reopening')
         await page.getByRole('link', { name: '读取当前项目', exact: true }).click()
@@ -135,9 +144,26 @@ for (const mode of ['development', 'production']) {
         assert.equal(writes.length, 6); assert.equal(new Set(writes.map(write => write.key)).size, 6)
         assert(writes.every(write => write.authorization === null)); assert.deepEqual(errors, [])
         checks.push('refresh_preserves_archived_state_and_current_actions')
+        for (const [pathname, filterName] of [['/library', '资料筛选'], ['/library/processing', '处理队列筛选'], ['/library/artifacts', '成果筛选']]) {
+          await page.goto(origin + pathname)
+          const filters = page.locator('form[aria-label="' + filterName + '"]')
+          await filters.waitFor()
+          const projectInput = filters.getByRole('textbox').first()
+          await projectInput.fill(created.project_id)
+          if (pathname === '/library') await page.getByPlaceholder('文件夹名称', { exact: true }).fill('SIMULATION 文件夹输入')
+          await page.getByRole('button', { name: '重新读取会话', exact: true }).click()
+          await page.waitForFunction(() => !document.querySelector('[aria-label="当前账户和企业空间"] [role="status"]'))
+          assert.equal(await projectInput.inputValue(), '', '当前会话变化必须清理资料筛选范围')
+          if (pathname === '/library') assert.equal(await page.getByPlaceholder('文件夹名称', { exact: true }).inputValue(), '', '当前会话变化必须清理文件夹输入')
+          checks.push('session_change_clears_inputs:' + pathname)
+        }
+        assert.deepEqual(errors, [])
         results.push({ mode, browser_version: browser.version(), data_kind: 'SIMULATION', project_id: created.project_id, checks, writes })
       } finally { await context.close() }
     } finally { await browser.close() }
-  } finally { await server.close() }
+  } finally {
+    if (mode === 'development') await server.close()
+    else await new Promise((resolve, reject) => server.httpServer.close(error => error ? reject(error) : resolve()))
+  }
 }
 await writeFile(path.join(output, 'project-browser-result.json'), JSON.stringify({ results, customer_success_verified: false }, null, 2) + '\n')

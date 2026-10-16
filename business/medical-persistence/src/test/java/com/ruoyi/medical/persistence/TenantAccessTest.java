@@ -64,7 +64,7 @@ class TenantAccessTest {
                 checked++;
             }
         }
-        assertEquals(162, checked);
+        assertEquals(178, checked);
         RuntimeException failure = assertThrows(RuntimeException.class, () -> interceptor.getTenantLineHandler().getTenantId());
         assertEquals("ACCESS_DENIED", failure.getMessage());
     }
@@ -147,6 +147,33 @@ class TenantAccessTest {
                     () -> sourceMapper.claimCompletionDelivery(null), () -> sourceMapper.renewCompletionDelivery(null))) {
                 var leaseFailure = assertThrows(org.apache.ibatis.exceptions.PersistenceException.class, update);
                 assertEquals(ErrorCode.ACCESS_DENIED, assertInstanceOf(TenantAccessException.class, leaseFailure.getCause()).code());
+            }
+            var rightsMapper = session.getMapper(com.ruoyi.medical.persistence.mapper.SourceRightsMapper.class);
+            for (var action : List.<org.junit.jupiter.api.function.Executable>of(
+                    () -> rightsMapper.state(null), () -> rightsMapper.operation(null), () -> rightsMapper.insertRights(null),
+                    () -> rightsMapper.replaceSourceRights(null), () -> rightsMapper.revokeRights(null),
+                    () -> rightsMapper.insertEvidenceLineage(null), () -> rightsMapper.saveOperation(null),
+                    () -> rightsMapper.insertDecision(null), () -> rightsMapper.advanceState(null))) {
+                var rightsFailure = assertThrows(org.apache.ibatis.exceptions.PersistenceException.class, action);
+                assertEquals(ErrorCode.ACCESS_DENIED, assertInstanceOf(TenantAccessException.class, rightsFailure.getCause()).code());
+            }
+            var statusFailure=assertThrows(org.apache.ibatis.exceptions.PersistenceException.class,() -> sourceMapper.completionState(null));
+            assertEquals(ErrorCode.ACCESS_DENIED,assertInstanceOf(TenantAccessException.class,statusFailure.getCause()).code());
+            var governanceMapper=session.getMapper(com.ruoyi.medical.persistence.mapper.SourceGovernanceMapper.class);
+            var reviewFailure=assertThrows(org.apache.ibatis.exceptions.PersistenceException.class,() -> governanceMapper.uploadReviews(null));
+            assertEquals(ErrorCode.ACCESS_DENIED,assertInstanceOf(TenantAccessException.class,reviewFailure.getCause()).code());
+            var indexMapper=session.getMapper(com.ruoyi.medical.persistence.mapper.SourceIndexMapper.class);
+            for(var action:List.<org.junit.jupiter.api.function.Executable>of(
+                    () -> indexMapper.command(null), () -> indexMapper.build(null), () -> indexMapper.delivery(null),
+                    () -> indexMapper.initializeDelivery(null), () -> indexMapper.claim(null), () -> indexMapper.renew(null),
+                    () -> indexMapper.saveVersion(null), () -> indexMapper.saveLineage(null), () -> indexMapper.saveIndex(null),
+                    () -> indexMapper.saveBuild(null), () -> indexMapper.saveItem(null), () -> indexMapper.readyIndex(null),
+                    () -> indexMapper.completeBuild(null), () -> indexMapper.completeDelivery(null), () -> indexMapper.failIndex(null),
+                    () -> indexMapper.failDelivery(null), () -> indexMapper.saveReceipt(null), () -> indexMapper.receipt(null),
+                    () -> indexMapper.rawChunkCount(null), () -> indexMapper.itemCount(null), () -> indexMapper.chunks(null),
+                    () -> indexMapper.items(null), () -> indexMapper.index(null), () -> indexMapper.views(null))) {
+                var indexFailure=assertThrows(org.apache.ibatis.exceptions.PersistenceException.class,action);
+                assertEquals(ErrorCode.ACCESS_DENIED,assertInstanceOf(TenantAccessException.class,indexFailure.getCause()).code());
             }
         }
     }

@@ -1,5 +1,7 @@
 # IMP-13 Temporal调度、等待、取消与恢复
 
+2026-10-14 C02前置RunTokenAuthority、真实服务身份与持久令牌绑定、claimStep/renewStep、issue/renew和逐动作execute由唯一[RUN-TOKEN-AUTHORITY-01](RUN-TOKEN-AUTHORITY-01.md)维护。正式RunActivities继续负责运行、步骤、ROLE范围及PrincipalManifest的创建、当前固定依赖、动作登记和终态处理；领取、续期及权限入口不能单独关闭完整IC-13。
+
 ## 任务身份与依据
 
 唯一任务来源为[实施任务计划](../../实施任务计划.md)的IMP-13，当前状态IN_PROGRESS。开发期限为2026-10-10上午09:00（Asia/Shanghai）；业务输入使用SIMULATION，Temporal历史、服务调用和传输检查使用实际服务。代码及必要集成通过后登记IMPLEMENTED，正式客户验收独立登记。

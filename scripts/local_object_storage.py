@@ -165,6 +165,24 @@ def verify_identity():
     return value
 
 
+def archive_terminated():
+    value = json.loads(private_file(IDENTITY))
+    if value["os_uid"] != os.getuid() or value["service_id"] != settings()["service_id"] or value["command"] != command():
+        raise ValueError("OBJECT_STORAGE_DEPLOYMENT_IDENTITY_INVALID")
+    pid = value["pid"]
+    if type(pid) is not int or pid <= 1:
+        raise ValueError("OBJECT_STORAGE_PID_INVALID")
+    process = subprocess.run(["/bin/ps", "-p", str(pid), "-o", "pid="], capture_output=True,
+        text=True, check=False, timeout=10, env={**os.environ, "LC_ALL": "en_US.UTF-8"})
+    if process.returncode != 1 or process.stdout.strip():
+        raise ValueError("OBJECT_STORAGE_PROCESS_STILL_PRESENT")
+    destination = DIRECTORY / ("terminated-" + value["deployment_id"] + ".json")
+    if destination.exists():
+        raise ValueError("OBJECT_STORAGE_TERMINATED_IDENTITY_ALREADY_PRESENT")
+    IDENTITY.rename(destination)
+    print("OBJECT_STORAGE_TERMINATED_IDENTITY_ARCHIVED " + value["deployment_id"])
+
+
 def client():
     values = settings()
     return boto3.client("s3", endpoint_url=ENDPOINT, region_name="us-east-1", aws_access_key_id=values["access_key"],
@@ -219,7 +237,7 @@ def stop():
 
 def main():
     parser = argparse.ArgumentParser(description="运行本地私有对象存储及核查技术服务身份")
-    parser.add_argument("action", choices=("install", "prepare", "start", "protect", "identity", "stop"))
+    parser.add_argument("action", choices=("install", "prepare", "start", "protect", "identity", "stop", "archive-terminated"))
     args = parser.parse_args()
     lock = ROOT / ".implementation-work/object-storage-runtime.lock"
     with lock.open("a+") as handle:
@@ -227,7 +245,8 @@ def main():
         if args.action == "identity":
             print(json.dumps(verify_identity(), ensure_ascii=False))
         else:
-            {"install": install, "prepare": prepare, "start": start, "protect": protect, "stop": stop}[args.action]()
+            {"install": install, "prepare": prepare, "start": start, "protect": protect,
+                "stop": stop, "archive-terminated": archive_terminated}[args.action]()
 
 
 if __name__ == "__main__":

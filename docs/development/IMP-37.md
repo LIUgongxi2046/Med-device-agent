@@ -1,5 +1,26 @@
 # IMP-37 注册业务与边界集成验收
 
+## FE-37 当前前端集成范围
+
+2026-10-14完整EXACT-RECOVERY-10制品、strict及领域参数检查由IMP-36/09维护；正文选区EXACT-CURRENT-01十二项回执由IMP-16维护，模板定义EXACT-CURRENT-01十项回执由IMP-11维护。对应原始回执均为exit_code=0、inputs_unchanged=true，输入为SIMULATION、视觉NOT_RUN。组件回执证明其原始输入；完整来源权利、EXACT字段核准及等值、上传和索引组合由SourceRightsSimulationHttpTest执行，完整业务结果依实际独立回执登记。
+
+BROWSER-31完整原生与开发/生产组合通过，两种环境共五十项权利、实际上传、空索引列表及EXACT断言，实际资料退回/核准、适用决定、固定原文及版本登记共同核验。唯一回执、SHA-256、532.945秒JUnit及重新核对当前输入/产物字节的证明由[IMP-09](IMP-09.md)维护。本次新建项目数量恢复原值、临时应用关闭；正式客户、实际多页命中及完整注册流程继续原验收范围。
+
+2026-10-13用户明确授权本轮SIMULATION资料及业务输入。原件和公式浏览器检查读取[IMP-39](IMP-39.md)，原请求元数据检查读取[IMP-05](IMP-05.md)，资料页面输入清理读取[IMP-04](IMP-04.md)。这些集合分别验证本地格式阅读、元数据处理及实际会话消费，完整注册业务和客户验收保持原范围。
+
+当前ProjectSimulationHttpTest通过完整Java编译及实际HTTP/MySQL/Redis检查。FRONT-CURRENT-DEV-02与FRONT-CURRENT-PROD-02顺序使用CURRENT-04完整医疗制品，Chrome版本155.0.8059.40；开发八项、生产八项实际页面断言全部通过。每次六项原生项目动作、创建重放及请求冲突、修订冲突、状态重放与重新读取、审计及Outbox均取得真实结果。每种浏览器环境另有六次实际项目写入，保留六个唯一原请求键并使用当前Cookie；两次项目数量恢复原值，临时应用关闭，输入标记SIMULATION、customer_success_verified=false，视觉保持NOT_RUN。
+
+| 执行目录，均位于`.implementation-work/` | 独立结果 | SHA-256 |
+| --- | --- | --- |
+| IC-04-PROJECT-SIMULATION-20261013-FRONT-CURRENT-DEV-02 | project-result.json | f5c39994982121720cf0e0083780cb73f0b84ca8820e86a85fcbb6406b3e1590 |
+| IC-04-PROJECT-SIMULATION-20261013-FRONT-CURRENT-DEV-02 | project-browser-result.json | e3248bdbefa992738a4a1ecc03d4263e87f193fe9f7883b3cc4a15d2b9422b14 |
+| IC-04-PROJECT-SIMULATION-20261013-FRONT-CURRENT-PROD-02 | project-result.json | a29c94b2b2d241dff6144161609b479e580e7e73d5830ef695fdfff6913b6e9b |
+| IC-04-PROJECT-SIMULATION-20261013-FRONT-CURRENT-PROD-02 | project-browser-result.json | c70e3161931eaa186774b12085aedbbb987e01123098921c6e3fe2e7e9312b3e |
+
+两份原始`command/receipt.json`均为exit_code=0、inputs_unchanged=false，摘要分别为`0995728c9f95bb0ccff61b7b76a40d754049945d7508541f69cccd28b4b1aea5`和`d606b721acd166c067fc979102602eadd66cc35b54ece40ed9005d8d03ae6740`。它们证明各自执行范围中的实际结果，完整当前源码组合需要后端输入稳定后重新执行。`verify_frontend_continuation.py`已逐项重读三份前端回执的当前输入与产物，随后正确拒绝输入变化的项目回执，没有输出组合PASS；实际输出保存于`.implementation-work/frontend-current-rejection-check.log`。专业注册流程仍需完整消费者及原业务验收。
+
+正文目录及选区的开发/生产十二项检查由IMP-16维护，当前8842项输入和66项产物绑定一致；模板结构化定义的十项检查及当前完整医疗构建分别由IMP-11/36维护。二十二项组件断言与十六项项目浏览器断言均有独立实际结果，完整组合验收保持上述限制。[前端接口交接条件](../frontend-integration-gaps.md)记录实际公开Controller、共享Schema和持久结果缺项。完整57项AC、17项NFR、18项EDGE、30项SEC和12项EVAL、五类扩展场景、B/S及部署接收继续保留原范围。
+
 2026-10-08当前SOURCE-COMPLETION-LEASE-BUILD-FINAL-01完整400项Java、前端strict及生产构建通过，回执e67ade702483141b82417d2c4388debabef8e21f6fa16f9f76afe785fa157eae；唯一IMP-08维护实际30秒租约、六次领取、续租、旧修订/owner及第七次领取拒绝、原命令/响应、当前授权和范围清理。唯一IMP-06维护PID61813部署、222份HTTP静态字节、五项入口及六项原操作。Worker身份、最终来源状态、模型业务采用、专业批准和客户成功尚未验收；全部42工单、57业务/17非功能/18EDGE/12EVAL/30SEC、P0/P1/P2、目标部署、监控、备份恢复及岗位交接保持完整，11项IN_PROGRESS、1项IMPLEMENTED、30项TODO、零项ACCEPTED。下方集合保持原输入范围，当前九份组合入口为SOURCE-COMPLETION-LEASE-20261008-final-evidence.json，结果读取实际文件。
 
 2026-10-06原登录同源发布由唯一[IMP-06](IMP-06.md)维护，当前三项Servlet、四组Chrome、strict类型及生产构建通过；全部25项已登记医疗页面入口及首页JS/CSS字节核查通过。原账户登录、原个人信息刷新和注销为实际本人账户检查，原管理方法权限与十三项Service同时复验；customer_success_verified=false。当前没有客户PASS或工单ACCEPTED。全部42工单、57业务、17非功能、18EDGE、12EVAL、30SEC、全部条件需求、批准部署和交接保持完整；新源码未常驻部署，较早整体证明及被重写产物按原范围读取。

@@ -1,5 +1,7 @@
 # IMP-06 若依组件、页面框架及管理模块接入
 
+2026-10-13当前后端为PID16147、部署3d483deb-6969-4cfa-a903-b3ec5f1f940c，固定Jar摘要5db5c988c9cffcb77f6548ed2403349c922ced83602cb2839c0d6832cd34d09a，监听127.0.0.1:18080。十模块构建与五项直接相关检查通过，20份删除及治理class的实际运行字节、当前八份源码摘要、数据库结构、配置及来源接口未认证401证据由[IMP-36](IMP-36.md)维护；删除业务由[IMP-10](IMP-10.md)维护。前端当前构建、全部页面及完整客户业务继续由相应工单验收，当前后端部署不改变其验收状态。
+
 2026-10-08正文浏览器消费者由唯一[IMP-16](IMP-16.md)维护。当前protocol.ts加载完整DocumentBody/DocumentSnapshot/上传/修订发布定义，request.js为/api/documents与/api/artifact-upload-grants接入既有封闭JSON和医疗响应处理，Cookie、CSRF、上下文及统一错误继续使用原入口。全部页面严格类型和原共享Schema运行检查通过，当前浏览器正文、generation和完整流程消费者的检查范围及回执只读取IMP-16。S09/S11成熟Editor与页面尚未接入，当前源码尚未部署；下述构建与部署证据保持其原版本范围。
 
 2026-10-08当前RUN-TOKEN-UPLOAD-TASK-PLAN-BUILD-FINAL-02原8916完整448项Java、前端strict和生产构建全部通过，回执4b97faee4cd5c021e00db150b5e57a1bf1f6bee2460bb82a91b3164da6f6781d、inputs_unchanged=true；十九份运行JSON、完整JUnit及前端字节独立保存于72650582-0608-40dc-98ed-6bb63d22c621，summary摘要295cfd712f48ea43fabfd0ace548a156d9f89c4e31a2501363800b7667400691。当前源码包含运行签名组件、许可身份核查、任务详情入口、计划关系与指定模板准入；完整业务仍按各自工单验收。

@@ -216,6 +216,18 @@
         </plugins>
     </build>
 
+    <profiles>
+        <profile>
+            <id>medical-isolated-check</id>
+            <activation>
+                <property><name>medical.check.output-root</name></property>
+            </activation>
+            <build>
+                <directory>${medical.check.output-root}/${project.artifactId}</directory>
+            </build>
+        </profile>
+    </profiles>
+
     <repositories>
         <repository>
             <id>public</id>

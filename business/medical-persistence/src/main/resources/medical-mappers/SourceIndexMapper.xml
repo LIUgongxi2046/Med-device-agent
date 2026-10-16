@@ -1,0 +1,195 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.medical.persistence.mapper.SourceIndexMapper">
+  <resultMap id="view" type="com.ruoyi.medical.persistence.SourceIndexProtocol$View">
+    <constructor>
+      <arg column="tenant_id" javaType="java.lang.String"/><arg column="project_id" javaType="java.lang.String"/>
+      <arg column="source_version" javaType="java.lang.String"/><arg column="parse_version" javaType="java.lang.String"/>
+      <arg column="event_id" javaType="java.lang.String"/><arg column="index_version" javaType="java.lang.String"/>
+      <arg column="build_status" javaType="java.lang.String"/><arg column="revision" javaType="java.math.BigInteger"/>
+      <arg column="execution_started_at" javaType="java.time.LocalDateTime"/><arg column="execution_deadline" javaType="java.time.LocalDateTime"/>
+      <arg column="updated_at" javaType="java.time.LocalDateTime"/><arg column="expected_count" javaType="java.math.BigInteger"/>
+      <arg column="verified_count" javaType="java.math.BigInteger"/><arg column="index_status" javaType="java.lang.String"/>
+      <arg column="index_mode" javaType="java.lang.String"/><arg column="manifest_sha256" javaType="java.lang.String"/>
+      <arg column="index_sha256" javaType="java.lang.String"/><arg column="registered_sha256" javaType="java.lang.String"/>
+      <arg column="input_sha256" javaType="java.lang.String"/><arg column="result_ref" javaType="java.lang.String"/>
+      <arg column="receipt_ref" javaType="java.lang.String"/><arg column="receipt_input_sha256" javaType="java.lang.String"/>
+      <arg column="delivery_status" javaType="java.lang.String"/><arg column="schema_manifest_sha256" javaType="java.lang.String"/>
+      <arg column="delivery_schema" javaType="java.lang.String"/><arg column="receipt_schema" javaType="java.lang.String"/>
+      <arg column="created_by" javaType="java.lang.String"/><arg column="delivery_creator" javaType="java.lang.String"/>
+      <arg column="receipt_creator" javaType="java.lang.String"/>
+    </constructor>
+  </resultMap>
+  <select id="views" resultMap="view" useCache="false" flushCache="true">
+    SELECT b.tenant_id,b.project_id,b.source_version,b.parse_version,b.event_id,b.index_version,b.status AS build_status,
+      b.revision,b.execution_started_at,b.execution_deadline,b.updated_at,i.expected_count,i.verified_count,
+      i.status AS index_status,i.mode AS index_mode,b.manifest_sha256,i.manifest_sha256 AS index_sha256,
+      v.content_sha256 AS registered_sha256,b.input_sha256,b.result_ref,c.result_ref AS receipt_ref,
+      c.input_sha256 AS receipt_input_sha256,d.status AS delivery_status,b.schema_manifest_sha256,
+      d.schema_manifest_sha256 AS delivery_schema,c.schema_manifest_sha256 AS receipt_schema,
+      b.created_by,d.created_by AS delivery_creator,c.created_by AS receipt_creator
+    FROM source_index_build b
+    LEFT JOIN outbox_delivery d ON d.tenant_id=b.tenant_id AND d.event_id=b.event_id AND d.consumer_id=b.consumer_id
+    LEFT JOIN index_manifest i ON i.tenant_id=b.tenant_id AND i.source_version=b.source_version
+      AND i.parse_version=b.parse_version AND i.index_version=b.index_version
+    LEFT JOIN version_registry v ON v.tenant_id=b.tenant_id AND v.version_id=b.index_version AND v.entity_kind='INDEX_VERSION'
+    LEFT JOIN consumer_receipt c ON c.tenant_id=b.tenant_id AND c.event_id=b.event_id AND c.consumer_id=b.consumer_id
+    WHERE b.source_version=#{sourceVersion} AND b.project_id=#{projectId} AND b.consumer_id='SOURCE_INDEX_FULLTEXT'
+    ORDER BY b.created_at,b.index_version LIMIT #{fetchLimit}
+  </select>
+  <resultMap id="build" type="com.ruoyi.medical.persistence.SourceIndexProtocol$Build">
+    <constructor>
+      <arg column="tenant_id" javaType="java.lang.String"/><arg column="project_id" javaType="java.lang.String"/>
+      <arg column="event_id" javaType="java.lang.String"/><arg column="source_version" javaType="java.lang.String"/>
+      <arg column="parse_version" javaType="java.lang.String"/><arg column="attempt_id" javaType="java.lang.String"/>
+      <arg column="index_version" javaType="java.lang.String"/><arg column="config_revision" javaType="java.lang.String"/>
+      <arg column="rights_revision" javaType="java.lang.String"/><arg column="input_sha256" javaType="java.lang.String"/>
+      <arg column="manifest" javaType="java.lang.String"/><arg column="manifest_sha256" javaType="java.lang.String"/>
+      <arg column="status" javaType="java.lang.String"/><arg column="execution_started_at" javaType="java.time.LocalDateTime"/>
+      <arg column="execution_deadline" javaType="java.time.LocalDateTime"/><arg column="result_ref" javaType="java.lang.String"/>
+      <arg column="schema_manifest_sha256" javaType="java.lang.String"/><arg column="created_by" javaType="java.lang.String"/>
+      <arg column="classification" javaType="java.lang.String"/><arg column="revision" javaType="java.math.BigInteger"/>
+    </constructor>
+  </resultMap>
+  <select id="command" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT e.payload FROM outbox_event e JOIN processing_attempt a ON a.tenant_id=e.tenant_id
+      AND a.parse_version=e.aggregate_id AND a.attempt_id=#{attemptId} AND a.job_type='PARSE'
+    WHERE e.event_id=#{eventId} AND e.event_type='source.index.requested' AND e.aggregate_revision=1
+      AND a.created_by=#{userId} FOR UPDATE
+  </select>
+  <select id="build" resultMap="build" useCache="false" flushCache="true">
+    SELECT tenant_id,project_id,event_id,source_version,parse_version,attempt_id,index_version,config_revision,
+      rights_revision,input_sha256,manifest,manifest_sha256,status,execution_started_at,execution_deadline,
+      result_ref,schema_manifest_sha256,created_by,classification,revision FROM source_index_build
+    WHERE event_id=#{eventId} AND consumer_id='SOURCE_INDEX_FULLTEXT' AND created_by=#{userId} FOR UPDATE
+  </select>
+  <select id="delivery" resultMap="com.ruoyi.medical.persistence.mapper.SourceUploadMapper.completionDelivery" useCache="false" flushCache="true">
+    SELECT tenant_id,event_id,consumer_id,status,attempt_no,next_attempt_at,lease_owner,lease_until,
+      lease_generation,last_error,created_by,created_at,classification,revision,updated_at,schema_version,schema_manifest_sha256
+    FROM outbox_delivery WHERE event_id=#{eventId} AND consumer_id='SOURCE_INDEX_FULLTEXT' AND created_by=#{userId} FOR UPDATE
+  </select>
+  <insert id="initializeDelivery">
+    INSERT INTO outbox_delivery(event_id,consumer_id,status,attempt_no,next_attempt_at,lease_owner,lease_until,
+      lease_generation,last_error,created_by,created_at,classification,revision,updated_at,schema_version,schema_manifest_sha256)
+    VALUES(#{eventId},'SOURCE_INDEX_FULLTEXT','PENDING',0,#{now},NULL,NULL,0,NULL,#{userId},#{now},
+      #{classification},1,#{now},'1.0.0',#{schemaManifest})
+  </insert>
+  <update id="claim">
+    UPDATE outbox_delivery SET status='DELIVERING',attempt_no=attempt_no+1,lease_owner=#{workerId},lease_until=#{leaseUntil},
+      lease_generation=lease_generation+1,revision=revision+1,updated_at=#{now}
+    WHERE event_id=#{eventId} AND consumer_id='SOURCE_INDEX_FULLTEXT' AND created_by=#{userId}
+      AND revision=#{leaseRevision} AND lease_generation=#{generation} AND attempt_no&lt;3 AND next_attempt_at&lt;=#{now}
+      AND ((status='PENDING' AND lease_owner IS NULL AND lease_until IS NULL)
+        OR (status='DELIVERING' AND lease_owner IS NOT NULL AND lease_until&lt;=#{now}))
+  </update>
+  <sql id="activeLease">
+    event_id=#{eventId} AND consumer_id='SOURCE_INDEX_FULLTEXT' AND created_by=#{userId} AND status='DELIVERING'
+    AND lease_owner=#{workerId} AND lease_generation=#{generation} AND revision=#{leaseRevision}
+    AND lease_until&gt;#{now} AND lease_until&gt;UTC_TIMESTAMP(6)
+  </sql>
+  <sql id="buildLease">
+    EXISTS (SELECT 1 FROM outbox_delivery d WHERE d.tenant_id=source_index_build.tenant_id
+      AND d.event_id=source_index_build.event_id AND d.consumer_id=source_index_build.consumer_id
+      AND d.created_by=#{userId} AND d.status='DELIVERING' AND d.lease_owner=#{workerId}
+      AND d.lease_generation=#{generation} AND d.revision=#{leaseRevision} AND d.lease_until&gt;UTC_TIMESTAMP(6))
+  </sql>
+  <update id="renew">
+    UPDATE outbox_delivery SET lease_until=#{leaseUntil},revision=revision+1,updated_at=#{now}
+    WHERE <include refid="activeLease"/>
+  </update>
+  <insert id="saveVersion">
+    INSERT INTO version_registry(version_id,owner_project_id,entity_kind,content_sha256)
+    VALUES(#{indexVersion},#{ownerProjectId},'INDEX_VERSION',#{manifestSha256})
+  </insert>
+  <insert id="saveLineage">
+    INSERT INTO lineage_edge(consumer_version_id,upstream_version_id,relation_kind,actor_id,decision_ref,created_at)
+    VALUES(#{indexVersion},#{upstreamId},#{relationKind},#{userId},NULL,#{now})
+  </insert>
+  <insert id="saveIndex">
+    INSERT INTO index_manifest(source_version,parse_version,index_version,mode,model_config_revision,dimension,
+      config_sha256,manifest_sha256,expected_count,verified_count,status)
+    VALUES(#{sourceVersion},#{parseVersion},#{indexVersion},'FULLTEXT',NULL,NULL,#{configSha256},#{manifestSha256},#{count},0,'BUILDING')
+  </insert>
+  <insert id="saveBuild">
+    INSERT INTO source_index_build(project_id,event_id,consumer_id,source_version,parse_version,attempt_id,index_version,
+      config_revision,rights_revision,input_sha256,manifest,manifest_sha256,status,execution_started_at,execution_deadline,
+      result_ref,schema_version,schema_manifest_sha256,created_by,created_at,classification,revision,updated_at)
+    VALUES(#{projectId},#{eventId},'SOURCE_INDEX_FULLTEXT',#{sourceVersion},#{parseVersion},#{attemptId},#{indexVersion},
+      #{indexConfigRevision},#{rightsRevision},#{inputSha256},#{manifest},#{manifestSha256},'BUILDING',#{now},#{deadline},
+      NULL,'1.0.0',#{schemaManifest},#{userId},#{now},#{classification},1,#{now})
+  </insert>
+  <insert id="saveItem">
+    INSERT INTO index_item(source_version,parse_version,index_version,chunk_id,point_id,vector_sha256,
+      embedding_invocation_id,verified_at,status,created_by,created_at,classification,revision,updated_at)
+    VALUES(#{sourceVersion},#{parseVersion},#{indexVersion},#{chunkId},#{pointId},NULL,NULL,#{now},'READY',
+      #{userId},#{now},#{classification},1,#{now})
+  </insert>
+  <update id="readyIndex">
+    UPDATE index_manifest SET verified_count=#{count},status='READY'
+    WHERE source_version=#{sourceVersion} AND parse_version=#{parseVersion} AND index_version=#{indexVersion}
+      AND status='BUILDING' AND expected_count=#{count} AND verified_count=0 AND manifest_sha256=#{manifestSha256}
+      AND mode='FULLTEXT' AND config_sha256=#{configSha256}
+  </update>
+  <update id="completeBuild">
+    UPDATE source_index_build SET status=#{resultStatus},result_ref=#{resultRef},revision=revision+1,updated_at=#{now}
+    WHERE event_id=#{eventId} AND consumer_id='SOURCE_INDEX_FULLTEXT' AND index_version=#{indexVersion}
+      AND created_by=#{userId} AND revision=#{buildRevision} AND status='BUILDING' AND manifest_sha256=#{manifestSha256}
+      <if test="resultStatus == 'READY'">AND execution_deadline&gt;#{now} AND execution_deadline&gt;UTC_TIMESTAMP(6)
+        AND <include refid="buildLease"/></if>
+  </update>
+  <update id="completeDelivery">
+    UPDATE outbox_delivery SET status='DELIVERED',lease_owner=NULL,lease_until=NULL,revision=revision+1,updated_at=#{now}
+    WHERE <include refid="activeLease"/>
+  </update>
+  <update id="failIndex">
+    UPDATE index_manifest SET status='FAILED' WHERE source_version=#{sourceVersion} AND parse_version=#{parseVersion}
+      AND index_version=#{indexVersion} AND status='BUILDING' AND manifest_sha256=#{manifestSha256}
+  </update>
+  <update id="failDelivery">
+    UPDATE outbox_delivery SET status='FAILED',lease_owner=NULL,lease_until=NULL,last_error='INDEX_LIMIT',revision=revision+1,updated_at=#{now}
+    WHERE event_id=#{eventId} AND consumer_id='SOURCE_INDEX_FULLTEXT' AND created_by=#{userId}
+      AND revision=#{leaseRevision} AND lease_generation=#{generation}
+      AND (status='PENDING' OR status='DELIVERING' AND lease_until&lt;=#{now})
+  </update>
+  <insert id="saveReceipt">
+    INSERT INTO consumer_receipt(event_id,consumer_id,result_ref,input_sha256,received_at,schema_version,
+      schema_manifest_sha256,created_by,created_at,classification)
+    VALUES(#{eventId},'SOURCE_INDEX_FULLTEXT',#{resultRef},#{inputSha256},#{now},'1.0.0',#{schemaManifest},#{userId},#{now},#{classification})
+  </insert>
+  <select id="receipt" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT result_ref FROM consumer_receipt WHERE event_id=#{eventId} AND consumer_id='SOURCE_INDEX_FULLTEXT'
+      AND input_sha256=#{inputSha256} AND created_by=#{userId} FOR UPDATE
+  </select>
+  <select id="rawChunkCount" resultType="java.math.BigInteger" useCache="false" flushCache="true">
+    SELECT COUNT(*) FROM source_chunk WHERE source_version=#{sourceVersion} AND parse_version=#{parseVersion}
+  </select>
+  <select id="itemCount" resultType="java.math.BigInteger" useCache="false" flushCache="true">
+    SELECT COUNT(*) FROM index_item WHERE source_version=#{sourceVersion} AND parse_version=#{parseVersion} AND index_version=#{indexVersion}
+  </select>
+  <select id="chunks" resultType="java.util.HashMap" useCache="false" flushCache="true">
+    SELECT n.node_id AS nodeId,n.ordinal AS ordinal,n.node_kind AS nodeKind,n.locator AS locator,n.content_ref AS contentRef,
+      n.node_hash AS nodeHash,c.chunk_id AS chunkId,c.raw_text AS rawText,c.search_text AS searchText,c.quote_hash AS quoteHash,
+      c.locator AS chunkLocator,c.ordinal AS chunkOrdinal,cn.`range` AS nodeRange
+    FROM content_node n JOIN source_chunk c ON c.tenant_id=n.tenant_id AND c.source_version=n.source_version
+      AND c.parse_version=n.parse_version AND c.node_id=n.node_id
+    JOIN chunk_node cn ON cn.tenant_id=c.tenant_id AND cn.source_version=c.source_version AND cn.parse_version=c.parse_version
+      AND cn.chunk_id=c.chunk_id AND cn.node_id=c.node_id
+    WHERE n.source_version=#{sourceVersion} AND n.parse_version=#{parseVersion}
+    ORDER BY n.ordinal,n.node_id LIMIT #{fetchLimit}
+  </select>
+  <select id="items" resultType="java.util.HashMap" useCache="false" flushCache="true">
+    SELECT i.chunk_id AS chunkId,i.point_id AS pointId,i.vector_sha256 AS vectorSha256,i.embedding_invocation_id AS invocationId,
+      i.verified_at AS verifiedAt,i.status AS status,i.created_by AS createdBy,i.classification AS classification,
+      c.ordinal AS ordinal FROM index_item i JOIN source_chunk c ON c.tenant_id=i.tenant_id AND c.source_version=i.source_version
+      AND c.parse_version=i.parse_version AND c.chunk_id=i.chunk_id
+    WHERE i.source_version=#{sourceVersion} AND i.parse_version=#{parseVersion} AND i.index_version=#{indexVersion}
+    ORDER BY c.ordinal,c.chunk_id LIMIT #{fetchLimit}
+  </select>
+  <select id="index" resultType="java.util.HashMap" useCache="false" flushCache="true">
+    SELECT i.mode AS mode,i.model_config_revision AS modelConfigRevision,i.dimension AS dimension,
+      i.config_sha256 AS configSha256,i.manifest_sha256 AS manifestSha256,i.expected_count AS expectedCount,
+      i.verified_count AS verifiedCount,i.status AS status,v.content_sha256 AS registeredSha256,v.owner_project_id AS ownerProjectId
+    FROM index_manifest i JOIN version_registry v ON v.tenant_id=i.tenant_id AND v.version_id=i.index_version AND v.entity_kind='INDEX_VERSION'
+    WHERE i.source_version=#{sourceVersion} AND i.parse_version=#{parseVersion} AND i.index_version=#{indexVersion} FOR UPDATE
+  </select>
+</mapper>

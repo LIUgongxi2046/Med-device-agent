@@ -14,6 +14,10 @@ public interface SourceUploadMapper {
     int saveDeclaration(Map<String,Object> values);
     int receive(Map<String,Object> values);
     List<UploadOperationRow> completionOperation(Map<String,Object> values);
+    List<UploadOperationRow> completionState(Map<String,Object> values);
+    List<UploadOperationRow> completionOperationById(Map<String,Object> values);
+    List<String> completionResult(Map<String,Object> values);
+    List<String> completionFailure(Map<String,Object> values);
     int startCompletionOperation(Map<String,Object> values);
     List<String> completionCommand(Map<String,Object> values);
     int saveCompletionDelivery(Map<String,Object> values);

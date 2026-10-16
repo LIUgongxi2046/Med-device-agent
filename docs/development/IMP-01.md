@@ -1,5 +1,13 @@
 # IMP-01 正式工程与版本登记
 
+## FE-01 阅读与公式依赖
+
+2026-10-13当前前端采用docx-preview 0.4.1、DOMPurify 3.4.17、ExcelJS 4.4.0、KaTeX 0.19.0、MarkdownIt 15.0.2、Papa Parse 5.7.0和pptx-preview 1.0.7及对应TypeScript定义。依赖安装及锁文件已经更新，阅读使用成熟格式库。`npm --prefix web run typecheck:medical`和`npm --prefix web run build:prod`通过。七格式和公式的开发/生产22项实际DOM检查由[IMP-39](IMP-39.md)维护。静态资源发布、正式同源入口及完整制品身份继续纳入FE-36/40验收。
+
+当前检索及导出恢复消费已经通过严格类型、16项实际Schema及正文编辑检查。执行命令为`python3 scripts/check_task_plan_frontend.py --execution 20261013-READ-RECOVERY-CURRENT --timeout 600`，回执为`.implementation-work/IC-12-PLAN-FRONT-20261013-READ-RECOVERY-CURRENT/receipt.json`，exit_code=0、inputs_unchanged=true。检查覆盖原文编码、稳定节点、精确字段、继续输入、冲突输入保留、会话草稿、三版本比较、表格归属及撤销恢复；公开专业文稿保存和全部业务验收继续由对应主记录维护。
+
+当前医疗模式生产构建通过，转换3699个模块；命令为`npm --prefix web run build:prod -- --mode medical --outDir "$PWD/.implementation-work/FRONT-20261013-CURRENT/production"`，原始输出为`.implementation-work/FRONT-20261013-CURRENT/build-recovery-current.log`。完整发布资格及目标环境部署继续按FE-36/40—42执行。
+
 2026-10-07文档组件登记：`document/pyproject.toml` 与 `document/src/medical_document` 提供 medical-document 1.0.0，Docling 与成熟格式库负责七格式原生内容和 Locator；正式安装制品及十一项检查由唯一[IMP-08](IMP-08.md)维护，工程路径与固定依赖已登记到 engineering-baseline。安装文件与当前源码逐字节核查一致；完整 Worker、上传持久化、服务组合和生产资格继续原验收，本任务保持 IN_PROGRESS。
 
 2026-10-06原账户动作关联：FrameworkAccountOperations由原RuoYi Controller实现；原SecurityUtils使用实际配置的BCrypt组件，local工作因子12保持。完整构建入口同步保存新增实际账户动作结果；当前122项关联Java通过，唯一[IMP-04](IMP-04.md)维护当前输入/产物和真实本人操作。完整clean verify、S3全量写入、新制品和部署仍未通过；原运行部署保持，新源码尚未部署，较早源码整体证明为STALE。

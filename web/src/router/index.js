@@ -25,6 +25,8 @@ import Layout from '@/layout'
  */
 
 export const medicalRoutes = [
+  { path: '/session-recovery', component: () => import('@/views/medical/session-recovery.vue'), name: 'MedicalSessionRecovery', hidden: true,
+    meta: { medical: true, public: true, noCache: true, title: '重新核查业务会话' } },
   { path: '/enterprises/members', component: Layout, hidden: true, meta: { medical: true }, children: [
     { path: '', component: () => import('@/views/medical/enterprise-members.vue'), name: 'MedicalEnterpriseMembers',
       meta: { medical: true, noCache: true, title: '企业成员与授权', activeMenu: '/projects' } }
@@ -38,8 +40,24 @@ export const medicalRoutes = [
       meta: { medical: true, noCache: true, title: '企业岗位', activeMenu: '/projects' } }
   ] },
   { path: '/library', component: Layout, meta: { medical: true }, children: [
-    { path: '', component: () => import('@/views/medical/collections.vue'), name: 'MedicalCollections',
+    { path: 'search/exact', component: () => import('@/views/medical/source-exact-search.vue'), name: 'MedicalSourceExactSearch', hidden: true,
+      meta: { medical: true, noCache: true, title: '结构化字段等值检索', activeMenu: '/library' } },
+    { path: 'versions/:sourceVersion/exact-fields', component: () => import('@/views/medical/source-exact-fields.vue'), name: 'MedicalSourceExactFields', hidden: true,
+      meta: { medical: true, noCache: true, title: '结构化字段核准', activeMenu: '/library' } },
+    { path: 'versions/:sourceVersion/rights', component: () => import('@/views/medical/source-rights.vue'), name: 'MedicalSourceRights', hidden: true,
+      meta: { medical: true, noCache: true, title: '来源权利审查', activeMenu: '/library' } },
+    { path: '', component: () => import('@/views/medical/source-catalogue.vue'), name: 'MedicalSourceCatalogue',
       meta: { medical: true, noCache: true, title: '资料中心', icon: 'documentation' } },
+    { path: 'collections', component: () => import('@/views/medical/collections.vue'), name: 'MedicalCollections', hidden: true,
+      meta: { medical: true, noCache: true, title: '资料集', activeMenu: '/library' } },
+    { path: 'search', component: () => import('@/views/medical/source-search.vue'), name: 'MedicalSourceSearch', hidden: true,
+      meta: { medical: true, noCache: true, title: '资料全文检索', activeMenu: '/library' } },
+    { path: 'processing', component: () => import('@/views/medical/source-processing.vue'), name: 'MedicalSourceProcessing', hidden: true,
+      meta: { medical: true, noCache: true, title: '资料处理队列', activeMenu: '/library' } },
+    { path: 'artifacts', component: () => import('@/views/medical/artifact-catalogue.vue'), name: 'MedicalArtifactCatalogue', hidden: true,
+      meta: { medical: true, noCache: true, title: '任务成果', activeMenu: '/library' } },
+    { path: 'versions/:sourceVersion', component: () => import('@/views/medical/source-governance.vue'), name: 'MedicalSourceGovernance', hidden: true,
+      meta: { medical: true, noCache: true, title: '资料版本核准', activeMenu: '/library' } },
     { path: 'collections/new', component: () => import('@/views/medical/collections.vue'), name: 'MedicalCollectionCreate', hidden: true,
       meta: { medical: true, noCache: true, title: '创建资料集', collectionCreate: true, activeMenu: '/library' } },
     { path: 'collections/:collectionId', component: () => import('@/views/medical/collections.vue'), name: 'MedicalCollectionDetail', hidden: true,
@@ -155,7 +173,8 @@ export const constantRoutes = [
         path: '/index',
         component: () => import('@/views/index'),
         name: 'Index',
-        meta: { title: '首页', icon: 'dashboard', affix: true }
+        meta: { title: import.meta.env.VITE_APP_ENV === 'medical' ? '工作台' : '首页', icon: 'dashboard', affix: true,
+          medical: import.meta.env.VITE_APP_ENV === 'medical' }
       }
     ]
   },

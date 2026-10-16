@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.medical.persistence.mapper.SourceDeletionMapper">
+  <select id="lease" resultType="map" useCache="false" flushCache="true">
+    SELECT lease_owner,CAST(lease_generation AS CHAR) AS generation,lease_expires_at,execution_evidence
+    FROM deletion_item WHERE item_id=#{itemId} FOR UPDATE
+  </select>
+  <select id="actor" resultType="string" useCache="false" flushCache="true">
+    SELECT j.created_by FROM deletion_job j
+    JOIN deletion_item i ON i.tenant_id=j.tenant_id AND i.deletion_id=j.deletion_id WHERE i.item_id=#{itemId}
+  </select>
+  <select id="originalParts" resultType="map" useCache="false" flushCache="true">
+    SELECT p.object_key,p.object_version,p.sha256,p.state
+    FROM object_upload_part p JOIN object_upload_session s ON s.tenant_id=p.tenant_id AND s.upload_id=p.upload_id
+    WHERE s.purpose='SOURCE' AND (s.object_key=#{objectKey} OR EXISTS(
+      SELECT 1 FROM source_upload_result u WHERE u.tenant_id=s.tenant_id AND u.upload_id=s.upload_id AND u.source_version=#{sourceVersion}))
+    ORDER BY s.upload_id,p.part_no
+  </select>
+  <select id="originalCopies" resultType="map" useCache="false" flushCache="true">
+    SELECT JSON_UNQUOTE(JSON_EXTRACT(u.original_object_ref,'$.object_key')) AS object_key,
+      JSON_UNQUOTE(JSON_EXTRACT(u.original_object_ref,'$.object_version')) AS object_version,
+      JSON_UNQUOTE(JSON_EXTRACT(u.original_object_ref,'$.sha256')) AS sha256
+    FROM source_upload_result u WHERE u.source_version=#{sourceVersion}
+      AND JSON_UNQUOTE(JSON_EXTRACT(u.original_object_ref,'$.object_key'))!=#{objectKey}
+    ORDER BY u.upload_id
+  </select>
+  <update id="claim">
+    UPDATE deletion_item SET status='RUNNING',lease_owner=#{workerId},lease_generation=lease_generation+1,
+      lease_expires_at=TIMESTAMPADD(SECOND,#{leaseSeconds},#{now}),revision=revision+1,updated_at=#{now}
+    WHERE item_id=#{itemId} AND revision=#{expectedRevision} AND status IN ('QUEUED','RUNNING')
+      AND (lease_owner IS NULL OR lease_expires_at&lt;=#{now})
+  </update>
+  <update id="renew">
+    UPDATE deletion_item SET lease_expires_at=TIMESTAMPADD(SECOND,#{leaseSeconds},#{now})
+    WHERE item_id=#{itemId} AND status='RUNNING' AND lease_owner=#{workerId}
+      AND lease_generation=#{generation} AND lease_expires_at&gt;#{now} AND revision=#{expectedRevision}
+  </update>
+  <update id="saveEvidence">
+    UPDATE deletion_item SET execution_evidence=#{evidence},updated_at=#{now}
+    WHERE item_id=#{itemId} AND lease_owner=#{workerId} AND lease_generation=#{generation}
+      AND lease_expires_at&gt;#{now} AND status='RUNNING' AND revision=#{expectedRevision}
+  </update>
+  <update id="saveReceipt">
+    UPDATE deletion_item SET worker_receipt=#{receipt},updated_at=#{now}
+    WHERE item_id=#{itemId} AND lease_owner=#{workerId} AND lease_generation=#{generation}
+      AND lease_expires_at&gt;#{now} AND status='RUNNING' AND revision=#{expectedRevision}
+  </update>
+  <select id="workerReceipt" resultType="string" useCache="false" flushCache="true">
+    SELECT worker_receipt FROM deletion_item WHERE item_id=#{itemId}
+  </select>
+  <update id="release">
+    UPDATE deletion_item SET lease_owner=NULL,lease_expires_at=NULL,updated_at=#{now}
+    WHERE item_id=#{itemId} AND lease_owner=#{workerId} AND lease_generation=#{generation}
+      AND lease_expires_at&gt;#{now} AND status='RUNNING' AND revision=#{expectedRevision}
+  </update>
+  <update id="advanceGovernance">
+    UPDATE tenant SET governance_epoch=governance_epoch+1 WHERE governance_epoch=#{governanceEpoch}
+  </update>
+  <select id="additionalReferenceCount" resultType="java.math.BigInteger" useCache="false" flushCache="true">
+    SELECT
+      (SELECT COUNT(*) FROM retrieval_hit h WHERE h.source_version=#{sourceVersion})
+      +(SELECT COUNT(*) FROM lineage_edge e WHERE e.upstream_version_id IN
+        (SELECT i.index_version FROM index_manifest i WHERE i.source_version=#{sourceVersion}))
+      +(SELECT COUNT(*) FROM reference_hold h WHERE (h.legal_hold=TRUE OR h.retain_until IS NULL
+        OR h.retain_until&gt;UTC_TIMESTAMP(6)) AND h.upstream_version_id IN
+        (SELECT i.index_version FROM index_manifest i WHERE i.source_version=#{sourceVersion}))
+      +(SELECT COUNT(*) FROM processing_attempt a WHERE a.source_version=#{sourceVersion}
+        AND a.status IN ('QUEUED','RUNNING'))
+  </select>
+  <update id="eraseParsedChunks">
+    UPDATE source_chunk SET raw_text='',search_text='',locator=JSON_OBJECT()
+    WHERE source_version=#{sourceVersion} AND parse_version=#{parseVersion}
+  </update>
+  <update id="eraseParsedNodes">
+    UPDATE content_node SET content_ref=JSON_OBJECT(),locator=JSON_OBJECT()
+    WHERE source_version=#{sourceVersion} AND parse_version=#{parseVersion}
+  </update>
+  <update id="eraseReadPositions">
+    UPDATE source_read_history SET locator=NULL,revision=revision+1
+    WHERE source_version=#{sourceVersion} AND locator IS NOT NULL
+  </update>
+  <update id="eraseProcessingDiagnostics">
+    UPDATE processing_attempt SET failure_manifest=JSON_ARRAY(),revision=revision+1,updated_at=#{now}
+    WHERE source_version=#{sourceVersion} AND JSON_LENGTH(failure_manifest)&gt;0
+  </update>
+  <update id="eraseParseDiagnostics">
+    UPDATE parse_version SET failure_manifest=JSON_ARRAY()
+    WHERE source_version=#{sourceVersion} AND JSON_LENGTH(failure_manifest)&gt;0
+  </update>
+  <update id="eraseFulltext">
+    UPDATE source_chunk SET search_text='' WHERE source_version=#{sourceVersion} AND parse_version=#{parseVersion}
+  </update>
+  <update id="withdrawIndex">
+    UPDATE index_manifest SET status='WITHDRAWN' WHERE source_version=#{sourceVersion} AND index_version=#{indexVersion}
+  </update>
+  <select id="remainingParsed" resultType="java.math.BigInteger" useCache="false" flushCache="true">
+    SELECT (SELECT COUNT(*) FROM source_chunk c WHERE c.source_version=#{sourceVersion}
+      AND c.parse_version=#{parseVersion} AND (LENGTH(c.raw_text)&gt;0 OR JSON_LENGTH(c.locator)&gt;0))
+      +(SELECT COUNT(*) FROM content_node n WHERE n.source_version=#{sourceVersion}
+      AND n.parse_version=#{parseVersion} AND (JSON_LENGTH(n.content_ref)&gt;0 OR JSON_LENGTH(n.locator)&gt;0))
+  </select>
+  <select id="remainingFulltext" resultType="java.math.BigInteger" useCache="false" flushCache="true">
+    SELECT COUNT(*) FROM source_chunk WHERE source_version=#{sourceVersion}
+      AND parse_version=#{parseVersion} AND LENGTH(search_text)&gt;0
+  </select>
+  <select id="remainingDiagnostics" resultType="java.math.BigInteger" useCache="false" flushCache="true">
+    SELECT (SELECT COUNT(*) FROM processing_attempt WHERE source_version=#{sourceVersion} AND JSON_LENGTH(failure_manifest)&gt;0)
+      +(SELECT COUNT(*) FROM parse_version WHERE source_version=#{sourceVersion} AND JSON_LENGTH(failure_manifest)&gt;0)
+      +(SELECT COUNT(*) FROM source_read_history WHERE source_version=#{sourceVersion} AND locator IS NOT NULL)
+  </select>
+</mapper>

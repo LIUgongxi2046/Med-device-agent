@@ -85,9 +85,14 @@ app.config.errorHandler = error => {
   user.invalidateMedical()
   user.medicalError = error instanceof MedicalFailure ? error : new MedicalFailure('INTERNAL_ERROR', '业务操作未完成，请重新读取会话')
 }
-router.onError(error => {
-  if (!useUserStore().medicalMode) throw error
-  if (error instanceof MedicalFailure && error.code === 'AUTHENTICATION_REQUIRED') void router.replace('/access')
+router.onError((error, target) => {
+  const user = useUserStore()
+  if (!user.medicalMode) throw error
+  user.invalidateMedical()
+  user.medicalError = error instanceof MedicalFailure ? error : new MedicalFailure('INTERNAL_ERROR', '页面读取未完成，请重新核查业务会话')
+  if (error instanceof MedicalFailure && error.code === 'AUTHENTICATION_REQUIRED') { void router.replace('/access'); return }
+  if (target.meta.medical && !target.meta.public) user.medicalPendingNavigation = target.fullPath
+  void router.replace('/session-recovery')
 })
 window.addEventListener('medical-context-invalidated', () => medicalChannel.postMessage('CONTEXT_INVALIDATED'))
 medicalChannel.addEventListener('message', event => {

@@ -25,6 +25,17 @@
     </resultMap>
     <sql id="ownerSelection">
         <choose>
+            <when test="domain == 'SOURCE_EXACT_REVISION'">
+                SELECT v.tenant_id,v.field_revision AS version_id,s.owner_project_id AS version_project_id,s.owner_project_id AS resource_project_id,
+                    'SOURCE' AS resource_kind,s.source_id AS resource_id,v.manifest_sha256 AS content_sha256,v.source_version,<include refid="noConversation"/>
+                FROM source_exact_revision v JOIN source_version o ON o.tenant_id=v.tenant_id AND o.source_version=v.source_version
+                JOIN source s ON s.tenant_id=o.tenant_id AND s.source_id=o.source_id WHERE v.field_revision IN (<include refid="versionIdentities"/>)
+            </when>
+            <when test="domain == 'EXACT_RETRIEVAL'">
+                SELECT v.tenant_id,v.retrieval_id AS version_id,v.project_id AS version_project_id,v.project_id AS resource_project_id,
+                    'PROJECT' AS resource_kind,v.project_id AS resource_id,v.selection_sha256 AS content_sha256,NULL AS source_version,<include refid="noConversation"/>
+                FROM source_exact_query v WHERE v.retrieval_id IN (<include refid="versionIdentities"/>)
+            </when>
             <when test="domain == 'SOURCE_VERSION'">
                 SELECT v.tenant_id,v.source_version AS version_id,s.owner_project_id AS version_project_id,s.owner_project_id AS resource_project_id,
                     'SOURCE' AS resource_kind,s.source_id AS resource_id,v.original_sha256 AS content_sha256,v.source_version,<include refid="noConversation"/>

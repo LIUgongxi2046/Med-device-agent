@@ -18,7 +18,7 @@ class VersionResourceAuthorityTest {
     private static Connection database;
     private static String owner;
     private static final String STATEMENT = "com.ruoyi.medical.persistence.mapper.VersionResourceMapper.owners";
-    private static final List<String> DOMAINS = List.of("SOURCE_VERSION", "PARSE_VERSION", "INDEX_MANIFEST", "APPROVAL_DECISION",
+    private static final List<String> DOMAINS = List.of("SOURCE_VERSION", "SOURCE_EXACT_REVISION", "EXACT_RETRIEVAL", "PARSE_VERSION", "INDEX_MANIFEST", "APPROVAL_DECISION",
         "RIGHTS_REVISION", "SOURCE_BINDING", "COLLECTION_VERSION", "PROJECT_PROFILE", "SCOPE_SNAPSHOT", "TEMPLATE_VERSION",
         "RULE_VERSION", "TASK_REVISION", "PLAN_REVISION", "DOCUMENT_REVISION", "SECTION_REVISION", "SHARED_FACT",
         "ARTIFACT", "DEPENDENCY_ACCESS_SET", "CONTEXT_MANIFEST", "CANDIDATE", "CAPABILITY_VERSION", "MODEL_CONFIG",

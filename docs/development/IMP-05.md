@@ -1,5 +1,19 @@
 # IMP-05 幂等、对象读取、事件与审计基础
 
+## FE-05 固定下载与当前读取
+
+2026-10-14 KN-EXACT-PUBLISH及KN-14-EXACT使用同一封闭请求元数据机制。字段核准固定source_version、source_id、project_id、完整PublicationInput摘要及原上下文；等值查询固定项目、field_kind和原查询摘要。原值、人工别名、核准理由及查询正文只保留受控内存。未知结果按原操作查询，完整清单或固定查询重读并核验原输入摘要以后清除身份；NOT_FOUND仅允许相同原参数及原上下文继续，EXPIRED必须主动结束。本项实现及真实组合结果由[IMP-09](IMP-09.md)的FRONT-EXACT-FIELDS-01维护，当前原元数据保护要求保持。
+
+2026-10-14 KN-RIGHTS-01使用同一封闭请求元数据机制，绑定固定source_version及source_id、原完整DecisionInput摘要、原上下文和原键。权利人、许可、授权正文和理由只保留受控内存；恢复要求完整原参数摘要相同，NOT_FOUND还要求原上下文相同，EXPIRED必须明确结束。决定回执、原Operation与当前来源权利重新读取以后清除元数据。当前开发/生产参数检查及真实接口、浏览器范围由[IMP-10](IMP-10.md)的FRONT-SOURCE-RIGHTS-01维护；下列回执继续证明各自原输入。
+
+2026-10-13检索KN-14-S04、创建导出EX-01和格式重试EX-04消费request-metadata.ts。发送前保存安全身份、原上下文、幂等键和规范请求摘要；查询文字、重试理由及请求正文没有保存到浏览器持久存储。未知结果保留原请求；重复提交核查原操作并保留原键，参数变化立即拒绝。NOT_FOUND只允许原参数继续请求；EXPIRED保留过期标记，必须明确开始新的请求。COMPLETED需要重新读取对应固定资源及实际原操作后才能清除元数据，业务处理状态继续读取导出资源。
+
+Given明确标记SIMULATION的查询、导出和重试输入；When在实际Chrome开发及生产页面中调用正式元数据模块；Then原键保持、异参拒绝、人员及企业隔离、过期保护、过期后的新键、处理中拒绝确认、旧元数据拒绝、完成后的清理以及正式Locator封闭字段检查通过。`node scripts/check_request_metadata_frontend.mjs`通过两种环境，记录为`.implementation-work/FRONT-REQUEST-METADATA-20261013/checks.json`，原始输出为`.implementation-work/FRONT-20261013-CURRENT/request-metadata-current.log`。这些检查验证本地元数据处理；公开检索及导出恢复的完整业务集成继续由[IMP-09](IMP-09.md)和[IMP-26](IMP-26.md)维护。
+
+Red验证原请求封闭定义必须已经登记，原始断言输出为`.implementation-work/FRONT-20261013-CURRENT/request-metadata-red.log`；Green使用实际浏览器的sessionStorage、Web Crypto及正式Ajv定义，不提供模拟HTTP服务。
+
+2026-10-13固定原件与导出文件在当前会话内取得完整字节，逐段及完整摘要通过后取得下载Blob。读取使用AbortSignal及当前generation；页面、身份或对象变化后停止读取并清理Object URL，旧响应不能进入新页面。原件读取实现及七格式实际检查由[IMP-08](IMP-08.md)维护，导出消费由[IMP-26](IMP-26.md)维护。其他写入请求恢复、通知读取及其他OP消费仍保持本工单完整范围。
+
 2026-10-09当前VersionResourceAuthority使用一次完整36类领域查询核查全部传递版本及实际实体归属；完整来源、会话、依赖和资源许可判断保留。实际MySQL十九项上传授权、版本归属、依赖授权及制品读取检查通过；回执为`.implementation-work/IC-05-UPLOAD-AUTHORIZATION-20261009-DOCUMENT-BATCH-VERSION-02/receipt.json`，SHA256为ec06f078a6b17f50c856b24c222018debb01715c33bc154bef5ef74179805f8a，exit_code=0、inputs_unchanged=true。正文公开保存的实际服务证据读取唯一IMP-16；全部开发输入采用SIMULATION，正式客户验收独立登记。
 
 ## BACK-UPLOAD-PERMIT-DEADLINE-01

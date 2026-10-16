@@ -1,5 +1,41 @@
 # IMP-03 共享 Schema 与完整迁移
 
+## BE-03 来源处理迁移
+
+2026-10-14已应用053的1.0.0-300/301，当前实际MySQL登记294项。run_step追加lease_owner/lease_expires_at及索引与完整关联CHECK，principal_token追加token_sha256/service_uri/policy_revision/policy_sha256/lease_generation及完整关联CHECK；历史新增字段保持null，原记录、原292项迁移checksum及来源集合保持。实际前后回执由唯一[RUN-TOKEN-AUTHORITY-01](RUN-TOKEN-AUTHORITY-01.md)维护，当前完整结构20项通过，178张企业表和215张物理表；签发、实际配置及运行分别关联BE-04/13/36。
+
+2026-10-14已应用052的1.0.0-295—299，当前实际MySQL登记292项。source_exact_revision/head/item及source_exact_query/hit共五张企业表、81项字段、二十二项同企业外键和十项CHECK，固定完整结构化字段及原文位置、人工别名、不可变修订、CAS、原查询、完整命中和保存身份。五张新表均为零条记录，原来源、权利、解析、索引、公开FULLTEXT集合、片段/IndexItem/命中/构建数量及287项历史ID/author/file/checksum保持。回执`.implementation-work/source-exact-migration-checks/f45c51b5-df32-4f0d-92f2-52d18fc04781/receipt.json`的SHA-256为20ac4c4454db36b1998dd4f3f69389578ec6ada88d5eb34ed9eb74179b311138，实际备份和运行身份由IMP-36维护，字段核准及查询由IMP-09维护。
+
+完整迁移结构二十项检查通过，178张企业表及215张物理表；日志`.implementation-work/source-exact-schema-20261014.log`的SHA-256为cc171fd097fe1c5f30e0096f3b5efe73234d746f701e4539c6fbae7999a24920。现有迁移字节保持，新增结构通过成熟SQL/XML/Liquibase解析器核验。完整跨语言发布、业务消费者及客户验收继续原要求。
+
+2026-10-14已应用051的1.0.0-294-source-index-build，当前实际MySQL登记287项。source_index_build共24项字段、七项同企业外键及六项CHECK，固定完整索引构建、原事件/消费者、解析作业、独立索引版本、当前权利、清单、执行期限和回执。实际新表记录为零，原来源、权利、解析、索引、片段/IndexItem数量及286项历史ID/author/file/checksum保持。重读回执`.implementation-work/source-index-migration-checks/1bb774b9-8454-4ea2-884d-1db5327fb1e4/receipt.json`的SHA-256为187178c08292b038ec0574d93d7629610a7374aedb4cd694c58ec1e7a319ee49。实际数据库及备份身份由IMP-36维护，业务索引及后续检索由IMP-09维护。
+
+完整迁移结构二十项检查通过，173张企业表及210张物理表；日志`.implementation-work/source-index-schema-final-20261014.log`的SHA-256为893bee7ca22635f253823ddf2503702c91920dcc7ce7d5ceb56640ea50bd6f28。新增关系继续使用成熟SQL/XML解析器核验，不修改已有迁移或原业务记录。完整跨语言发布、实际消费者兼容和业务验收继续原要求。
+
+2026-10-14当前MySQL已应用050，登记286项。source_rights_state固定当前权利、人工决定身份、revision、Schema及原人员/时间/分类；source_rights_decision固定原操作、输入、审查清单及摘要、真实对象读取证明、决定和完整回执。八项同企业外键及八项CHECK保护来源、前后权利、人员、原操作、决定状态及连续修订。初始化从实际SourceVersion、RightsRevision和Source复制原值，不产生批准决定；当前state一项、decision零项。原283项ID/author/file/checksum、来源权利指针和完整权利记录保持，恢复后重读回执`.implementation-work/source-rights-migration-checks/e8766aa8-b632-43de-94e5-4c356f1cb4e2/receipt.json`的SHA-256为8edda9e450392b72c9dfec53f3a8e811d102561ed2e0ef8c7b0d2d52db383f7a。
+
+当前完整迁移静态检查二十项通过，172张企业表及209张物理表，日志`.implementation-work/source-rights-schema-20261013.log`的SHA-256为c5db3cb83127651532fe8a26ee0af4298c317c03f3395dfe2213b948ab19a8fc；MigrationBundleTest已读取286项完整定义。050前备份2fb2c0f6-e989-4ea1-808d-b98d027cfec5.sql.gz及同名0600回执绑定原数据库身份，完整GZIP读取3722292字节通过。当前制品及运行由[IMP-36](IMP-36.md)维护，人工权利组件与真实技术对象证据由[IMP-08](IMP-08.md)维护。完整共享发布和业务验收继续原要求，父工单保持IN_PROGRESS。
+
+2026-10-13当前MySQL已应用049，登记283项。retrieval_hit、retention_policy_revision、source_lifecycle_decision、source_lifecycle_state及outbox_delivery新增十三项审计或Schema字段，全部具有非空约束。历史记录从同企业的实际来源、原人员和时间、原操作及事件载荷复制；分类来自source。应用写入及消费者读取已经维护相应字段。原有270项ID/author/file/checksum和生命周期状态、决定、revision及更新时间保持原值。
+
+实际重读回执为`.implementation-work/source-metadata-checks/bfee3ed4-8c55-4221-9118-0a578affd558/receipt.json`，SHA-256为b24a6c5b56569a866ce25948dfe5fa43030310eff7988d1ba4e88853496d035b；十三项新增登记及字段、原记录、非空和复制一致性检查通过。`tests/test_migration_bundle.py`当前二十项检查通过，覆盖170张企业表及207张物理表，并核查复制表达式引用的实际列；日志`.implementation-work/source-metadata-schema-final-20261013.log`的SHA-256为818d4e1d4bc5d4338a9fc04df464f91c3dcb6ffde1fa010383ce2ae4d9928a0e。MigrationBundleTest读取283项定义通过；当前制品、两份真实备份和完整重读由[IMP-36](IMP-36.md)维护。父工单保持IN_PROGRESS，完整共享发布和业务验收继续原要求。
+
+048的275、276、277三项已经应用。source_completion_checkpoint及source_upload_result共38项字段、九项同企业外键和九项CHECK已重新读取；outbox_delivery保存completion_started_at、completion_deadline、completion_manifest和期限一致性CHECK。检查点固定原扫描及对象写入身份，结果固定来源、权利、解析、作业及原消费者关联。当前两张新表及processing_attempt均无业务记录。
+
+真实迁移前备份为`.implementation-work/runtime/migration-backups/a2172fe4-d23c-4dab-9883-5a26ffa37c00.sql.gz`及同名0600回执，SHA-256为1f53a4e0f8d691e1bbb5423f34fa5e804f21e23b6309a8b194c799d7712b0fe8，完整GZIP读取3730073字节。当前结构和备份核验回执为`.implementation-work/source-processing-runtime-checks/9c19a6a8-5c53-4d39-a5da-c937a2cba6bb/receipt.json`，SHA-256为d21396891662f11bba7827838a58c601630abd4b5be1cd573861d185afb8d237；MigrationBundleTest一项通过。当前数据库身份保持medical_local及5ecfb746-be18-11f1-95e4-d822203bc633，完整业务验收由IMP-08维护。
+
+2026-10-13实际 MySQL 追加047的272、273、274三项，当前登记267项。持久租约七项字段、解析对象两项字段、三项约束及完整 failure_manifest 对象重新读取通过，当前 processing_attempt 数量为零。迁移前真实备份 ca7c59d7-3322-4ce6-84c0-b77f46768b9c.sql.gz 的 SHA-256 为2670a3fbb8a7ee731d18c6efd2517d447ce186b73b1e0412ecc157f747c13865，完整 GZIP 读取3702059字节。数据库身份保持 medical_local 和5ecfb746-be18-11f1-95e4-d822203bc633。
+
+当前 MigrationBundleTest 一项通过，原始构建日志为`.implementation-work/source-completion-verified-build-20261013.log`；实际迁移日志为`.implementation-work/source-processing-migration-20261013.log`。字段与约束重读回执位于`.implementation-work/source-processing-runtime-checks/d3197c59-303b-4e98-b5a4-80b1c6c6606f/receipt.json`，SHA-256 为ca2aff5203139e39f3ca12c1cd527d94b1b2770dfa23b2f9b689217f0f1959d4。内部处理及分段清单 Schema 保持独立，公共发布 Schema 保持原定义；处理源码及业务范围由[IMP-08](IMP-08.md)维护，当前应用由[IMP-36](IMP-36.md)维护。
+
+## FE-03 固定内容消费
+
+前端request-metadata.schema.json为原请求的封闭本地定义，保存人员、企业、操作、目标及范围身份、原上下文、幂等键和规范请求摘要。protocol.ts登记完整定义和正式Dataset Locator引用；字段变化使用Ajv立即拒绝。request-metadata.ts通过RFC8785及SHA-256核查原参数，实际浏览器验证引用[IMP-05](IMP-05.md)。公开业务请求及响应继续使用后端现有定义。
+
+2026-10-13前端继续消费后端封闭Schema；原件分段核对请求范围、后续位置、完整来源身份、总字节数和两层SHA-256。解析内容使用正式Dataset Locator定义核验位置，并核查chunk_id、Locator摘要及递增顺序。文稿证据保留完整EvidenceRef，原件下载保留完整字节；导出下载与实际核验记录逐项比较。字段和Schema定义保持现有责任；对应实现和验证引用[IMP-08](IMP-08.md)、[IMP-16](IMP-16.md)及[IMP-26](IMP-26.md)。
+
+2026-10-13实际数据库登记264项changeset，保留261项原登记并追加269、270、271三项。046提供删除Worker的租约代际、期限、持久证据和回执；MigrationBundleTest、真实数据库字段及约束重读、备份摘要与207张表的隔离恢复证据由[IMP-36](IMP-36.md)维护，完整删除业务由[IMP-10](IMP-10.md)维护。当前共享公共Schema保持原定义，删除备份目录为Worker内部封闭Schema。客户删除及全组件恢复继续原验收要求。
+
 2026-10-09当前正文迁移为037—039，关联完整正文流程的唯一[IMP-16](IMP-16.md)。实际MySQL登记254项ChangeSet，coverage.json登记163张企业表及200张物理表；既有迁移身份和checksum保持。039提供独立field_definition_id、既有值填充及document_evidence_projection完整身份和外键。实际迁移及完整备份回执为`.implementation-work/IC-03-TASK-PLAN-MIGRATION-20261009-DOCUMENT-REVISION-PROJECTIONS-01/receipt.json`，SHA256为b88f8766db3d4d69c78d447e9aa4143bc5cebbe1f3553a7916db617c32a0fd5c，exit_code=0、inputs_unchanged=true。正式恢复验收继续原要求。
 
 迁移结构由Liquibase、JSQLParser与SQLGlot核验；Liquibase生成的外键删除语句直接由SQLGlot核验。`tests/test_migration_bundle.py`的十八项检查于2026-10-09通过，覆盖200张物理表、主键、完整企业外键、唯一键及字段定义身份填充。medical-data独立package和MigrationBundleTest已核验254项资源及原core.sql摘要。正文状态及后续问题、引用水位由业务消费者维护；代码状态引用实施任务计划，结构检查与客户验收分别登记。

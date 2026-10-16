@@ -2,6 +2,7 @@
   <main class="medical-page">
     <h1>资料集与固定版本</h1>
     <session-panel />
+    <router-link v-if="canSearch" to="/library/search">进入资料全文检索</router-link>
     <router-link v-if="canUpload" to="/projects">从项目详情上传资料</router-link>
     <p v-if="!permitted">资料集操作需要当前企业的明确权限</p>
     <p v-else-if="creating && !canCreate">创建资料集需要当前归属的维护和读取权限</p>
@@ -131,6 +132,10 @@ const creating = computed(() => route.meta.collectionCreate === true)
 const canUpload = computed(() => {
   const session: MedicalSession | null = user.medicalSession
   return session?.action_summary.some(item => item.action === 'source.write') === true
+})
+const canSearch = computed(() => {
+  const session: MedicalSession | null = user.medicalSession
+  return session?.action_summary.some(item => item.action === 'source.read') === true
 })
 const collectionId = computed(() => typeof route.params.collectionId === 'string' ? route.params.collectionId : null)
 const canRead = computed(() => collectionAllowed(user.medicalSession, 'collection.read'))

@@ -1,6 +1,6 @@
 # 医疗器械企业 Agent 平台前端详细设计
 
-版本：V1.1.0；日期：2026-09-30；状态：`DRAFT`；能力类型：`DESIGN`；任务：T08；执行模式：`DESIGN / CONTINUOUS_DELIVERY`。需求基线为 PRD V1.3.0、HLD V1.2.0、LLD-数据 V1.0.0、LLD-后端 V1.1.0、LLD-Agent V1.2.0。用户明确指定基于 RuoYi-Vue3，已有组件直接复用，禁止重复开发通用能力。本文维护页面、组件、状态、请求、来源阅读、人工操作和验收规范。正式 Vue 工程、接口集成及真实业务验收为 `NOT_RUN`。
+版本：V1.1.0；日期：2026-09-30；状态：`DRAFT`；能力类型：`DESIGN`；任务：T08；执行模式：`DESIGN / CONTINUOUS_DELIVERY`。需求基线为 PRD V1.3.0、HLD V1.2.0、LLD-数据 V1.0.0、LLD-后端 V1.1.0、LLD-Agent V1.2.0。用户明确指定基于 RuoYi-Vue3，已有组件直接复用，禁止重复开发通用能力。本文维护页面、组件、状态、请求、来源阅读、人工操作和验收规范。正式 Vue 工程位于`web/`，接口集成与业务验收按同号IMP主记录中的实际证据分别登记。
 
 ## 1. 架构上下文与上游资产映射
 
@@ -22,7 +22,7 @@ FRONT-MEMBER-ACCEPT-01（INFERRED，CONFIRMED）依据 FR-01、ID-03/04/08 和�
 | [LLD-后端.md](./LLD-后端.md) | §4 公开接口、类型、SSE、错误；§5 状态与 SG-01—SG-09；§6 恢复 | `SATISFIED`：补充 OpenAPI 和页面聚合字段见 §5.5，实际调用 NOT_RUN |
 | [LLD-Agent.md](./LLD-Agent.md) | §4.1 候选采纳及当前正文复验、§4.5 运行状态、§7.2 人工待办 | `SATISFIED`：浏览器只消费业务服务输出；内部模型流保持内部使用 |
 | [项目研发规划.md](./项目研发规划.md) T08 | 页面动作逐项对应业务状态，失败与待人工状态可处理 | 本文为当前设计交付；开发、联调及业务验收分别安排 |
-| 正式工程、生成客户端、账号、服务与真实项目 | 可运行入口及实际结果 | `PENDING`：当前目录有 HTML 原型与检查脚本，未发现正式 Vue 工程及其 package.json；不把原型数据作为生产输入 |
+| 正式工程、生成客户端、账号、服务与真实项目 | 可运行入口及实际结果 | `PARTIAL`：`web/package.json`、正式Vue工程、共享TypeScript类型及当前本地服务已提供；每项接口和页面按实际代码验证，完整业务验收继续由同号IMP维护 |
 
 页面业务目标包括：定位任务等待原因和责任人、查看固定原件位置、完成当前正文检查与人工决定、按版本取得成果。来源打开率、审查历时、采用率和退回率读取真实记录；前端不设置新的模型置信度阈值，不根据链接数量推断质量。
 
@@ -777,7 +777,7 @@ Enter 发送、Shift+Enter 换行；compositionstart 至 compositionend 期间�
 
 实现后执行 TypeScript、Vue 构建、真实接口、DOM 组件、浏览器业务、安全和性能检查；按变更影响选择对应检查范围。Mermaid 本次维护文本结构，不进行图像检查。没有正式工程时不编造 npm test 命令或测试通过数。
 
-组件复用验收覆盖 FRONT-R01—R13：逐页检查实际 import、模板标签、依赖和组件目录；基础控件指向 Element Plus 或既有若依组件；全部管理页面沿用原入口；只有一个全局布局、Router和Pinia实例；普通 API 使用既有request。新增业务组件必须能对应§5.1的职责，基础能力新增须具备§1.4要求的组件核查证据。检查共享组件的全部调用页面，验证权限失效、上传、分页、弹窗焦点、表单校验和未保存离开行为。正式源码尚未提供，当前运行验收为 `NOT_RUN`。
+组件复用验收覆盖 FRONT-R01—R13：逐页检查实际 import、模板标签、依赖和组件目录；基础控件指向 Element Plus 或既有若依组件；全部管理页面沿用原入口；只有一个全局布局、Router和Pinia实例；普通 API 使用既有request。新增业务组件必须能对应§5.1的职责，基础能力新增须具备§1.4要求的组件核查证据。检查共享组件的全部调用页面，验证权限失效、上传、分页、弹窗焦点、表单校验和未保存离开行为。当前源码由`web/`提供，适用运行结果和未完成范围按各项开发记录登记。
 
 ### 7.3 本次文件核查
 
@@ -818,7 +818,7 @@ sessionStorage仅保存actor、tenant_id、template_version、TP-02、原key、c
 
 FRONT-TEMPLATE-CREATE-01使用原Layout及`/templates/new`，审查入口按当前template.write提供创建按钮。维护动作仅来自当前企业ENTERPRISE授权，平台角色和模板核准动作不能自行授予创建权限。原ElForm、ElSelect、ElRadioGroup、ElInput、ElCheckbox、ElUpload、ElButton、ElDescriptions、ElCollapse和ElDialog直接承担基础交互，没有新增通用表单、上传或校验组件。
 
-维护人员选择十三类文档、三类申请路径、IVD类别及目录规范，明确独立建立或根据原固定版本修订，填写实际版本和原摘要及创建理由。完整目录、字段、重复表格、附件要求、跨文档规则、条件Schema、全部依据和版式分别提供完整JSON定义编辑；原jsonc-parser检查语法和重复字段，标准JSON及原精确数值检查处理内容，原Ajv核验完整VersionInput。企业获授权完整定义通过ElUpload导入当前内存，不能自动保存、核准、登记许可或删除已有目录。页面没有示例产品、来源、批准或默认数值。模板创建页面的结构化字段操作及专业可用性仍按全部原要求验收，JSON编辑不代表完成全部管理交互。
+维护人员选择十三类文档、三类申请路径、IVD类别及目录规范，明确独立建立或根据原固定版本修订，填写实际版本和原摘要及创建理由。目录、字段、重复表格、附件要求及跨文档规则由`template-definition-editor.vue`组合Element Plus表格和表单提供结构化修改；全部原字段、十一类ValueType、稳定标识、条件、依据、证据规则及输出位置完整保留。数值限制和U64数量使用原字符串，修改采用以前逐项核验原Schema；取消保留原内容，移除需要明确确认当前对象，原输入或上下文变化清理编辑。条件Schema、全部依据及版式继续提供完整JSON输入。原jsonc-parser检查语法和重复字段，标准JSON及原精确数值检查处理内容，原Ajv核验完整VersionInput。企业获授权完整定义通过ElUpload导入当前内存，不能自动保存、核准、登记许可或删除已有目录。模板合法保存、人工核准、条件执行及项目采用仍按原完整要求联调。
 
 TP-01使用既有Axios适配器、Cookie、CSRF、当前上下文和原幂等标识；发送前sessionStorage只保存actor、tenant_id、TP-01、key、context、body_sha256和content_sha256。完整参数摘要及全部上下文相等才可使用原key；查询过期、操作执行中、操作失败或上下文变化时停止再次提交。原操作查询继续使用BX-31/BX-32，查无记录不能证明原请求未发送。刷新以后重新输入完整原定义取得固定创建回执，禁止创建新key代替未确认操作。
 
@@ -847,6 +847,32 @@ FRONT-ENTERPRISE-REVIEW-01使用原Router、Layout、Pinia、SessionPanel、Axio
 路由离开、同一组件更换申请、显式重读及页面关闭处理未保存输入；发送期间阻止离开和重复动作。身份及可见性变化清除完整输入、详情、列表和声明，终止读取，迟到响应不能写入其他会话。当前平台身份只管理申请元数据；企业选择、岗位配置和项目操作继续通过既有明确授权入口。合法申请批准/拒绝、完整条件、原请求恢复、并发、撤权和后续企业使用需要获授权真实客户输入验收，工程拒绝检查和DOM结果分别记录。
 
 ## 13. 资料集创建及固定版本入口
+
+### 当前原件与正文阅读实现
+
+2026-10-13，S05完整原件阅读由`source-original-reader.vue`和`source-file-preview.vue`提供。固定范围、逐段摘要和完整摘要由`readCompleteSourceOriginal`及`VerifiedByteAssembly`核验；DOCX、PPTX、XLSX、CSV、Markdown、TXT使用成熟格式库，PDF使用固定原件Blob。Office转换结果经DOMPurify处理后进入带内容安全策略的独立sandbox iframe。原件、预览和Object URL在当前身份、版本及页面变化后清理。
+
+S09通过`document-evidence-panel.vue`打开EvidenceLink固定来源，读取原source_version、parse_version、chunk_id及Locator摘要，重新核验原始文字摘要与完整位置。`document-node-editor.vue`以KaTeX呈现原LaTeX；编辑输入变化清理原预览，明确操作后呈现新公式。导出下载在完整长度和SHA-256核验后取得Blob；页面分别显示文件内容、渠道及版面检查状态。实现和实际验证分别由IMP-08、IMP-16、IMP-26及IMP-39维护，完整业务验收保留各项原条件。
+
+当前KN-14-S04、KN-RIGHTS-01、KN-EXACT-PUBLISH、KN-14-EXACT、EX-01及EX-04使用`request-metadata.ts`及封闭本地Schema保存安全人员、企业、目标、资源、范围、原上下文、幂等键和规范请求摘要。NOT_FOUND保留原参数及原键；EXPIRED要求明确开始新的请求；PROCESSING提供原操作查询。完成结果重新读取Operation与对应固定资源后清除元数据。查询和理由保留在受控内存，检索历史只通过retrieval_id及页码恢复。资料目录、处理队列、成果目录、检索和来源权利使用`useMedicalRouteRead`检查当前页面，原输入及异步结果在会话变化后清理；实现和验证由IMP-04、IMP-05、IMP-09、IMP-10及IMP-26维护。
+
+资料目录、处理队列及成果目录的watch与查询动作返回完整读取Promise，交给Vue已有的异步生命周期管理。服务拒绝和Schema错误从原位置立即传播；身份失效清理受限内容，页面变化取消原请求，任意读取失败不产生业务成功结果。资料目录的文件夹及条目读取通过同一Promise.all执行，旧请求的generation、会话和AbortSignal要求保持完整。
+
+2026-10-14，S05权利审查入口为`/library/versions/:sourceVersion/rights`。来源审批许可齐备后，APPROVE填写完整Proposal；RETURN和REVOKE明确使用null。PreviewInput读取当前来源及原权利Basis、完整Proposal、授权Artifact元数据、revision和reviewed_manifest_sha256；决定绑定上述固定值及完整理由。任意输入变化使原审查及确认失效。DecisionInput采用KN-RIGHTS-01及原context和key；完成后读取当前会话、COMPLETED原Operation和当前SourceGovernance，核查source_version、rights_revision及rights_status。未知结果使用原请求查询，完整原参数摘要一致后同key恢复；正文及许可保持内存，过期请求只能明确结束。
+
+上传队列逐项读取GET /api/uploads/{id}完整原声明及分段，再读取GET /api/uploads/{id}/status。两份结果的upload_id、upload_revision、received_size、upload_status及transfer_state必须相同。固定完成结果与source_id、source_version及原件摘要一致，REGISTERED关联原parse_version、attempt_id及run_id；DUPLICATE没有新处理尝试。当前权利Basis独立显示，保留登记权利版本。全部解析版本分别呈现解析、索引和人工核准；处理失败清单完整读取，原完成Operation重新核查后才呈现结果。查询期间版本变化立即拒绝并要求重新查询，身份、企业和页面变化清理内容。
+
+S05索引构建记录使用GET /api/source-versions/{id}/index-builds及明确project_id。SourceIndexListing完整核查source_id、source_version、project_id、total、listing_sha256及全部Build；每项保留event_id、parse_version、index_version、构建/索引/投递状态、完整数量、三个UTC时间、修订及实际Result。BUILDING结果保持null，WITHDRAWN独立于原构建结果。使用原Temporal保持微秒顺序及原RFC8785摘要，项目输入、身份或路由改变清理原结果，原会话、generation和AbortSignal阻止迟到响应。
+
+S05的`/library/versions/:sourceVersion/exact-fields`完整消费五类Field、PublicationInput、Manifest和PublicationReceipt。选择已批准权利、适用项目、核准解析及READY索引，从当前读取的ParsedContentItem标记Unicode范围，原值通过实际原文字符取得，chunk_id、quote_hash和locator_sha256全部固定。人工别名与独立理由成对保存，完整清单拒绝重复位置和别名身份。首次expected_revision为明确输入0，后续采用实际读取清单的修订。保存后重新读取会话、原Operation、来源和固定字段版本，完整输入及RFC8785摘要一致以后清除原请求。
+
+S04的`/library/search/exact`消费SearchInput、Hit、FieldMatch及Page，明确项目、五类field_kind、原查询和VERIFICATION用途。原值保留空白、大小写及Unicode表示；全部匹配字段、审核理由、字段版本和摘要、来源/解析/索引/核准/权利/适用版本、原文及Locator完整显示。分页核查同一retrieval_id、项目、字段、查询、时间、总数和selection_sha256，位置读取沿用固定片段及Locator摘要；查询只保留当前内存，历史URL仅包含结果编号和页码。
+
+医疗路由读取失败后进入`/session-recovery`，保留实际错误、请求编号及当前内存中的原页面，清理受限内容。主动重新读取完整会话、企业候选和权限成功后才能继续原医疗页面；原业务请求继续查询既有操作，恢复入口不自动重试。
+
+`document-body-reader.vue`在当前正文与固定历史正文提供全文目录和选区，使用实际DocumentBody的父子关系及ordinal定位全部目录、段落、表格、图片及公式。目录采用稳定节点，定位以后将焦点交给对应只读正文区域。原生DOM Range与键盘字符范围共同调用`document-selection.ts`；DOM的UTF-16位置严格转换为Unicode code point，emoji代理对、组合字符和换行保持原值。文字摘要来自当前完整Node及实际UTF-8摘录；图片固定artifact_id及sha256；表格通过实际合并跨度取得完整row_ids、column_ids和cell_ids。全部Selection逐项通过原共享Schema，原文不进入URL或浏览器持久存储。正文、版本、编辑状态或身份变化清除范围、键盘输入和单元格选择；未保存内容明确标记，仅供提问与修订建议。Gru及审查的公开消费者仍需提供固定目标和完整请求定义，当前组件不自行提交专业决定。唯一实现与验证由IMP-16维护。
+
+全文阅读按原TextContent.marks呈现BOLD、ITALIC、UNDERLINE、SUPERSCRIPT及SUBSCRIPT，同行文字节点保持连续。文字原值、Unicode位置和完整Node内容不因呈现标记而变化，样式只作用于当前只读DOM，正文编辑继续使用原Quill组件。文字标记与跨节点选区共同验证，不执行截图或视觉比较。
 
 FRONT-COLLECTION-VERSIONS-01在原Layout提供`/library?view=collections`、`/library/collections/new`及`/library/collections/:collectionId`，连接KN-11—13。资料集编号和路由仅保存安全标识；名称、用途、理由、成员及原件内容不进入URL。基础交互直接使用ElForm、ElRadioGroup、ElInput、ElCheckbox、ElUpload、ElTable、ElDescriptions、ElCollapse、ElPagination、ElAlert、ElEmpty及ElDialog；身份、错误、HTTP和结构检查继续复用原user模块、SessionPanel、Axios和Ajv。
 

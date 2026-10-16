@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.medical.persistence.mapper.SourceProcessingMapper">
+  <resultMap id="current" type="com.ruoyi.medical.persistence.SourceProcessingRow">
+    <constructor>
+      <arg column="tenant_id" javaType="java.lang.String"/><arg column="project_id" javaType="java.lang.String"/>
+      <arg column="attempt_id" javaType="java.lang.String"/><arg column="source_version" javaType="java.lang.String"/>
+      <arg column="parse_version" javaType="java.lang.String"/><arg column="config_revision" javaType="java.lang.String"/>
+      <arg column="status" javaType="java.lang.String"/><arg column="failure_manifest" javaType="java.lang.String"/>
+      <arg column="request_manifest" javaType="java.lang.String"/><arg column="run_id" javaType="java.lang.String"/>
+      <arg column="created_by" javaType="java.lang.String"/><arg column="classification" javaType="java.lang.String"/>
+      <arg column="revision" javaType="java.math.BigInteger"/><arg column="lease_owner" javaType="java.lang.String"/>
+      <arg column="lease_generation" javaType="java.math.BigInteger"/><arg column="lease_expires_at" javaType="java.time.LocalDateTime"/>
+      <arg column="execution_deadline" javaType="java.time.LocalDateTime"/><arg column="command_ref" javaType="java.lang.String"/>
+      <arg column="result_ref" javaType="java.lang.String"/><arg column="write_intent" javaType="java.lang.String"/>
+      <arg column="source_id" javaType="java.lang.String"/><arg column="owner_project_id" javaType="java.lang.String"/>
+      <arg column="ownership" javaType="java.lang.String"/><arg column="rights_revision" javaType="java.lang.String"/>
+      <arg column="original_sha256" javaType="java.lang.String"/><arg column="object_key" javaType="java.lang.String"/>
+      <arg column="object_version" javaType="java.lang.String"/><arg column="media_type" javaType="java.lang.String"/>
+      <arg column="size_bytes" javaType="java.math.BigInteger"/><arg column="parse_status" javaType="java.lang.String"/>
+      <arg column="lifecycle" javaType="java.lang.String"/>
+    </constructor>
+  </resultMap>
+  <select id="current" resultMap="current" useCache="false" flushCache="true">
+    SELECT a.tenant_id,a.project_id,a.attempt_id,a.source_version,a.parse_version,a.config_revision,a.status,
+      a.failure_manifest,a.request_manifest,a.run_id,a.created_by,a.classification,a.revision,a.lease_owner,
+      a.lease_generation,a.lease_expires_at,a.execution_deadline,a.command_ref,a.result_ref,a.write_intent,
+      s.source_id,s.owner_project_id,s.ownership,sv.rights_revision,sv.original_sha256,sv.object_key,
+      sv.object_version,sv.media_type,sv.size_bytes,p.parse_status,g.lifecycle
+    FROM processing_attempt a
+    JOIN source_version sv ON sv.tenant_id=a.tenant_id AND sv.source_version=a.source_version
+    JOIN source s ON s.tenant_id=sv.tenant_id AND s.source_id=sv.source_id
+    JOIN parse_version p ON p.tenant_id=a.tenant_id AND p.source_version=a.source_version AND p.parse_version=a.parse_version
+    JOIN source_use_gate g ON g.tenant_id=p.tenant_id AND g.source_version=p.source_version AND g.parse_version=p.parse_version
+    WHERE a.attempt_id=#{attemptId} AND a.created_by=#{userId} AND a.job_type='PARSE'
+    FOR UPDATE
+  </select>
+  <sql id="activeLease">
+    attempt_id=#{attemptId} AND project_id=#{projectId} AND created_by=#{userId} AND status='RUNNING'
+    AND lease_owner=#{workerId} AND lease_generation=#{generation} AND revision=#{expectedRevision}
+    AND lease_expires_at&gt;#{now} AND execution_deadline&gt;#{now}
+    AND lease_expires_at&gt;UTC_TIMESTAMP(6) AND execution_deadline&gt;UTC_TIMESTAMP(6)
+  </sql>
+  <update id="claim">
+    UPDATE processing_attempt SET status='RUNNING',lease_owner=#{workerId},lease_generation=lease_generation+1,
+      lease_expires_at=#{leaseUntil},execution_deadline=COALESCE(execution_deadline,#{deadline}),
+      revision=revision+1,updated_at=#{now}
+    WHERE attempt_id=#{attemptId} AND project_id=#{projectId} AND created_by=#{userId}
+      AND revision=#{expectedRevision} AND lease_generation=#{generation} AND lease_generation&lt;2
+      AND (execution_deadline IS NULL OR execution_deadline&gt;#{now})
+      AND ((status='QUEUED' AND lease_owner IS NULL AND lease_expires_at IS NULL)
+        OR (status='RUNNING' AND lease_owner IS NOT NULL AND lease_expires_at&lt;=#{now}))
+  </update>
+  <update id="renew">
+    UPDATE processing_attempt SET lease_expires_at=#{leaseUntil},revision=revision+1,updated_at=#{now}
+    WHERE <include refid="activeLease"/>
+  </update>
+  <update id="startParse">
+    UPDATE parse_version SET parse_status='PROCESSING'
+    WHERE source_version=#{sourceVersion} AND parse_version=#{parseVersion} AND parse_status IN ('QUEUED','PROCESSING')
+      AND artifact_key IS NULL AND content_sha256 IS NULL
+  </update>
+  <update id="saveWriteIntent">
+    UPDATE processing_attempt SET command_ref=#{commandRef},result_ref=#{resultRef},write_intent=#{writeIntent},
+      revision=revision+1,updated_at=#{now}
+    WHERE <include refid="activeLease"/> AND write_intent IS NULL AND result_ref IS NULL
+  </update>
+  <insert id="saveVersion">
+    INSERT INTO version_registry(version_id,owner_project_id,entity_kind,content_sha256)
+    VALUES(#{parseVersion},#{ownerProjectId},'PARSE_VERSION',#{bundleSha256})
+  </insert>
+  <insert id="saveLineage">
+    INSERT INTO lineage_edge(consumer_version_id,upstream_version_id,relation_kind,actor_id,decision_ref,created_at)
+    VALUES(#{parseVersion},#{upstreamId},#{relationKind},#{userId},NULL,#{now})
+  </insert>
+  <insert id="saveNode">
+    INSERT INTO content_node(source_version,parse_version,node_id,parent_id,ordinal,node_kind,locator,content_ref,
+      node_hash,schema_version,schema_manifest_sha256,created_by,created_at,classification)
+    VALUES(#{sourceVersion},#{parseVersion},#{nodeId},NULL,#{ordinal},#{nodeKind},#{locator},#{contentRef},
+      #{nodeHash},'1.0.0',#{schemaManifest},#{userId},#{now},#{classification})
+  </insert>
+  <insert id="saveChunk">
+    INSERT INTO source_chunk(source_version,parse_version,chunk_id,ordinal,node_id,locator,quote_hash,raw_text,search_text)
+    VALUES(#{sourceVersion},#{parseVersion},#{chunkId},#{ordinal},#{nodeId},#{locator},#{quoteHash},#{rawText},#{searchText})
+  </insert>
+  <insert id="saveChunkNode">
+    INSERT INTO chunk_node(source_version,parse_version,chunk_id,node_id,`range`,schema_version,
+      schema_manifest_sha256,created_by,created_at,classification)
+    VALUES(#{sourceVersion},#{parseVersion},#{chunkId},#{nodeId},#{range},'1.0.0',#{schemaManifest},#{userId},#{now},#{classification})
+  </insert>
+  <update id="completeParse">
+    UPDATE parse_version SET processor_manifest=#{processorManifest},content_sha256=#{bundleSha256},
+      artifact_key=#{artifactKey},artifact_version=#{artifactVersion},artifact_size_bytes=#{artifactSizeBytes},
+      parse_status=#{parseStatus},failure_manifest=#{failureManifest}
+    WHERE source_version=#{sourceVersion} AND parse_version=#{parseVersion} AND parse_status='PROCESSING'
+      AND content_sha256 IS NULL AND artifact_key IS NULL
+  </update>
+  <update id="completeAttempt">
+    UPDATE processing_attempt SET status=#{attemptStatus},result_ref=#{resultRef},failure_manifest=#{failureManifest},
+      lease_owner=NULL,lease_expires_at=NULL,revision=revision+1,updated_at=#{now}
+    WHERE <include refid="activeLease"/>
+  </update>
+  <update id="failParse">
+    UPDATE parse_version SET parse_status='FAILED',failure_manifest=#{failureManifest}
+    WHERE source_version=#{sourceVersion} AND parse_version=#{parseVersion} AND parse_status IN ('QUEUED','PROCESSING')
+      AND artifact_key IS NULL AND content_sha256 IS NULL
+  </update>
+  <update id="failAttempt">
+    UPDATE processing_attempt SET status='FAILED',failure_manifest=#{failureManifest},lease_owner=NULL,
+      lease_expires_at=NULL,revision=revision+1,updated_at=#{now}
+    WHERE <choose>
+      <when test="expired == true">
+        attempt_id=#{attemptId} AND project_id=#{projectId} AND created_by=#{userId} AND revision=#{expectedRevision}
+        AND lease_generation=#{generation} AND status IN ('QUEUED','RUNNING')
+        AND (lease_expires_at IS NULL OR lease_expires_at&lt;=#{now})
+        AND (lease_generation&gt;=2 OR execution_deadline&lt;=#{now})
+      </when>
+      <otherwise><include refid="activeLease"/></otherwise>
+    </choose>
+  </update>
+  <update id="advanceGovernance">
+    UPDATE tenant SET governance_epoch=governance_epoch+1 WHERE governance_epoch=#{governanceEpoch}
+  </update>
+  <select id="nodeCount" resultType="java.math.BigInteger" useCache="false" flushCache="true">
+    SELECT COUNT(*) FROM content_node WHERE source_version=#{sourceVersion} AND parse_version=#{parseVersion}
+  </select>
+  <select id="chunkCount" resultType="java.math.BigInteger" useCache="false" flushCache="true">
+    SELECT COUNT(*) FROM source_chunk c JOIN chunk_node n ON n.tenant_id=c.tenant_id AND n.source_version=c.source_version
+      AND n.parse_version=c.parse_version AND n.chunk_id=c.chunk_id AND n.node_id=c.node_id
+    WHERE c.source_version=#{sourceVersion} AND c.parse_version=#{parseVersion}
+  </select>
+  <select id="materialized" resultType="java.util.HashMap" useCache="false" flushCache="true">
+    SELECT p.parse_status AS parseStatus,p.content_sha256 AS contentSha256,p.artifact_key AS artifactKey,
+      p.artifact_version AS artifactVersion,p.artifact_size_bytes AS artifactSizeBytes,
+      p.processor_manifest AS processorManifest,p.failure_manifest AS failureManifest,
+      v.content_sha256 AS registeredSha256 FROM parse_version p
+    JOIN version_registry v ON v.tenant_id=p.tenant_id AND v.version_id=p.parse_version AND v.entity_kind='PARSE_VERSION'
+    WHERE p.source_version=#{sourceVersion} AND p.parse_version=#{parseVersion}
+  </select>
+  <select id="storedNodes" resultType="java.util.HashMap" useCache="false" flushCache="true">
+    SELECT n.node_id AS nodeId,n.ordinal AS ordinal,n.node_kind AS nodeKind,n.locator AS locator,n.content_ref AS contentRef,
+      n.node_hash AS nodeHash,c.chunk_id AS chunkId,c.raw_text AS rawText,c.search_text AS searchText,c.quote_hash AS quoteHash,
+      c.locator AS chunkLocator,c.ordinal AS chunkOrdinal
+    FROM content_node n JOIN source_chunk c ON c.tenant_id=n.tenant_id AND c.source_version=n.source_version
+      AND c.parse_version=n.parse_version AND c.node_id=n.node_id
+    WHERE n.source_version=#{sourceVersion} AND n.parse_version=#{parseVersion}
+    ORDER BY n.ordinal,n.node_id LIMIT #{fetchLimit}
+  </select>
+</mapper>

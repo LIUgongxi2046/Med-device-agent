@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:source-index:1.0.0",
+  "$defs": {
+    "Id": {"type":"string","format":"uuid"},
+    "Hash": {"type":"string","pattern":"^[a-f0-9]{64}$"},
+    "Command": {
+      "type":"object","additionalProperties":false,
+      "required":["schema_version","source_version","parse_version","content_sha256","config_revision","parse_config_revision","project_id","requested_by"],
+      "properties": {
+        "schema_version":{"const":"1.0.0"},
+        "source_version":{"$ref":"#/$defs/Id"},"parse_version":{"$ref":"#/$defs/Id"},
+        "content_sha256":{"$ref":"#/$defs/Hash"},"config_revision":{"$ref":"#/$defs/Id"},
+        "parse_config_revision":{"$ref":"#/$defs/Id"},"project_id":{"$ref":"#/$defs/Id"},
+        "requested_by":{"$ref":"#/$defs/Id"}
+      }
+    },
+    "Chunk": {
+      "type":"object","additionalProperties":false,
+      "required":["chunk_id","node_id","ordinal","quote_hash","search_sha256","locator_sha256","node_hash"],
+      "properties": {
+        "chunk_id":{"$ref":"#/$defs/Id"},"node_id":{"$ref":"#/$defs/Id"},
+        "ordinal":{"type":"integer","minimum":0},"quote_hash":{"$ref":"#/$defs/Hash"},
+        "search_sha256":{"$ref":"#/$defs/Hash"},"locator_sha256":{"$ref":"#/$defs/Hash"},
+        "node_hash":{"$ref":"#/$defs/Hash"}
+      }
+    },
+    "Item": {
+      "type":"object","additionalProperties":false,
+      "required":["chunk","point_id"],
+      "properties":{"chunk":{"$ref":"#/$defs/Chunk"},"point_id":{"$ref":"#/$defs/Id"}}
+    },
+    "Manifest": {
+      "type":"object","additionalProperties":false,
+      "required":["schema_version","event_id","consumer_id","tenant_id","project_id","source_id","source_version","parse_version","index_version","rights_revision","config_revision","config_sha256","input_sha256","content_sha256","mode","chunking_revision","ngram_token_size","items"],
+      "properties": {
+        "schema_version":{"const":"1.0.0"},"event_id":{"$ref":"#/$defs/Id"},
+        "consumer_id":{"const":"SOURCE_INDEX_FULLTEXT"},"tenant_id":{"$ref":"#/$defs/Id"},
+        "project_id":{"$ref":"#/$defs/Id"},"source_id":{"$ref":"#/$defs/Id"},
+        "source_version":{"$ref":"#/$defs/Id"},"parse_version":{"$ref":"#/$defs/Id"},
+        "index_version":{"$ref":"#/$defs/Id"},"rights_revision":{"$ref":"#/$defs/Id"},
+        "config_revision":{"$ref":"#/$defs/Id"},"config_sha256":{"$ref":"#/$defs/Hash"},
+        "input_sha256":{"$ref":"#/$defs/Hash"},"content_sha256":{"$ref":"#/$defs/Hash"},
+        "mode":{"const":"FULLTEXT"},"chunking_revision":{"const":"SOURCE-NODE-CHUNKS-1"},
+        "ngram_token_size":{"type":"integer","minimum":1,"maximum":10},
+        "items":{"type":"array","minItems":1,"items":{"$ref":"#/$defs/Item"}}
+      }
+    },
+    "ToolScope": {
+      "type":"object","additionalProperties":false,
+      "required":["schema_version","tool_id","purpose","mode","network_enabled","external_process","engine","parser","ngram_token_size","chunking_revision","maximum_chunks","maximum_bundle_bytes","timeout_ms","environment","region"],
+      "properties": {
+        "schema_version":{"const":"1.0.0"},"tool_id":{"const":"source.index.fulltext"},
+        "purpose":{"const":"SOURCE_PROCESSING"},"mode":{"const":"FULLTEXT"},
+        "network_enabled":{"const":false},"external_process":{"const":false},
+        "engine":{"const":"MYSQL_FULLTEXT"},"parser":{"const":"ngram"},
+        "ngram_token_size":{"type":"integer","minimum":1,"maximum":10},
+        "chunking_revision":{"const":"SOURCE-NODE-CHUNKS-1"},
+        "maximum_chunks":{"type":"integer","minimum":1,"maximum":100000},
+        "maximum_bundle_bytes":{"type":"integer","minimum":1,"maximum":268435456},
+        "timeout_ms":{"type":"integer","minimum":300000,"maximum":1800000},
+        "environment":{"type":"string","minLength":1},"region":{"type":"string","minLength":1}
+      }
+    },
+    "Receipt": {
+      "type":"object","additionalProperties":false,
+      "required":["schema_version","event_id","consumer_id","source_version","parse_version","index_version","input_sha256","manifest_sha256","expected_count","verified_count","status","failure_code"],
+      "properties": {
+        "schema_version":{"const":"1.0.0"},"event_id":{"$ref":"#/$defs/Id"},
+        "consumer_id":{"const":"SOURCE_INDEX_FULLTEXT"},"source_version":{"$ref":"#/$defs/Id"},
+        "parse_version":{"$ref":"#/$defs/Id"},"index_version":{"$ref":"#/$defs/Id"},
+        "input_sha256":{"$ref":"#/$defs/Hash"},"manifest_sha256":{"$ref":"#/$defs/Hash"},
+        "expected_count":{"type":"integer","minimum":1},"verified_count":{"type":"integer","minimum":0},
+        "status":{"enum":["READY","FAILED"]},"failure_code":{"type":["string","null"],"enum":[null,"INDEX_LIMIT"]}
+      },
+      "oneOf":[
+        {"properties":{"status":{"const":"READY"},"failure_code":{"type":"null"}}},
+        {"properties":{"status":{"const":"FAILED"},"failure_code":{"const":"INDEX_LIMIT"}}}
+      ]
+    }
+  }
+}

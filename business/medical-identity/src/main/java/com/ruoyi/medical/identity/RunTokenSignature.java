@@ -48,7 +48,16 @@ public final class RunTokenSignature {
                 || !JWSAlgorithm.RS256.equals(jwt.getHeader().getAlgorithm())) invalid();
         // 请求声明的密钥和网络地址不能参与选择；只使用当前服务器公钥。
         if (!jwt.verify(new RSASSAVerifier(current.publicKey()))) invalid();
-        JsonNode body = JSON.readTree(parts[1].decode()); exactFields(body, CLAIMS);
+        JsonNode body = JSON.readTree(parts[1].decode());
+        var claims = claims(body, current);
+        if (Instant.now().getEpochSecond() >= claims.expiresAt().getEpochSecond()) invalid();
+        return new Verified(claims, DigestUtils.sha256Hex(raw.getBytes(StandardCharsets.UTF_8)));
+    }
+
+    static void requireClaims(JsonNode body, Policy current) { claims(body, current); }
+
+    private static Claims claims(JsonNode body, Policy current) {
+        exactFields(body, CLAIMS);
         if (!current.issuer().equals(text(body.required("iss"), 512))
                 || !current.audience().equals(text(body.required("aud"), 255))) invalid();
         long issued = seconds(body.required("iat")), expires = seconds(body.required("exp"));
@@ -59,7 +68,7 @@ public final class RunTokenSignature {
             uuid(body.required("jti")), current.audience(), actions(body.required("action_scope")),
             WireValues.revision(text(body.required("auth_epoch"), 20)), Instant.ofEpochSecond(issued), Instant.ofEpochSecond(expires));
         if (Instant.now().getEpochSecond() >= expires) invalid();
-        return new Verified(claims, DigestUtils.sha256Hex(raw.getBytes(StandardCharsets.UTF_8)));
+        return claims;
     }
 
     public record Policy(String issuer, String audience, RSAPublicKey publicKey, Duration maximumLifetime, int maximumBytes) {

@@ -1,9 +1,12 @@
 import request from '@/utils/request'
-import { canonicalizeEx } from 'json-canonicalize'
+import { byteDigest, sourceDigest } from './content-digest'
+export { byteDigest, sourceDigest } from './content-digest'
 import { envelope, fail, revision, validate, validContext } from './protocol'
-import type { Context, MedicalSession } from '@/api/medical/protocol'
+import type { Basis, Context, MedicalSession } from '@/api/medical/protocol'
+import type { SourceReview } from './source-governance'
 import { lookupOperation, readOperation } from '@/api/medical/operations'
 import type { Operation, OperationLookup } from '@/api/medical/operations'
+import { verifySourceUploadResult } from './source-upload-result'
 
 export type SourceOwnership = 'ENTERPRISE' | 'PROJECT' | 'SESSION'
 export type SourceClassification = 'PUBLIC' | 'INTERNAL' | 'RESTRICTED' | 'PERSONAL_HEALTH'
@@ -31,6 +34,24 @@ export interface SourceRegistration {
   max_part_bytes: string; expires_at: string; parts: SourcePart[]; next_part: number | null
 }
 export interface SourceUploadState { registration: SourceRegistration; revision: string }
+export interface SourceUploadResult {
+  schema_version: '1.0.0'; upload_id: string; upload_revision: string; received_size: string
+  upload_status: SourceRegistration['upload_status']; transfer_state: SourceRegistration['transfer_state']
+  completion: {
+    operation_id: string; operation_state: 'PROCESSING' | 'COMPLETED' | 'FAILED'; result_status: 'REGISTERED' | 'DUPLICATE' | 'FAILED' | null
+    source_id: string | null; source_version: string | null; registered_rights_revision: string | null
+    parse_version: string | null; attempt_id: string | null; run_id: string | null
+    error_code: 'PROCESSING_FAILED' | null; reason: 'UPLOAD_EXPIRED' | 'EXECUTION_DEADLINE' | 'ATTEMPT_LIMIT' | 'SOURCE_VALIDATION_FAILED' | null
+  } | null
+  source: {
+    source_id: string; source_version: string; original_sha256: string; current_rights: Basis
+    rights_status: 'PENDING_REVIEW' | 'APPROVED' | 'REVOKED' | 'EXPIRED'; lifecycle: SourceReview['lifecycle']; reviews: SourceReview[]
+  } | null
+  attempt: {
+    attempt_id: string; run_id: string; config_revision: string; status: 'QUEUED' | 'RUNNING' | 'SUCCEEDED' | 'FAILED' | 'CANCELLED'
+    revision: string; updated_at: string; failure_manifest: { schema_version: '1.0.0'; issues: Record<string, unknown>[] }
+  } | null
+}
 export interface UploadRequestIdentity {
   operation: 'KN-01' | 'KN-02' | 'KN-03'; key: string; context: Context; body_sha256: string
   part_no: number | null; size_bytes: string | null; sha256: string | null; expected_revision: string | null
@@ -60,13 +81,6 @@ export function sourceMediaType(file: File): string {
   if (!media) fail('FILE_TYPE_UNSUPPORTED', '请选择 PDF、DOCX、XLSX、CSV、PPTX、Markdown 或 TXT 文件')
   if (file.size === 0 || !Number.isSafeInteger(file.size)) fail('SCHEMA_INVALID', '文件必须包含内容并具有可核验的大小')
   return media
-}
-export async function sourceDigest(value: unknown): Promise<string> {
-  return byteDigest(new TextEncoder().encode(canonicalizeEx(value, { strictUndefined: true })))
-}
-export async function byteDigest(value: BufferSource): Promise<string> {
-  const hash = await crypto.subtle.digest('SHA-256', value)
-  return Array.from(new Uint8Array(hash), byte => byte.toString(16).padStart(2, '0')).join('')
 }
 function context(session: MedicalSession): Context {
   if (!session.current_context) fail('ACCESS_DENIED', '上传资料需要当前企业身份及来源维护权限')
@@ -214,6 +228,22 @@ export async function readSourceUpload(session: MedicalSession, journal: UploadJ
   const stored = parts.filter(part => part.state === 'STORED').reduce((sum, part) => sum + BigInt(part.size_bytes), 0n)
   if (stored.toString() !== result.registration.received_size || stored > BigInt(journal.size_bytes)) fail('CONTENT_MISMATCH', '分段记录与服务器接收数量不一致')
   return result
+}
+export async function readSourceUploadResult(session: MedicalSession, journal: UploadJournal, state: SourceUploadState, signal: AbortSignal): Promise<SourceUploadResult> {
+  requireJournal(session, journal)
+  if (!journal.upload_id) fail('STEP_NOT_READY', '处理结果需要已核查的原上传对象')
+  const raw = await request.get('/api/uploads/' + journal.upload_id + '/status', { medical: 'envelope', signal,
+    headers: { 'X-Schema-Version': '1.0.0', 'X-Context-Revision': context(session).context_revision } })
+  const response = envelope(raw); const value = validate<SourceUploadResult>('urn:medical:source-upload-status:1.0.0#/$defs/View', response.data)
+  if (raw.status !== 200 || response.resource_revision !== value.upload_revision) fail('CONTENT_MISMATCH', '上传结果缺少完整修订回执')
+  verifySourceUploadResult(value, journal, state)
+  if (value.completion) {
+    const original = await readOperation(session, value.completion.operation_id, signal)
+    if (original.resource_id !== value.upload_id || original.status !== value.completion.operation_state) {
+      fail('CONTENT_MISMATCH', '上传完成结果与实际原操作不一致，请重新查询')
+    }
+  }
+  return value
 }
 export async function prepareUploadPart(session: MedicalSession, journal: UploadJournal, partNo: number, blob: Blob, signal: AbortSignal): Promise<UploadRequestIdentity> {
   requireJournal(session, journal)

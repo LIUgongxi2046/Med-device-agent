@@ -109,19 +109,26 @@ public final class SimulationDocumentData implements AutoCloseable {
         insert("rights_revision", schema(metadata(row("rights_revision", rights, "source_version", sourceVersion, "purpose", "DOCUMENT_BODY",
             "allowed_actions", serialize(rightsBody.get("allowed_actions")), "providers", "[]", "regions", "[\"LOCAL\"]", "valid_from", null, "valid_to", null,
             "status", "APPROVED", "evidence_manifest", serialize(rightsBody.get("evidence_manifest")), "content_sha256", rightsHash), true), rightsSchema.manifestSha256()));
+        version(parse, null, "PARSE_VERSION", original.sha256());
         insert("parse_version", row("source_version", sourceVersion, "parse_version", parse, "processor_manifest", serialize(row("data_kind", "SIMULATION", "processor", "UTF-8")),
             "content_sha256", original.sha256(), "artifact_key", original.objectKey(), "parse_status", "COMPLETE", "failure_manifest", "[]"));
         var locator = new DatasetProtocol.TextLocator("TXT", "UTF-8", "PRESERVE", 0, quote.codePointCount(0, quote.length()), 1, 1);
         insert("source_chunk", row("source_version", sourceVersion, "parse_version", parse, "chunk_id", chunk, "ordinal", 0, "node_id", id(),
             "locator", serialize(locator), "quote_hash", original.sha256(), "raw_text", quote, "search_text", quote));
+        version(index, null, "INDEX_VERSION", original.sha256());
         insert("index_manifest", row("source_version", sourceVersion, "parse_version", parse, "index_version", index, "mode", "FULLTEXT", "model_config_revision", null,
             "dimension", null, "config_sha256", hash(row("mode", "FULLTEXT")), "manifest_sha256", original.sha256(), "expected_count", 1, "verified_count", 1, "status", "READY"));
+        var approvalManifest=row("schema_version","1.0.0","tenant_id",tasks.tenant,"source_version",sourceVersion,"parse_version",parse,
+            "approval_revision",approval,"decision","APPROVE","reviewer_id",actor,"reviewed_manifest_sha256",original.sha256(),
+            "reason","SIMULATION 开发资料批准","decided_at",tasks.updated.toInstant(java.time.ZoneOffset.UTC).toString());
+        version(approval, null, "APPROVAL_DECISION", hash(approvalManifest));
         insert("approval_decision", row("source_version", sourceVersion, "parse_version", parse, "approval_revision", approval, "decision", "APPROVE", "reviewer_id", actor,
             "reviewed_manifest_sha256", original.sha256(), "reason", "SIMULATION 开发资料批准", "decided_at", tasks.updated));
         insert("source_use_gate", row("source_version", sourceVersion, "parse_version", parse, "approval_revision", approval,
             "upload_status", "RECEIVED", "approval_status", "APPROVED", "lifecycle", "ACTIVE", "revision", 1));
+        version(binding, tasks.project, "SOURCE_BINDING", hash(row("data_kind", "SIMULATION", "reason", "开发资料适用")));
         insert("project_source_binding", row("project_id", tasks.project, "source_version", sourceVersion, "binding_revision", binding,
-            "applicability", "APPLICABLE", "decision_manifest", serialize(row("data_kind", "SIMULATION", "reason", "开发资料适用"))));
+            "applicability", "APPLICABLE", "decision_manifest", serialize(row("data_kind", "SIMULATION", "reason", "开发资料适用")), "is_current", true));
     }
 
     private void seedGrants() throws Exception {

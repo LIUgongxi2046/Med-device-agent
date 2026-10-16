@@ -72,6 +72,12 @@ medical:
   source-uploads:
     maximum-bytes: 104857600
     expires-after-seconds: 3600
+  source-upload-status:
+    maximum-reviews: 1000
+  source-index:
+    enabled: false
+  source-index-views:
+    maximum-builds: 1000
   member-governance:
     maximum-read-candidates: 10000
   collections:
@@ -81,6 +87,23 @@ medical:
     maximum-versions: 10000
     maximum-relations: 40000
     artifact-profiles: []
+  retrievals:
+    environment: LOCAL
+    region: LOCAL
+    maximum-results: 500
+  source-exact:
+    maximum-fields: 1000
+    maximum-matches: 5000
+  exports:
+    project-root: ${medical.projectRoot}
+    python-executable: ${medical.projectRoot}/.implementation-work/document-venv/bin/python
+    converter-executable: ${MEDICAL_EXPORT_CONVERTER:/Users/liuhaoxian/.cache/codex-runtimes/codex-primary-runtime/dependencies/native/libreoffice-headless/libreoffice/LibreOfficeDev.app/Contents/MacOS/soffice}
+    converter-revision: d807b84d-b5a8-4caf-a105-9d99f69e2f90
+    converter-version: ${MEDICAL_EXPORT_CONVERTER_VERSION:LibreOfficeDev 26.8.0.0.alpha0 2c87e51eeaa2b413ff4ae097b2705eea1995d8e5}
+    converter-sha256: ${MEDICAL_EXPORT_CONVERTER_SHA256:db5f1461e26a7a167d5d9bdd09b827d39a6125130e48fea89234ec364b942859}
+    timeout: 300s
+    maximum-bytes: 104857600
+    input-data-kind: REGISTERED
   templates:
     environment: LOCAL
     region: LOCAL

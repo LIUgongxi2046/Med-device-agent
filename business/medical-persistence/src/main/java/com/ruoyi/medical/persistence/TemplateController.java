@@ -74,10 +74,13 @@ public final class TemplateController {
     static int errorStatus(ErrorCode code) {
         return switch (code) {
             case ACCESS_DENIED -> 403;
-            case OBJECT_UNAVAILABLE -> 404;
+            case OBJECT_UNAVAILABLE, SOURCE_MISSING -> 404;
+            case FILE_TOO_LARGE -> 413;
+            case RATE_LIMITED -> 429;
             case SCHEMA_INVALID, SCHEMA_UNSUPPORTED, SOURCE_NOT_READY, RIGHTS_PENDING, CONTEXT_LIMIT,
-                    CONTENT_MISMATCH -> 422;
-            case CONTEXT_CHANGED, SCOPE_STALE, IDEMPOTENCY_CONFLICT, REVISION_CONFLICT -> 409;
+                    CONTENT_MISMATCH, RETENTION_UNCONFIGURED, LOCATOR_INVALID, CURSOR_INVALID -> 422;
+            case CONTEXT_CHANGED, SCOPE_STALE, IDEMPOTENCY_CONFLICT, REVISION_CONFLICT, FOLDER_NOT_EMPTY,
+                    ACTION_STALE, REFERENCE_HELD -> 409;
             default -> throw new IllegalArgumentException("TEMPLATE_ERROR_CODE_INVALID");
         };
     }

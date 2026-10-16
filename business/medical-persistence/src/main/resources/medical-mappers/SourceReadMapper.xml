@@ -107,7 +107,7 @@
         JOIN source_use_gate g ON g.tenant_id=p.tenant_id AND g.source_version=p.source_version AND g.parse_version=p.parse_version
         JOIN approval_decision a ON a.tenant_id=g.tenant_id AND a.source_version=g.source_version AND a.parse_version=g.parse_version
             AND a.approval_revision=g.approval_revision
-        JOIN project_source_binding b ON b.tenant_id=p.tenant_id AND b.source_version=p.source_version
+        JOIN project_source_binding b ON b.tenant_id=p.tenant_id AND b.source_version=p.source_version AND b.is_current=TRUE
         JOIN project j ON j.tenant_id=b.tenant_id AND j.project_id=b.project_id
     </sql>
     <select id="snapshotCandidate" resultMap="selection" useCache="false" flushCache="true">

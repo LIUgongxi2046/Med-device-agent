@@ -1,6 +1,55 @@
 # IMP-04 独立身份、企业和项目授权
 
+2026-10-14 C02持久运行令牌、步骤领取与续租、签发和续期、当前资源动作授权由独立唯一[RUN-TOKEN-AUTHORITY-01](RUN-TOKEN-AUTHORITY-01.md)维护。053补充步骤服务所有者/期限及原令牌摘要、Policy和代际绑定。当前实现、工程证据和未验收业务继续读取该记录；父工单保持IN_PROGRESS，生产调度关联[IMP-13](IMP-13.md)。
+
+## FRONT-SESSION-RECOVERY-01
+
+2026-10-14；对应FE-04、当前上下文及原请求恢复，任务状态来源保持IMP-04的IN_PROGRESS。已核查readMedical、医疗路由准入、router.onError、当前错误事件及真实权利提交取消后的导航结果。会话、企业候选和框架权限读取继续完整版本校验，冲突即时抛出错误；路由错误入口显示实际错误及请求身份，业务内容清理，原目标页面仅保留当前内存。
+
+显式恢复入口重新读取完整会话后继续原医疗页面，没有自动重试或替代响应。原KN-RIGHTS-01及其他请求元数据保持当前安全定义，读取原操作继续使用原请求身份。Given真实权利决定改变上下文；When重新进入原页面；Then读取冲突具有可见错误入口，主动核查完整会话后可以查询原操作。真实Red证据为BROWSER-14的production导航及tenant-selection-options HTTP409记录，后续完整开发/生产检查继续执行。
+
+IdentityErrorResponseWriter完整消费当前ErrorCode全部公开代码，使用穷举switch生成原代码、明确中文说明、请求身份及完整Error。Schema、非重试状态、空动作及原空值语义保持，解析内容、原文位置、引用保护和保存政策分别保留对应代码。TemplateErrorResponseTest通过当前Schema逐项核验全部公开错误；真实Red为source-error-red-01，当前Java及完整HTTP回归继续执行。
+
+当前TemplateErrorResponseTest六项通过，20.27秒，失败、错误及跳过均为零；包含全部ErrorCode循环、原领域错误、完整Schema、请求身份、九项字段、非重试状态及空值。日志`.implementation-work/source-error-green-01.log`的SHA-256为`2d37c8e16fbe99a5c245a19f0f283693178fd4b537a23e08854dc06628daa803`。完整真实HTTP消费及当前应用制品继续对应组合检查。
+
+组合应用编译使用RunTokenAuthoritySchema的原SHA-256文件及RFC8785清单摘要，调用当前已有Commons Codec DigestUtils，原输入字节和小写十六进制表示保持。完整令牌授权由原后端任务维护，本次仅核验当前应用依赖编译。
+
+## FE-04 当前页面与会话清理
+
+2026-10-13资料目录、处理队列、成果目录和全文检索使用useMedicalRouteRead及当前会话监听。页面离开、会话重新读取或企业身份变化后，停止当前读取并清理列表、选择、筛选、文件夹输入、提交表单及查询文字；后续响应需要通过当前generation、会话、页面和AbortSignal检查。成果转存及资料维护写入后，只有原页面和原会话仍然有效时才更新界面。对应实现为source-catalogue.vue、source-processing.vue、artifact-catalogue.vue和source-search.vue。
+
+资料目录、处理队列和成果目录的watch及查询动作返回完整Promise，继续使用Vue已有的异步生命周期管理。权限拒绝和Schema错误立即传播到原会话错误入口，原内容按当前身份清理；取消请求保留原AbortSignal和generation检查。文件夹与资料条目读取通过完整Promise.all执行，没有自行生成成功状态。
+
+项目模拟浏览器使用实际公开接口创建、修订并执行四项状态决定。FRONT-CURRENT-DEV-02与FRONT-CURRENT-PROD-02顺序读取同一CURRENT-04医疗制品；开发八项、生产八项实际Chrome检查全部通过，每次六项原生项目动作、创建重放与请求冲突、修订冲突、状态重放与重读、审计及Outbox均取得真实结果。两次项目数量恢复原值，临时应用关闭，输入标记SIMULATION、customer_success_verified=false。独立结果及摘要由[IMP-37](IMP-37.md)维护。两次执行期间后端输入发生变化，回执均为exit_code=0、inputs_unchanged=false；完整当前源码组合仍需后端输入稳定后复验。本节不登记完整身份及项目业务验收通过。
+
+Given资料筛选及文件夹输入属于当前页面；When重新读取实际会话；Then页面清理原输入。对应Red断言为`.implementation-work/IC-04-PROJECT-SIMULATION-20261013-FRONT-PRODUCTION-RED/project-browser-output.log`。当前实现独立检查以及完整企业集成分别登记，其他身份验收条件继续保留。
+
+Green命令为`node tests/browser/source-context-checks.js "$PWD/.implementation-work/FRONT-20261013-CURRENT/production"`。实际本地账户通过正式/access入口登录；开发四项及生产四项输入清理检查全部通过，包含资料目录、处理队列、成果目录和全文检索。生产入口HTML及直接引用的Script/CSS与构建文件字节一致。检查没有业务POST，查询文字没有进入URL；原始输出为`.implementation-work/FRONT-20261013-CURRENT/source-context-verified.log`，结果为`.implementation-work/FRONT-SOURCE-CONTEXT-20261013/checks.json`。本节验证实际会话重新读取及页面输入清理，完整跨企业撤权及专业数据流程继续按原要求执行。
+
 ## BACK-CURRENT-RUN-TOKEN-POLICY-01
+
+### RUN-TOKEN-SIGNING-KEY-01
+
+2026-10-14继续补充C02的受保护签发私钥，任务状态引用实施任务计划IMP-04的IN_PROGRESS，关联BE-04/07/13/14。已经读取本记录、RunTokenSignature、RunTokenPolicyStore、ProtectedConfigurationFile、当前封闭Policy和LLD-后端§2.1；复用既有Jackson/networknt/JNR/JDK/Nimbus，全部PKCS8及JWS由成熟组件处理。
+
+Given当前0700目录、0600单一链接配置、实际生成的RSA密钥及固定服务器公钥Policy；When读取签发私钥、验证配置绑定或进行密码算法操作；Then完整Base64和PKCS8字节往返一致，实际密钥与公钥及Policy修订/字节摘要相同，读取前后变化或权限/链接变化立即拒绝。技术检查使用实际RSA和已有原件，不创建客户运行、审批、费用或替代模型结果。持久principal_token/run_principal/execution_registry、mTLS、当前动作授权、续期及完整令牌签发继续原业务验收。
+
+RunTokenSigningKeyStore已经连接独立run-token-signing-key.schema.json、原ProtectedConfigurationFile的openat/fstat、完整配置容量、当前所有者、0700目录及0600单一链接文件。私钥使用成熟PKCS8/JDK RSA CRT，至少2048位，标准Base64及完整DER往返一致；由实际modulus/publicExponent派生公钥并与当前Policy完整SPKI核对。配置同时固定policy_revision和policy_sha256，公钥及私钥文件读取前后分别核查。Current公开内容只有配置修订、摘要和公钥身份，toString不提供秘密。JSON解析明确关闭正文位置引用，格式错误不包含私钥正文。
+
+sign固定原Claims的独立JSON快照，复用原封闭声明、发行者/受众、动作、U64及时间检查，再使用Nimbus RS256、medical-run+jwt和当前kid。签名核查、全部配置重读及原到期检查通过后返回原字节。该组件只处理密码及配置，客户令牌的jti保存、持久运行归属、mTLS、当前授权、续期和合法终态回执继续完整C02业务实现；本项没有启用生产签发配置，没有生成客户运行、审批或收费。
+
+有效Red为`.implementation-work/run-token-signing-key-red-20261014.log`，独立私钥定义缺少造成一项failure、零项error/skip。当前四项实际私钥检查及六十项原Policy/签名检查全部通过，共六十四项、失败/错误/跳过均为零。实际RSA2048、登记官方原件37870字节及其a70e1b2c0407416a2ea5a076c96e4fd85ea6edf2fcbf5235d0a6581e5a43d7ee摘要、实际签名、公钥核验、不同实际密钥、权限及额外链接、同修订Policy字节变化、未知/重复/尾随JSON、非法Base64/DER、容量及秘密诊断分别核查。签名在密码操作前核查完整UTF8及JWS输出容量，使用成熟Base64URL计算实际签名编码长度，不截取声明。回执`.implementation-work/run-token-signing-key-build-checks/f20b4925-fba4-4331-b402-56709d84f3bc/receipt.json`的SHA-256为8b138bdb0da9cb7e466fd81449c8047273f6026d767ea66c66de6324bf229ee5，exit_code=0、inputs_unchanged=true；全部JUnit及原始日志保存在同目录。原公钥Policy及Schema保持原定义，私钥只在实际检查的0700/0600配置中使用，秘密值不进入记录。
+
+本项文档CURRENT、last_verified=2026-10-14，范围为上述密码组件及受影响原验证；完整令牌签发、当前业务许可、生产密钥配置及内部HTTP继续PENDING，父任务保持IN_PROGRESS。当前改动没有提交；完整应用制品和部署由IMP-36维护。
+
+当前密码组件已进入PID27909的固定完整Jar7773fe25f20d062a988e37662d3c390fab05838c46787b08d8beedad0a14a2f9。运行核验包括四份身份源码、十一项身份class和两份Policy/私钥Schema，与当前编译字节逐项相同；完整运行回执`.implementation-work/source-processing-runtime-checks/0b1fe244-7fdf-4059-8d1c-8699a1972501/receipt.json`的SHA-256为4eeace6a535a399029d04639a3e7350bfa3cc307c42f3819ee9eb8e611ad361d，构建及环境归属由IMP-36维护。实际生产签发配置及合法业务令牌尚未启用。
+
+| 文件或identifier | 当前职责 |
+| --- | --- |
+| RunTokenSigningKeyStore、run-token-signing-key.schema.json | 当前PKCS8私钥、Policy绑定、签名前后配置核查及秘密诊断保护 |
+| RunTokenSignature.requireClaims | 原完整声明验证共享，保持原签名验证行为 |
+| RunTokenSigningKeyStoreTest | 实际RSA、登记原件签名、当前配置和格式/权限拒绝 |
+| check_run_token_signing_key.py | 固定源码与原件、六十四项原始组件检查和独立JUnit |
 
 2026-10-08，依据LLD-后端§2.1/§7及BACK-RUN-TOKEN-SIGNATURE-01，继续内部运行身份的当前受保护配置，唯一状态来源为实施任务计划IMP-04的IN_PROGRESS，关联IMP-08/13/38。已经读取当前RunTokenSignature、ServiceCertificateTrustStore及其实际原生文件检查，核查JNR POSIX/FFI固定依赖。原Agent发布清单草稿与LLD-Agent§6.3的完整依赖保持IMP-12范围，没有发布或任务采用成功。
 

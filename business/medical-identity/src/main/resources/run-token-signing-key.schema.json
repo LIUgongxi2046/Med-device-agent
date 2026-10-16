@@ -1,0 +1,13 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"urn:medical:run-token-signing-key:1.0.0",
+  "type":"object","additionalProperties":false,
+  "required":["schema_version","revision","policy_revision","policy_sha256","private_key_der_base64"],
+  "properties": {
+    "schema_version":{"const":"1.0.0"},
+    "revision":{"type":"string","format":"uuid","pattern":"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"},
+    "policy_revision":{"type":"string","format":"uuid","pattern":"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"},
+    "policy_sha256":{"type":"string","pattern":"^[a-f0-9]{64}$"},
+    "private_key_der_base64":{"type":"string","minLength":1}
+  }
+}

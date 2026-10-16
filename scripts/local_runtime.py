@@ -175,11 +175,19 @@ def migrate(migration_id=None):
     print("LOCAL_MIGRATION_APPLIED")
 
 
-def application():
+def application(additional_config=None):
     if (RUNTIME / "application.pid").exists():
         raise RuntimeError("LOCAL_APPLICATION_PID_ALREADY_PRESENT")
     values = settings()
     application_environment = environment()
+    additional = None
+    if additional_config is not None:
+        additional = Path(additional_config).resolve(strict=True)
+        additional.relative_to(ROOT)
+        metadata = additional.lstat()
+        if not additional.is_file() or metadata.st_uid != os.getuid() or metadata.st_mode & 0o777 != 0o600:
+            raise RuntimeError("LOCAL_ADDITIONAL_CONFIGURATION_INVALID")
+        application_environment["SPRING_CONFIG_ADDITIONAL_LOCATION"] = additional.as_uri()
     management = management_secret()
     invitation = invitation_secret()
     framework_token = ruoyi_token_secret()
@@ -213,6 +221,9 @@ def application():
     deployment = {"deployment_id": str(uuid.uuid4()), "pid": process.pid, "os_uid": os.getuid(),
                   "artifact": str(artifact.relative_to(ROOT)), "sha256": digest,
                   "source": str(source.relative_to(ROOT)), "scope": "LOCAL_APPLICATION"}
+    if additional is not None:
+        deployment["additional_configuration"] = str(additional.relative_to(ROOT))
+        deployment["additional_configuration_sha256"] = hashlib.sha256(additional.read_bytes()).hexdigest()
     history = RUNTIME / ("application-deployment-" + deployment["deployment_id"] + ".json")
     with history.open("x", encoding="utf-8") as output:
         json.dump(deployment, output, ensure_ascii=False)
@@ -235,6 +246,11 @@ def verify_application_deployment():
         raise RuntimeError("LOCAL_APPLICATION_ARTIFACT_IDENTITY_CHANGED")
     if hashlib.sha256(artifact.read_bytes()).hexdigest() != digest:
         raise RuntimeError("LOCAL_APPLICATION_ARTIFACT_CHANGED")
+    if "additional_configuration" in deployment:
+        additional = ROOT / deployment["additional_configuration"]
+        additional.resolve(strict=True).relative_to(ROOT)
+        if additional.is_symlink() or hashlib.sha256(additional.read_bytes()).hexdigest() != deployment["additional_configuration_sha256"]:
+            raise RuntimeError("LOCAL_ADDITIONAL_CONFIGURATION_CHANGED")
     process = subprocess.run(["/bin/ps", "-p", str(pid), "-o", "command="], capture_output=True,
                              text=True, check=True, env=environment())
     expected = "-jar " + str(artifact) + " --spring.config.name=application-medical-local"
@@ -257,6 +273,28 @@ def stop_application():
             return
         time.sleep(0.5)
     raise RuntimeError("LOCAL_APPLICATION_STOP_TIMEOUT")
+
+
+def archive_terminated_application():
+    path = RUNTIME / "application.pid"
+    deployment = json.loads((RUNTIME / "application-deployment.json").read_bytes())
+    pid = int(path.read_text(encoding="ascii"))
+    if deployment["pid"] != pid or deployment["os_uid"] != os.getuid() or pid <= 1:
+        raise RuntimeError("LOCAL_APPLICATION_DEPLOYMENT_INVALID")
+    result = subprocess.run(["/bin/ps", "-p", str(pid), "-o", "pid="], capture_output=True,
+        text=True, check=False, env=environment(), timeout=10)
+    if result.returncode != 1 or result.stdout.strip():
+        raise RuntimeError("LOCAL_APPLICATION_PROCESS_STILL_PRESENT")
+    artifact = ROOT / deployment["artifact"]
+    artifact.resolve(strict=True).relative_to(RUNTIME / "applications")
+    if artifact.is_symlink() or hashlib.sha256(artifact.read_bytes()).hexdigest() != deployment["sha256"]:
+        raise RuntimeError("LOCAL_APPLICATION_ARTIFACT_CHANGED")
+    target = RUNTIME / ("application-terminated-" + deployment["deployment_id"] + ".json")
+    if target.exists():
+        raise RuntimeError("LOCAL_APPLICATION_TERMINATED_RECEIPT_PRESENT")
+    (RUNTIME / "application-deployment.json").rename(target)
+    path.rename(RUNTIME / ("application-terminated-" + deployment["deployment_id"] + ".pid"))
+    print("LOCAL_APPLICATION_TERMINATED_IDENTITY_ARCHIVED " + deployment["deployment_id"])
 
 
 def recover_owner():
@@ -413,16 +451,23 @@ def update_owner_credential(owner, credentials):
 
 def main():
     parser = argparse.ArgumentParser(description="运行本项目独立的真实本地服务")
-    parser.add_argument("command", choices=("initialize", "secure", "start", "migrate", "application", "stop-application", "recover-owner", "framework-token"))
+    parser.add_argument("command", choices=("initialize", "secure", "start", "migrate", "application", "stop-application", "archive-terminated-application", "recover-owner", "framework-token"))
     parser.add_argument("--migration-id")
+    parser.add_argument("--additional-config")
     args = parser.parse_args()
     if args.migration_id is not None and args.command != "migrate":
         parser.error("迁移身份只用于migrate")
+    if args.additional_config is not None:
+        if args.command != "application":
+            parser.error("附加配置只用于application")
+        application(args.additional_config)
+        return
     if args.command == "migrate":
         migrate(args.migration_id)
         return
     actions = {"initialize": initialize, "secure": secure, "start": start, "migrate": migrate,
                "application": application, "stop-application": stop_application, "recover-owner": recover_owner,
+               "archive-terminated-application": archive_terminated_application,
                "framework-token": configure_framework_token}
     actions[args.command]()
 

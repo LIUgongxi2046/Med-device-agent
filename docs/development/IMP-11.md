@@ -1,5 +1,19 @@
 # IMP-11 模板目录、字段及适用条件
 
+## FE-11 结构化模板定义编辑
+
+2026-10-14 EXACT-CURRENT-01重新验证当前组件、共享Schema及实际依赖，开发五项和生产五项全部通过，exit_code=0、inputs_unchanged=true；8900项输入及359项产物。回执`.implementation-work/IC-FRONT-CONTINUE-TEMPLATE-FIELDS-20261014-EXACT-CURRENT-01/receipt.json`的SHA-256为`a2a8ad2e4c385088a09560900cc6d9bcfbe7cea2aa597558ec97109a69a39848`。全部十一种ValueType、完整目录/字段/重复表格/附件/跨文档定义、精确Decimal及U64、取消/非法JSON/明确删除和身份变化清理均通过真实Chrome DOM断言。输入SIMULATION、视觉NOT_RUN；专业保存、核准及项目采用继续原完整条件。
+
+2026-10-13；状态保持IN_PROGRESS，文档有效性CURRENT。依据前端实施计划FE-11、PRD§8.3.5/8.5、完整templates.schema.json和当前TP-01页面。当前未提交内容按完整原要求继续开发，用户明确授权SIMULATION输入。合法模板保存、核准、规则执行及项目采用分别需要实际服务结果。
+
+`template-definition-editor.vue`在原`template-create.vue`提供目录、字段、重复表格、附件及跨文档规则编辑。各类定义使用原Schema的全部字段及稳定ID，ValueType直接采用全部十一种枚举。条件、证据规则、输出位置、限制、许可依据及关联集合使用成熟JSON组件完整读取；Decimal和U64使用字符串保留原值。确认当前定义和采用全部修改分别执行原Schema及重复ID检查。取消不会改变原模板，移除当前对象需要明确确认，原输入、禁用状态、页面隐藏或身份变化清理全部编辑内容。原完整JSON输入、导入、整体校验、幂等保存及未保存离开继续复用。
+
+Given正式Vue组件与已授权SIMULATION定义；When编辑全部字段类型及各类完整定义；Then全部原字段、依据和数值精度保持，非法JSON留在错误位置，取消保留原内容，删除只作用于明确确认对象，上下文变化清理旧编辑。独立入口为`tests/browser/template-fields-checks.js`和`web/tests/template-fields/`，当前严格类型检查通过；开发与生产浏览器完整验证及绑定回执由`scripts/check_frontend_continuation.py --suite template-fields --execution`维护。输入为直接组件参数，没有替代HTTP业务成功或正式客户批准。有效Red保存于`.implementation-work/template-fields-red.log`：原模板页面已加载，结构化字段入口断言失败。
+
+关联IMP-03维护唯一Schema，IMP-04维护实际身份与权限，IMP-12消费固定模板及项目适用结果，IMP-24消费依据影响。规则草稿/核准、版式的专业交互、真实保存及重读、人工目录决定与后续任务采用继续保持原完整验收范围。
+
+当前GREEN-05的开发五项及生产五项实际Chrome检查全部通过，exit_code=0、inputs_unchanged=true；8841项输入和343项产物固定当前源码、唯一Schema、实际依赖与制品。回执为`.implementation-work/IC-FRONT-CONTINUE-TEMPLATE-FIELDS-20261013-GREEN-05/receipt.json`，SHA-256为`0e34ceca8dbe9f463b36e228c653a12ebd7455dc69642e9b0ed198b408809a3b`，原输出位于同目录`command/output.log`。十一种字段、精确Decimal、完整目录/重复表格/附件/跨文档规则、U64范围、取消/非法JSON/明确删除及上下文清理均取得真实DOM断言；输入标记SIMULATION，没有HTTP业务写入，视觉保持NOT_RUN。完整模板保存、核准及项目采用仍须对应组合业务验收。
+
 ## FRONT-TEMPLATE-APPLICABILITY-01
 
 2026-10-08，当前聊天负责项目适用模板查询页面；「按实施清单完成功能开发」负责服务身份、来源处理、Temporal、共享任务状态和整体部署。唯一主记录继续使用本文件，任务状态引用[实施任务计划](../../实施任务计划.md)中的 IMP-11，当前 IN_PROGRESS。检索本记录、索引、PRD §8.3.5/8.4、LLD-前端 FRTE-07/18 与 TP-05、TemplateApplicabilityService/Schema、projects.ts、tasks.ts 和原页面测试，确认现有后端完整返回固定属性、模板定义、三态条件和分页身份。

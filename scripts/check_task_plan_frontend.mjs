@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { randomUUID } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
 import { runnerImport } from '../web/node_modules/vite/dist/node/index.js'
 
@@ -24,5 +25,8 @@ const { module: protocol } = await runnerImport(fileURLToPath(new URL('../web/sr
     assert.ok(issues.some(issue => issue.code === 'required'), '计划定义需要实际编译全部必填字段')
   }
   assert.equal(protocol.schemaIssues('urn:medical:task-plan-write-view:1.0.0', null).length > 0, true)
-  process.stdout.write(JSON.stringify({ checks: references.length + 1, frontend_schema_runtime_verified: true,
+  const id = randomUUID(), idReference = 'urn:medical:templates:1.0.0#/$defs/Id'
+  assert.equal(protocol.validate(idReference, id), id)
+  assert.ok(protocol.schemaIssues(idReference, 'invalid-source-id').length > 0)
+  process.stdout.write(JSON.stringify({ checks: references.length + 3, frontend_schema_runtime_verified: true,
     full_plan_business_verified: false, visual_verified: false }) + '\n')

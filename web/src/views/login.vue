@@ -119,7 +119,7 @@ async function handleLogin() {
     if (!await proxy.$refs.loginRef.validate(valid => valid)) return
     let target
     if (medical.value) {
-      target = redirect.value === undefined ? '/projects' : redirect.value
+      target = redirect.value === undefined ? '/index' : redirect.value
       if (typeof target !== 'string' || !target.startsWith('/') || new URL(target, location.origin).origin !== location.origin
           || !router.resolve(target).meta.medical || router.resolve(target).meta.public) {
         fail('SCHEMA_INVALID', '登录目标需要使用当前业务页面')

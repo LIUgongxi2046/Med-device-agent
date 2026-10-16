@@ -14,7 +14,10 @@ def main():
     parser = argparse.ArgumentParser(description='检查计划页面严格类型、原生Vite转换及实际Schema加载')
     parser.add_argument('--execution')
     parser.add_argument('--execute-checks', action='store_true')
+    parser.add_argument('--timeout', type=int, default=120)
     args = parser.parse_args()
+    if args.timeout <= 0:
+        raise ValueError('检查期限必须为正数')
     temporary = ROOT / '.implementation-work/task-plan-frontend-tmp'
     temporary.mkdir(parents=True, exist_ok=True)
     environment = os.environ.copy()
@@ -47,7 +50,7 @@ def main():
         inputs.add(ROOT / entry['path'])
     command = [sys.executable, str(CAPTURE), '--output-dir', str(ROOT / '.implementation-work' / ('IC-12-PLAN-FRONT-' + args.execution)),
         '--check-id', 'IC-12-PLAN-FRONT', '--kind', 'UNIT', '--baseline-id', 'FRONT-TASK-PLAN-WRITE-01',
-        '--cwd', str(ROOT), '--timeout', '120']
+        '--cwd', str(ROOT), '--timeout', str(args.timeout)]
     for path in sorted(inputs):
         command.extend(('--input', str(path)))
     subprocess.run([*command, '--', sys.executable, 'scripts/check_task_plan_frontend.py', '--execute-checks'],

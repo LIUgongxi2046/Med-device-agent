@@ -27,7 +27,7 @@ defineProps({
 })
 
 const title = import.meta.env.VITE_APP_TITLE
-const home = computed(() => useUserStore().medicalMode ? '/projects' : '/')
+const home = computed(() => useUserStore().medicalMode ? '/index' : '/')
 const settingsStore = useSettingsStore()
 const sideTheme = computed(() => settingsStore.sideTheme)
 

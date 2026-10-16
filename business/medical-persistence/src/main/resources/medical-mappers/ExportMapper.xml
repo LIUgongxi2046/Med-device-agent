@@ -1,0 +1,208 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.medical.persistence.mapper.ExportMapper">
+  <resultMap id="document" type="com.ruoyi.medical.persistence.ExportProtocol$DocumentRow">
+    <constructor>
+      <arg column="tenant_id" javaType="java.lang.String"/><arg column="project_id" javaType="java.lang.String"/>
+      <arg column="document_id" javaType="java.lang.String"/><arg column="document_revision" javaType="java.lang.String"/>
+      <arg column="current_document_revision" javaType="java.lang.String"/><arg column="document_status" javaType="java.lang.String"/>
+      <arg column="project_status" javaType="java.lang.String"/><arg column="template_version" javaType="java.lang.String"/>
+      <arg column="dependency_access_set_id" javaType="java.lang.String"/><arg column="body_artifact_id" javaType="java.lang.String"/>
+      <arg column="body_sha256" javaType="java.lang.String"/>
+      <arg column="classification" javaType="java.lang.String"/><arg column="format_profile" javaType="java.lang.String"/>
+      <arg column="format_profile_revision" javaType="java.lang.String"/>
+    </constructor>
+  </resultMap>
+  <resultMap id="signature" type="com.ruoyi.medical.persistence.ExportProtocol$SignatureRow">
+    <constructor><arg column="signature_id" javaType="java.lang.String"/><arg column="manifest_sha256" javaType="java.lang.String"/>
+      <arg column="auth_epoch" javaType="java.math.BigInteger"/><arg column="governance_epoch" javaType="java.math.BigInteger"/></constructor>
+  </resultMap>
+  <resultMap id="version" type="com.ruoyi.medical.persistence.ExportProtocol$VersionRow">
+    <constructor><arg column="version_id" javaType="java.lang.String"/><arg column="owner_project_id" javaType="java.lang.String"/>
+      <arg column="entity_kind" javaType="java.lang.String"/><arg column="content_sha256" javaType="java.lang.String"/></constructor>
+  </resultMap>
+  <resultMap id="manifest" type="com.ruoyi.medical.persistence.ExportProtocol$ManifestRow">
+    <constructor>
+      <arg column="tenant_id" javaType="java.lang.String"/><arg column="project_id" javaType="java.lang.String"/>
+      <arg column="export_id" javaType="java.lang.String"/><arg column="document_id" javaType="java.lang.String"/>
+      <arg column="document_revision" javaType="java.lang.String"/><arg column="purpose" javaType="java.lang.String"/>
+      <arg column="manifest" javaType="java.lang.String"/><arg column="manifest_sha256" javaType="java.lang.String"/>
+      <arg column="status" javaType="java.lang.String"/><arg column="signature_id" javaType="java.lang.String"/>
+      <arg column="operation_id" javaType="java.lang.String"/><arg column="template_version" javaType="java.lang.String"/>
+      <arg column="dependency_access_set_id" javaType="java.lang.String"/><arg column="dependency_manifest_sha256" javaType="java.lang.String"/>
+      <arg column="review_manifest_sha256" javaType="java.lang.String"/>
+      <arg column="format_profile_revision" javaType="java.lang.String"/><arg column="channel_profile_revision" javaType="java.lang.String"/>
+      <arg column="schema_version" javaType="java.lang.String"/><arg column="schema_manifest_sha256" javaType="java.lang.String"/>
+      <arg column="created_by" javaType="java.lang.String"/><arg column="created_at" javaType="java.time.LocalDateTime"/>
+      <arg column="classification" javaType="java.lang.String"/><arg column="revision" javaType="java.math.BigInteger"/>
+      <arg column="updated_at" javaType="java.time.LocalDateTime"/>
+    </constructor>
+  </resultMap>
+  <resultMap id="item" type="com.ruoyi.medical.persistence.ExportProtocol$ItemRow">
+    <constructor>
+      <arg column="tenant_id" javaType="java.lang.String"/><arg column="project_id" javaType="java.lang.String"/>
+      <arg column="export_item_id" javaType="java.lang.String"/><arg column="export_id" javaType="java.lang.String"/>
+      <arg column="document_id" javaType="java.lang.String"/><arg column="document_revision" javaType="java.lang.String"/>
+      <arg column="format" javaType="java.lang.String"/><arg column="attempt_no" javaType="java.math.BigInteger"/>
+      <arg column="status" javaType="java.lang.String"/><arg column="object_ref" javaType="java.lang.String"/>
+      <arg column="artifact_id" javaType="java.lang.String"/><arg column="validation_ref" javaType="java.lang.String"/>
+      <arg column="validation_artifact_id" javaType="java.lang.String"/><arg column="converter_revision" javaType="java.lang.String"/>
+      <arg column="font_manifest_sha256" javaType="java.lang.String"/><arg column="schema_version" javaType="java.lang.String"/>
+      <arg column="schema_manifest_sha256" javaType="java.lang.String"/><arg column="created_by" javaType="java.lang.String"/>
+      <arg column="created_at" javaType="java.time.LocalDateTime"/><arg column="classification" javaType="java.lang.String"/>
+      <arg column="revision" javaType="java.math.BigInteger"/><arg column="updated_at" javaType="java.time.LocalDateTime"/>
+    </constructor>
+  </resultMap>
+
+  <select id="document" resultMap="document" useCache="false" flushCache="true">
+    SELECT h.tenant_id,h.project_id,h.document_id,m.document_revision,h.current_document_revision,
+      h.status AS document_status,p.status AS project_status,m.template_version,m.dependency_access_set_id,
+      m.body_artifact_id,m.body_sha256,m.classification,t.format_profile,
+      JSON_UNQUOTE(JSON_EXTRACT(t.format_profile,'$.format_revision.version_id')) AS format_profile_revision
+    FROM document_head h
+    JOIN document_revision_meta m ON m.tenant_id=h.tenant_id AND m.project_id=h.project_id AND m.document_id=h.document_id
+    JOIN project p ON p.tenant_id=h.tenant_id AND p.project_id=h.project_id
+    JOIN template_version t ON t.tenant_id=m.tenant_id AND t.template_version=m.template_version
+    WHERE h.document_id=#{documentId} AND m.document_revision=#{documentRevision} FOR UPDATE
+  </select>
+  <select id="reviewSnapshot" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT CAST(JSON_OBJECT('review_id',r.review_id,'batch_id',r.batch_id,'target_key',r.target_key,
+      'decision',r.decision,'baseline_manifest',r.baseline_manifest,'actor_id',r.actor_id,
+      'decided_at',DATE_FORMAT(r.decided_at,'%Y-%m-%dT%H:%i:%s.%fZ')) AS CHAR)
+    FROM review_decision r
+    WHERE r.project_id=#{projectId} AND r.document_revision=#{documentRevision}
+      AND NOT EXISTS (SELECT 1 FROM review_invalidation i WHERE i.project_id=r.project_id AND i.review_id=r.review_id)
+    ORDER BY r.target_key,r.review_id FOR UPDATE
+  </select>
+  <select id="signature" resultMap="signature" useCache="false" flushCache="true">
+    SELECT signature_id,manifest_sha256,auth_epoch,governance_epoch FROM signature_record s
+    WHERE s.project_id=#{projectId} AND s.document_revision=#{documentRevision} AND s.purpose=#{purpose}
+    ORDER BY s.signed_at DESC LIMIT 1 FOR UPDATE
+  </select>
+  <select id="version" resultMap="version" useCache="false" flushCache="true">
+    SELECT version_id,owner_project_id,entity_kind,content_sha256 FROM version_registry v WHERE version_id=#{versionId} FOR UPDATE
+  </select>
+  <select id="operation" resultMap="com.ruoyi.medical.persistence.mapper.TenantSelectionMapper.operation" useCache="false" flushCache="true">
+    SELECT operation_id,request_sha256,state,http_status,response_ref,target_id,schema_version,schema_manifest_sha256
+    FROM operation_record o WHERE o.subject_id=#{userId} AND o.operation_name=#{operationName} AND o.idempotency_key=#{key} FOR UPDATE
+  </select>
+  <select id="manifest" resultMap="manifest" useCache="false" flushCache="true">
+    SELECT e.tenant_id,e.project_id,e.export_id,d.document_id,e.document_revision,e.purpose,e.manifest,e.manifest_sha256,
+      e.status,e.signature_id,e.operation_id,e.template_version,e.dependency_access_set_id,s.manifest_sha256 AS dependency_manifest_sha256,e.review_manifest_sha256,
+      e.format_profile_revision,e.channel_profile_revision,e.schema_version,e.schema_manifest_sha256,e.created_by,
+      e.created_at,e.classification,e.revision,e.updated_at
+    FROM export_manifest e JOIN document_revision_meta d
+      ON d.tenant_id=e.tenant_id AND d.project_id=e.project_id AND d.document_revision=e.document_revision
+    JOIN dependency_access_set s ON s.tenant_id=e.tenant_id AND s.project_key=e.project_key AND s.access_set_id=e.dependency_access_set_id
+    WHERE e.export_id=#{exportId} FOR UPDATE
+  </select>
+  <select id="history" resultMap="manifest" useCache="false" flushCache="true">
+    SELECT e.tenant_id,e.project_id,e.export_id,d.document_id,e.document_revision,e.purpose,e.manifest,e.manifest_sha256,
+      e.status,e.signature_id,e.operation_id,e.template_version,e.dependency_access_set_id,s.manifest_sha256 AS dependency_manifest_sha256,e.review_manifest_sha256,
+      e.format_profile_revision,e.channel_profile_revision,e.schema_version,e.schema_manifest_sha256,e.created_by,
+      e.created_at,e.classification,e.revision,e.updated_at
+    FROM export_manifest e JOIN document_revision_meta d
+      ON d.tenant_id=e.tenant_id AND d.project_id=e.project_id AND d.document_revision=e.document_revision
+    JOIN dependency_access_set s ON s.tenant_id=e.tenant_id AND s.project_key=e.project_key AND s.access_set_id=e.dependency_access_set_id
+    WHERE d.document_id=#{documentId} AND e.document_revision=#{documentRevision}
+    ORDER BY e.created_at DESC,e.export_id DESC LIMIT #{limit} OFFSET #{offset}
+  </select>
+  <select id="historyCount" resultType="java.lang.Long" useCache="false" flushCache="true">
+    SELECT COUNT(*) FROM export_manifest e JOIN document_revision_meta d
+      ON d.tenant_id=e.tenant_id AND d.project_id=e.project_id AND d.document_revision=e.document_revision
+    WHERE d.document_id=#{documentId} AND e.document_revision=#{documentRevision}
+  </select>
+  <select id="items" resultMap="item" useCache="false" flushCache="true">
+    SELECT i.tenant_id,i.project_id,i.export_item_id,i.export_id,d.document_id,e.document_revision,i.format,i.attempt_no,
+      i.status,i.object_ref,i.artifact_id,i.validation_ref,i.validation_artifact_id,i.converter_revision,
+      i.font_manifest_sha256,i.schema_version,i.schema_manifest_sha256,i.created_by,i.created_at,i.classification,
+      i.revision,i.updated_at
+    FROM export_item i JOIN export_manifest e ON e.tenant_id=i.tenant_id AND e.project_id=i.project_id AND e.export_id=i.export_id
+    JOIN document_revision_meta d ON d.tenant_id=e.tenant_id AND d.project_id=e.project_id AND d.document_revision=e.document_revision
+    WHERE i.export_id=#{exportId} ORDER BY i.format,i.attempt_no FOR UPDATE
+  </select>
+  <select id="itemForUpdate" resultMap="item" useCache="false" flushCache="true">
+    SELECT i.tenant_id,i.project_id,i.export_item_id,i.export_id,d.document_id,e.document_revision,i.format,i.attempt_no,
+      i.status,i.object_ref,i.artifact_id,i.validation_ref,i.validation_artifact_id,i.converter_revision,
+      i.font_manifest_sha256,i.schema_version,i.schema_manifest_sha256,i.created_by,i.created_at,i.classification,
+      i.revision,i.updated_at
+    FROM export_item i JOIN export_manifest e ON e.tenant_id=i.tenant_id AND e.project_id=i.project_id AND e.export_id=i.export_id
+    JOIN document_revision_meta d ON d.tenant_id=e.tenant_id AND d.project_id=e.project_id AND d.document_revision=e.document_revision
+    WHERE i.export_item_id=#{exportItemId} FOR UPDATE
+  </select>
+  <insert id="saveOperation">
+    INSERT INTO operation_record(operation_id,subject_id,operation_name,idempotency_key,request_sha256,state,http_status,
+      response_ref,target_id,error_code,schema_version,schema_manifest_sha256,created_by,created_at,classification,revision,updated_at)
+    VALUES(#{operationId},#{userId},#{operationName},#{key},#{requestHash},'COMPLETED',202,#{response},#{targetId},NULL,
+      '1.0.0',#{schemaManifest},#{userId},#{now},#{classification},1,#{now})
+  </insert>
+  <insert id="saveVersion">
+    INSERT INTO version_registry(version_id,owner_project_id,entity_kind,content_sha256)
+    VALUES(#{exportId},#{projectId},'EXPORT_MANIFEST',#{manifestHash})
+  </insert>
+  <insert id="saveManifest">
+    INSERT INTO export_manifest(project_id,export_id,document_revision,purpose,manifest,manifest_sha256,content_sha256,
+      status,signature_id,operation_id,template_version,dependency_access_set_id,review_manifest_sha256,
+      format_profile_revision,channel_profile_revision,schema_version,schema_manifest_sha256,created_by,created_at,
+      classification,revision,updated_at)
+    VALUES(#{projectId},#{exportId},#{documentRevision},#{purpose},#{manifest},#{manifestHash},#{manifestHash},'QUEUED',
+      #{signatureId},#{operationId},#{templateVersion},#{dependencyAccessSetId},#{reviewManifestHash},
+      #{formatProfileRevision},#{channelProfileRevision},'1.0.0',#{schemaManifest},#{userId},#{now},#{classification},1,#{now})
+  </insert>
+  <insert id="saveItem">
+    INSERT INTO export_item(project_id,export_item_id,export_id,format,attempt_no,status,object_ref,artifact_id,
+      validation_ref,validation_artifact_id,converter_revision,font_manifest_sha256,schema_version,
+      schema_manifest_sha256,created_by,created_at,classification,revision,updated_at)
+    VALUES(#{projectId},#{exportItemId},#{exportId},#{format},#{attemptNo},'QUEUED',NULL,NULL,NULL,NULL,
+      #{converterRevision},#{fontManifestHash},'1.0.0',#{schemaManifest},#{userId},#{now},#{classification},1,#{now})
+  </insert>
+  <update id="updateManifestForRetry">
+    UPDATE export_manifest SET status='QUEUED',revision=revision+1,updated_at=#{now}
+    WHERE export_id=#{exportId} AND revision=#{manifestRevision} AND status IN ('PARTIAL_FAILED','FAILED','CANCELLED')
+  </update>
+  <update id="claimItem">
+    UPDATE export_item SET status='RUNNING',revision=revision+1,updated_at=#{now}
+    WHERE export_item_id=#{exportItemId} AND status='QUEUED' AND revision=#{itemRevision}
+  </update>
+  <update id="markItemVerifying">
+    UPDATE export_item SET status='VERIFYING',revision=revision+1,updated_at=#{now}
+    WHERE export_item_id=#{exportItemId} AND status='RUNNING' AND revision=#{itemRevision}
+  </update>
+  <update id="completeItem">
+    UPDATE export_item SET status='SUCCEEDED',object_ref=#{objectRef},artifact_id=#{artifactId},
+      validation_ref=#{validationRef},validation_artifact_id=#{validationArtifactId},revision=revision+1,updated_at=#{now}
+    WHERE export_item_id=#{exportItemId} AND status='VERIFYING' AND revision=#{itemRevision}
+      AND object_ref IS NULL AND artifact_id IS NULL AND validation_ref IS NULL AND validation_artifact_id IS NULL
+  </update>
+  <update id="failItem">
+    UPDATE export_item SET status='FAILED',validation_ref=#{validationRef},revision=revision+1,updated_at=#{now}
+    WHERE export_item_id=#{exportItemId} AND status IN ('RUNNING','VERIFYING') AND revision=#{itemRevision}
+      AND object_ref IS NULL AND artifact_id IS NULL AND validation_artifact_id IS NULL
+  </update>
+  <update id="updateManifestStatus">
+    UPDATE export_manifest SET status=#{status},revision=revision+1,updated_at=#{now}
+    WHERE export_id=#{exportId} AND revision=#{manifestRevision}
+  </update>
+  <insert id="saveArtifactVersion">
+    INSERT INTO version_registry(version_id,owner_project_id,entity_kind,content_sha256)
+    VALUES(#{artifactId},#{projectId},'ARTIFACT',#{sha256})
+  </insert>
+  <insert id="saveArtifact">
+    INSERT INTO artifact(project_id,artifact_id,run_id,document_revision,artifact_kind,object_ref,object_key,object_version,
+      sha256,size_bytes,media_type,dependency_access_set_id,content_sha256,schema_version,schema_manifest_sha256,
+      created_by,created_at,classification)
+    VALUES(#{projectId},#{artifactId},NULL,#{documentRevision},#{artifactKind},#{objectRef},#{objectKey},#{objectVersion},
+      #{sha256},#{sizeBytes},#{mediaType},#{dependencyAccessSetId},#{sha256},'1.0.0',#{schemaManifest},
+      #{userId},#{now},#{classification})
+  </insert>
+  <insert id="saveBinding">
+    INSERT INTO artifact_content_binding(project_id,artifact_id,resource_kind,resource_id,schema_ref,schema_document_sha256,
+      dependency_access_set_id,dependency_manifest_sha256,created_by,created_at,classification)
+    VALUES(#{projectId},#{artifactId},'DOCUMENT',#{documentId},#{schemaRef},#{schemaManifest},
+      #{dependencyAccessSetId},#{dependencyManifestSha256},#{userId},#{now},#{classification})
+  </insert>
+  <insert id="saveLineage">
+    INSERT INTO lineage_edge(consumer_version_id,upstream_version_id,relation_kind,actor_id,decision_ref,created_at)
+    VALUES(#{artifactId},#{upstreamId},#{relationKind},#{userId},NULL,#{now})
+  </insert>
+</mapper>

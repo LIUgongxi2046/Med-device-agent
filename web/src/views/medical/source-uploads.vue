@@ -15,26 +15,36 @@
       <el-button v-if="busy" @click="stop">停止发送</el-button>
       <p role="status">{{ notice }}</p>
       <el-table :data="items" row-key="id" empty-text="尚未选择文件">
+        <el-table-column type="expand"><template #default="scope"><source-upload-result v-if="scope.row.result" :value="scope.row.result" /></template></el-table-column>
         <el-table-column label="文件" min-width="240"><template #default="scope">{{ scope.row.body?.file_name ?? '待恢复原声明' }}<p>{{ scope.row.id }}</p></template></el-table-column>
         <el-table-column label="文件大小" min-width="130"><template #default="scope">{{ scope.row.file?.size ?? scope.row.journal?.size_bytes }} 字节</template></el-table-column>
         <el-table-column label="接收状态" min-width="150"><template #default="scope">{{ scope.row.state ? uploadStatusLabels[scope.row.state.registration.upload_status as keyof typeof uploadStatusLabels] : '尚未核查' }}</template></el-table-column>
         <el-table-column label="传输状态" min-width="170"><template #default="scope">{{ scope.row.state ? transferStatusLabels[scope.row.state.registration.transfer_state as keyof typeof transferStatusLabels] : '尚未登记' }}</template></el-table-column>
         <el-table-column label="接收进度" min-width="180"><template #default="scope">
-          <p>服务器确认：{{ scope.row.state?.registration.received_size ?? '0' }} 字节</p><p>当前分段已发送：{{ scope.row.sent }} 字节</p>
+          <p>服务器确认：{{ scope.row.state ? scope.row.state.registration.received_size + ' 字节' : '尚未核查' }}</p><p>当前分段已发送：{{ scope.row.sent }} 字节</p>
         </template></el-table-column>
         <el-table-column label="操作结果" min-width="240"><template #default="scope">{{ scope.row.message }}</template></el-table-column>
-        <el-table-column label="解析状态" min-width="150"><template #default>尚未取得处理结果</template></el-table-column>
-        <el-table-column label="索引状态" min-width="150"><template #default>尚未取得处理结果</template></el-table-column>
-        <el-table-column label="人工核准" min-width="150"><template #default>尚未取得核准记录</template></el-table-column>
+        <el-table-column label="解析状态" min-width="180"><template #default="scope">
+          <p v-for="review in scope.row.result?.source?.reviews" :key="review.parse_version + ':' + review.index_version">{{ review.parse_version }}：{{ parseStatusLabels[review.parse_status as keyof typeof parseStatusLabels] }}</p>
+          <span v-if="!scope.row.result?.source">尚未取得解析版本</span>
+        </template></el-table-column>
+        <el-table-column label="索引状态" min-width="180"><template #default="scope">
+          <p v-for="review in scope.row.result?.source?.reviews" :key="review.parse_version + ':' + review.index_version">{{ review.index_version ?? '尚未建立索引版本' }}：{{ review.index_status ?? '尚未取得索引状态' }}</p>
+          <span v-if="!scope.row.result?.source">尚未取得索引版本</span>
+        </template></el-table-column>
+        <el-table-column label="人工核准" min-width="180"><template #default="scope">
+          <p v-for="review in scope.row.result?.source?.reviews" :key="review.parse_version + ':' + review.index_version">{{ review.parse_version }}：{{ approvalStatusLabels[review.approval_status as keyof typeof approvalStatusLabels] }}</p>
+          <span v-if="!scope.row.result?.source">尚未取得核准记录</span>
+        </template></el-table-column>
         <el-table-column label="逐文件操作" min-width="260"><template #default="scope">
           <el-button link :disabled="busy || user.medicalWriting || !scope.row.body" @click="selected = scope.row">来源与许可</el-button>
           <el-button link :disabled="busy || user.medicalWriting" @click="reselect = scope.row">选择原文件</el-button>
           <el-button link :disabled="busy || user.medicalWriting || !scope.row.file || !scope.row.body" @click="send(scope.row)">核查并继续接收</el-button>
+          <el-button link :disabled="busy || user.medicalWriting || !scope.row.journal?.upload_id" @click="queryResult(scope.row)">查询固定处理结果</el-button>
           <el-button v-if="!scope.row.journal" link :disabled="busy" @click="remove(scope.row)">移除待传文件</el-button>
         </template></el-table-column>
       </el-table>
-      <p>解析状态：尚未取得处理结果。索引状态：尚未取得处理结果。人工核准状态：尚未取得核准记录。</p>
-      <p>接收完成后仍需核查解析、索引和人工核准，当前页面不提供正式资料选用入口。</p>
+      <p>展开逐文件记录可以读取固定来源、完整处理尝试、失败清单、当前权利及核准依据。接收、解析、索引和人工核准分别读取服务器保存的结果。</p>
       <p>关闭页面或停止发送会终止本地发送。重新进入页面后，使用“查询原上传记录”核查服务器结果；继续发送需要重新选择原文件。</p>
     </section>
     <el-dialog :model-value="selected !== null" title="逐文件来源与许可声明" width="80%" destroy-on-close @close="selected = null">
@@ -57,16 +67,18 @@ import useUserStore from '@/store/modules/user'
 import FileUpload from '@/components/FileUpload/index.vue'
 import SessionPanel from './session-panel.vue'
 import SourceDeclaration from './source-declaration.vue'
+import SourceUploadResult from './source-upload-result.vue'
 import { fail, schemaIssues } from '@/api/medical/protocol'
 import type { MedicalSession } from '@/api/medical/protocol'
 import { byteDigest, completeSourceUpload, createSourceUpload, lookupUploadRequest, prepareSourceUpload, prepareUploadPart,
-  readSourceUpload, readUploadJournals, saveUploadJournal, sendUploadPart, sourceMediaType, sourceMediaTypes, sourceUploadAllowed,
+  readSourceUpload, readSourceUploadResult, readUploadJournals, saveUploadJournal, sendUploadPart, sourceMediaType, sourceMediaTypes, sourceUploadAllowed,
   transferStatusLabels, uploadIdentity, uploadStatusLabels } from '@/api/medical/source-uploads'
-import type { SourceUploadCreate, SourceUploadState, UploadJournal } from '@/api/medical/source-uploads'
+import type { SourceUploadCreate, SourceUploadResult as UploadResult, SourceUploadState, UploadJournal } from '@/api/medical/source-uploads'
 
 interface UploadItem {
   id: string; file: File | null; body: SourceUploadCreate | null; journal: UploadJournal | null; state: SourceUploadState | null
   message: string; sent: number; errors: string[]; confirmed: boolean
+  result: UploadResult | null
 }
 const route = useRoute(); const user = useUserStore()
 const session = computed<MedicalSession | null>(() => user.medicalSession)
@@ -75,6 +87,8 @@ const validProject = computed(() => schemaIssues('urn:medical:source-uploads:1.0
 const permitted = computed(() => validProject.value && sourceUploadAllowed(session.value, projectId.value))
 const items = ref<UploadItem[]>([]); const selected = ref<UploadItem | null>(null); const reselect = ref<UploadItem | null>(null)
 const busy = ref(false); const notice = ref(''); let generation = 0; let controller: AbortController | null = null; let batch = crypto.randomUUID()
+const parseStatusLabels = { QUEUED: '等待解析', PROCESSING: '正在解析', COMPLETE: '解析完成', PARTIAL_FAILED: '部分解析失败', FAILED: '解析失败' }
+const approvalStatusLabels = { PENDING: '待核准', APPROVED: '已核准', DISABLED: '已停用' }
 function blank(file: File, hash: string, actor: string, batchId: string): SourceUploadCreate {
   return { schema_version: '1.0.0', batch_id: batchId, project_id: projectId.value, ownership: 'PROJECT', session_id: null,
     file_name: file.name, media_type: sourceMediaType(file), size_bytes: String(file.size), sha256: hash, source_id: null,
@@ -117,7 +131,7 @@ async function selectFile(file: File): Promise<void> {
   const duplicate = items.value.find(value => value.body?.sha256 === hash || value.journal?.file_sha256 === hash)
   if (duplicate) { notice.value = '当前队列已经包含相同内容，请处理原文件记录：' + duplicate.id; return }
   const item = reactive<UploadItem>({ id: crypto.randomUUID(), file, body: blank(file, hash, actual.user.user_id, batch), journal: null,
-    state: null, message: '请逐文件核查完整来源与许可', sent: 0, errors: [], confirmed: false })
+    state: null, result: null, message: '请逐文件核查完整来源与许可', sent: 0, errors: [], confirmed: false })
   items.value.push(item); selected.value = item
 }
 function validateItem(item: UploadItem): boolean {
@@ -139,7 +153,7 @@ async function recover(): Promise<void> {
       if (!active(actual, current, reading.signal)) return
       let item = items.value.find(value => value.id === journal.item_id)
       if (!item) {
-        item = reactive<UploadItem>({ id: journal.item_id, file: null, body: null, journal, state: null, message: '正在查询原上传', sent: 0, errors: [], confirmed: false })
+        item = reactive<UploadItem>({ id: journal.item_id, file: null, body: null, journal, state: null, result: null, message: '正在查询原上传', sent: 0, errors: [], confirmed: false })
         items.value.push(item)
       }
       const result = await lookupUploadRequest(actual, journal, uploadIdentity(journal, 'KN-01'), reading.signal)
@@ -150,6 +164,9 @@ async function recover(): Promise<void> {
       const state = await readSourceUpload(actual, journal, reading.signal)
       if (!active(actual, current, reading.signal)) return
       item.state = state; item.body = state.registration.request; item.message = '已经核查服务器记录，继续接收需要重新选择原文件并确认声明'
+      const processing = await readSourceUploadResult(actual, journal, state, reading.signal)
+      if (!active(actual, current, reading.signal)) return
+      item.result = processing
       const completion = journal.requests.find(value => value.operation === 'KN-03')
       if (completion) {
         const result = await lookupUploadRequest(actual, journal, completion, reading.signal)
@@ -159,6 +176,18 @@ async function recover(): Promise<void> {
     }
     if (active(actual, current, reading.signal)) notice.value = '原上传记录查询完成，逐文件结果见队列'
   } finally { if (generation === current) { busy.value = false; controller = null } }
+}
+async function queryResult(item: UploadItem): Promise<void> {
+  const actual = session.value; const journal = item.journal
+  if (!actual || !journal?.upload_id || !permitted.value || busy.value || user.medicalWriting || document.hidden) return
+  const current = generation; const reading = new AbortController(); controller = reading; busy.value = true; item.result = null
+  try {
+    const state = await readSourceUpload(actual, journal, reading.signal)
+    if (!active(actual, current, reading.signal)) return
+    const result = await readSourceUploadResult(actual, journal, state, reading.signal)
+    if (!active(actual, current, reading.signal)) return
+    item.state = state; item.body = state.registration.request; item.result = result; item.message = '已核查固定处理结果及原完成操作'
+  } finally { if (current === generation) { busy.value = false; controller = null } }
 }
 function operationLabel(status: string): string { return status === 'COMPLETED' ? '操作完成' : status === 'PROCESSING' ? '服务器正在处理' : '操作失败' }
 async function sendConfirmed(): Promise<void> {
@@ -189,8 +218,12 @@ async function send(item: UploadItem): Promise<void> {
     }
     let state = original.lookup_status === 'NOT_FOUND' ? await createSourceUpload(actual, journal, body, sending.signal) : await readSourceUpload(actual, journal, sending.signal)
     if (!active(actual, current, sending.signal)) return
-    item.state = state
-    if (state.registration.transfer_state !== 'ACTIVE') { item.message = transferStatusLabels[state.registration.transfer_state]; return }
+    item.state = state; item.result = null
+    if (state.registration.transfer_state !== 'ACTIVE') {
+      const result = await readSourceUploadResult(actual, journal, state, sending.signal)
+      if (!active(actual, current, sending.signal)) return
+      item.result = result; item.message = transferStatusLabels[state.registration.transfer_state]; return
+    }
     const size = Number(state.registration.max_part_bytes)
     for (let start = 0, partNo = 1; start < file.size; start += size, partNo += 1) {
       if (!active(actual, current, sending.signal)) return
@@ -230,7 +263,9 @@ async function send(item: UploadItem): Promise<void> {
     if (!active(actual, current, sending.signal)) return
     item.message = '完成命令：' + operationLabel(completion.status); item.file = null
     const completedState = await readSourceUpload(actual, journal, sending.signal)
-    if (active(actual, current, sending.signal)) item.state = completedState
+    if (!active(actual, current, sending.signal)) return
+    const result = await readSourceUploadResult(actual, journal, completedState, sending.signal)
+    if (active(actual, current, sending.signal)) { item.state = completedState; item.result = result }
   } finally { if (current === generation) { busy.value = false; controller = null; item.sent = 0 } }
 }
 watch(() => [session.value, route.fullPath], reset, { immediate: true, flush: 'sync' })

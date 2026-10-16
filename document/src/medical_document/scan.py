@@ -79,6 +79,10 @@ class ClamAVScanner:
                 if path.stat().st_size != asset.size_bytes or hashlib.file_digest(source, "sha256").hexdigest() != asset.sha256:
                     raise ValueError("SCANNER_RELEASE_CHANGED")
 
+    def scan_command(self, command_path: Path, receipt_path: Path) -> None:
+        from .scan_command import execute
+        execute(command_path, receipt_path, self)
+
     def scan(self, content: bytes, original_sha256: str, suffix: str, work_directory: Path) -> NativeScanResult:
         if not content or len(content) > MAX_FILE_BYTES:
             raise ValueError("SOURCE_FILE_LIMIT")

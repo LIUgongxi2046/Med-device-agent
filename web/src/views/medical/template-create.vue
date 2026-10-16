@@ -56,6 +56,7 @@
       <section v-for="section in sections" :key="section.key" :aria-label="section.label">
         <h2>{{ section.label }}</h2>
         <p>{{ section.description }}</p>
+        <template-definition-editor v-if="definitionKinds[section.key]" :kind="definitionKinds[section.key]!" :value="form.sections[section.key]" :disabled="disabled" @changed="form.sections[section.key] = $event; invalidatePreview()" />
         <el-form-item :label="section.label + '完整定义（JSON）'" :error="errors[section.key]">
           <el-input v-model="form.sections[section.key]" type="textarea" :autosize="{ minRows: 5, maxRows: 18 }" :disabled="disabled" @input="invalidatePreview" />
         </el-form-item>
@@ -88,6 +89,7 @@ import { computed, nextTick, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import type { FormInstance, UploadFile } from 'element-plus'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import SessionPanel from './session-panel.vue'
+import TemplateDefinitionEditor from './template-definition-editor.vue'
 import useUserStore from '@/store/modules/user'
 import { fail, schemaIssues } from '@/api/medical/protocol'
 import type { MedicalSession } from '@/api/medical/protocol'
@@ -100,6 +102,9 @@ import { lookupOperation } from '@/api/medical/operations'
 import type { OperationLookup } from '@/api/medical/operations'
 
 type SectionKey = 'nodes' | 'field_definitions' | 'repeat_definitions' | 'attachment_requirements' | 'cross_document_rules' | 'condition_schema' | 'basis_manifest' | 'format_profile'
+const definitionKinds: Partial<Record<SectionKey, 'Node' | 'Field' | 'Repeat' | 'Attachment' | 'CrossDocumentRule'>> = {
+  nodes: 'Node', field_definitions: 'Field', repeat_definitions: 'Repeat', attachment_requirements: 'Attachment', cross_document_rules: 'CrossDocumentRule'
+}
 const sections: { key: SectionKey; label: string; description: string }[] = [
   { key: 'nodes', label: '完整目录', description: '保留稳定节点标识、官方编号、标题、父节点、顺序、条件、证据规则、依据及必需内容。企业补充节点标明来源及性质。' },
   { key: 'field_definitions', label: '全部字段', description: '保留十一类字段、长度、枚举、精度、单位、范围依据、条件必填、证据规则及输出位置；不得填写无依据的产品默认值。' },

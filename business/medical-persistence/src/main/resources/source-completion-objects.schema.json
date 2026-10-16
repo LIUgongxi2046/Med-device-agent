@@ -1,0 +1,31 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"urn:medical:source-completion-objects:1.0.0",
+  "$ref":"#/$defs/Parts",
+  "$defs":{
+    "Id":{"type":"string","format":"uuid","pattern":"^[0-9a-f]{8}-[0-9a-f]{4}-[45][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"},
+    "Hash":{"type":"string","pattern":"^[0-9a-f]{64}$"},
+    "PositiveUnsigned":{"type":"string","pattern":"^[1-9][0-9]{0,19}$"},
+    "ObjectRef":{
+      "type":"object","additionalProperties":false,
+      "required":["object_key","object_version","sha256","size_bytes","media_type"],
+      "properties":{
+        "object_key":{"type":"string","minLength":1,"maxLength":1024},
+        "object_version":{"type":"string","minLength":1,"maxLength":256,"not":{"const":"null"}},
+        "sha256":{"$ref":"#/$defs/Hash"},"size_bytes":{"$ref":"#/$defs/PositiveUnsigned"},
+        "media_type":{"const":"application/octet-stream"}
+      }
+    },
+    "Part":{
+      "type":"object","additionalProperties":false,
+      "required":["part_no","size_bytes","sha256","write_id","revision","object_ref"],
+      "properties":{
+        "part_no":{"type":"integer","minimum":1,"maximum":4294967295},
+        "size_bytes":{"$ref":"#/$defs/PositiveUnsigned"},"sha256":{"$ref":"#/$defs/Hash"},
+        "write_id":{"$ref":"#/$defs/Id"},"revision":{"$ref":"#/$defs/PositiveUnsigned"},
+        "object_ref":{"$ref":"#/$defs/ObjectRef"}
+      }
+    },
+    "Parts":{"type":"array","minItems":1,"maxItems":13,"items":{"$ref":"#/$defs/Part"}}
+  }
+}

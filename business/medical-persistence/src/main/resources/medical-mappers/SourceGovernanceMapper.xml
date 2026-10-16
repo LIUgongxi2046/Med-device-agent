@@ -1,0 +1,932 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.medical.persistence.mapper.SourceGovernanceMapper">
+  <resultMap id="catalogue" type="com.ruoyi.medical.persistence.SourceGovernanceProtocol$CatalogueRow">
+    <constructor>
+      <arg column="tenant_id" javaType="java.lang.String"/><arg column="source_id" javaType="java.lang.String"/>
+      <arg column="source_version" javaType="java.lang.String"/><arg column="owner_project_id" javaType="java.lang.String"/>
+      <arg column="ownership" javaType="java.lang.String"/><arg column="title" javaType="java.lang.String"/>
+      <arg column="classification" javaType="java.lang.String"/><arg column="media_type" javaType="java.lang.String"/>
+      <arg column="size_bytes" javaType="java.math.BigInteger"/><arg column="rights_revision" javaType="java.lang.String"/>
+      <arg column="rights_status" javaType="java.lang.String"/><arg column="folder_id" javaType="java.lang.String"/>
+      <arg column="category" javaType="java.lang.String"/><arg column="labels" javaType="java.lang.String"/>
+      <arg column="organization_revision" javaType="java.math.BigInteger"/><arg column="bookmarked" javaType="boolean"/>
+      <arg column="processing_status" javaType="java.lang.String"/><arg column="approval_status" javaType="java.lang.String"/>
+      <arg column="lifecycle" javaType="java.lang.String"/><arg column="created_at" javaType="java.time.LocalDateTime"/>
+    </constructor>
+  </resultMap>
+  <select id="catalogue" resultMap="catalogue" useCache="false" flushCache="true">
+    SELECT s.tenant_id,s.source_id,sv.source_version,s.owner_project_id,s.ownership,s.title,s.classification,
+      sv.media_type,sv.size_bytes,sv.rights_revision,r.status AS rights_status,o.folder_id,
+      COALESCE(f.category,o.category) AS category,
+      COALESCE(o.labels,JSON_ARRAY()) AS labels,o.revision AS organization_revision,
+      EXISTS(SELECT 1 FROM user_source_bookmark ub WHERE ub.user_id=#{userId} AND ub.source_version=sv.source_version) AS bookmarked,
+      CASE WHEN SUM(p.parse_status='COMPLETE') &gt; 0 THEN 'COMPLETE'
+        WHEN SUM(p.parse_status='PROCESSING') &gt; 0 THEN 'PROCESSING'
+        WHEN SUM(p.parse_status='QUEUED') &gt; 0 THEN 'QUEUED'
+        WHEN SUM(p.parse_status='PARTIAL_FAILED') &gt; 0 THEN 'PARTIAL_FAILED'
+        WHEN SUM(p.parse_status='FAILED') &gt; 0 THEN 'FAILED' ELSE NULL END AS processing_status,
+      CASE WHEN SUM(g.approval_status='APPROVED') &gt; 0 THEN 'APPROVED'
+        WHEN SUM(g.approval_status='PENDING') &gt; 0 THEN 'PENDING'
+        WHEN SUM(g.approval_status='DISABLED') &gt; 0 THEN 'DISABLED' ELSE NULL END AS approval_status,
+      CASE WHEN SUM(g.lifecycle='ACTIVE') &gt; 0 THEN 'ACTIVE'
+        WHEN SUM(g.lifecycle='RECYCLED') &gt; 0 THEN 'RECYCLED'
+        WHEN SUM(g.lifecycle='PURGE_PENDING') &gt; 0 THEN 'PURGE_PENDING'
+        WHEN SUM(g.lifecycle='PURGED') &gt; 0 THEN 'PURGED' ELSE NULL END AS lifecycle,
+      sv.created_at
+    FROM source_version sv
+    JOIN source s ON s.tenant_id=sv.tenant_id AND s.source_id=sv.source_id
+    JOIN rights_revision r ON r.tenant_id=sv.tenant_id AND r.rights_revision=sv.rights_revision
+    LEFT JOIN source_organization o ON o.tenant_id=s.tenant_id AND o.source_id=s.source_id
+    LEFT JOIN source_folder f ON f.tenant_id=o.tenant_id AND f.folder_id=o.folder_id
+    LEFT JOIN parse_version p ON p.tenant_id=sv.tenant_id AND p.source_version=sv.source_version
+    LEFT JOIN source_use_gate g ON g.tenant_id=p.tenant_id AND g.source_version=p.source_version AND g.parse_version=p.parse_version
+    WHERE 1=1
+      <if test="projectId != null">AND (s.owner_project_id IS NULL OR s.owner_project_id=#{projectId})</if>
+      <if test="ownership != null">AND s.ownership=#{ownership}</if>
+      <if test="category != null">AND COALESCE(f.category,o.category)=#{category}</if>
+      <if test="tag != null">AND JSON_SEARCH(COALESCE(o.labels,JSON_ARRAY()),'one',#{tag}) IS NOT NULL</if>
+      <if test="folderId != null">AND o.folder_id=#{folderId}</if>
+      <if test="collectionVersion != null">AND EXISTS (SELECT 1 FROM collection_member cm WHERE cm.source_version=sv.source_version AND cm.collection_version=#{collectionVersion})</if>
+    GROUP BY s.tenant_id,s.source_id,sv.source_version,s.owner_project_id,s.ownership,s.title,s.classification,
+      sv.media_type,sv.size_bytes,sv.rights_revision,r.status,o.folder_id,COALESCE(f.category,o.category),o.labels,o.revision,sv.created_at
+    <trim prefix="HAVING" prefixOverrides="AND |OR ">
+      <if test="approvalStatus != null">AND approval_status=#{approvalStatus}</if>
+      <if test="lifecycle != null">AND lifecycle=#{lifecycle}</if>
+      <if test="bookmarked != null">AND bookmarked=#{bookmarked}</if>
+    </trim>
+    ORDER BY sv.source_version
+  </select>
+  <resultMap id="processingQueue" type="com.ruoyi.medical.persistence.SourceGovernanceProtocol$ProcessingQueueRow">
+    <constructor>
+      <arg column="tenant_id" javaType="java.lang.String"/><arg column="source_id" javaType="java.lang.String"/>
+      <arg column="source_version" javaType="java.lang.String"/><arg column="owner_project_id" javaType="java.lang.String"/>
+      <arg column="title" javaType="java.lang.String"/><arg column="classification" javaType="java.lang.String"/>
+      <arg column="project_id" javaType="java.lang.String"/><arg column="attempt_id" javaType="java.lang.String"/>
+      <arg column="parse_version" javaType="java.lang.String"/><arg column="job_type" javaType="java.lang.String"/>
+      <arg column="config_revision" javaType="java.lang.String"/><arg column="status" javaType="java.lang.String"/>
+      <arg column="failure_manifest" javaType="java.lang.String"/><arg column="request_manifest" javaType="java.lang.String"/>
+      <arg column="run_id" javaType="java.lang.String"/><arg column="created_by" javaType="java.lang.String"/>
+      <arg column="created_at" javaType="java.time.LocalDateTime"/><arg column="revision" javaType="java.math.BigInteger"/>
+      <arg column="updated_at" javaType="java.time.LocalDateTime"/><arg column="parse_status" javaType="java.lang.String"/>
+    </constructor>
+  </resultMap>
+  <select id="processingQueue" resultMap="processingQueue" useCache="false" flushCache="true">
+    SELECT a.tenant_id,s.source_id,a.source_version,s.owner_project_id,s.title,s.classification,
+      a.project_id,a.attempt_id,a.parse_version,a.job_type,a.config_revision,a.status,a.failure_manifest,
+      a.request_manifest,a.run_id,a.created_by,a.created_at,a.revision,a.updated_at,p.parse_status
+    FROM processing_attempt a
+    JOIN source_version sv ON sv.tenant_id=a.tenant_id AND sv.source_version=a.source_version
+    JOIN source s ON s.tenant_id=sv.tenant_id AND s.source_id=sv.source_id
+    LEFT JOIN parse_version p ON p.tenant_id=a.tenant_id AND p.source_version=a.source_version
+      AND p.parse_version=a.parse_version
+    WHERE 1=1
+      <if test="projectId != null">AND a.project_id=#{projectId}</if>
+      <if test="status != null">AND a.status=#{status}</if>
+    ORDER BY a.attempt_id
+  </select>
+  <resultMap id="artifactCatalogue" type="com.ruoyi.medical.persistence.SourceGovernanceProtocol$ArtifactCatalogueRow">
+    <constructor>
+      <arg column="tenant_id" javaType="java.lang.String"/><arg column="project_id" javaType="java.lang.String"/>
+      <arg column="artifact_id" javaType="java.lang.String"/><arg column="run_id" javaType="java.lang.String"/>
+      <arg column="document_revision" javaType="java.lang.String"/><arg column="artifact_kind" javaType="java.lang.String"/>
+      <arg column="sha256" javaType="java.lang.String"/><arg column="size_bytes" javaType="java.math.BigInteger"/>
+      <arg column="media_type" javaType="java.lang.String"/><arg column="created_at" javaType="java.time.LocalDateTime"/>
+      <arg column="classification" javaType="java.lang.String"/>
+    </constructor>
+  </resultMap>
+  <select id="artifactCatalogue" resultMap="artifactCatalogue" useCache="false" flushCache="true">
+    SELECT a.tenant_id,a.project_id,a.artifact_id,a.run_id,a.document_revision,a.artifact_kind,a.sha256,
+      a.size_bytes,a.media_type,a.created_at,a.classification
+    FROM artifact a WHERE 1=1
+      <if test="projectId != null">AND a.project_id=#{projectId}</if>
+      <if test="artifactKind != null">AND a.artifact_kind=#{artifactKind}</if>
+    ORDER BY a.artifact_id
+  </select>
+  <resultMap id="sourceEvidence" type="com.ruoyi.medical.persistence.SourceGovernanceProtocol$SourceEvidenceRow">
+    <constructor>
+      <arg column="source_version" javaType="java.lang.String"/><arg column="rights_revision" javaType="java.lang.String"/>
+      <arg column="owner_project_id" javaType="java.lang.String"/><arg column="purpose" javaType="java.lang.String"/>
+    </constructor>
+  </resultMap>
+  <select id="sourceEvidence" resultMap="sourceEvidence" useCache="false" flushCache="true">
+    SELECT sv.source_version,sv.rights_revision,s.owner_project_id,r.purpose
+    FROM source_version sv
+    JOIN source s ON s.tenant_id=sv.tenant_id AND s.source_id=sv.source_id
+    JOIN rights_revision r ON r.tenant_id=sv.tenant_id AND r.rights_revision=sv.rights_revision
+    WHERE sv.source_version IN
+    <foreach collection="sourceVersions" item="sourceVersion" open="(" separator="," close=")">#{sourceVersion}</foreach>
+    ORDER BY sv.source_version
+  </select>
+  <resultMap id="artifactSubmission" type="com.ruoyi.medical.persistence.SourceGovernanceProtocol$ArtifactSubmissionRow">
+    <constructor>
+      <arg column="tenant_id" javaType="java.lang.String"/><arg column="project_id" javaType="java.lang.String"/>
+      <arg column="submission_id" javaType="java.lang.String"/><arg column="artifact_id" javaType="java.lang.String"/>
+      <arg column="artifact_owner_project_id" javaType="java.lang.String"/>
+      <arg column="target_source_id" javaType="java.lang.String"/><arg column="target_source_version" javaType="java.lang.String"/>
+      <arg column="parse_version" javaType="java.lang.String"/><arg column="rights_revision" javaType="java.lang.String"/>
+      <arg column="sharing_decision" javaType="java.lang.String"/><arg column="original_evidence" javaType="java.lang.String"/>
+      <arg column="status" javaType="java.lang.String"/><arg column="created_by" javaType="java.lang.String"/>
+      <arg column="created_at" javaType="java.time.LocalDateTime"/><arg column="classification" javaType="java.lang.String"/>
+      <arg column="revision" javaType="java.math.BigInteger"/><arg column="updated_at" javaType="java.time.LocalDateTime"/>
+    </constructor>
+  </resultMap>
+  <select id="artifactSubmission" resultMap="artifactSubmission" useCache="false" flushCache="true">
+    SELECT s.tenant_id,s.project_id,s.submission_id,s.artifact_id,s.artifact_owner_project_id,s.target_source_id,s.target_source_version,
+      (SELECT p.parse_version FROM parse_version p WHERE p.tenant_id=s.tenant_id AND p.source_version=s.target_source_version
+       ORDER BY p.created_at,p.parse_version LIMIT 1) AS parse_version,sv.rights_revision,
+      s.sharing_decision,s.original_evidence,s.status,s.created_by,s.created_at,s.classification,s.revision,s.updated_at
+    FROM knowledge_submission s
+    JOIN source_version sv ON sv.tenant_id=s.tenant_id AND sv.source_version=s.target_source_version
+    WHERE s.submission_id=#{submissionId}
+  </select>
+  <select id="pendingArtifactSubmission" resultMap="artifactSubmission" useCache="false" flushCache="true">
+    SELECT s.tenant_id,s.project_id,s.submission_id,s.artifact_id,s.artifact_owner_project_id,s.target_source_id,s.target_source_version,
+      (SELECT p.parse_version FROM parse_version p WHERE p.tenant_id=s.tenant_id AND p.source_version=s.target_source_version
+       ORDER BY p.created_at,p.parse_version LIMIT 1) AS parse_version,sv.rights_revision,
+      s.sharing_decision,s.original_evidence,s.status,s.created_by,s.created_at,s.classification,s.revision,s.updated_at
+    FROM knowledge_submission s
+    JOIN source_version sv ON sv.tenant_id=s.tenant_id AND sv.source_version=s.target_source_version
+    WHERE s.artifact_id=#{artifactId} AND s.status='PENDING'
+      <choose><when test="targetProjectId != null">AND s.project_id=#{targetProjectId}</when><otherwise>AND s.project_id IS NULL</otherwise></choose>
+    FOR UPDATE
+  </select>
+  <resultMap id="sourceVersion" type="com.ruoyi.medical.persistence.SourceGovernanceProtocol$SourceVersionRow">
+    <constructor>
+      <arg column="tenant_id" javaType="java.lang.String"/><arg column="source_id" javaType="java.lang.String"/>
+      <arg column="source_version" javaType="java.lang.String"/><arg column="version_no" javaType="java.math.BigInteger"/>
+      <arg column="publisher_version" javaType="java.lang.String"/><arg column="original_sha256" javaType="java.lang.String"/>
+      <arg column="media_type" javaType="java.lang.String"/><arg column="size_bytes" javaType="java.math.BigInteger"/>
+      <arg column="rights_revision" javaType="java.lang.String"/><arg column="lifecycle" javaType="java.lang.String"/>
+      <arg column="created_at" javaType="java.time.LocalDateTime"/>
+    </constructor>
+  </resultMap>
+  <select id="versions" resultMap="sourceVersion" useCache="false" flushCache="true">
+    SELECT sv.tenant_id,sv.source_id,sv.source_version,sv.version_no,sv.publisher_version,
+      sv.original_sha256,sv.media_type,sv.size_bytes,sv.rights_revision,ls.status AS lifecycle,sv.created_at
+    FROM source_version sv
+    JOIN source_lifecycle_state ls ON ls.tenant_id=sv.tenant_id AND ls.source_version=sv.source_version
+    WHERE sv.source_id=#{sourceId}
+    ORDER BY sv.version_no DESC,sv.source_version DESC
+  </select>
+  <resultMap id="folder" type="com.ruoyi.medical.persistence.SourceGovernanceProtocol$FolderRow">
+    <constructor>
+      <arg column="tenant_id" javaType="java.lang.String"/><arg column="folder_id" javaType="java.lang.String"/>
+      <arg column="parent_id" javaType="java.lang.String"/><arg column="owner_project_id" javaType="java.lang.String"/>
+      <arg column="category" javaType="java.lang.String"/><arg column="name" javaType="java.lang.String"/>
+      <arg column="created_by" javaType="java.lang.String"/><arg column="created_at" javaType="java.time.LocalDateTime"/>
+      <arg column="classification" javaType="java.lang.String"/><arg column="revision" javaType="java.math.BigInteger"/>
+      <arg column="updated_at" javaType="java.time.LocalDateTime"/>
+    </constructor>
+  </resultMap>
+  <resultMap id="organization" type="com.ruoyi.medical.persistence.SourceGovernanceProtocol$OrganizationRow">
+    <constructor>
+      <arg column="tenant_id" javaType="java.lang.String"/><arg column="source_id" javaType="java.lang.String"/>
+      <arg column="source_version" javaType="java.lang.String"/><arg column="owner_project_id" javaType="java.lang.String"/>
+      <arg column="ownership" javaType="java.lang.String"/><arg column="classification" javaType="java.lang.String"/>
+      <arg column="folder_id" javaType="java.lang.String"/><arg column="labels" javaType="java.lang.String"/>
+      <arg column="revision" javaType="java.math.BigInteger"/><arg column="bookmarked" javaType="boolean"/>
+    </constructor>
+  </resultMap>
+  <select id="folders" resultMap="folder" useCache="false" flushCache="true">
+    SELECT tenant_id,folder_id,parent_id,owner_project_id,category,name,created_by,created_at,classification,revision,updated_at
+    FROM source_folder WHERE
+      <choose><when test="ownerProjectId == null">owner_project_id IS NULL</when><otherwise>owner_project_id=#{ownerProjectId}</otherwise></choose>
+    ORDER BY category,name,folder_id
+  </select>
+  <select id="folderForUpdate" resultMap="folder" useCache="false" flushCache="true">
+    SELECT tenant_id,folder_id,parent_id,owner_project_id,category,name,created_by,created_at,classification,revision,updated_at
+    FROM source_folder WHERE folder_id=#{folderId} FOR UPDATE
+  </select>
+  <select id="organizationForUpdate" resultMap="organization" useCache="false" flushCache="true">
+    SELECT s.tenant_id,s.source_id,sv.source_version,s.owner_project_id,s.ownership,s.classification,
+      o.folder_id,COALESCE(o.labels,JSON_ARRAY()) AS labels,o.revision,
+      EXISTS(SELECT 1 FROM user_source_bookmark ub WHERE ub.user_id=#{userId} AND ub.source_version=sv.source_version) AS bookmarked
+    FROM source_version sv JOIN source s ON s.tenant_id=sv.tenant_id AND s.source_id=sv.source_id
+    LEFT JOIN source_organization o ON o.tenant_id=s.tenant_id AND o.source_id=s.source_id
+    WHERE sv.source_version=#{sourceVersion} FOR UPDATE
+  </select>
+  <resultMap id="review" type="com.ruoyi.medical.persistence.SourceGovernanceProtocol$ReviewRow">
+    <constructor>
+      <arg column="tenant_id" javaType="java.lang.String"/><arg column="source_id" javaType="java.lang.String"/>
+      <arg column="source_version" javaType="java.lang.String"/><arg column="owner_project_id" javaType="java.lang.String"/>
+      <arg column="ownership" javaType="java.lang.String"/><arg column="title" javaType="java.lang.String"/>
+      <arg column="classification" javaType="java.lang.String"/><arg column="original_sha256" javaType="java.lang.String"/>
+      <arg column="media_type" javaType="java.lang.String"/><arg column="size_bytes" javaType="java.math.BigInteger"/>
+      <arg column="rights_revision" javaType="java.lang.String"/><arg column="rights_purpose" javaType="java.lang.String"/>
+      <arg column="rights_status" javaType="java.lang.String"/><arg column="parse_version" javaType="java.lang.String"/>
+      <arg column="parse_status" javaType="java.lang.String"/><arg column="index_version" javaType="java.lang.String"/>
+      <arg column="index_mode" javaType="java.lang.String"/><arg column="index_status" javaType="java.lang.String"/>
+      <arg column="expected_count" javaType="java.math.BigInteger"/><arg column="verified_count" javaType="java.math.BigInteger"/>
+      <arg column="approval_revision" javaType="java.lang.String"/><arg column="upload_status" javaType="java.lang.String"/>
+      <arg column="approval_status" javaType="java.lang.String"/><arg column="lifecycle" javaType="java.lang.String"/>
+      <arg column="gate_revision" javaType="java.math.BigInteger"/><arg column="current_decision" javaType="java.lang.String"/>
+      <arg column="reviewed_manifest_sha256" javaType="java.lang.String"/><arg column="decided_at" javaType="java.time.LocalDateTime"/>
+    </constructor>
+  </resultMap>
+  <resultMap id="binding" type="com.ruoyi.medical.persistence.SourceGovernanceProtocol$BindingRow">
+    <constructor>
+      <arg column="project_id" javaType="java.lang.String"/><arg column="source_version" javaType="java.lang.String"/>
+      <arg column="binding_revision" javaType="java.lang.String"/><arg column="applicability" javaType="java.lang.String"/>
+      <arg column="decision_manifest" javaType="java.lang.String"/>
+    </constructor>
+  </resultMap>
+  <resultMap id="contentHead" type="com.ruoyi.medical.persistence.SourceGovernanceProtocol$ContentHeadRow">
+    <constructor>
+      <arg column="tenant_id" javaType="java.lang.String"/><arg column="source_id" javaType="java.lang.String"/>
+      <arg column="source_version" javaType="java.lang.String"/><arg column="owner_project_id" javaType="java.lang.String"/>
+      <arg column="ownership" javaType="java.lang.String"/><arg column="title" javaType="java.lang.String"/>
+      <arg column="classification" javaType="java.lang.String"/><arg column="original_sha256" javaType="java.lang.String"/>
+      <arg column="object_key" javaType="java.lang.String"/><arg column="object_version" javaType="java.lang.String"/>
+      <arg column="media_type" javaType="java.lang.String"/><arg column="size_bytes" javaType="java.math.BigInteger"/>
+      <arg column="rights_revision" javaType="java.lang.String"/><arg column="rights_purpose" javaType="java.lang.String"/>
+      <arg column="rights_status" javaType="java.lang.String"/><arg column="parse_version" javaType="java.lang.String"/>
+      <arg column="parse_status" javaType="java.lang.String"/><arg column="content_sha256" javaType="java.lang.String"/>
+      <arg column="lifecycle" javaType="java.lang.String"/>
+    </constructor>
+  </resultMap>
+  <resultMap id="contentChunk" type="com.ruoyi.medical.persistence.SourceGovernanceProtocol$ContentChunkRow">
+    <constructor>
+      <arg column="source_version" javaType="java.lang.String"/><arg column="parse_version" javaType="java.lang.String"/>
+      <arg column="chunk_id" javaType="java.lang.String"/><arg column="ordinal" javaType="java.math.BigInteger"/>
+      <arg column="node_id" javaType="java.lang.String"/><arg column="node_kind" javaType="java.lang.String"/>
+      <arg column="locator" javaType="java.lang.String"/><arg column="content_ref" javaType="java.lang.String"/>
+      <arg column="node_hash" javaType="java.lang.String"/><arg column="quote_hash" javaType="java.lang.String"/>
+      <arg column="raw_text" javaType="java.lang.String"/>
+    </constructor>
+  </resultMap>
+  <resultMap id="readHistory" type="com.ruoyi.medical.persistence.SourceGovernanceProtocol$ReadHistoryRow">
+    <constructor>
+      <arg column="user_id" javaType="java.lang.String"/><arg column="source_version" javaType="java.lang.String"/>
+      <arg column="last_read_at" javaType="java.time.LocalDateTime"/><arg column="locator" javaType="java.lang.String"/>
+      <arg column="schema_version" javaType="java.lang.String"/><arg column="schema_manifest_sha256" javaType="java.lang.String"/>
+      <arg column="revision" javaType="java.math.BigInteger"/>
+    </constructor>
+  </resultMap>
+  <resultMap id="processingConfig" type="com.ruoyi.medical.persistence.SourceGovernanceProtocol$ProcessingConfigRow">
+    <constructor>
+      <arg column="tenant_id" javaType="java.lang.String"/><arg column="config_id" javaType="java.lang.String"/>
+      <arg column="project_id" javaType="java.lang.String"/><arg column="version_id" javaType="java.lang.String"/>
+      <arg column="entity_kind" javaType="java.lang.String"/><arg column="registered_sha256" javaType="java.lang.String"/>
+      <arg column="content_sha256" javaType="java.lang.String"/><arg column="configuration_kind" javaType="java.lang.String"/>
+      <arg column="capability_kind" javaType="java.lang.String"/><arg column="status" javaType="java.lang.String"/>
+      <arg column="input_schema_ref" javaType="java.lang.String"/><arg column="output_schema_ref" javaType="java.lang.String"/>
+      <arg column="tool_scope" javaType="java.lang.String"/><arg column="artifact_digest" javaType="java.lang.String"/>
+    </constructor>
+  </resultMap>
+  <resultMap id="processingAttempt" type="com.ruoyi.medical.persistence.SourceGovernanceProtocol$ProcessingAttemptRow">
+    <constructor>
+      <arg column="tenant_id" javaType="java.lang.String"/><arg column="project_id" javaType="java.lang.String"/>
+      <arg column="attempt_id" javaType="java.lang.String"/><arg column="source_version" javaType="java.lang.String"/>
+      <arg column="parse_version" javaType="java.lang.String"/><arg column="job_type" javaType="java.lang.String"/>
+      <arg column="config_revision" javaType="java.lang.String"/><arg column="status" javaType="java.lang.String"/>
+      <arg column="failure_manifest" javaType="java.lang.String"/><arg column="request_manifest" javaType="java.lang.String"/>
+      <arg column="run_id" javaType="java.lang.String"/><arg column="schema_version" javaType="java.lang.String"/>
+      <arg column="schema_manifest_sha256" javaType="java.lang.String"/><arg column="created_by" javaType="java.lang.String"/>
+      <arg column="created_at" javaType="java.time.LocalDateTime"/><arg column="classification" javaType="java.lang.String"/>
+      <arg column="revision" javaType="java.math.BigInteger"/><arg column="updated_at" javaType="java.time.LocalDateTime"/>
+      <arg column="parse_status" javaType="java.lang.String"/><arg column="processor_manifest" javaType="java.lang.String"/>
+    </constructor>
+  </resultMap>
+  <resultMap id="usage" type="com.ruoyi.medical.persistence.SourceGovernanceProtocol$UsageRow">
+    <constructor>
+      <arg column="usage_key" javaType="java.lang.String"/><arg column="usage_kind" javaType="java.lang.String"/>
+      <arg column="relation_kind" javaType="java.lang.String"/><arg column="project_id" javaType="java.lang.String"/>
+      <arg column="resource_kind" javaType="java.lang.String"/><arg column="resource_id" javaType="java.lang.String"/>
+      <arg column="version_id" javaType="java.lang.String"/><arg column="title" javaType="java.lang.String"/>
+      <arg column="status" javaType="java.lang.String"/><arg column="impact_status" javaType="java.lang.String"/>
+      <arg column="created_at" javaType="java.time.LocalDateTime"/>
+    </constructor>
+  </resultMap>
+  <resultMap id="lifecycleState" type="com.ruoyi.medical.persistence.SourceGovernanceProtocol$LifecycleStateRow">
+    <constructor>
+      <arg column="tenant_id" javaType="java.lang.String"/><arg column="source_id" javaType="java.lang.String"/>
+      <arg column="source_version" javaType="java.lang.String"/><arg column="owner_project_id" javaType="java.lang.String"/>
+      <arg column="ownership" javaType="java.lang.String"/><arg column="original_sha256" javaType="java.lang.String"/>
+      <arg column="object_key" javaType="java.lang.String"/><arg column="object_version" javaType="java.lang.String"/>
+      <arg column="media_type" javaType="java.lang.String"/><arg column="size_bytes" javaType="java.math.BigInteger"/>
+      <arg column="classification" javaType="java.lang.String"/><arg column="source_created_at" javaType="java.time.LocalDateTime"/>
+      <arg column="status" javaType="java.lang.String"/><arg column="last_decision_id" javaType="java.lang.String"/>
+      <arg column="revision" javaType="java.math.BigInteger"/><arg column="owner_project_status" javaType="java.lang.String"/>
+    </constructor>
+  </resultMap>
+  <resultMap id="retentionPolicy" type="com.ruoyi.medical.persistence.SourceGovernanceProtocol$RetentionPolicyRow">
+    <constructor>
+      <arg column="policy_revision" javaType="java.lang.String"/><arg column="category" javaType="java.lang.String"/>
+      <arg column="retention_duration" javaType="java.math.BigInteger"/><arg column="start_event" javaType="java.lang.String"/>
+      <arg column="hold_override" javaType="boolean"/><arg column="approver_id" javaType="java.lang.String"/>
+      <arg column="effective_from" javaType="java.time.LocalDateTime"/><arg column="purge_method" javaType="java.lang.String"/>
+      <arg column="backup_expiry" javaType="java.math.BigInteger"/><arg column="status" javaType="java.lang.String"/>
+      <arg column="revision" javaType="java.math.BigInteger"/>
+    </constructor>
+  </resultMap>
+  <resultMap id="lifecycleDecision" type="com.ruoyi.medical.persistence.SourceGovernanceProtocol$LifecycleDecisionRow">
+    <constructor>
+      <arg column="source_version" javaType="java.lang.String"/><arg column="decision_id" javaType="java.lang.String"/>
+      <arg column="decision" javaType="java.lang.String"/><arg column="from_status" javaType="java.lang.String"/>
+      <arg column="to_status" javaType="java.lang.String"/><arg column="reason" javaType="java.lang.String"/>
+      <arg column="policy_revision" javaType="java.lang.String"/><arg column="deletion_id" javaType="java.lang.String"/>
+      <arg column="actor_id" javaType="java.lang.String"/><arg column="decided_at" javaType="java.time.LocalDateTime"/>
+      <arg column="expected_revision" javaType="java.math.BigInteger"/><arg column="resulting_revision" javaType="java.math.BigInteger"/>
+      <arg column="schema_manifest_sha256" javaType="java.lang.String"/>
+    </constructor>
+  </resultMap>
+  <resultMap id="deletionJob" type="com.ruoyi.medical.persistence.SourceGovernanceProtocol$DeletionJobRow">
+    <constructor>
+      <arg column="deletion_id" javaType="java.lang.String"/><arg column="target_version" javaType="java.lang.String"/>
+      <arg column="policy_revision" javaType="java.lang.String"/><arg column="status" javaType="java.lang.String"/>
+      <arg column="revision" javaType="java.math.BigInteger"/><arg column="updated_at" javaType="java.time.LocalDateTime"/>
+    </constructor>
+  </resultMap>
+  <resultMap id="deletionItem" type="com.ruoyi.medical.persistence.SourceGovernanceProtocol$DeletionItemRow">
+    <constructor>
+      <arg column="tenant_id" javaType="java.lang.String"/><arg column="source_id" javaType="java.lang.String"/>
+      <arg column="source_version" javaType="java.lang.String"/><arg column="owner_project_id" javaType="java.lang.String"/>
+      <arg column="ownership" javaType="java.lang.String"/><arg column="deletion_id" javaType="java.lang.String"/>
+      <arg column="job_status" javaType="java.lang.String"/><arg column="job_revision" javaType="java.math.BigInteger"/>
+      <arg column="item_id" javaType="java.lang.String"/><arg column="store_kind" javaType="java.lang.String"/>
+      <arg column="target_ref" javaType="java.lang.String"/><arg column="target_sha256" javaType="java.lang.String"/>
+      <arg column="item_status" javaType="java.lang.String"/><arg column="receipt_ref" javaType="java.lang.String"/>
+      <arg column="backup_expiry" javaType="java.time.LocalDateTime"/><arg column="item_revision" javaType="java.math.BigInteger"/>
+      <arg column="lifecycle_status" javaType="java.lang.String"/><arg column="lifecycle_revision" javaType="java.math.BigInteger"/>
+      <arg column="classification" javaType="java.lang.String"/>
+    </constructor>
+  </resultMap>
+
+  <sql id="usageUnion">
+    SELECT CONCAT('01:',b.project_id,':',b.binding_revision) AS usage_key,'PROJECT_BINDING' AS usage_kind,
+      'PROJECT_APPLICABILITY' AS relation_kind,b.project_id,'PROJECT' AS resource_kind,b.project_id AS resource_id,
+      b.binding_revision AS version_id,pr.name AS title,b.applicability AS status,
+      IF(b.applicability='APPLICABLE','BLOCKING','OBSERVED') AS impact_status,NULL AS created_at
+    FROM project_source_binding b
+    JOIN project_record pr ON pr.tenant_id=b.tenant_id AND pr.project_id=b.project_id
+    WHERE b.source_version=#{sourceVersion} AND b.is_current=TRUE
+    UNION ALL
+    SELECT CONCAT('02:',cm.collection_version,':',cm.parse_version),'COLLECTION_MEMBER','COLLECTION_MEMBER',
+      ch.owner_project_id,'COLLECTION',ch.collection_id,cm.collection_version,ch.title,
+      IF(ch.current_version=cm.collection_version,'CURRENT','HISTORICAL'),
+      IF(ch.current_version=cm.collection_version,'BLOCKING','HISTORICAL'),cm.created_at
+    FROM collection_member cm
+    JOIN collection_version cv ON cv.tenant_id=cm.tenant_id AND cv.collection_version=cm.collection_version
+    JOIN collection_head ch ON ch.tenant_id=cv.tenant_id AND ch.collection_id=cv.collection_id
+    WHERE cm.source_version=#{sourceVersion}
+    UNION ALL
+    SELECT CONCAT('03:',sm.project_id,':',sm.snapshot_id,':',sm.parse_version),'SCOPE_SNAPSHOT','SCOPE_MEMBER',
+      sm.project_id,'PROJECT',sm.project_id,sm.snapshot_id,pr.name,'FIXED','BLOCKING',ss.created_at
+    FROM scope_member sm
+    JOIN scope_snapshot ss ON ss.tenant_id=sm.tenant_id AND ss.project_id=sm.project_id AND ss.snapshot_id=sm.snapshot_id
+    JOIN project_record pr ON pr.tenant_id=sm.tenant_id AND pr.project_id=sm.project_id
+    WHERE sm.source_version=#{sourceVersion}
+    UNION ALL
+    SELECT CONCAT('04:',e.project_id,':',e.evidence_id),'DOCUMENT_EVIDENCE',e.relation_kind,e.project_id,
+      'DOCUMENT',d.document_id,e.document_revision,NULL,e.relation_kind,'BLOCKING',m.created_at
+    FROM evidence_link e
+    JOIN document_revision d ON d.tenant_id=e.tenant_id AND d.project_id=e.project_id AND d.document_revision=e.document_revision
+    LEFT JOIN document_revision_meta m ON m.tenant_id=e.tenant_id AND m.project_id=e.project_id AND m.document_revision=e.document_revision
+    WHERE e.source_version=#{sourceVersion}
+    UNION ALL
+    SELECT CONCAT('05:',e.upstream_version_id,':',e.consumer_version_id,':',e.relation_kind),'LINEAGE_DEPENDENCY',
+      e.relation_kind,v.owner_project_id,'VERSION',e.consumer_version_id,e.consumer_version_id,pr.name,
+      v.entity_kind,'BLOCKING',e.created_at
+    FROM lineage_edge e
+    JOIN version_registry v ON v.tenant_id=e.tenant_id AND v.version_id=e.consumer_version_id
+    LEFT JOIN project_record pr ON pr.tenant_id=v.tenant_id AND pr.project_id=v.owner_project_id
+    WHERE (e.upstream_version_id=#{sourceVersion}
+      OR EXISTS (SELECT 1 FROM parse_version p WHERE p.source_version=#{sourceVersion} AND p.parse_version=e.upstream_version_id)
+      OR EXISTS (SELECT 1 FROM source_version sv WHERE sv.source_version=#{sourceVersion} AND sv.rights_revision=e.upstream_version_id))
+    UNION ALL
+    SELECT CONCAT('06:',h.upstream_version_id,':',h.hold_id),'REFERENCE_HOLD','RETENTION_HOLD',h.project_id,
+      'VERSION',h.consumer_version_id,h.consumer_version_id,pr.name,
+      CASE WHEN h.legal_hold=TRUE THEN 'LEGAL_HOLD' WHEN h.retain_until IS NULL THEN 'UNBOUNDED'
+        WHEN h.retain_until&gt;UTC_TIMESTAMP(6) THEN 'RETAINED' ELSE 'EXPIRED' END,
+      CASE WHEN h.legal_hold=TRUE OR h.retain_until IS NULL OR h.retain_until&gt;UTC_TIMESTAMP(6) THEN 'HELD' ELSE 'EXPIRED' END,
+      h.created_at
+    FROM reference_hold h
+    LEFT JOIN project_record pr ON pr.tenant_id=h.tenant_id AND pr.project_id=h.project_id
+    WHERE (h.upstream_version_id=#{sourceVersion}
+      OR EXISTS (SELECT 1 FROM parse_version p WHERE p.source_version=#{sourceVersion} AND p.parse_version=h.upstream_version_id)
+      OR EXISTS (SELECT 1 FROM source_version sv WHERE sv.source_version=#{sourceVersion} AND sv.rights_revision=h.upstream_version_id))
+  </sql>
+
+  <select id="reviews" resultMap="review" useCache="false" flushCache="true">
+    SELECT s.tenant_id,s.source_id,sv.source_version,s.owner_project_id,s.ownership,s.title,s.classification,
+      sv.original_sha256,sv.media_type,sv.size_bytes,sv.rights_revision,r.purpose AS rights_purpose,r.status AS rights_status,
+      p.parse_version,p.parse_status,i.index_version,i.mode AS index_mode,i.status AS index_status,i.expected_count,i.verified_count,
+      g.approval_revision,g.upload_status,g.approval_status,g.lifecycle,g.revision AS gate_revision,
+      a.decision AS current_decision,a.reviewed_manifest_sha256,a.decided_at
+    FROM source_version sv
+    JOIN source s ON s.tenant_id=sv.tenant_id AND s.source_id=sv.source_id
+    JOIN rights_revision r ON r.tenant_id=sv.tenant_id AND r.rights_revision=sv.rights_revision
+    JOIN parse_version p ON p.tenant_id=sv.tenant_id AND p.source_version=sv.source_version
+    JOIN source_use_gate g ON g.tenant_id=p.tenant_id AND g.source_version=p.source_version AND g.parse_version=p.parse_version
+    LEFT JOIN index_manifest i ON i.tenant_id=p.tenant_id AND i.source_version=p.source_version AND i.parse_version=p.parse_version
+    LEFT JOIN approval_decision a ON a.tenant_id=g.tenant_id AND a.source_version=g.source_version
+      AND a.parse_version=g.parse_version AND a.approval_revision=g.approval_revision
+    WHERE sv.source_version=#{sourceVersion}
+    ORDER BY p.parse_version,i.index_version
+  </select>
+  <select id="uploadReviews" resultMap="review" useCache="false" flushCache="true">
+    SELECT s.tenant_id,s.source_id,sv.source_version,s.owner_project_id,s.ownership,s.title,s.classification,
+      sv.original_sha256,sv.media_type,sv.size_bytes,sv.rights_revision,r.purpose AS rights_purpose,r.status AS rights_status,
+      p.parse_version,p.parse_status,i.index_version,i.mode AS index_mode,i.status AS index_status,i.expected_count,i.verified_count,
+      g.approval_revision,g.upload_status,g.approval_status,g.lifecycle,g.revision AS gate_revision,
+      a.decision AS current_decision,a.reviewed_manifest_sha256,a.decided_at
+    FROM source_version sv
+    JOIN source s ON s.tenant_id=sv.tenant_id AND s.source_id=sv.source_id
+    JOIN rights_revision r ON r.tenant_id=sv.tenant_id AND r.source_version=sv.source_version AND r.rights_revision=sv.rights_revision
+    JOIN parse_version p ON p.tenant_id=sv.tenant_id AND p.source_version=sv.source_version
+    JOIN source_use_gate g ON g.tenant_id=p.tenant_id AND g.source_version=p.source_version AND g.parse_version=p.parse_version
+    LEFT JOIN index_manifest i ON i.tenant_id=p.tenant_id AND i.source_version=p.source_version AND i.parse_version=p.parse_version
+    LEFT JOIN approval_decision a ON a.tenant_id=g.tenant_id AND a.source_version=g.source_version
+      AND a.parse_version=g.parse_version AND a.approval_revision=g.approval_revision
+    WHERE sv.source_version=#{sourceVersion}
+    <if test="parseVersion != null">AND p.parse_version=#{parseVersion}</if>
+    ORDER BY p.parse_version,i.index_version LIMIT #{fetchLimit}
+  </select>
+  <select id="contentHead" resultMap="contentHead" useCache="false" flushCache="true">
+    SELECT s.tenant_id,s.source_id,sv.source_version,s.owner_project_id,s.ownership,s.title,s.classification,
+      sv.original_sha256,sv.object_key,sv.object_version,sv.media_type,sv.size_bytes,sv.rights_revision,
+      r.purpose AS rights_purpose,r.status AS rights_status,p.parse_version,p.parse_status,p.content_sha256,g.lifecycle
+    FROM source_version sv
+    JOIN source s ON s.tenant_id=sv.tenant_id AND s.source_id=sv.source_id
+    JOIN rights_revision r ON r.tenant_id=sv.tenant_id AND r.rights_revision=sv.rights_revision
+    JOIN parse_version p ON p.tenant_id=sv.tenant_id AND p.source_version=sv.source_version
+    JOIN source_use_gate g ON g.tenant_id=p.tenant_id AND g.source_version=p.source_version AND g.parse_version=p.parse_version
+    WHERE sv.source_version=#{sourceVersion} AND p.parse_version=#{parseVersion}
+  </select>
+  <select id="contentChunks" resultMap="contentChunk" useCache="false" flushCache="true">
+    SELECT c.source_version,c.parse_version,c.chunk_id,c.ordinal,c.node_id,n.node_kind,c.locator,n.content_ref,
+      n.node_hash,c.quote_hash,c.raw_text
+    FROM source_chunk c
+    JOIN content_node n ON n.tenant_id=c.tenant_id AND n.source_version=c.source_version
+      AND n.parse_version=c.parse_version AND n.node_id=c.node_id
+    WHERE c.source_version=#{sourceVersion} AND c.parse_version=#{parseVersion}
+    <choose>
+      <when test="chunkId != null">AND c.chunk_id=#{chunkId}</when>
+      <when test="afterOrdinal != null">AND c.ordinal&gt;#{afterOrdinal}</when>
+    </choose>
+    ORDER BY c.ordinal,c.chunk_id
+    LIMIT #{fetchLimit}
+  </select>
+  <select id="readHistory" resultMap="readHistory" useCache="false" flushCache="true">
+    SELECT user_id,source_version,last_read_at,locator,schema_version,schema_manifest_sha256,revision
+    FROM source_read_history WHERE user_id=#{userId} AND source_version=#{sourceVersion}
+    FOR UPDATE
+  </select>
+  <select id="processingConfig" resultMap="processingConfig" useCache="false" flushCache="true">
+    SELECT v.tenant_id,h.config_id,h.project_id,v.version_id,v.entity_kind,v.content_sha256 AS registered_sha256,
+      c.content_sha256,c.configuration_kind,c.kind AS capability_kind,c.status,
+      c.input_schema_ref,c.output_schema_ref,c.tool_scope,c.artifact_digest
+    FROM version_registry v
+    JOIN capability_version c ON c.tenant_id=v.tenant_id AND c.capability_version=v.version_id
+    JOIN configuration_head h ON h.tenant_id=c.tenant_id AND h.config_id=c.config_id
+    WHERE v.version_id=#{configRevision}
+    FOR UPDATE
+  </select>
+  <select id="processingAttempt" resultMap="processingAttempt" useCache="false" flushCache="true">
+    SELECT a.tenant_id,a.project_id,a.attempt_id,a.source_version,a.parse_version,a.job_type,a.config_revision,
+      a.status,a.failure_manifest,a.request_manifest,a.run_id,a.schema_version,a.schema_manifest_sha256,a.created_by,
+      a.created_at,a.classification,a.revision,a.updated_at,p.parse_status,p.processor_manifest
+    FROM processing_attempt a
+    JOIN parse_version p ON p.tenant_id=a.tenant_id AND p.source_version=a.source_version AND p.parse_version=a.parse_version
+    WHERE a.attempt_id=#{attemptId}
+  </select>
+  <select id="usages" resultMap="usage" useCache="false" flushCache="true">
+    SELECT u.* FROM (<include refid="usageUnion"/>) u
+    WHERE 1=1
+      <if test="projectId != null">AND u.project_id=#{projectId}</if>
+      <if test="usageKind != null">AND u.usage_kind=#{usageKind}</if>
+      <if test="after != null">AND u.usage_key&gt;#{after}</if>
+    ORDER BY u.usage_key
+    LIMIT #{fetchLimit}
+  </select>
+  <select id="usageCount" resultType="java.math.BigInteger" useCache="false" flushCache="true">
+    SELECT COUNT(*) FROM (<include refid="usageUnion"/>) u
+    WHERE 1=1
+      <if test="projectId != null">AND u.project_id=#{projectId}</if>
+      <if test="usageKind != null">AND u.usage_kind=#{usageKind}</if>
+  </select>
+  <select id="lifecycleState" resultMap="lifecycleState" useCache="false" flushCache="true">
+    SELECT s.tenant_id,s.source_id,sv.source_version,s.owner_project_id,s.ownership,sv.original_sha256,
+      sv.object_key,sv.object_version,sv.media_type,sv.size_bytes,s.classification,sv.created_at AS source_created_at,
+      ls.status,ls.last_decision_id,ls.revision,pr.status AS owner_project_status
+    FROM source_version sv
+    JOIN source s ON s.tenant_id=sv.tenant_id AND s.source_id=sv.source_id
+    JOIN source_lifecycle_state ls ON ls.tenant_id=sv.tenant_id AND ls.source_version=sv.source_version
+    LEFT JOIN project pr ON pr.tenant_id=s.tenant_id AND pr.project_id=s.owner_project_id
+    WHERE sv.source_version=#{sourceVersion}
+  </select>
+  <select id="lifecycleStateForUpdate" resultMap="lifecycleState" useCache="false" flushCache="true">
+    SELECT s.tenant_id,s.source_id,sv.source_version,s.owner_project_id,s.ownership,sv.original_sha256,
+      sv.object_key,sv.object_version,sv.media_type,sv.size_bytes,s.classification,sv.created_at AS source_created_at,
+      ls.status,ls.last_decision_id,ls.revision,pr.status AS owner_project_status
+    FROM source_version sv
+    JOIN source s ON s.tenant_id=sv.tenant_id AND s.source_id=sv.source_id
+    JOIN source_lifecycle_state ls ON ls.tenant_id=sv.tenant_id AND ls.source_version=sv.source_version
+    LEFT JOIN project pr ON pr.tenant_id=s.tenant_id AND pr.project_id=s.owner_project_id
+    WHERE sv.source_version=#{sourceVersion}
+    FOR UPDATE
+  </select>
+  <select id="retentionPolicy" resultMap="retentionPolicy" useCache="false" flushCache="true">
+    SELECT policy_revision,category,retention_duration,start_event,hold_override,approver_id,effective_from,
+      purge_method,backup_expiry,status,revision
+    FROM retention_policy_revision WHERE policy_revision=#{policyRevision}
+  </select>
+  <select id="lifecycleDecision" resultMap="lifecycleDecision" useCache="false" flushCache="true">
+    SELECT source_version,decision_id,decision,from_status,to_status,reason,policy_revision,deletion_id,
+      actor_id,decided_at,expected_revision,resulting_revision,schema_manifest_sha256
+    FROM source_lifecycle_decision WHERE decision_id=#{decisionId}
+  </select>
+  <select id="deletionJob" resultMap="deletionJob" useCache="false" flushCache="true">
+    SELECT deletion_id,target_version,policy_revision,status,revision,updated_at
+    FROM deletion_job WHERE deletion_id=#{deletionId}
+  </select>
+  <select id="currentDeletionJob" resultMap="deletionJob" useCache="false" flushCache="true">
+    SELECT deletion_id,target_version,policy_revision,status,revision,updated_at
+    FROM deletion_job WHERE target_version=#{sourceVersion}
+    ORDER BY updated_at DESC,deletion_id DESC LIMIT 1
+  </select>
+  <select id="deletionItems" resultMap="deletionItem" useCache="false" flushCache="true">
+    SELECT s.tenant_id,s.source_id,sv.source_version,s.owner_project_id,s.ownership,j.deletion_id,
+      j.status AS job_status,j.revision AS job_revision,i.item_id,i.store_kind,i.target_ref,i.target_sha256,
+      i.status AS item_status,i.receipt_ref,i.backup_expiry,i.revision AS item_revision,
+      ls.status AS lifecycle_status,ls.revision AS lifecycle_revision,s.classification
+    FROM deletion_item i
+    JOIN deletion_job j ON j.tenant_id=i.tenant_id AND j.deletion_id=i.deletion_id
+    JOIN source_version sv ON sv.tenant_id=j.tenant_id AND sv.source_version=j.target_version
+    JOIN source s ON s.tenant_id=sv.tenant_id AND s.source_id=sv.source_id
+    JOIN source_lifecycle_state ls ON ls.tenant_id=sv.tenant_id AND ls.source_version=sv.source_version
+    WHERE i.deletion_id=#{deletionId}
+    ORDER BY i.store_kind,i.item_id
+  </select>
+  <select id="deletionItemForUpdate" resultMap="deletionItem" useCache="false" flushCache="true">
+    SELECT s.tenant_id,s.source_id,sv.source_version,s.owner_project_id,s.ownership,j.deletion_id,
+      j.status AS job_status,j.revision AS job_revision,i.item_id,i.store_kind,i.target_ref,i.target_sha256,
+      i.status AS item_status,i.receipt_ref,i.backup_expiry,i.revision AS item_revision,
+      ls.status AS lifecycle_status,ls.revision AS lifecycle_revision,s.classification
+    FROM deletion_item i
+    JOIN deletion_job j ON j.tenant_id=i.tenant_id AND j.deletion_id=i.deletion_id
+    JOIN source_version sv ON sv.tenant_id=j.tenant_id AND sv.source_version=j.target_version
+    JOIN source s ON s.tenant_id=sv.tenant_id AND s.source_id=sv.source_id
+    JOIN source_lifecycle_state ls ON ls.tenant_id=sv.tenant_id AND ls.source_version=sv.source_version
+    WHERE i.item_id=#{itemId} FOR UPDATE
+  </select>
+  <select id="blockingReferenceCount" resultType="java.math.BigInteger" useCache="false" flushCache="true">
+    SELECT COUNT(*) FROM (<include refid="usageUnion"/>) u
+    WHERE u.usage_kind&lt;&gt;'REFERENCE_HOLD' OR u.impact_status='HELD'
+  </select>
+  <select id="deletionItemCount" resultType="java.math.BigInteger" useCache="false" flushCache="true">
+    SELECT COUNT(*) FROM deletion_item WHERE deletion_id=#{deletionId}
+  </select>
+  <select id="folderMemberCount" resultType="java.math.BigInteger" useCache="false" flushCache="true">
+    SELECT COUNT(*) FROM source_organization WHERE folder_id=#{folderId}
+  </select>
+  <select id="pendingDeletionItemCount" resultType="java.math.BigInteger" useCache="false" flushCache="true">
+    SELECT COUNT(*) FROM deletion_item WHERE deletion_id=#{deletionId} AND status&lt;&gt;'CONFIRMED'
+  </select>
+  <select id="operation" resultMap="com.ruoyi.medical.persistence.mapper.TenantSelectionMapper.operation" useCache="false" flushCache="true">
+    SELECT operation_id,request_sha256,state,http_status,response_ref,target_id,schema_version,schema_manifest_sha256
+    FROM operation_record o WHERE o.subject_id=#{userId} AND o.operation_name='KN-09' AND o.idempotency_key=#{key}
+  </select>
+  <select id="processingOperation" resultMap="com.ruoyi.medical.persistence.mapper.TenantSelectionMapper.operation" useCache="false" flushCache="true">
+    SELECT operation_id,request_sha256,state,http_status,response_ref,target_id,schema_version,schema_manifest_sha256
+    FROM operation_record o WHERE o.subject_id=#{userId} AND o.operation_name='KN-08' AND o.idempotency_key=#{key}
+  </select>
+  <select id="currentBinding" resultMap="binding" useCache="false" flushCache="true">
+    SELECT project_id,source_version,binding_revision,applicability,decision_manifest
+    FROM project_source_binding b WHERE b.project_id=#{projectId} AND b.source_version=#{sourceVersion} AND b.is_current=TRUE
+    FOR UPDATE
+  </select>
+  <select id="bindings" resultMap="binding" useCache="false" flushCache="true">
+    SELECT project_id,source_version,binding_revision,applicability,decision_manifest
+    FROM project_source_binding b WHERE b.source_version=#{sourceVersion} AND b.is_current=TRUE
+    ORDER BY b.project_id
+  </select>
+  <select id="bindingOperation" resultMap="com.ruoyi.medical.persistence.mapper.TenantSelectionMapper.operation" useCache="false" flushCache="true">
+    SELECT operation_id,request_sha256,state,http_status,response_ref,target_id,schema_version,schema_manifest_sha256
+    FROM operation_record o WHERE o.subject_id=#{userId} AND o.operation_name='KN-10' AND o.idempotency_key=#{key}
+  </select>
+  <select id="lifecycleOperation" resultMap="com.ruoyi.medical.persistence.mapper.TenantSelectionMapper.operation" useCache="false" flushCache="true">
+    SELECT operation_id,request_sha256,state,http_status,response_ref,target_id,schema_version,schema_manifest_sha256
+    FROM operation_record o WHERE o.subject_id=#{userId} AND o.operation_name='KN-17' AND o.idempotency_key=#{key}
+  </select>
+  <select id="folderOperation" resultMap="com.ruoyi.medical.persistence.mapper.TenantSelectionMapper.operation" useCache="false" flushCache="true">
+    SELECT operation_id,request_sha256,state,http_status,response_ref,target_id,schema_version,schema_manifest_sha256
+    FROM operation_record o WHERE o.subject_id=#{userId} AND o.operation_name=#{operationName} AND o.idempotency_key=#{key}
+  </select>
+  <select id="organizationOperation" resultMap="com.ruoyi.medical.persistence.mapper.TenantSelectionMapper.operation" useCache="false" flushCache="true">
+    SELECT operation_id,request_sha256,state,http_status,response_ref,target_id,schema_version,schema_manifest_sha256
+    FROM operation_record o WHERE o.subject_id=#{userId} AND o.operation_name='KN-20' AND o.idempotency_key=#{key}
+  </select>
+  <select id="deletionReceiptOperation" resultMap="com.ruoyi.medical.persistence.mapper.TenantSelectionMapper.operation" useCache="false" flushCache="true">
+    SELECT operation_id,request_sha256,state,http_status,response_ref,target_id,schema_version,schema_manifest_sha256
+    FROM operation_record o WHERE o.subject_id=#{userId} AND o.operation_name='KN-17-RECEIPT' AND o.idempotency_key=#{key}
+  </select>
+  <select id="artifactSubmissionOperation" resultMap="com.ruoyi.medical.persistence.mapper.TenantSelectionMapper.operation" useCache="false" flushCache="true">
+    SELECT operation_id,request_sha256,state,http_status,response_ref,target_id,schema_version,schema_manifest_sha256
+    FROM operation_record o WHERE o.subject_id=#{userId} AND o.operation_name='KN-18' AND o.idempotency_key=#{key}
+  </select>
+  <select id="bindingCount" resultType="int" useCache="false" flushCache="true">
+    SELECT COUNT(*) FROM project_source_binding b WHERE b.source_version=#{sourceVersion}
+      AND b.binding_revision=#{bindingRevision} AND b.is_current=TRUE AND b.applicability='APPLICABLE'
+  </select>
+  <insert id="insertDecision">
+    INSERT INTO approval_decision(source_version,parse_version,approval_revision,decision,reviewer_id,
+      reviewed_manifest_sha256,reason,decided_at)
+    VALUES(#{sourceVersion},#{parseVersion},#{approvalRevision},#{decision},#{userId},#{reviewedManifest},#{reason},#{now})
+  </insert>
+  <insert id="insertDecisionVersion">
+    INSERT INTO version_registry(version_id,owner_project_id,entity_kind,content_sha256)
+    VALUES(#{approvalRevision},#{ownerProjectId},'APPROVAL_DECISION',#{decisionSha256})
+  </insert>
+  <update id="updateGate">
+    UPDATE source_use_gate SET approval_revision=#{approvalRevision},approval_status=#{approvalStatus},revision=#{resultingRevision}
+    WHERE source_version=#{sourceVersion} AND parse_version=#{parseVersion} AND revision=#{expectedRevision}
+      AND lifecycle='ACTIVE' AND upload_status='RECEIVED'
+  </update>
+  <update id="advanceGovernance">
+    UPDATE tenant SET governance_epoch=governance_epoch+1
+    WHERE governance_epoch=#{governanceEpoch}
+  </update>
+  <insert id="saveOperation">
+    INSERT INTO operation_record(operation_id,subject_id,operation_name,idempotency_key,request_sha256,state,http_status,
+      response_ref,target_id,error_code,schema_version,schema_manifest_sha256,created_by,created_at,classification,revision,updated_at)
+    VALUES(#{operationId},#{userId},'KN-09',#{key},#{requestHash},'COMPLETED',200,#{response},#{sourceVersion},NULL,
+      '1.0.0',#{schemaManifest},#{userId},#{now},#{classification},1,#{now})
+  </insert>
+  <insert id="insertApplicability">
+    INSERT INTO applicability_decision(project_id,decision_id,profile_revision,target_version,result,reason,evidence_refs,
+      actor_id,decided_at,schema_version,schema_manifest_sha256,created_by,created_at,classification)
+    VALUES(#{projectId},#{decisionId},#{profileRevision},#{sourceVersion},#{applicability},#{reason},#{evidenceRefs},
+      #{userId},#{now},'1.0.0',#{schemaManifest},#{userId},#{now},#{classification})
+  </insert>
+  <update id="clearCurrentBinding">
+    UPDATE project_source_binding SET is_current=FALSE
+    WHERE project_id=#{projectId} AND source_version=#{sourceVersion} AND binding_revision=#{expectedBindingRevision} AND is_current=TRUE
+  </update>
+  <insert id="insertBinding">
+    INSERT INTO project_source_binding(project_id,source_version,binding_revision,applicability,decision_manifest,is_current)
+    VALUES(#{projectId},#{sourceVersion},#{bindingRevision},#{applicability},#{decisionManifest},TRUE)
+  </insert>
+  <insert id="insertBindingVersion">
+    INSERT INTO version_registry(version_id,owner_project_id,entity_kind,content_sha256)
+    VALUES(#{bindingRevision},#{projectId},'SOURCE_BINDING',#{decisionSha256})
+  </insert>
+  <insert id="saveBindingOperation">
+    INSERT INTO operation_record(operation_id,subject_id,operation_name,idempotency_key,request_sha256,state,http_status,
+      response_ref,target_id,error_code,schema_version,schema_manifest_sha256,created_by,created_at,classification,revision,updated_at)
+    VALUES(#{operationId},#{userId},'KN-10',#{key},#{requestHash},'COMPLETED',200,#{response},#{bindingRevision},NULL,
+      '1.0.0',#{schemaManifest},#{userId},#{now},#{classification},1,#{now})
+  </insert>
+  <insert id="insertReadHistory">
+    INSERT INTO source_read_history(user_id,source_version,last_read_at,locator,schema_version,schema_manifest_sha256,
+      created_by,created_at,classification,revision,updated_at)
+    VALUES(#{userId},#{sourceVersion},#{now},#{locator},'1.0.0',#{schemaManifest},#{userId},#{now},#{classification},1,#{now})
+  </insert>
+  <update id="updateReadHistory">
+    UPDATE source_read_history SET last_read_at=#{now},locator=#{locator},schema_version='1.0.0',
+      schema_manifest_sha256=#{schemaManifest},classification=#{classification},revision=#{resultingRevision},updated_at=#{now}
+    WHERE user_id=#{userId} AND source_version=#{sourceVersion} AND revision=#{expectedRevision}
+  </update>
+  <insert id="insertExecution">
+    INSERT INTO execution_registry(run_id,project_id,execution_kind,scope_manifest,schema_version,
+      schema_manifest_sha256,created_by,created_at,classification)
+    VALUES(#{runId},#{projectId},'SYSTEM_JOB',#{scopeManifest},'1.0.0',#{schemaManifest},#{userId},#{now},#{classification})
+  </insert>
+  <insert id="insertParseVersion">
+    INSERT INTO parse_version(source_version,parse_version,processor_manifest,content_sha256,artifact_key,
+      parse_status,failure_manifest)
+    VALUES(#{sourceVersion},#{parseVersion},#{processorManifest},NULL,NULL,'QUEUED',JSON_ARRAY())
+  </insert>
+  <insert id="insertSourceGate">
+    INSERT INTO source_use_gate(source_version,parse_version,approval_revision,upload_status,approval_status,lifecycle,revision)
+    VALUES(#{sourceVersion},#{parseVersion},NULL,'RECEIVED','PENDING','ACTIVE',1)
+  </insert>
+  <insert id="insertProcessingAttempt">
+    INSERT INTO processing_attempt(project_id,attempt_id,source_version,parse_version,job_type,config_revision,status,
+      failure_manifest,request_manifest,run_id,schema_version,schema_manifest_sha256,created_by,created_at,
+      classification,revision,updated_at)
+    VALUES(#{projectId},#{attemptId},#{sourceVersion},#{parseVersion},'PARSE',#{configRevision},'QUEUED',
+      JSON_OBJECT('schema_version','1.0.0','issues',JSON_ARRAY()),
+      #{requestManifest},#{runId},'1.0.0',#{schemaManifest},#{userId},#{now},#{classification},1,#{now})
+  </insert>
+  <insert id="saveProcessingOperation">
+    INSERT INTO operation_record(operation_id,subject_id,operation_name,idempotency_key,request_sha256,state,http_status,
+      response_ref,target_id,error_code,schema_version,schema_manifest_sha256,created_by,created_at,classification,revision,updated_at)
+    VALUES(#{operationId},#{userId},'KN-08',#{key},#{requestHash},'COMPLETED',202,#{response},#{attemptId},NULL,
+      '1.0.0',#{schemaManifest},#{userId},#{now},#{classification},1,#{now})
+  </insert>
+  <insert id="insertLifecycleVersion">
+    INSERT INTO version_registry(version_id,owner_project_id,entity_kind,content_sha256)
+    VALUES(#{decisionId},#{ownerProjectId},'SOURCE_LIFECYCLE_DECISION',#{decisionSha256})
+  </insert>
+  <insert id="insertLifecycleDecision">
+    INSERT INTO source_lifecycle_decision(source_version,decision_id,decision,from_status,to_status,reason,
+      policy_revision,deletion_id,actor_id,decided_at,expected_revision,resulting_revision,schema_version,
+      schema_manifest_sha256,classification,created_by,created_at)
+    VALUES(#{sourceVersion},#{decisionId},#{decision},#{fromStatus},#{toStatus},#{reason},#{policyRevision},
+      #{deletionId},#{userId},#{now},#{expectedRevision},#{resultingRevision},'1.0.0',#{schemaManifest},#{classification},#{userId},#{now})
+  </insert>
+  <update id="updateLifecycleState">
+    UPDATE source_lifecycle_state SET status=#{toStatus},last_decision_id=#{decisionId},
+      revision=#{resultingRevision},updated_at=#{now}
+    WHERE source_version=#{sourceVersion} AND status=#{fromStatus} AND revision=#{expectedRevision}
+  </update>
+  <update id="updateLifecycleGates">
+    UPDATE source_use_gate SET
+      approval_revision=CASE WHEN #{decision}='RESTORE' THEN NULL ELSE approval_revision END,
+      approval_status=CASE WHEN #{decision}='RESTORE' THEN 'PENDING' ELSE 'DISABLED' END,
+      lifecycle=CASE #{decision}
+        WHEN 'RECYCLE' THEN 'RECYCLED'
+        WHEN 'RESTORE' THEN 'ACTIVE'
+        WHEN 'PURGE' THEN 'PURGE_PENDING'
+        ELSE lifecycle END,
+      revision=revision+1
+    WHERE source_version=#{sourceVersion}
+  </update>
+  <insert id="insertDeletionJob">
+    INSERT INTO deletion_job(project_id,deletion_id,target_version,policy_revision,status,created_by,created_at,
+      classification,revision,updated_at)
+    VALUES(#{ownerProjectId},#{deletionId},#{sourceVersion},#{policyRevision},'QUEUED',#{userId},#{now},
+      #{classification},1,#{now})
+  </insert>
+  <insert id="insertDeletionItems">
+    INSERT INTO deletion_item(item_id,deletion_id,store_kind,target_ref,target_sha256,status,receipt_ref,
+      backup_expiry,schema_version,schema_manifest_sha256,created_by,created_at,classification,revision,updated_at)
+    SELECT UUID(),#{deletionId},targets.store_kind,targets.target_ref,targets.target_sha256,'QUEUED',NULL,
+      TIMESTAMPADD(SECOND,#{backupExpiry},#{now}),'1.0.0',#{schemaManifest},#{userId},#{now},#{classification},1,#{now}
+    FROM (
+      SELECT 'ORIGINAL' AS store_kind,
+        JSON_OBJECT('source_version',sv.source_version,'object_key',sv.object_key,'object_version',sv.object_version,
+          'content_sha256',sv.original_sha256,'size_bytes',CAST(sv.size_bytes AS CHAR),'media_type',sv.media_type) AS target_ref,
+        SHA2(CONCAT('ORIGINAL:',sv.object_key,':',sv.object_version,':',sv.original_sha256),256) AS target_sha256
+      FROM source_version sv WHERE sv.source_version=#{sourceVersion}
+      UNION ALL
+      SELECT 'PARSED',JSON_OBJECT('source_version',p.source_version,'parse_version',p.parse_version,
+          'artifact_key',p.artifact_key,'content_sha256',p.content_sha256),
+        SHA2(CONCAT('PARSED:',p.parse_version,':',p.artifact_key,':',p.content_sha256),256)
+      FROM parse_version p WHERE p.source_version=#{sourceVersion} AND p.artifact_key IS NOT NULL AND p.content_sha256 IS NOT NULL
+      UNION ALL
+      SELECT 'FULLTEXT',JSON_OBJECT('source_version',i.source_version,'parse_version',i.parse_version,
+          'index_version',i.index_version,'manifest_sha256',i.manifest_sha256),
+        SHA2(CONCAT('FULLTEXT:',i.index_version,':',i.manifest_sha256),256)
+      FROM index_manifest i WHERE i.source_version=#{sourceVersion} AND i.mode IN ('FULLTEXT','HYBRID')
+      UNION ALL
+      SELECT 'VECTOR',JSON_OBJECT('source_version',i.source_version,'parse_version',i.parse_version,
+          'index_version',i.index_version,'manifest_sha256',i.manifest_sha256),
+        SHA2(CONCAT('VECTOR:',i.index_version,':',i.manifest_sha256),256)
+      FROM index_manifest i WHERE i.source_version=#{sourceVersion} AND i.mode IN ('DENSE','HYBRID')
+      UNION ALL
+      SELECT 'CACHE',JSON_OBJECT('source_version',sv.source_version),SHA2(CONCAT('CACHE:',sv.source_version),256)
+      FROM source_version sv WHERE sv.source_version=#{sourceVersion}
+      UNION ALL
+      SELECT 'DIAGNOSTIC',JSON_OBJECT('source_version',sv.source_version),SHA2(CONCAT('DIAGNOSTIC:',sv.source_version),256)
+      FROM source_version sv WHERE sv.source_version=#{sourceVersion}
+    ) targets
+  </insert>
+  <insert id="saveLifecycleOperation">
+    INSERT INTO operation_record(operation_id,subject_id,operation_name,idempotency_key,request_sha256,state,http_status,
+      response_ref,target_id,error_code,schema_version,schema_manifest_sha256,created_by,created_at,classification,revision,updated_at)
+    VALUES(#{operationId},#{userId},'KN-17',#{key},#{requestHash},'COMPLETED',#{httpStatus},#{response},#{decisionId},NULL,
+      '1.0.0',#{schemaManifest},#{userId},#{now},#{classification},1,#{now})
+  </insert>
+  <insert id="insertFolder">
+    INSERT INTO source_folder(folder_id,parent_id,owner_project_id,category,name,created_by,created_at,
+      classification,revision,updated_at)
+    VALUES(#{folderId},#{parentId},#{ownerProjectId},#{category},#{name},#{userId},#{now},#{classification},1,#{now})
+  </insert>
+  <update id="updateFolder">
+    UPDATE source_folder SET
+      name=CASE WHEN #{decision}='RENAME' THEN #{name} ELSE name END,
+      parent_id=CASE WHEN #{decision}='MOVE' THEN #{parentId} ELSE parent_id END,
+      revision=revision+1,updated_at=#{now}
+    WHERE folder_id=#{folderId} AND revision=#{expectedRevision}
+  </update>
+  <delete id="deleteFolder">
+    DELETE FROM source_folder WHERE folder_id=#{folderId} AND revision=#{expectedRevision}
+  </delete>
+  <insert id="insertOrganization">
+    INSERT INTO source_organization(source_id,folder_id,category,labels,maintainer_id,schema_version,schema_manifest_sha256,
+      created_by,created_at,classification,revision,updated_at)
+    VALUES(#{sourceId},#{folderId},NULL,#{labels},#{userId},'1.0.0',#{schemaManifest},#{userId},#{now},#{classification},1,#{now})
+  </insert>
+  <update id="updateOrganization">
+    UPDATE source_organization SET
+      folder_id=CASE WHEN #{decision}='MOVE' THEN #{folderId} ELSE folder_id END,
+      labels=CASE WHEN #{decision}='LABEL' THEN #{labels} ELSE labels END,
+      maintainer_id=#{userId},schema_version='1.0.0',schema_manifest_sha256=#{schemaManifest},
+      revision=revision+1,updated_at=#{now}
+    WHERE source_id=#{sourceId} AND revision=#{expectedRevision}
+  </update>
+  <insert id="insertBookmark">
+    INSERT IGNORE INTO user_source_bookmark(user_id,source_version,created_by,created_at,classification)
+    VALUES(#{userId},#{sourceVersion},#{userId},#{now},#{classification})
+  </insert>
+  <delete id="deleteBookmark">
+    DELETE FROM user_source_bookmark WHERE user_id=#{userId} AND source_version=#{sourceVersion}
+  </delete>
+  <insert id="saveFolderOperation">
+    INSERT INTO operation_record(operation_id,subject_id,operation_name,idempotency_key,request_sha256,state,http_status,
+      response_ref,target_id,error_code,schema_version,schema_manifest_sha256,created_by,created_at,classification,revision,updated_at)
+    VALUES(#{operationId},#{userId},#{operationName},#{key},#{requestHash},'COMPLETED',#{httpStatus},#{response},#{folderId},NULL,
+      '1.0.0',#{schemaManifest},#{userId},#{now},#{classification},1,#{now})
+  </insert>
+  <insert id="saveOrganizationOperation">
+    INSERT INTO operation_record(operation_id,subject_id,operation_name,idempotency_key,request_sha256,state,http_status,
+      response_ref,target_id,error_code,schema_version,schema_manifest_sha256,created_by,created_at,classification,revision,updated_at)
+    VALUES(#{operationId},#{userId},'KN-20',#{key},#{requestHash},'COMPLETED',200,#{response},#{sourceVersion},NULL,
+      '1.0.0',#{schemaManifest},#{userId},#{now},#{classification},1,#{now})
+  </insert>
+  <update id="confirmDeletionItem">
+    UPDATE deletion_item SET status='CONFIRMED',receipt_ref=#{receiptRef},lease_owner=NULL,lease_expires_at=NULL,
+      revision=revision+1,updated_at=#{now}
+    WHERE item_id=#{itemId} AND deletion_id=#{deletionId} AND status IN ('QUEUED','RUNNING') AND revision=#{expectedRevision}
+  </update>
+  <update id="updateDeletionJob">
+    UPDATE deletion_job SET status=#{jobStatus},revision=revision+1,updated_at=#{now}
+    WHERE deletion_id=#{deletionId} AND revision=#{expectedJobRevision} AND status IN ('QUEUED','RUNNING')
+  </update>
+  <update id="completeLifecycleState">
+    UPDATE source_lifecycle_state SET status='PURGED',revision=revision+1,updated_at=#{now}
+    WHERE source_version=#{sourceVersion} AND status='PURGE_PENDING' AND revision=#{expectedLifecycleRevision}
+  </update>
+  <update id="completeLifecycleGates">
+    UPDATE source_use_gate SET lifecycle='PURGED',approval_status='DISABLED',revision=revision+1
+    WHERE source_version=#{sourceVersion} AND lifecycle='PURGE_PENDING'
+  </update>
+  <insert id="saveDeletionReceiptOperation">
+    INSERT INTO operation_record(operation_id,subject_id,operation_name,idempotency_key,request_sha256,state,http_status,
+      response_ref,target_id,error_code,schema_version,schema_manifest_sha256,created_by,created_at,classification,revision,updated_at)
+    VALUES(#{operationId},#{userId},'KN-17-RECEIPT',#{key},#{requestHash},'COMPLETED',200,#{response},#{itemId},NULL,
+      '1.0.0',#{schemaManifest},#{userId},#{now},#{classification},1,#{now})
+  </insert>
+  <insert id="insertSubmissionSource">
+    INSERT INTO source(source_id,owner_project_id,ownership,title,classification)
+    VALUES(#{sourceId},#{targetProjectId},#{ownership},#{title},#{classification})
+  </insert>
+  <insert id="insertSubmissionSourceVersionRegistry">
+    INSERT INTO version_registry(version_id,owner_project_id,entity_kind,content_sha256)
+    VALUES(#{sourceVersion},#{targetProjectId},'SOURCE_VERSION',#{artifactSha256})
+  </insert>
+  <insert id="insertSubmissionSourceVersion">
+    INSERT INTO source_version(source_id,source_version,version_no,original_sha256,object_key,object_version,media_type,
+      size_bytes,publisher_version,provenance,rights_revision,created_by,created_at)
+    VALUES(#{sourceId},#{sourceVersion},1,#{artifactSha256},#{objectKey},#{objectVersion},#{mediaType},#{sizeBytes},
+      #{publisherVersion},#{provenance},#{rightsRevision},#{userId},#{now})
+  </insert>
+  <insert id="insertSubmissionRightsRegistry">
+    INSERT INTO version_registry(version_id,owner_project_id,entity_kind,content_sha256)
+    VALUES(#{rightsRevision},#{targetProjectId},'RIGHTS_REVISION',#{rightsSha256})
+  </insert>
+  <insert id="insertSubmissionRights">
+    INSERT INTO rights_revision(rights_revision,source_version,purpose,allowed_actions,providers,regions,valid_from,valid_to,
+      status,evidence_manifest,content_sha256,schema_version,schema_manifest_sha256,created_by,created_at,classification)
+    VALUES(#{rightsRevision},#{sourceVersion},#{rightsPurpose},#{allowedActions},#{providers},#{regions},#{validFrom},#{validTo},
+      'PENDING_REVIEW',#{rightsEvidence},#{rightsSha256},'1.0.0',#{rightsSchemaManifest},#{userId},#{now},#{classification})
+  </insert>
+  <insert id="insertSubmissionLifecycle">
+    INSERT INTO source_lifecycle_state(source_version,status,last_decision_id,revision,updated_at,created_by,created_at,classification)
+    VALUES(#{sourceVersion},'ACTIVE',NULL,1,#{now},#{userId},#{now},#{classification})
+  </insert>
+  <insert id="insertSubmissionRightsState">
+    INSERT INTO source_rights_state(source_version,rights_revision,last_decision_id,revision,updated_at,
+      schema_version,schema_manifest_sha256,created_by,created_at,classification)
+    VALUES(#{sourceVersion},#{rightsRevision},NULL,1,#{now},'1.0.0',#{rightsSchemaManifest},#{userId},#{now},#{classification})
+  </insert>
+  <insert id="insertSubmissionOrganization">
+    INSERT INTO source_organization(source_id,folder_id,category,labels,maintainer_id,schema_version,schema_manifest_sha256,
+      created_by,created_at,classification,revision,updated_at)
+    VALUES(#{sourceId},NULL,#{category},JSON_ARRAY(),#{maintainerId},'1.0.0',#{schemaManifest},#{userId},#{now},#{classification},1,#{now})
+  </insert>
+  <insert id="insertSharingDecisionRegistry">
+    INSERT INTO version_registry(version_id,owner_project_id,entity_kind,content_sha256)
+    VALUES(#{sharingDecision},#{targetProjectId},'SOURCE_SHARING_DECISION',#{sharingSha256})
+  </insert>
+  <insert id="insertArtifactSubmission">
+    INSERT INTO knowledge_submission(project_id,submission_id,artifact_id,artifact_owner_project_id,target_source_id,
+      target_source_version,sharing_decision,original_evidence,status,schema_version,schema_manifest_sha256,
+      created_by,created_at,classification,revision,updated_at)
+    VALUES(#{targetProjectId},#{submissionId},#{artifactId},#{artifactOwnerProjectId},#{sourceId},#{sourceVersion},
+      #{sharingDecision},#{originalEvidence},'PENDING','1.0.0',#{schemaManifest},#{userId},#{now},#{classification},1,#{now})
+  </insert>
+  <insert id="insertSubmissionLineage">
+    INSERT INTO lineage_edge(consumer_version_id,upstream_version_id,relation_kind,actor_id,decision_ref,created_at) VALUES
+    <foreach collection="holds" item="hold" separator=",">
+      (#{sourceVersion},#{hold.upstreamId},'ARTIFACT_SUBMISSION',#{userId},#{sharingDecision},#{now})
+    </foreach>
+  </insert>
+  <insert id="insertSubmissionHolds">
+    INSERT INTO reference_hold(project_id,hold_id,consumer_version_id,upstream_version_id,retain_until,legal_hold,
+      created_by,created_at,classification,revision,updated_at) VALUES
+    <foreach collection="holds" item="hold" separator=",">
+      (#{targetProjectId},#{hold.holdId},#{sourceVersion},#{hold.upstreamId},NULL,FALSE,
+       #{userId},#{now},#{classification},1,#{now})
+    </foreach>
+  </insert>
+  <insert id="saveArtifactSubmissionOperation">
+    INSERT INTO operation_record(operation_id,subject_id,operation_name,idempotency_key,request_sha256,state,http_status,
+      response_ref,target_id,error_code,schema_version,schema_manifest_sha256,created_by,created_at,classification,revision,updated_at)
+    VALUES(#{operationId},#{userId},'KN-18',#{key},#{requestHash},'COMPLETED',201,#{response},#{sourceVersion},NULL,
+      '1.0.0',#{schemaManifest},#{userId},#{now},#{classification},1,#{now})
+  </insert>
+</mapper>

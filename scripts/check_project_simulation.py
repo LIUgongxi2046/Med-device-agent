@@ -1,6 +1,9 @@
 import argparse
+import hashlib
+import json
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 
@@ -15,9 +18,12 @@ def main():
     parser.add_argument("--initial", action="store_true")
     parser.add_argument("--browser", action="store_true")
     parser.add_argument("--frontend-directory", type=Path)
+    parser.add_argument("--timeout", type=int, default=1200)
     args = parser.parse_args()
     if Path(args.execution).name != args.execution or args.execution in (".", ".."):
         raise ValueError("执行身份必须使用单一目录名称")
+    if args.timeout < 600 or args.timeout > 3600:
+        raise ValueError("完整项目检查的总执行时限必须为600至3600秒")
     output = ROOT / ".implementation-work" / ("IC-04-PROJECT-SIMULATION-" + args.execution)
     if args.frontend_directory is not None and not args.browser:
         raise ValueError("前端制品需要浏览器检查")
@@ -51,7 +57,7 @@ def main():
             subprocess.run(["npm", "run", "build:prod", "--", "--mode", "medical", "--outDir", str(frontend)],
                 cwd=ROOT / "web", env=environment, check=True)
     command = [sys.executable, str(CAPTURE), "--output-dir", str(output / "command" if args.browser else output), "--check-id", "IC-04-PROJECT-SIMULATION",
-        "--kind", "INTEGRATION", "--baseline-id", "BIZ02-SIMULATION-01", "--cwd", str(ROOT), "--timeout", "600"]
+        "--kind", "INTEGRATION", "--baseline-id", "BIZ02-SIMULATION-01", "--cwd", str(ROOT), "--timeout", str(args.timeout)]
     for filename in sorted(set(inputs)):
         command.extend(["--input", filename])
     command.extend(["--artifact", "business/ruoyi-admin/target/surefire-reports/TEST-com.ruoyi.medical.runtime.ProjectSimulationHttpTest.xml"])
@@ -64,7 +70,34 @@ def main():
         "-Dmedical.projectSimulationEvidence=" + str(output / "project-result.json"),
         "-Dmedical.projectSimulationBrowser=" + str(args.browser).lower(), "-Dmedical.projectSimulationFrontend=" + str(frontend),
         "-Dtest=ProjectSimulationHttpTest", "-Dsurefire.failIfNoSpecifiedTests=false", "test"])
-    raise SystemExit(subprocess.run(command, cwd=ROOT, env=environment).returncode)
+    result = subprocess.run(command, cwd=ROOT, env=environment).returncode
+    if result != 0 or not args.browser:
+        raise SystemExit(result)
+    original = output / 'command/receipt.json'
+    receipt = json.loads(original.read_bytes())
+    if receipt['exit_code'] != 0 or not receipt['inputs_unchanged']:
+        raise ValueError('实际项目回执未通过')
+    report = ROOT / 'business/ruoyi-admin/target/surefire-reports/TEST-com.ruoyi.medical.runtime.ProjectSimulationHttpTest.xml'
+    references = [item for item in receipt['artifacts'] if Path(item['path']) == report]
+    if len(references) != 1 or hashlib.sha256(report.read_bytes()).hexdigest() != references[0]['sha256']:
+        raise ValueError('实际项目JUnit与执行回执不一致')
+    fixed = output / report.name
+    shutil.copyfile(report, fixed)
+    if hashlib.sha256(fixed.read_bytes()).hexdigest() != references[0]['sha256']:
+        raise ValueError('固定项目JUnit字节不一致')
+    references[0]['path'] = str(fixed)
+    for artifact in (original, output / 'project-result.json', output / 'project-browser-result.json', output / 'project-browser-output.log'):
+        digest = hashlib.sha256(artifact.read_bytes()).hexdigest()
+        existing = [item for item in receipt['artifacts'] if Path(item['path']) == artifact]
+        if existing and (len(existing) != 1 or existing[0]['sha256'] != digest):
+            raise ValueError('实际项目产物摘要不一致')
+        if not existing:
+            receipt['artifacts'].append({'path': str(artifact), 'sha256': digest})
+    target = output / 'receipt.json'
+    target.write_text(json.dumps(receipt, ensure_ascii=False, indent=2) + '\n')
+    print(json.dumps({'result': 'PASS', 'receipt': str(target.relative_to(ROOT)),
+        'sha256': hashlib.sha256(target.read_bytes()).hexdigest(), 'inputs': len(receipt['inputs']),
+        'artifacts': len(receipt['artifacts'])}))
 
 
 if __name__ == "__main__":

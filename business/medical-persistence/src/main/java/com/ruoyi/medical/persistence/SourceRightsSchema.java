@@ -25,6 +25,8 @@ public final class SourceRightsSchema {
         .enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS).build();
     private final JsonSchema validator;
     private final String schemaManifest;
+    private final JsonSchema pendingValidator;
+    private final String pendingManifest;
 
     public SourceRightsSchema() throws IOException {
         byte[] document;
@@ -37,18 +39,30 @@ public final class SourceRightsSchema {
         var manifest = json.createObjectNode(); manifest.put("schema_version", "1.0.0");
         manifest.put("source-rights.schema.json", DigestUtils.sha256Hex(document));
         schemaManifest = DigestUtils.sha256Hex(new JsonCanonicalizer(json.writeValueAsBytes(manifest)).getEncodedUTF8());
+        byte[] pending;
+        try(var input=Objects.requireNonNull(getClass().getClassLoader().getResourceAsStream("source-rights-pending.schema.json"))) {
+            pending=input.readAllBytes();
+        }
+        pendingValidator=JsonSchemaFactory.getInstance(VersionFlag.V202012).getSchema(json.readTree(pending),
+            SchemaValidatorsConfig.builder().formatAssertionsEnabled(true).build());
+        pendingValidator.initializeValidators();
+        var identity=json.createObjectNode(); identity.put("schema_version","1.0.0");
+        identity.put("source-rights-pending.schema.json",DigestUtils.sha256Hex(pending));
+        pendingManifest=DigestUtils.sha256Hex(new JsonCanonicalizer(json.writeValueAsBytes(identity)).getEncodedUTF8());
     }
 
     ObjectNode verify(SourceReadProtocol.RightsRow row) throws IOException {
         Objects.requireNonNull(row);
-        if (!"1.0.0".equals(row.schemaVersion()) || !schemaManifest.equals(row.schemaManifest())) mismatch();
+        if (!"1.0.0".equals(row.schemaVersion())) mismatch();
+        boolean pending="PENDING_REVIEW".equals(row.status()) && pendingManifest.equals(row.schemaManifest());
+        if(!pending && !schemaManifest.equals(row.schemaManifest())) mismatch();
         var body = json.createObjectNode(); body.put("schema_version", row.schemaVersion());
         body.put("tenant_id", row.tenantId()); body.put("rights_revision", row.rightsRevision());
         body.put("source_version", row.sourceVersion()); body.put("purpose", row.purpose());
         body.set("allowed_actions", json.readTree(row.allowedActions())); body.set("providers", json.readTree(row.providers()));
         body.set("regions", json.readTree(row.regions())); body.set("evidence_manifest", json.readTree(row.evidenceManifest()));
         time(body, "valid_from", row.validFrom()); time(body, "valid_to", row.validTo()); body.put("classification", row.classification());
-        if (!validator.validate(body).isEmpty()) mismatch();
+        if (!(pending?pendingValidator:validator).validate(body).isEmpty()) mismatch();
         for (var evidence : body.required("evidence_manifest").required("authorization_evidence")) {
             WireValues.revision(evidence.required("size_bytes").textValue());
         }
@@ -79,8 +93,11 @@ public final class SourceRightsSchema {
     }
 
     String manifestSha256() { return schemaManifest; }
+    String pendingManifestSha256() { return pendingManifest; }
     void requireEnterpriseUse(SourceReadProtocol.RightsRow row) throws IOException {
-        if (!contains(verify(row).required("allowed_actions"), "ENTERPRISE_USE")) denied();
+        var body=verify(row);
+        if("PENDING_REVIEW".equals(row.status())) throw new TenantAccessException(ErrorCode.RIGHTS_PENDING);
+        if (!"APPROVED".equals(row.status()) || !contains(body.required("allowed_actions"), "ENTERPRISE_USE")) denied();
     }
     private static boolean contains(JsonNode array, String value) {
         for (var item : array) if (value.equals(item.textValue())) return true;

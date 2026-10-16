@@ -1,5 +1,101 @@
 # IMP-08 批量上传、七格式解析和原件阅读
 
+## FRONT-UPLOAD-RESULT-01
+
+固定原文位置读取通过SourceGovernance原接口验证单一chunk_id、Locator摘要、引用原文及当前来源许可；成功以后展开同一片段，显示完整原文和位置。解析分页、原件切换及原上下文清理同时清除展开选择。该行为由source-governance.vue的parsedExpanded与loadExact维护，EXACT命中及原FULLTEXT位置入口共同使用。
+
+来源内容读取在原TenantTransaction及当前许可下保存阅读记录。SourceGovernanceService.saveRead先锁定同一人员和source_version的原记录，首次通过insertReadHistory新增，后续通过updateReadHistory核验expected_revision并保存完整新修订，再重读时间、Locator、Schema及修订。企业水位锁、ProtectedTenantInterceptor、U64上限和审计继续完整生效；ParsedContent及OriginalContent共用该路径。实际TXT读取及首次/再次阅读重读由SourceRightsSimulationHttpTest维护。
+
+分段接收在进入Servlet异步适配器以前写入单一`Cache-Control: no-store`，成功与领域错误响应分别提供`X-Schema-Version: 1.0.0`。真实HTTP检查核验全部Header值，浏览器继续使用完整响应校验；原分段摘要、租约、当前许可和原操作要求保持。对应代码为`SourceUploadPartConfiguration`及`SourceUploadHttpTest.success`，当前组合检查继续执行。
+
+当前定向真实HTTP回归一项通过，229.1秒，失败、错误和跳过均为零。使用获授权SIMULATION企业及实际官方DOCX字节，完整检查登记、原分段、固定对象、完成命令、同键重放、修订冲突、CSRF、跨企业和撤权拒绝，以及六次真实租约领取、续期、过期和旧代际拒绝；上传记录数量恢复，临时应用关闭。日志`.implementation-work/source-upload-header-green-02.log`的SHA-256为`f8970b1568a677121f084331c84922568eadc28ae43677ee54b76fc93be40618`，原结果`.implementation-work/source-upload-completion-result.json`的SHA-256为`8d2fccbd45ccf17806602890b030dcd72763a32cedd6bb9f15ed1ca185787058`。本项证明实际等待处理及原操作恢复，完整来源登记和Worker仍需独立验证。
+
+2026-10-14；对应FE-08、KN-04及原IC-08，状态保持IN_PROGRESS。依据当前SourceUploadController/Service、SourceUploadStatusController/Service/Policy、完整source-upload-status.schema.json及前端实施计划。用户授权SIMULATION资料用于本轮开发；正式客户、完整七格式处理、索引及核准继续原验收条件。
+
+上传队列消费完整原声明和分段记录，再读取固定处理结果，核查同一upload_id、修订、接收数量及传输状态。原Operation重新读取，固定来源编号与登记结果及原件摘要一致；REGISTERED核查同一parse_version、attempt_id和run_id，DUPLICATE保留既有来源。登记权利和当前权利分别呈现。页面提供逐文件查询、全部解析版本的索引及人工核准、完整失败清单、固定来源链接；等待和失败结果没有自行建立来源或处理成功状态。
+
+实现为`web/src/api/medical/source-uploads.ts`、`source-upload-result.ts`、`web/src/views/medical/source-uploads.vue`及`source-upload-result.vue`；`protocol.ts`直接登记服务端完整Schema，原Axios、Ajv、ElTable和会话清理机制继续使用。Schema错误、身份及摘要不一致、版本变化立即抛出错误；查询需要重新取得一致快照。身份、企业或页面变化清理当前内容。
+
+Given完整公开定义和获授权SIMULATION参数；When读取登记、重复、等待及失败结构或改变关键身份；Then`node scripts/check_source_upload_frontend.mjs`九项通过，日志为`.implementation-work/source-upload-result-domain-04.log`。检查覆盖U64字符串、当前权利独立版本、同一解析的全部固定索引、来源及原件摘要、处理尝试身份、登记快照变化、解析版本完整性、未知字段和失败状态；actual_http_verified=false。当前完整strict、medical制品及真实浏览器继续核验，当前未登记本项全部验收通过。
+
+当前完整工程EXACT-RECOVERY-10通过strict、十八项计划/Schema及UUID、正文、九项上传结果、七项索引关系、三十三项EXACT参数和完整medical构建，输入在执行期间保持一致。回执为`.implementation-work/IC-FRONT-CONTINUE-RELEASE-20261014-EXACT-RECOVERY-10/receipt.json`，SHA-256为`1ead72ad39ff5acf2315b0ce8a8ae3906306f0ef0f547444cf0d54e07a244509`，8738项输入及358项产物。当前真实浏览器采用这份完整制品；真实登记终态及后续Worker继续原验收条件。
+
+BROWSER-31的开发和生产各三项实际上传断言通过，全部权利、索引及EXACT组合回执由[IMP-09](IMP-09.md)维护。使用真实分段、固定对象、完成请求、原操作及状态读取，页面区分传输、登记和后续处理阶段。真实TXT固定内容首次/再次读取、阅读修订、原文定位及展开已通过；REGISTERED/DUPLICATE/FAILED完整登记结果、七格式Worker终态及正式资料采用继续原要求。
+
+## KN-04 实际逐阶段状态读取
+
+2026-10-14SOURCE-UPLOAD-STATUS-01提供`GET /api/uploads/{uploadId}/status`。SourceUploadStatusController、Service、Policy及Schema在原EnterpriseAccess事务读取本人原声明、上传及传输状态、原KN-03操作、完整命令、投递和消费者结果；REGISTERED继续读取原parse_version及作业，DUPLICATE读取已有固定来源的当前处理集合。来源读取、当前权利及原件摘要/归属、生命周期、全部解析/索引/核准门槛及原作业失败信息共同核查。返回结果区分原登记权利和当前权利；未产生的实际结果保持null，缺少应有原记录或摘要/身份不一致立即拒绝。公开响应不含ObjectRef。
+
+状态使用独立source-upload-status.schema.json，复用原SourceGovernanceSchema的完整Review定义；各门槛具有自己的gate_revision，Envelope.resource_revision继续表示原上传修订。原Create、Registration、Completion、完成命令及结果Schema逐字节保持，原202、请求摘要及回执身份保持。LOCAL的maximumReviews明确为1000，查询1001项用于判定超限，超过容量返回CONTEXT_LIMIT并终止完整响应；原100MiB上传及3600秒期限保持原配置。这些参数只表示本地执行限制，生产使用仍需明确发布配置。
+
+Given当前真实配置、原固定制品及恢复后的实际S3对象；When编译状态查询、核验完整定义和原配置、检查未授权Mapper及实际对象读取；Then二十项Java检查通过，原上传及完成Schema、配置保持，错误真实摘要和无主体动作拒绝。日志`.implementation-work/source-upload-status-final-java-20261014.log`的SHA-256为d32b222aa5e142289c79168251f4d8da51aa446db8977b78d14b1001859845ab，失败、错误及跳过均为零；SourceUploadStatusBootstrapTest三项、其余原十七项组件及迁移检查均通过。完整构建及实际部署由[IMP-36](IMP-36.md)维护，当前新入口未认证401、149项相关class字节和十八份资源核验通过。新查询不写入来源、作业、批准、审计或Outbox。
+
+实际客户上传、合法权利审批、获准Worker绑定、完整七格式处理及四类业务状态、原失败和中断恢复、完整索引/核准/采用继续原验收范围。当前没有登记客户成功，状态保持IN_PROGRESS。
+
+## 来源权利审查与人工决定
+
+2026-10-14继续执行SOURCE-RIGHTS-DECISION-01，父工单保持IN_PROGRESS。SourceRightsController、Service、Protocol、Policy、DecisionSchema、EvidenceAuthority、EvidenceBytes及Mapper提供`POST /api/source-versions/{id}/rights-reviews`和`rights-decisions`。封闭source-rights-decisions.schema.json维护完整输入、公开审查清单、决定回执及内部Proof；原source-rights.schema.json保持原不可变载荷定义。公开输入仅选择实际授权Artifact及内容摘要，服务器固定其Schema、类型、主资源、读取动作和全部来源关系；公开响应不包含内部对象位置。
+
+审查摘要固定当前SOURCE_RIGHTS_REVIEW许可、主体及会话、上下文与治理水位、原来源及权利、生命周期、会话归属、岗位分离政策和授权文件的全部依赖。APPROVE必须提供完整用途、操作、提供方、区域、期限、所有者、许可、环境、分类和实际证据；READ及STORE同时具备，EXTERNAL_PROCESS需要明确提供方。每个授权文件通过实际S3固定版本及完整字节核验，读取前后及最终事务重新核查相同审查摘要。新的RightsRevision、SourceVersion权利指针CAS、原APPROVED权利撤销、来源关系、source_rights_state、source_rights_decision、原操作、治理及当前会话、审计、Outbox和回执共同保存并重读。RETURN保留待审权利，REVOKE撤销当前批准；相同原键与完整请求重读原Envelope。该决定不改变解析、索引或资料采用门槛。
+
+050已经应用，当前实际数据库286项登记；原283项checksum、来源指针、完整权利记录保持。一项现有来源取得原权利状态，revision=1、last_decision_id=null；source_rights_decision数量为零，八项同企业外键及八项CHECK核验通过。数据库重读回执为`.implementation-work/source-rights-migration-checks/e8766aa8-b632-43de-94e5-4c356f1cb4e2/receipt.json`，SHA-256为8edda9e450392b72c9dfec53f3a8e811d102561ed2e0ef8c7b0d2d52db383f7a。上传登记及成果转存同时建立初始权利状态，读取不创建状态或审批记录。
+
+Given已登记官方原件、真实固定解析对象及当前关闭配置；When初始化完整Schema、读取实际固定S3对象及检查缺少主体的Mapper动作；Then完整字节、原对象版本与摘要一致，错误实际摘要和无主体动作立即拒绝，原权利Schema保持原制品字节。当前17项Java检查通过，日志`.implementation-work/source-rights-current-java-20261014.log`的SHA-256为0c55c01a6fbb2d50f587fb73551657843235a5acb304c138fde9e9c258d6cfa6；包括MigrationBundleTest一项、TenantAccessTest六项、SourceCompletionBootstrapTest五项、SourceRightsBootstrapTest三项及SourceRightsEvidenceBytesIT两项，失败、错误和跳过均为零。完整迁移静态检查二十项通过，172张企业表及209张物理表，日志`.implementation-work/source-rights-schema-20261013.log`的SHA-256为c5db3cb83127651532fe8a26ee0af4298c317c03f3395dfe2213b948ab19a8fc。
+
+恢复后的原201141字节解析包保持原write_id、固定版本6721e63bf09f493716a89f0c960a4aba、完整SHA-256为640d62b4e5ed571e9eab4aaa1b8b9f3dd58c48f8ffd9ede8981b9434d5a10852，版本数量仍为一。`.implementation-work/source-processing-storage-checks/86550420-a292-4840-a525-c12baab1a8f7/receipt.json`的SHA-256为fcd498828e3af54d18df4eb0a4bb85b2afd15cc2804f0d98cf70bf1826541a2b。技术范围为LOCAL_PARSER_CHECK；没有客户审批、许可、模型响应或业务处理成功登记。当前rights默认关闭，三个消费者仍关闭；合法客户授权文件、明确政策、人工决定、完整上传及采用、旧代际提交和实际中断恢复继续业务验收。当前固定部署、完整备份与字节核验由[IMP-36](IMP-36.md)维护，核准及生命周期继续[IMP-10](IMP-10.md)完整范围。
+
+## BE-08 持久处理命令与解析 Worker
+
+2026-10-13当前执行包括`BACK-SOURCE-COMPLETION-01`。SourceCompletionWorker、Access、Policy、Configuration、Execution、CheckpointStore、Registration及Mapper已经连接固定上传命令、分段重组、真实扫描及格式核验、原件保存、同归属去重、来源登记和终态回执。消费者按原event_id/consumer_id领取、续期及提交；租约代际、数据库期限、原操作和当前发起人员许可共同约束每次动作。尚未获得实际业务发布绑定，当前source-completion、source-processing及source-deletion全部保持enabled=false，完整客户上传和处理未验收。
+
+扫描命令保存固定原件摘要、扫描发布、私有目录及完整输入身份；ClamAV核验三个官方签名并扫描实际原件，成熟格式组件核验声明格式，成功回执固定format及format_verified。外部原件写入以前持久保存扫描命令、回执和write_intent；恢复只读取原write_id及固定对象版本。048迁移提供source_completion_checkpoint、source_upload_result及outbox_delivery的开始时间、执行期限和发布清单；期限在首次执行时固定，恢复不重新计算期限。
+
+登记事务保存SourceVersion、PENDING_REVIEW权利版本、来源组织及会话关系、固定处理配置、QUEUED解析及处理作业。授权证据声明保留在provenance，当前消费者不产生批准证据。去重同时核查原件完整字节、企业/项目/会话归属、原来源和项目读取许可、当前权利、生命周期及完整声明；NEW_VERSION继续限定原source_id。完成结果、操作终态、上传会话、消费者回执、治理水位、审计与事件共同保存并重新读取；原202响应按原字节重放。过期上传、执行期限、领取次数及实际扫描命令失败分别产生持久失败回执。
+
+| 上传完成组件检查 | 当前实际证据及范围 |
+| --- | --- |
+| 官方原件扫描与格式核验 | `.implementation-work/source-completion-format-native-20261013.log`，五项通过；官方DOCX及PDF结构读取、完整DOCX扫描与四份输出、命令及摘要/权限拒绝、实际PDF与DOCX声明冲突拒绝；SHA-256为ce188b74b980325434425239a4c0270e0356318052bfb5f99c8877a0638b3338 |
+| 独立扫描命令 | `.implementation-work/source-completion-scan-checks/7ff04d25-705b-440b-a7f0-1244acb1ace0/receipt.json`，SCANNED、format=DOCX、format_verified=true，19份Python源码及四份真实输出；回执SHA-256为3f47964a7b1efc46bcf52a3d22d0a103b9f305afb80d3aa56ade4e5fc521e51b |
+| Java组件及真实对象 | `.implementation-work/source-completion-format-java-20261013.log`，SourceCompletionBootstrapTest五项、SourceCompletionScanResultIT三项、SourceCompletionObjectsIT三项和MigrationBundleTest一项通过，失败/错误/跳过均为零；真实S3原件恢复及完整字节核验，原approved权利Schema与此前固定制品逐字节一致；日志SHA-256为23d87fa39bdb915a082800cc740eb52b5556dca0090f5c30a8e95c360c66dd8a |
+| 数据库与备份 | `.implementation-work/source-processing-runtime-checks/9c19a6a8-5c53-4d39-a5da-c937a2cba6bb/receipt.json`，270项迁移、两张表38项字段、九项外键、九项CHECK、三项期限字段及一项期限CHECK核验通过，完整备份读取3730073字节；回执SHA-256为d21396891662f11bba7827838a58c601630abd4b5be1cd573861d185afb8d237 |
+
+当前技术检查使用已登记的LOCAL_PARSER_CHECK官方原件，不创建客户上传、来源许可、专业核准或模型响应。completion_checkpoint、source_upload_result及processing_attempt实际业务记录数量均为零；customer_upload_completed=false、customer_processing_verified=false、business_worker_verified=false及professional_approval_created=false。Backend和Integration完整业务保持PENDING，父工单保持IN_PROGRESS。权利审批入口、获准发布绑定、完整客户上传、七格式持久处理、复杂表格及图片/公式/OCR、实际非空记录的中断恢复与旧代际拒绝继续完整要求。索引消费者由IMP-09维护，统一SYSTEM_JOB身份、内部mTLS及Temporal由IMP-04/13/14维护；这些范围继续实施。
+
+当前19份Python源码的完整官方DOCX处理命令取得COMPLETE、220个节点和220个片段，回执`.implementation-work/source-processing-checks/047d3e23-bac0-4199-bd2d-f73be4a9c676/receipt.json`的SHA-256为3b1fb2671ff77563cd6d9ab03894bfd7eb599dc65b399f29e6a6e6b6ee1d34e6。完整201141字节解析包实际写入S3并按原write_id和固定版本重读；版本6721e63bf09f493716a89f0c960a4aba、对象SHA-256为640d62b4e5ed571e9eab4aaa1b8b9f3dd58c48f8ffd9ede8981b9434d5a10852，版本数量为一。回执`.implementation-work/source-processing-storage-checks/6807f6aa-ba41-4bd2-8762-51df16454e89/receipt.json`的SHA-256为9cb1fd0aee872c604e137abd601977bb84be8c01307bfb41ebc3ecb084e81b6c。
+
+当前Java组件、完整解析包及真实S3重读十四项检查通过，`.implementation-work/source-metadata-current-java-20261013.log`，SHA-256为941419b04310dba6d5954065624536042ff1d759d53a881500cb2e55b1c8489f；MigrationBundleTest另行读取283项迁移定义通过。失败、错误及跳过均为零。049补充审计和Schema元数据，由[IMP-03](IMP-03.md)维护；实际应用、构建、私有配置、固定制品及备份由[IMP-36](IMP-36.md)维护。持久客户处理继续完整业务验收。
+
+2026-10-13继续执行`BACK-SOURCE-PROCESSING-01`，状态引用实施任务计划的`IN_PROGRESS`。当前检索本记录、IMP-09/10/36、后端实施计划、LLD-后端§5.1/6.1、LLD-数据及来源处理源码。已有上传完成命令、租约组件、ClamAV扫描和七格式解析组件继续使用；本项连接固定处理命令、隔离执行、解析包、节点及Locator保存与回执，并保持完整上传、索引和专业核准要求。
+
+Given登记官方原件、固定扫描发布和真实本地解析组件；When执行受限处理命令；Then扫描先于解析，完整节点、Locator、原文摘要、处理身份和扫描输出保存到私有目录，结果回执重新核查固定摘要；错误输入不能产生成功回执。验证使用已登记的`LOCAL_PARSER_CHECK`原件和本次实际执行身份，不创建客户业务记录、核准或模型响应。`tests/test_source_processing_command.py`四项原生检查通过，真实官方DOCX完整命令取得`COMPLETE`、220个节点及220个片段；当前技术验证状态为`PASS`。
+
+SourceProcessingWorker/Access/Policy/Result/Configuration/Mapper完成已登记来源的持久重新解析路径。每次短事务重新核查实际账号、成员、当前授权、来源及权利、项目和完整发布配置；owner/generation/revision、租约及执行期限约束续期与提交。完整Python文件、运行制品、扫描发布及Schema摘要固定；PARSE_AND_INDEX保存独立index_config_revision。处理进程使用独立环境，扫描通过后加载成熟格式组件。外部写入前保存原命令、回执和write_intent；恢复重新读取原write_id及固定版本。对象和完整节点及片段核验后，版本、来源及配置关系、作业、治理水位、审计与事件共同提交，核准继续PENDING。
+
+SourceCompletionObjects核查KN-03保存的完整分段清单，固定标准8MiB范围、序号、完整大小及摘要、write_id、revision和ObjectRef，拒绝未知字段、不同归属、重复或缺少分段。Manifest保存独立不可修改的完整身份。SourceUploadService在保存及重放完成命令时执行该检查；SourceUploadTransport.assembleSourceJob使用当前服务器确定的企业与上传前缀、共享有限传输名额和周期准入。重组复用现有UploadObjectAssembly；每项以原write_id重新核查AES256、元数据、唯一固定版本及完整字节，随后重读完整原件并清理私有文件。该传输能力供上传完成消费者使用，来源登记、权利证据、同归属去重及消费回执继续完整实现要求。
+
+| 处理组件原检查范围 | 实际证据 |
+| --- | --- |
+| 原生处理命令 | 四项通过，265.293秒；`.implementation-work/source-processing-command-native-final-20261013.log`，SHA-256为79eea101b91a861a35d4b8f1b47330b09d3f541f7a76bf8ceffd06efc0b947d7；原件完整摘要保持 |
+| Worker执行环境 | `.implementation-work/source-processing-checks/86fd2f1c-000f-47c8-b4fd-53005a2ae16d/receipt.json`，SHA-256为7550fda14e7403d23f30e5c124cf6118576a509851c8b0b87bd885fbc23abed4；独立环境、18份当前Python源码、固定扫描发布及完整220个节点、220个片段、四份扫描输出和签名通过 |
+| 固定对象及Java恢复 | `.implementation-work/source-processing-storage-checks/9f6cdc8b-3071-4309-b449-351db87bfa26/receipt.json`；实际S3的独立LOCAL_PARSER_CHECK对象为201141字节，版本6721efc020adfd2f1734413ee495b112，SHA-256为e3931381760a88d6ad83352245270d856c6f43d4af20ed3cff87eebef458028a；AES256、固定write_id、元数据、唯一版本及完整字节重读通过；SourceProcessingObjectIT使用真实Java存储组件两次恢复并验证完整解析包 |
+| 当前Java制品 | 十一模块package通过，MigrationBundleTest一项、SourceProcessingBootstrapTest三项、SourceProcessingResultIT两项、SourceProcessingObjectIT一项、SourceCompletionObjectsIT三项，失败、错误及跳过均为零；`.implementation-work/source-completion-verified-build-20261013.log`，SHA-256为ef16633934f423951b426498d0bad6323d257370398a97a140f8ebd339032181 |
+| 原件分段及重组 | `.implementation-work/source-completion-object-checks/aadcb895-8f07-4835-89ff-5311759c2685/receipt.json`，SHA-256为3d84cb74c4c89869f44af32c7ae884011cba04a9bd775954eb80a26583a95796；真实DOCX为37870字节、一个标准范围分段；Java两次重新核查固定write_id、AES256、元数据、原版本6721eea6f3dc9a5f82b3bf0c8719438d和完整字节，重组后逐字节一致且私有目录清理通过；范围、重复、不同真实摘要、容量及未知字段拒绝通过；没有创建客户上传记录 |
+| 迁移与运行 | 047新增三项迁移、七项处理字段、两项解析对象字段及三项约束通过；当前267项数据库登记；应用重读回执`.implementation-work/source-processing-runtime-checks/ad22303f-e791-493c-a393-14b99178dbe8/receipt.json`核查当前处理、上传及原件重组class、资源、18份Python源码、附加配置及未认证401 |
+
+处理组件原部署及十八份源码证据保持各自登记字节；当前制品、十九份源码配置及应用身份由IMP-36维护。未创建替代发布配置或客户来源，实际processing_attempt数量为零。Data新增DDL及技术对象读取为SATISFIED；Backend/Integration的完整合法业务处理继续PENDING；本项未调用模型；Frontend完整逐文件业务状态继续原验收要求。
+
+实际来源处理及完整IC-08尚未验收；图片、公式、复杂表格及OCR、权利审批、完整七格式持久处理、多分段容量、旧代际提交、四类状态和实际中断恢复继续完整范围。父工单保持IN_PROGRESS。
+
+## FE-08 固定原件阅读
+
+2026-10-13使用用户明确授权的`SIMULATION`资料，继续复用当前Layout、SessionPanel、Axios、Ajv和Element Plus。`source-original-reader.vue`提供明确读取、进度、取消和完整原件下载；`readCompleteSourceOriginal`按固定范围读取每个262144字节分段，逐段核对来源、媒体类型、总长度和SHA-256，全部字节取得后重新核验完整原件摘要。`VerifiedByteAssembly`拒绝重复范围、错误顺序、内容变化、不完整读取和清理后的继续使用。原件仅在当前内存及受控Object URL中保留，身份、版本、页面或读取状态变化后清理。
+
+`source-file-preview.vue`提供PDF原件、DOCX/PPTX转换预览、XLSX工作表、CSV记录、Markdown和TXT阅读。DOCX使用docx-preview，PPTX使用pptx-preview，XLSX使用ExcelJS，CSV使用Papa Parse，Markdown使用MarkdownIt及DOMPurify。CSV保留文字与单元格换行；XLSX呈现原公式与已有结果，不执行计算。Office预览使用具有内容安全策略的独立sandbox iframe；来源链接及外部图片通过当前受控接口读取。
+
+Given七种格式的固定原件；When读取完整字节、打开预览并清理当前阅读；Then摘要保持、格式内容可读取、原公式可见，清理后原件节点全部移除。`node scripts/check_source_reader_frontend.mjs`通过10份原件的完整字节与拒绝断言；`node tests/browser/source-reader-checks.js`通过开发10项、生产10项Chrome实际DOM检查。七份D0登记原件使用`LOCAL_PARSER_CHECK`，三份任务文件明确标记`SIMULATION`。原始结果为`.implementation-work/FRONT-SOURCE-READER-20261013/byte-checks.json`、`browser-checks.json`和对应日志。XLSX公式呈现的Red断言保存于`seven-format-red.log`，当前实际结果为Green。视觉检查为`NOT_RUN`。
+
+本次完成阅读组件及本地原件验证；实际KN-01—04七格式上传、处理终态、固定位置、核准及引用采用仍需要组合业务验证，IMP-08保持`IN_PROGRESS`。相关证据引用[IMP-16](IMP-16.md)、[IMP-26](IMP-26.md)和[IMP-39](IMP-39.md)。
+
 2026-10-08最新CURRENT-RUN-TOKEN-POLICY-BUILD-FINAL-01原5922失败终止，466项Java中来源HTTP恢复断言一项失败，错误和跳过零项。SourceUploadHttpTest.expiresStoppedActualInputAndResumesTheOriginalOperation完成原30秒停止输入期限、私有文件清理、原操作PROCESSING及无对象/分段断言；随后相同原键重新发送完整内容返回409 LEASE_STALE，预期200。恢复成功仍待修复与当前验证；不调整原期限、原键、固定对象和唯一事件断言。完整构建未生成新应用Jar，没有完整capture回执；原日志与JUnit按本次执行范围保存。用户已经调整为优先全部开发，其他前置具备的功能继续实施，全量构建与部署集中执行。当前应用仍对应IMP-06登记的PID16562不可变448项制品，本工单保持IN_PROGRESS。
 
 2026-10-08共享TransferConcurrency企业、用户及同分段许可身份核查由唯一[IMP-05](IMP-05.md)的BACK-UPLOAD-PERMIT-DEADLINE-01维护。当前读取原Redisson期限集合、不续租、不改变容量，原单调截止、配置、授权与清理保持；实际服务Green原76636的73项检查全部通过，原32次停止发送期限保留。当前完整RUN-TOKEN-UPLOAD-TASK-PLAN-BUILD-FINAL-01原27233正在运行，公开SOURCE及DOCUMENT_BODY消费者共同复验；修改尚未部署。下方403项构建及上传页面证据仅证明其原输入和制品，完整来源处理、Worker、KN-04与全部后续业务继续原要求。

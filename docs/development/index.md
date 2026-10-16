@@ -1,5 +1,45 @@
 # 开发记录索引
 
+2026-10-16 FRONT-HANDOFF-20261016、[前端开发交接](../前端开发交接.md)维护接收范围、源码与接口、完整剩余任务、环境与复验入口、原始证据适用性及待批准的数据清理。关联IMP-04/05/08/09/10/11/16/36/37/40/41/42。当前只读核查确认EXACT-RECOVERY-10登记文件保持一致；BROWSER-31原始50项浏览器通过保留，当前Chrome两项文件身份变化，浏览器组合适用性为STALE，继续使用当前工具复验。功能任务状态仍按原计划维护。
+
+2026-10-16后端接续资料读取[后端开发交接文档](../后端开发交接文档.md)，包含全部后端责任、当前源码与登记制品关系、历史证据、证书期限、环境及继续开发入口；任务状态仍由实施任务计划维护。
+
+2026-10-14 MODEL-CONFIGURATION-01、model_config_revision、CP-01—03、供应商/模型/秘密版本/limits/data_policy/价格及请求协议、完整固定配置和实际发布依赖由唯一[MODEL-CONFIGURATION-01](MODEL-CONFIGURATION-01.md)维护。关联BE-07/12/13/14/28及[IMP-07](IMP-07.md)，预算预留、实际调用及结算继续完整后端范围。
+
+2026-10-14 RUN-AUTHORITY-LOCAL-CONFIG-01、prepare_run_authority_configuration、activate_run_authority_configuration、实际CA/客户端证书/签名CRL/RSA、0700/0600、受保护公钥/私钥绑定、当前C02配置启动及PID45581部署由唯一[RUN-AUTHORITY-LOCAL-CONFIG-01](RUN-AUTHORITY-LOCAL-CONFIG-01.md)维护。关联BE-04/13/36及[RUN-TOKEN-AUTHORITY-01](RUN-TOKEN-AUTHORITY-01.md)、[IMP-36](IMP-36.md)，秘密值仅保存于受保护配置。
+
+2026-10-14 FRONT-SESSION-RECOVERY-01、医疗路由读取错误、当前内存目标、显式会话重读及完整领域错误响应由唯一[IMP-04](IMP-04.md)维护；关联session-recovery、router.onError、IdentityErrorResponseWriter及TemplateErrorResponseTest。当前公开错误六项检查通过，组合实际导航恢复继续核验。
+
+2026-10-14 RUN-TOKEN-AUTHORITY-01、RunTokenAuthority/Store/Schema/Configuration、claimStep/renewStep/issue/renew/execute、持久jti与原签名摘要、当前Policy和mTLS服务绑定、步骤租约与代际、当前资源动作许可、053迁移及实际数据库检查由唯一[RUN-TOKEN-AUTHORITY-01](RUN-TOKEN-AUTHORITY-01.md)维护。关联BE-04/07/09/13/14及[IMP-04](IMP-04.md)、[IMP-13](IMP-13.md)；内部HTTP、生产调度与真实客户成功路径保持原验收范围。
+
+2026-10-14 FRONT-EXACT-FIELDS-01、五类结构化字段、完整原值与人工别名、PublicationInput/Manifest/PublicationReceipt、SearchInput/Hit/Page、固定版本及等值查询前端消费由唯一[IMP-09](IMP-09.md)维护；关联SourceExactController和FE-09。check_source_exact_frontend三十三项参数检查、EXACT-RECOVERY-10完整制品及BROWSER-31原生/开发/生产五十项组合通过，涵盖权利、真实上传、空索引列表、核准、固定清单、五类查询、别名、原文展开、完整修订、历史、恢复及撤权；当前输入和产物字节重新核验通过。完整七格式Worker、非空索引、实际多页及正式采用继续原范围。
+
+2026-10-14 RUN-TOKEN-SIGNING-KEY-01、RunTokenSigningKeyStore、独立PKCS8私钥配置、原openat/fstat保护、当前公钥Policy修订及字节绑定、Nimbus签名和读取前后配置核查由唯一[IMP-04](IMP-04.md)维护；关联IMP-07/13/14/36。当前实际RSA及登记原件密码算法核验继续技术范围，完整生产令牌、持久运行归属、mTLS、当前动作、续期及客户业务保持原验收要求。
+
+2026-10-14 SOURCE-EXACT-01、SourceExactController/Service/Schema/Protocol/Policy/Mapper、完整原文字段及人工别名核准、固定字段版本、CAST AS BINARY等值查询、完整结果保存及分页、来源关系/ReferenceHold、五项公开方法和二十二项稳定输入Java/MySQL/S3检查由唯一[IMP-09](IMP-09.md)维护。052、292项迁移、178张企业表、五张新增表及原287项checksum由[IMP-03](IMP-03.md)维护，实际备份和应用构建/运行由[IMP-36](IMP-36.md)维护；关联IMP-05/08/10。正式快照、内部工具、DENSE/HYBRID、网络采集及客户业务继续后端计划原范围。
+
+2026-10-14 FRONT-INDEX-VIEW-01、source-index、source-index-result、source-index-builds、固定来源/项目索引历史、完整清单摘要及七项参数检查由[IMP-09](IMP-09.md)维护。关联SourceIndexViewController/Service/Schema和FE-08/09，真实空列表及完整当前制品继续核验。
+
+2026-10-14 SOURCE-INDEX-FULLTEXT-01、SourceIndexWorker/Access/Manifest/Policy/Configuration/Protocol/Mapper、完整逐片段核验、原事件及索引身份、租约恢复、READY/FAILED与消费者回执，以及KN-INDEX-STATUS的SourceIndexViewController/Service/Policy/Schema和十三项稳定输入Java检查由[IMP-09](IMP-09.md)维护。051、287项迁移、173张企业表、七项外键及六项CHECK由[IMP-03](IMP-03.md)维护，实际备份、保持关闭的消费者及构建/运行由[IMP-36](IMP-36.md)维护。完整DENSE/HYBRID、EXACT、内部检索、网络候选和客户业务继续后端计划原范围。
+
+2026-10-14 FRONT-SOURCE-RIGHTS-01、source-rights、rights-reviews/rights-decisions、完整许可与授权文件、KN-RIGHTS-01原请求恢复、来源权利与操作重读、SourceRightsSimulationHttpTest及真实浏览器检查由[IMP-10](IMP-10.md)维护，关联IMP-04/05/08/36/37。FRONT-UPLOAD-RESULT-01、source-upload-result、readSourceUploadResult、完整逐文件解析/索引/核准/失败清单、SourceUploadStatusController及固定来源与权利查询由[IMP-08](IMP-08.md)维护；当前完整Schema消费及九项参数检查已执行，完整工程与真实流程继续核验。
+
+SOURCE-UPLOAD-STATUS-01、SourceUploadStatusController/Service/Policy/Schema、KN-04实际接收/解析/索引/核准/权利及失败读取、原Schema和配置保持、二十项Java检查由[IMP-08](IMP-08.md)维护；当前PID7124、固定Jar08d0fc6afb0ad44fc247877efbeeda62a02c2a5825dbb01a814d81d3f30e6baa、149项class字节、十八份资源、恢复后的实际S3/Qdrant/Temporal和完整备份由[IMP-36](IMP-36.md)维护。完整后端任务继续[后端实施计划](../后端实施计划.md)原范围，当前业务验收保持IN_PROGRESS。
+
+SOURCE-RIGHTS-DECISION-01、SourceRightsController/Service/Policy/DecisionSchema/EvidenceAuthority/EvidenceBytes/Mapper、人工APPROVE/RETURN/REVOKE、完整授权Artifact和实际对象读取证明由[IMP-08](IMP-08.md)维护，核准及生命周期引用[IMP-10](IMP-10.md)。BACK-SOURCE-COMPLETION-01、SourceCompletionWorker/Access/Execution/CheckpointStore/Registration、scan_command、真实扫描与格式核验、来源登记及终态回执，连同BACK-SOURCE-PROCESSING-01和原件分段重组由[IMP-08](IMP-08.md)维护；047—050迁移由[IMP-03](IMP-03.md)维护；当前286项登记、十九份源码配置、完整解析包及固定版本恢复、构建和部署由[IMP-36](IMP-36.md)维护。真实官方原件使用LOCAL_PARSER_CHECK，客户上传及完整处理继续独立验收，三个消费者及人工权利审批均关闭。
+
+前后端执行责任分别见[前端实施计划](../前端实施计划.md)和[后端实施计划](../后端实施计划.md)。两端沿用同号IMP主记录，完整任务状态继续读取实施任务计划§4.2。
+
+2026-10-13结构化模板定义、template-definition-editor、全部ValueType及完整字段浏览器检查由[IMP-11](IMP-11.md)维护；document-body-reader、document-selection、全文及固定历史目录、Unicode和合并表格选区由[IMP-16](IMP-16.md)维护；check_frontend_continuation固定当前输入、组件开发/生产制品和完整医疗构建，verify_frontend_continuation重新核对全部当前字节，由[IMP-36](IMP-36.md)与[IMP-37](IMP-37.md)分别维护制品及适用验证。所有父工单继续按原完整业务验收判定。
+
+当前[前端操作说明](../frontend-operation-guide.md)及[制品环境核验说明](../frontend-release-guide.md)供[IMP-40](IMP-40.md)、[IMP-41](IMP-41.md)和[IMP-42](IMP-42.md)引用；正式SaaS、私有化及岗位接收分别使用其原完整验收和真实部署条件。
+
+2026-10-13前端原件阅读、VerifiedByteAssembly、source-original-reader、source-file-preview及七格式浏览器检查由[IMP-08](IMP-08.md)维护；KaTeX公式和document-evidence-panel由[IMP-16](IMP-16.md)维护；固定导出字节核验和当前页面响应检查由[IMP-26](IMP-26.md)维护；七格式兼容与内容清理由[IMP-39](IMP-39.md)维护。本轮用户明确授权SIMULATION资料，正式客户验收继续独立登记。
+
+request-metadata、封闭本地Schema、检索及导出原请求恢复由[IMP-05](IMP-05.md)维护；固定检索历史及连续分页由[IMP-09](IMP-09.md)维护；资料目录、处理队列、成果目录及全文检索的当前页面与会话清理由[IMP-04](IMP-04.md)维护；本轮公开接口集成条件读取[IMP-37](IMP-37.md)。
+
+当前按[后端实施计划](../后端实施计划.md)继续执行剩余后端工作。BACK-SOURCE-DELETION-01、SourceDeletionWorker/Access/Policy/Stores/Target/Configuration/Mapper及046迁移由[IMP-10](IMP-10.md)维护；BACK-LOCAL-DELETION-STORAGE-01、local_vector_storage、local_deletion_runtime、check_source_deletion_runtime、check_local_database_restore、当前本地服务和恢复证据由[IMP-36](IMP-36.md)维护。既有未提交内容继续保留，真实业务验收按当前输入规则执行。
+
 BACK-RUN-READ-01、RunReadController/Service/Mapper、run-view.schema.json、RN-02、运行一致性快照、当前撤权和check_run_read由唯一[IMP-13](IMP-13.md)维护。FRONT-RUN-READ-01、runs.ts、run-detail.vue、task-detail.vue及check_run_frontend由唯一[IMP-27](IMP-27.md)维护；运行状态、步骤、等待事项、预算与费用未知状态共同关联IMP-07/12/13。
 
 HARNESS-MEDICAL-AGENT-01、官方SDK/runtime发行、medical-agent profile、professional-executor、EnterpriseModelAdapter、ModelStreamVerifier、PrivateBridge、registerTools、tool-inputs/schema、tool-success/schema、实际插件与工具清单、check_professional_executor和AT-01—10由唯一[IMP-14](IMP-14.md)维护。当前严格构建、实际SDK初始化及六项模型/Unix Socket工程集成检查通过；本地兼容条件、接口和完整剩余开发读取主记录。业务开发继续使用已授权SIMULATION输入。
@@ -218,6 +258,8 @@ BACK-ARTIFACT-REGISTRY-01、025-artifact-content-registry、artifact_content_bin
 
 日期：2026-10-05。任务和验收状态统一读取[实施任务计划](../../实施任务计划.md)。本索引登记每项任务的唯一开发记录路径；实施开始时创建相应记录，并将路径改为记录链接。已有 IMP-01/02/03/04/05/06/07/37 的实施登记记录，其余预约路径不表示实现或验收已经完成。
 
+FRONT-WORKBENCH-01、S01、默认首页、PJ-01/PJ-06、当前人员待办、重点项目进度及六项场景入口由唯一[FRONT-WORKBENCH-01](FRONT-WORKBENCH-01.md)维护，关联IMP-04/06/12/29/37；代码状态IMPLEMENTED，完整客户业务验收读取实施任务计划。
+
 当前350项完整构建和本地新Jar部署由IMP-06维护；BACK-SOURCE-UPLOAD-01的公开创建、原声明保存/读取与原响应验证由IMP-08维护，237项迁移和153张企业业务表关联IMP-03。完整KN-02—04、页面、Worker及全部业务验收继续原工单要求。
 
 检索顺序：按任务编号、业务名称、模块和关联需求寻找记录，再读取当前代码及设计依据。每项记录维护具体实现、测试与证据，索引只维护入口和关联关系。
@@ -252,8 +294,8 @@ BACK-OBJECT-PAGING-01、ObjectContentPaging、ObjectContentPagingTest、IC-05-OB
 | IMP-06 | 若依组件、页面框架及管理模块接入 | C01、Router、Pinia、Cookie、CSRF、Axios、MedicalSession、S03/S17/S18、IC-06-SESSION-BROWSER、FRONT-ACCOUNT-01、LOCAL-06、OwnAccount、PendingCredential、changeMedicalCredential、IC-06-ACCOUNT-BROWSER、FRONT-PROJECT-JSON-01、project-json、readProjectJson、formatProjectJson、writeProjectJson、LosslessNumber、jsonc-parser、json-custom-numbers、FRONT-PROJECT-WRITE-01、project-write.ts、project-write-view.schema.json、PendingProjectWrite、project-write.vue、project-attributes.vue、operations.ts、schemaIssues、PJ-02/04/05、BX-31/OP-01 | FR-01—09；NFR-04/05 | [IMP-06.md](IMP-06.md) |
 | IMP-07 | 模型配置、预算、调用与结算 | C07、invocation、DeepSeek、medical_model_gateway、SDK、密钥、StreamEvent、MODEL-PRICING-02、pricing.py、upper_amount、actual_amount、缓存写入、舍入规则、未知金额、BACK-BUDGET-MANAGEMENT-01、BD-01—04、BudgetController/Service/Schema/Protocol/Mapper、budgets.schema.json、budget.approve、BUDGET_APPROVAL、BUDGET_READING、check_budgets | FR-02、FR-09；AC-03/04/24/28 | [IMP-07.md](IMP-07.md) |
 | IMP-08 | 批量上传、七格式解析和原件阅读 | C03、C09、locator、OCR | FR-03；AC-05/06/29/30 | [IMP-08.md](IMP-08.md) |
-| IMP-09 | 完整索引、授权检索与网络候选 | C03、C10、Qdrant、FULLTEXT | FR-03；AC-05/30/32/33 | docs/development/IMP-09.md |
-| IMP-10 | 核准、资料集、来源关系与生命周期 | CollectionService、CollectionAuthority、CollectionMapper、collections.schema.json、PageHelper、KN-11/12/13、lineage、reference_hold、治理 | FR-03；AC-31/34/36/57 | [IMP-10.md](IMP-10.md) |
+| IMP-09 | 完整索引、授权检索与网络候选 | RetrievalController、RetrievalService、RetrievalMapper、retrieval_query、retrieval_hit、source-search.vue、FULLTEXT、C03、C10、Qdrant | FR-03；AC-05/30/32/33 | [IMP-09.md](IMP-09.md) |
+| IMP-10 | 核准、资料集、来源关系与生命周期 | SourceGovernanceController、SourceGovernanceService、source-catalogue.vue、source-governance.vue、KN-05/06/07/08/09/10/16/17/20/21/22、source_folder、source_organization、user_source_bookmark、processing_attempt、project_source_binding、source_lifecycle_state、source_lifecycle_decision、retention_policy_revision、deletion_job、deletion_item、collection_member、scope_member、evidence_link、lineage_edge、reference_hold、CollectionService、CollectionAuthority、CollectionMapper、collections.schema.json、PageHelper、KN-11/12/13、治理 | FR-03；AC-05/06/31/34/36/57 | [IMP-10.md](IMP-10.md) |
 | IMP-11 | 模板目录、字段及适用条件 | RequirementNode、模板、UNKNOWN、BACK-TEMPLATE-DEFINITION-01、TemplateProtocol、TemplateDefinitionSchema、templates.schema.json、十三文档、十一字段、重复行、附件、TP-01/02 | FR-05、FR-09；AC-18/45/46/50/57 | [IMP-11.md](IMP-11.md) |
 | IMP-12 | 项目任务、来源快照与计划决定 | C04、TaskRevision、ScopeSnapshot、SourceScope、PlanCandidate、task_input_revision、plan_content_revision、BACK-TASK-PLAN-01、BACK-TASK-STORAGE-01、BACK-TASK-SOURCE-CANDIDATE-01、BACK-SCOPE-MANIFEST-01、ScopeSnapshotSchema、ScopeSnapshotManifest、ScopeSnapshotMember、SnapshotRequirement、requireCandidate、snapshotCandidate | FR-04、FR-09；AC-07/08/18/31/37 | [IMP-12.md](IMP-12.md) |
 | IMP-13 | Temporal 调度、等待、取消与恢复 | C11、Temporal、local_temporal、Signal、lease、run、execution_registry、system_job_run | FR-02、FR-09；AC-04/20/21/39/41/44 | [IMP-13.md](IMP-13.md) |
@@ -279,7 +321,7 @@ BACK-OBJECT-PAGING-01、ObjectContentPaging、ObjectContentPagingTest、IC-05-OB
 | IMP-33 | 翻译场景 | 翻译、语种、术语 | FR-07；AC-14 | docs/development/IMP-33.md |
 | IMP-34 | 市场分析场景 | 市场、口径、证据 | FR-07；AC-14 | docs/development/IMP-34.md |
 | IMP-35 | 多模态问答场景 | 多模态、问答、定位 | FR-07；AC-14 | docs/development/IMP-35.md |
-| IMP-36 | 环境、监控、制品与恢复准备 | 部署、秘密、trace、备份 | FR-08；NFR-02/06/07/15 | docs/development/IMP-36.md |
+| IMP-36 | 环境、监控、制品与恢复准备 | 部署、秘密、trace、备份、BACK-LOCAL-DELETION-STORAGE-01、local_vector_storage、local_deletion_runtime、check_local_database_restore | FR-08；NFR-02/06/07/15 | [IMP-36.md](IMP-36.md) |
 | IMP-37 | 注册业务与边界集成验收 | TEST、EDGE、QA、下游使用、check_full_function_inventory、full-functional-report、IC-04-AUTH-ERRORS | AC-01—57 中本项55项；IC-37 | [IMP-37.md](IMP-37.md) |
 | IMP-38 | 安全配对与制品检查 | SEC、TH、合法与拒绝 | NFR-03/11/13；IC-38 | docs/development/IMP-38.md |
 | IMP-39 | 非功能、兼容与恢复验收 | NTEST、SLO、RTO、RPO | NFR-01—17 中本项14项；IC-39 | docs/development/IMP-39.md |

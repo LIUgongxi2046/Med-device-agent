@@ -39,6 +39,9 @@ public final class SourceUploadSchema {
         .enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS).build();
     private final PermissionSchema json;
     private final JsonSchema schema;
+    private final JsonSchema completionCommands;
+    private final JsonSchema completionResults;
+    private final String completionResultManifest;
     private final String schemaSha256;
 
     public SourceUploadSchema(PermissionSchema json) throws IOException, NoSuchAlgorithmException {
@@ -49,6 +52,15 @@ public final class SourceUploadSchema {
             schema.initializeValidators();
             definition("Created").initializeValidators(); definition("Registration").initializeValidators();
             definition("Completion").initializeValidators();
+        }
+        try(var input=Objects.requireNonNull(getClass().getResourceAsStream("/source-completion-command.schema.json"))) {
+            completionCommands=SchemaCatalogue.fromClasspath().compileApiSchema(mapper.readTree(input));
+            completionCommands.initializeValidators();
+        }
+        try(var input=Objects.requireNonNull(getClass().getResourceAsStream("/source-completion-result.schema.json"))) {
+            byte[] document=input.readAllBytes(); completionResultManifest=DigestUtils.sha256Hex(document);
+            completionResults=SchemaCatalogue.fromClasspath().compileApiSchema(mapper.readTree(document));
+            completionResults.initializeValidators();
         }
     }
 
@@ -117,6 +129,27 @@ public final class SourceUploadSchema {
 
     String schemaSha256() { return schemaSha256; }
     JsonNode readJson(String value) throws IOException { return mapper.readTree(Objects.requireNonNull(value)); }
+    JsonNode completionCommand(String value) throws IOException {
+        var command=readJson(value);
+        if(command==null || !completionCommands.validate(command).isEmpty()) mismatch();
+        for(String name:List.of("source_revision","session_revision")) WireValues.revision(command.required(name).textValue());
+        WireValues.revision(command.required("context").required("context_revision").textValue());
+        for(String name:List.of("auth_epoch","governance_epoch")) {
+            WireValues.revision(command.required("context").required(name).textValue());
+            WireValues.revision(command.required("watermarks").required(name).textValue());
+            if(!command.required("context").required(name).equals(command.required("watermarks").required(name))) mismatch();
+        }
+        return command;
+    }
+    JsonNode completionResult(String value) throws IOException {
+        var result=readJson(value); if(result==null || !completionResults.validate(result).isEmpty()) mismatch();
+        if(!"FAILED".equals(result.required("status").textValue())) {
+            var object=result.required("original_object_ref"); WireValues.revision(object.required("size_bytes").textValue());
+            if(!object.required("sha256").equals(result.required("original_sha256"))) mismatch();
+        }
+        return result;
+    }
+    String completionResultManifest() { return completionResultManifest; }
     void verify(String kind, JsonNode value) { if (value == null || !definition(kind).validate(value).isEmpty()) invalid(); }
     private JsonSchema definition(String kind) { return schema.getSubSchema(new JsonNodePath(PathType.JSON_POINTER).append("$defs").append(kind)); }
 

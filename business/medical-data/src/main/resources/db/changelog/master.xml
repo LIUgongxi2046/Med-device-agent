@@ -50,4 +50,18 @@
     <include file="db/migration/037-document-reading.xml" relativeToChangelogFile="false"/>
     <include file="db/migration/038-document-projection-kind.xml" relativeToChangelogFile="false"/>
     <include file="db/migration/039-document-revision-projections.xml" relativeToChangelogFile="false"/>
+    <include file="db/migration/040-retrieval-results.sql" relativeToChangelogFile="false"/>
+    <include file="db/migration/041-current-source-binding.sql" relativeToChangelogFile="false"/>
+    <include file="db/migration/042-source-processing-attempt.sql" relativeToChangelogFile="false"/>
+    <include file="db/migration/043-source-usage-indexes.sql" relativeToChangelogFile="false"/>
+    <include file="db/migration/044-source-lifecycle.sql" relativeToChangelogFile="false"/>
+    <include file="db/migration/045-knowledge-submission-identity.sql" relativeToChangelogFile="false"/>
+    <include file="db/migration/046-source-deletion-worker.sql" relativeToChangelogFile="false"/>
+    <include file="db/migration/047-source-processing-worker.sql" relativeToChangelogFile="false"/>
+    <include file="db/migration/048-source-completion-checkpoint.sql" relativeToChangelogFile="false"/>
+    <include file="db/migration/049-source-audit-metadata.sql" relativeToChangelogFile="false"/>
+    <include file="db/migration/050-source-rights-decisions.sql" relativeToChangelogFile="false"/>
+    <include file="db/migration/051-source-index-build.sql" relativeToChangelogFile="false"/>
+    <include file="db/migration/052-source-exact-fields.sql" relativeToChangelogFile="false"/>
+    <include file="db/migration/053-run-token-authority.sql" relativeToChangelogFile="false"/>
 </databaseChangeLog>

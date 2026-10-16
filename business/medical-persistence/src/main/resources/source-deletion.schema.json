@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:source-deletion:1.0.0",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema_version", "inventory_revision", "tenant_id", "source_version", "store_id", "complete", "captured_through", "copies", "signature"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "inventory_revision": {"type": "string", "format": "uuid"},
+    "tenant_id": {"type": "string", "format": "uuid"},
+    "source_version": {"type": "string", "format": "uuid"},
+    "store_id": {"type": "string", "minLength": 1},
+    "complete": {"const": true},
+    "captured_through": {"type": "string", "format": "date-time"},
+    "signature": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "copies": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["object_key", "object_version", "sha256", "expires_at", "legal_hold"],
+        "properties": {
+          "object_key": {"type": "string", "minLength": 1},
+          "object_version": {"type": "string", "minLength": 1},
+          "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+          "expires_at": {"type": "string", "format": "date-time"},
+          "legal_hold": {"const": false}
+        }
+      }
+    }
+  }
+}

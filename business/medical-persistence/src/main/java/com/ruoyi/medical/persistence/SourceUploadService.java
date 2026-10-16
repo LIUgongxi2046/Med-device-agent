@@ -39,6 +39,7 @@ public final class SourceUploadService implements UploadPartReceiver.Authority {
     private final SourceUploadPolicy policy;
     private final OperationSchema operationSchema;
     private final SchemaCatalogue shared;
+    private final SourceCompletionObjects completionObjects;
     private final String manifest;
 
     public SourceUploadService(EnterpriseAccess access, SourceUploadMapper mapper, UploadTransferMapper transfers,
@@ -47,6 +48,7 @@ public final class SourceUploadService implements UploadPartReceiver.Authority {
         this.access = access; this.mapper = mapper; this.transfers = transfers; this.uploads = uploads;
         this.permissions = permissions; this.authority = authority; this.schema = schema; this.json = json; this.policy = policy;
         this.operationSchema = operationSchema;
+        completionObjects = new SourceCompletionObjects();
         shared = SchemaCatalogue.fromClasspath();
         var identity = json.object(); identity.put("schema_version", "1.0.0"); identity.put("source_upload_schema_sha256", schema.schemaSha256());
         identity.put("permission_manifest_sha256", json.manifestSha256()); identity.set("settings", json.tree(policy));
@@ -58,9 +60,14 @@ public final class SourceUploadService implements UploadPartReceiver.Authority {
         return access.execute(subject, admission -> ThrowingSupplier.of(() -> issue(admission, context, key, request)).get());
     }
 
+    String manifestSha256() { return manifest; }
+
     JsonNode read(ApplicationSessionIdentity.Verified subject, String context, String uploadId, long afterPart, int limit) {
         WireValues.uuid(uploadId); PermissionSchema.revision(context);
-        return access.execute(subject, admission -> ThrowingSupplier.of(() -> {
+        return access.execute(subject, admission -> ThrowingSupplier.of(() -> registration(admission,context,uploadId,afterPart,limit)).get());
+    }
+
+    private JsonNode registration(EnterpriseAccess.Admission admission,String context,String uploadId,long afterPart,int limit) throws IOException {
             context(admission, context); var values = values(admission); values.put("uploadId", uploadId);
             var saved = one(mapper.declaration(values)); var request = stored(admission, saved);
             requireAuthority(admission, request.content(), permissions.databaseTime());
@@ -77,8 +84,36 @@ public final class SourceUploadService implements UploadPartReceiver.Authority {
             if (parts.size() == limit) data.put("next_part", parts.get(parts.size()-1).required("part_no").longValue());
             else data.putNull("next_part");
             return envelope("Registration", data, id(), source.revision().toString());
-        }).get());
     }
+
+    StatusSnapshot status(EnterpriseAccess.Admission admission,String context,String uploadId) throws IOException {
+        var registration=registration(admission,context,uploadId,0,1);
+        var values=values(admission); values.put("uploadId",uploadId); var operations=mapper.completionState(values);
+        if(operations.isEmpty()) {
+            if("RECEIVED".equals(registration.required("data").required("upload_status").textValue())
+                    || "COMPLETING".equals(registration.required("data").required("transfer_state").textValue())) mismatch();
+            return new StatusSnapshot(registration,null,null);
+        }
+        var operation=one(operations); values.put("operationId",operation.operationId()); values.put("key",operation.idempotencyKey());
+        var command=schema.completionCommand(one(mapper.completionCommand(values)));
+        var declaration=stored(admission,one(mapper.declaration(values)));
+        var request=schema.completion(json.canonical(command.required("request")).getBytes(StandardCharsets.UTF_8),policy.maximumBytes(),declaration);
+        values.put("requestSha256",completionRequestHash(uploadId,request)); completionReplay(admission,values,operation,request);
+        JsonNode result=null;
+        if("COMPLETED".equals(operation.state())) result=schema.completionResult(one(mapper.completionResult(values)));
+        if("FAILED".equals(operation.state())) result=schema.completionResult(one(mapper.completionFailure(values)));
+        var view=json.object(); view.put("operation_id",operation.operationId()); view.put("operation_state",operation.state());
+        for(String name:List.of("result_status","source_id","source_version","registered_rights_revision","parse_version","attempt_id","run_id","error_code","reason"))
+            view.putNull(name);
+        if(result!=null) {
+            view.set("result_status",result.required("status"));
+            for(String name:List.of("source_id","source_version","parse_version","attempt_id","run_id","error_code","reason"))
+                if(result.has(name)) view.set(name,result.required(name));
+            if(result.has("rights_revision")) view.set("registered_rights_revision",result.required("rights_revision"));
+        }
+        return new StatusSnapshot(registration,view,result);
+    }
+    record StatusSnapshot(JsonNode registration,JsonNode completion,JsonNode result) { }
 
     private JsonNode issue(EnterpriseAccess.Admission admission, String context, String key,
             SourceUploadSchema.ValidatedCreate request) throws IOException {
@@ -142,10 +177,7 @@ public final class SourceUploadService implements UploadPartReceiver.Authority {
             var values = values(admission); values.put("uploadId", uploadId); values.put("key", key); values.put("manifest", manifest);
             var declaration = one(mapper.declaration(values));
             var request = schema.completion(bytes, policy.maximumBytes(), stored(admission, declaration));
-            var identity = json.object(); identity.put("method", "POST"); identity.put("path", "/api/uploads/" + uploadId + "/completions");
-            identity.putNull("query"); identity.put("schema_version", "1.0.0"); identity.put("schema_ref", request.schemaRef());
-            identity.put("schema_sha256", request.schemaSha256()); identity.set("body", request.content());
-            String hash = DigestUtils.sha256Hex(json.canonical(identity)); values.put("requestSha256", hash);
+            String hash = completionRequestHash(uploadId,request); values.put("requestSha256", hash);
             var previous = mapper.completionOperation(values);
             if (!previous.isEmpty()) return completionReplay(admission, values, one(previous), request);
             var source = one(transfers.source(values)); var session = uploads.session(admission, uploadId);
@@ -167,8 +199,11 @@ public final class SourceUploadService implements UploadPartReceiver.Authority {
             command.put("schema_ref", request.schemaRef()); command.put("schema_document_sha256", request.schemaSha256());
             command.put("schema_manifest_sha256", manifest); command.put("authority_sha256", authorization);
             command.put("subject_id", subject.user().user_id()); command.put("application_session_id", subject.sessionId());
-            command.set("context", json.tree(admission.context())); command.set("watermarks", json.tree(admission.watermarks()));
+            command.set("context", json.tree(admission.context()));
+            var watermarks=json.object(); watermarks.put("auth_epoch",admission.watermarks().authEpoch().toString());
+            watermarks.put("governance_epoch",admission.watermarks().governanceEpoch().toString()); command.set("watermarks",watermarks);
             command.set("request", request.content()); command.set("stored_parts", storedParts); command.set("response", response);
+            schema.completionCommand(json.canonical(command));
             var audit = command.deepCopy(); audit.put("tenant_id", admission.context().tenant_id()); audit.put("project_id", source.projectId());
             changed(permissions.saveAudit(subject.user().user_id(), source.projectId(), auditId, "source.upload.completion.requested",
                 json.canonical(audit), requestId, manifest, source.classification()));
@@ -181,7 +216,8 @@ public final class SourceUploadService implements UploadPartReceiver.Authority {
                     || !BigInteger.ZERO.equals(delivery.leaseGeneration()) || !BigInteger.ONE.equals(delivery.revision())
                     || delivery.leaseOwner() != null || delivery.leaseUntil() != null || delivery.lastError() != null
                     || !values.get("now").equals(delivery.nextAttemptAt()) || !values.get("now").equals(delivery.createdAt())
-                    || !values.get("now").equals(delivery.updatedAt())) mismatch();
+                    || !values.get("now").equals(delivery.updatedAt()) || !"1.0.0".equals(delivery.schemaVersion())
+                    || !manifest.equals(delivery.schemaManifestSha256())) mismatch();
             values.put("auditId", auditId); values.put("projectId", source.projectId()); values.put("requestId", requestId);
             if (!json.canonical(audit).equals(json.canonical(schema.readJson(one(mapper.completionAudit(values)))))) mismatch();
             return completionReplay(admission, values, one(mapper.completionOperation(values)), request);
@@ -206,47 +242,93 @@ public final class SourceUploadService implements UploadPartReceiver.Authority {
             }
         }
         if (parts.size() != request.parts().size()) throw new TenantAccessException(ErrorCode.STEP_NOT_READY);
+        completionObjects.verify(parts,request.sizeBytes(),request.sha256(),"tenants/"+admission.context().tenant_id()
+            +"/uploads/"+uploadId+"/parts",policy.maximumBytes().longValueExact());
         return parts;
+    }
+
+    private String completionRequestHash(String uploadId,SourceUploadSchema.ValidatedCompletion request) throws IOException {
+        var identity=json.object(); identity.put("method","POST"); identity.put("path","/api/uploads/"+uploadId+"/completions");
+        identity.putNull("query"); identity.put("schema_version","1.0.0"); identity.put("schema_ref",request.schemaRef());
+        identity.put("schema_sha256",request.schemaSha256()); identity.set("body",request.content());
+        return DigestUtils.sha256Hex(json.canonical(identity));
     }
 
     private JsonNode completionReplay(EnterpriseAccess.Admission admission, Map<String,Object> values, UploadOperationRow operation,
             SourceUploadSchema.ValidatedCompletion request) throws IOException {
         if (!values.get("requestSha256").equals(operation.requestSha256())) throw new TenantAccessException(ErrorCode.IDEMPOTENCY_CONFLICT);
         String actor = admission.subject().user().user_id(), uploadId = (String) values.get("uploadId");
+        boolean completed="COMPLETED".equals(operation.state());
+        boolean failed="FAILED".equals(operation.state()),terminal=completed || failed;
         if (!admission.context().tenant_id().equals(operation.tenantId()) || !actor.equals(operation.subjectId()) || !actor.equals(operation.createdBy())
                 || !"KN-03".equals(operation.operationName()) || !values.get("key").equals(operation.idempotencyKey()) || !uploadId.equals(operation.targetId())
                 || !"1.0.0".equals(operation.schemaVersion()) || !manifest.equals(operation.schemaManifestSha256())
-                || operation.createdAt() == null || !operation.createdAt().equals(operation.updatedAt()) || !BigInteger.ONE.equals(operation.revision())
-                || operation.httpStatus() != null || operation.responseRef() != null || operation.errorCode() != null
-                || operation.dedupExpiresAt() != null || operation.dedupPolicyRevision() != null || !"PROCESSING".equals(operation.state())) mismatch();
+                || operation.createdAt() == null || operation.updatedAt()==null || operation.updatedAt().isBefore(operation.createdAt())
+                || !failed && operation.errorCode()!=null || failed && !ErrorCode.PROCESSING_FAILED.name().equals(operation.errorCode())
+                || operation.dedupExpiresAt() != null || operation.dedupPolicyRevision() != null
+                || !terminal && (!"PROCESSING".equals(operation.state()) || !BigInteger.ONE.equals(operation.revision())
+                    || !operation.createdAt().equals(operation.updatedAt()) || operation.httpStatus()!=null || operation.responseRef()!=null)
+                || terminal && (!BigInteger.TWO.equals(operation.revision()) || !Integer.valueOf(202).equals(operation.httpStatus())
+                    || operation.responseRef()==null)) mismatch();
         WireValues.uuid(operation.operationId()); values.put("operationId", operation.operationId());
         var source = one(transfers.source(values)); var session = uploads.session(admission, uploadId);
-        if (!"COMPLETING".equals(session.state()) || !"UPLOADING".equals(source.status())
+        if (!(completed?"COMPLETED":failed?"FAILED":"COMPLETING").equals(session.state())
+                || !(completed?"RECEIVED":failed?"FAILED":"UPLOADING").equals(source.status())
                 || !operation.classification().equals(source.classification())) mismatch();
-        var command = schema.readJson(one(mapper.completionCommand(values)));
+        var command = schema.completionCommand(one(mapper.completionCommand(values)));
         if (!"1.0.0".equals(command.required("schema_version").textValue()) || !operation.operationId().equals(command.required("operation_id").textValue())
+                || !operation.tenantId().equals(command.required("context").required("tenant_id").textValue())
                 || !uploadId.equals(command.required("upload_id").textValue()) || !operation.requestSha256().equals(command.required("request_sha256").textValue())
                 || !request.schemaRef().equals(command.required("schema_ref").textValue()) || !request.schemaSha256().equals(command.required("schema_document_sha256").textValue())
                 || !manifest.equals(command.required("schema_manifest_sha256").textValue()) || !actor.equals(command.required("subject_id").textValue())
-                || !source.revision().toString().equals(command.required("source_revision").textValue())
-                || !session.revision().toString().equals(command.required("session_revision").textValue())
+                || !source.revision().subtract(terminal?BigInteger.ONE:BigInteger.ZERO).toString().equals(command.required("source_revision").textValue())
+                || !session.revision().subtract(terminal?BigInteger.ONE:BigInteger.ZERO).toString().equals(command.required("session_revision").textValue())
                 || !request.canonicalJson().equals(json.canonical(command.required("request")))
                 || !json.canonical(completionParts(admission, uploadId, request)).equals(json.canonical(command.required("stored_parts")))) mismatch();
         WireValues.hash(command.required("authority_sha256").textValue()); WireValues.uuid(command.required("application_session_id").textValue());
         String eventId = command.required("event_id").textValue(); WireValues.uuid(eventId);
         if (!SourceUploadProtocol.COMPLETION_CONSUMER.equals(command.required("consumer_id").textValue())) mismatch();
         values.put("eventId", eventId); values.put("consumerId", SourceUploadProtocol.COMPLETION_CONSUMER);
+        values.put("resultManifest",schema.completionResultManifest());
         var delivery = one(mapper.completionDelivery(values));
         // 原请求重放核验持久身份；租约和投递结果由消费者独立维护。
         if (!operation.tenantId().equals(delivery.tenantId()) || !eventId.equals(delivery.eventId())
                 || !SourceUploadProtocol.COMPLETION_CONSUMER.equals(delivery.consumerId()) || !actor.equals(delivery.createdBy())
                 || !operation.createdAt().equals(delivery.createdAt()) || !operation.classification().equals(delivery.classification())
+                || !"1.0.0".equals(delivery.schemaVersion()) || !manifest.equals(delivery.schemaManifestSha256())
                 || delivery.revision() == null || delivery.revision().signum() <= 0
                 || delivery.updatedAt() == null || delivery.updatedAt().isBefore(delivery.createdAt())) mismatch();
         var response = command.required("response"); WireValues.uuid(response.required("request_id").textValue());
         var expected = operationSchema.operation(new InterfaceProtocol.Operation(operation.operationId(), uploadId,
             InterfaceProtocol.OperationStatus.PROCESSING, "/api/operations/" + operation.operationId()), response.required("request_id").textValue());
         if (!json.canonical(expected).equals(json.canonical(response))) mismatch();
+        if(completed) {
+            var result=schema.completionResult(one(mapper.completionResult(values)));
+            if(!"DELIVERED".equals(delivery.status()) || delivery.leaseOwner()!=null || delivery.leaseUntil()!=null
+                    || !json.canonical(response).equals(json.canonical(schema.readJson(operation.responseRef())))
+                    || !uploadId.equals(result.required("upload_id").textValue())
+                    || !operation.operationId().equals(result.required("operation_id").textValue())
+                    || !eventId.equals(result.required("event_id").textValue())
+                    || !SourceUploadProtocol.COMPLETION_CONSUMER.equals(result.required("consumer_id").textValue())
+                    || !DigestUtils.sha256Hex(json.canonical(command)).equals(result.required("input_sha256").textValue())
+                    || !request.sha256().equals(source.actualSha256()) || source.objectRef()==null || session.objectRef()==null
+                    || !json.canonical(result.required("original_object_ref")).equals(json.canonical(schema.readJson(source.objectRef())))
+                    || !json.canonical(result.required("original_object_ref")).equals(json.canonical(schema.readJson(session.objectRef())))) mismatch();
+        }
+        if(failed) {
+            var result=schema.completionResult(one(mapper.completionFailure(values)));
+            if(!"FAILED".equals(delivery.status()) || delivery.leaseOwner()!=null || delivery.leaseUntil()!=null
+                    || !json.canonical(response).equals(json.canonical(schema.readJson(operation.responseRef())))
+                    || !"FAILED".equals(result.required("status").textValue())
+                    || !ErrorCode.PROCESSING_FAILED.name().equals(result.required("error_code").textValue())
+                    || !uploadId.equals(result.required("upload_id").textValue())
+                    || !operation.operationId().equals(result.required("operation_id").textValue())
+                    || !eventId.equals(result.required("event_id").textValue())
+                    || !delivery.lastError().equals(result.required("reason").textValue())
+                    || !SourceUploadProtocol.COMPLETION_CONSUMER.equals(result.required("consumer_id").textValue())
+                    || !DigestUtils.sha256Hex(json.canonical(command)).equals(result.required("input_sha256").textValue())
+                    || source.actualSha256()!=null || source.objectRef()!=null || session.objectRef()!=null) mismatch();
+        }
         return schema.readJson(json.canonical(response));
     }
 
@@ -444,9 +526,13 @@ public final class SourceUploadService implements UploadPartReceiver.Authority {
     }
 
     private PermissionProtocol.GrantRow requireAuthority(EnterpriseAccess.Admission admission, JsonNode body, LocalDateTime now) throws IOException {
-        Objects.requireNonNull(now); String tenant = admission.context().tenant_id(), project = body.required("project_id").textValue();
+        return requireAuthority(admission.context().tenant_id(),admission.subject().user().user_id(),admission.subject().binding().view().mode(),body,now);
+    }
+
+    PermissionProtocol.GrantRow requireAuthority(String tenant,String actor,String mode,JsonNode body,LocalDateTime now) throws IOException {
+        Objects.requireNonNull(now); String project = body.required("project_id").textValue();
         if (!"ACTIVE".equals(one(permissions.projectStatus(project)))) denied();
-        var values = values(admission); values.put("projectId", project); values.put("sourceId", nullable(body, "source_id"));
+        var values = new HashMap<String,Object>(); values.put("userId",actor); values.put("projectId", project); values.put("sourceId", nullable(body, "source_id"));
         values.put("sessionId", nullable(body, "session_id"));
         String ownership = body.required("ownership").textValue(), source = nullable(body, "source_id");
         if ("SESSION".equals(ownership) && !Objects.equals(values.get("sessionId"), one(mapper.conversation(values)))) denied();
@@ -461,22 +547,25 @@ public final class SourceUploadService implements UploadPartReceiver.Authority {
             kind = "SOURCE"; resource = source;
         }
         return authority.requireResource(new PermissionProtocol.Scope(tenant, ownerProject, kind, resource),
-            admission.subject().user().user_id(), admission.subject().binding().view().mode(), "source.write", "SOURCE_UPLOAD",
-            permissions.resourceGrants(admission.subject().user().user_id(), "source.write"), now);
+            actor, mode, "source.write", "SOURCE_UPLOAD",permissions.resourceGrants(actor, "source.write"), now);
     }
 
-    private void maintainer(String user, LocalDateTime now) {
+    void maintainer(String user, LocalDateTime now) {
         var member = one(permissions.targetMember(user));
         if (!"ACTIVE".equals(member.status()) || member.validFrom() == null || member.validFrom().isAfter(now)
                 || member.validTo() != null && !member.validTo().isAfter(now)) denied();
     }
 
     private SourceUploadSchema.ValidatedCreate stored(EnterpriseAccess.Admission admission, SourceUploadProtocol.Declaration saved) throws IOException {
+        return storedDeclaration(admission.context().tenant_id(),admission.subject().user().user_id(),saved);
+    }
+
+    SourceUploadSchema.ValidatedCreate storedDeclaration(String tenantId,String actorId,SourceUploadProtocol.Declaration saved) throws IOException {
         var request = schema.create(saved.requestJson().getBytes(StandardCharsets.UTF_8), policy.maximumBytes()); JsonNode body = request.content();
         WireValues.uuid(saved.operationId()); WireValues.uuid(saved.authorityGrant()); WireValues.revision(saved.authorityRevision().toString());
         if (saved.authorityRevision().signum() <= 0 || saved.createdAt() == null || saved.contextRevision() == null || saved.authEpoch() == null
-                || saved.governanceEpoch() == null || !admission.context().tenant_id().equals(saved.tenantId())
-                || !admission.subject().user().user_id().equals(saved.createdBy()) || !saved.projectId().equals(body.required("project_id").textValue())
+                || saved.governanceEpoch() == null || !tenantId.equals(saved.tenantId())
+                || !actorId.equals(saved.createdBy()) || !saved.projectId().equals(body.required("project_id").textValue())
                 || !Objects.equals(saved.sourceId(), nullable(body, "source_id")) || !saved.versionIntent().equals(body.required("version_intent").textValue())
                 || !saved.maintainerId().equals(body.required("provenance").required("maintainer_id").textValue())
                 || !requestHash(request).equals(saved.requestSha256()) || !request.schemaRef().equals(saved.schemaRef())
@@ -486,7 +575,7 @@ public final class SourceUploadService implements UploadPartReceiver.Authority {
         return request;
     }
 
-    private void requireCorrespondence(SourceUploadProtocol.Declaration declaration, SourceUploadSchema.ValidatedCreate request,
+    void requireCorrespondence(SourceUploadProtocol.Declaration declaration, SourceUploadSchema.ValidatedCreate request,
             UploadTransferProtocol.SourceRow source, UploadTransferProtocol.SessionRow session) {
         JsonNode body = request.content();
         if (!declaration.uploadId().equals(source.uploadId()) || !source.uploadId().equals(session.uploadId()) || !"SOURCE".equals(session.purpose())

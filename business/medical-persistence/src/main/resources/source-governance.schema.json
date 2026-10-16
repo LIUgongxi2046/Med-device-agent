@@ -1,0 +1,543 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:source-governance:1.0.0",
+  "$defs": {
+    "Id": {"type": "string", "format": "uuid"},
+    "Hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "Revision": {"type": "string", "pattern": "^[1-9][0-9]{0,19}$"},
+    "CatalogueItem": {
+      "type": "object", "additionalProperties": false,
+      "required": ["source_id", "source_version", "owner_project_id", "ownership", "title", "classification", "media_type", "size_bytes", "rights_revision", "rights_status", "folder_id", "category", "labels", "organization_revision", "bookmarked", "processing_status", "approval_status", "lifecycle", "created_at"],
+      "properties": {
+        "source_id": {"$ref": "#/$defs/Id"}, "source_version": {"$ref": "#/$defs/Id"},
+        "owner_project_id": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/Id"}]},
+        "ownership": {"enum": ["ENTERPRISE", "PROJECT", "SESSION"]},
+        "title": {"type": "string", "minLength": 1, "maxLength": 512}, "classification": {"type": "string"},
+        "media_type": {"type": "string", "minLength": 1, "maxLength": 128}, "size_bytes": {"type": "string", "pattern": "^[1-9][0-9]*$"},
+        "rights_revision": {"$ref": "#/$defs/Id"}, "rights_status": {"type": "string"},
+        "folder_id": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/Id"}]}, "category": {"type": ["string", "null"]},
+        "labels": {"type": "array", "items": {"type": "string", "minLength": 1, "maxLength": 64}, "uniqueItems": true},
+        "organization_revision": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/Revision"}]},
+        "bookmarked": {"type": "boolean"}, "processing_status": {"type": ["string", "null"]},
+        "approval_status": {"type": ["string", "null"]}, "lifecycle": {"type": ["string", "null"]},
+        "created_at": {"type": "string", "format": "date-time"}
+      }
+    },
+    "Listing": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "items", "total", "limit", "next_after"],
+      "properties": {
+        "schema_version": {"const": "1.0.0"}, "items": {"type": "array", "items": {"$ref": "#/$defs/CatalogueItem"}},
+        "total": {"type": "string", "pattern": "^(0|[1-9][0-9]*)$"}, "limit": {"type": "integer", "minimum": 1, "maximum": 100},
+        "next_after": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/Id"}]}
+      }
+    },
+    "ProcessingQueueItem": {
+      "type": "object", "additionalProperties": false,
+      "required": ["attempt_id", "project_id", "source_id", "source_version", "title", "parse_version", "job_type", "config_revision", "status", "parse_status", "failure_manifest", "request_manifest", "run_id", "created_by", "created_at", "revision", "updated_at"],
+      "properties": {
+        "attempt_id": {"$ref": "#/$defs/Id"}, "project_id": {"$ref": "#/$defs/Id"},
+        "source_id": {"$ref": "#/$defs/Id"}, "source_version": {"$ref": "#/$defs/Id"},
+        "title": {"type": "string", "minLength": 1, "maxLength": 512},
+        "parse_version": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/Id"}]},
+        "job_type": {"type": "string", "minLength": 1, "maxLength": 32},
+        "config_revision": {"$ref": "#/$defs/Id"}, "status": {"type": "string", "minLength": 1, "maxLength": 24},
+        "parse_status": {"type": ["string", "null"]}, "failure_manifest": {"type": "object"},
+        "request_manifest": {"type": "object"}, "run_id": {"$ref": "#/$defs/Id"},
+        "created_by": {"$ref": "#/$defs/Id"}, "created_at": {"type": "string", "format": "date-time"},
+        "revision": {"$ref": "#/$defs/Revision"}, "updated_at": {"type": "string", "format": "date-time"}
+      }
+    },
+    "ProcessingQueuePage": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "items", "total", "limit", "next_after"],
+      "properties": {
+        "schema_version": {"const": "1.0.0"},
+        "items": {"type": "array", "items": {"$ref": "#/$defs/ProcessingQueueItem"}},
+        "total": {"type": "string", "pattern": "^(0|[1-9][0-9]*)$"},
+        "limit": {"type": "integer", "minimum": 1, "maximum": 100},
+        "next_after": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/Id"}]}
+      }
+    },
+    "ArtifactCatalogueItem": {
+      "type": "object", "additionalProperties": false,
+      "required": ["artifact_id", "project_id", "run_id", "document_revision", "artifact_kind", "sha256", "size_bytes", "media_type", "created_at"],
+      "properties": {
+        "artifact_id": {"$ref": "#/$defs/Id"},
+        "project_id": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/Id"}]},
+        "run_id": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/Id"}]},
+        "document_revision": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/Id"}]},
+        "artifact_kind": {"type": "string", "minLength": 1, "maxLength": 32},
+        "sha256": {"$ref": "#/$defs/Hash"}, "size_bytes": {"type": "string", "pattern": "^[1-9][0-9]*$"},
+        "media_type": {"type": "string", "minLength": 1, "maxLength": 128},
+        "created_at": {"type": "string", "format": "date-time"}
+      }
+    },
+    "ArtifactCataloguePage": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "items", "total", "limit", "next_after"],
+      "properties": {
+        "schema_version": {"const": "1.0.0"},
+        "items": {"type": "array", "items": {"$ref": "#/$defs/ArtifactCatalogueItem"}},
+        "total": {"type": "string", "pattern": "^(0|[1-9][0-9]*)$"},
+        "limit": {"type": "integer", "minimum": 1, "maximum": 100},
+        "next_after": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/Id"}]}
+      }
+    },
+    "ArtifactSubmissionEvidence": {
+      "type": "object", "additionalProperties": false,
+      "required": ["source_version", "rights_revision"],
+      "properties": {
+        "source_version": {"$ref": "#/$defs/Id"},
+        "rights_revision": {"$ref": "#/$defs/Id"}
+      }
+    },
+    "ArtifactSubmissionRights": {
+      "type": "object", "additionalProperties": false,
+      "required": ["purpose", "license", "allowed_actions", "providers", "regions", "valid_from", "valid_to"],
+      "properties": {
+        "purpose": {"type": "string", "pattern": "^[A-Z][A-Z0-9_]{0,127}$"},
+        "license": {"type": "string", "minLength": 1, "maxLength": 4096, "pattern": "\\S"},
+        "allowed_actions": {"type": "array", "minItems": 2, "uniqueItems": true,
+          "items": {"enum": ["READ", "STORE", "ENTERPRISE_USE", "DISTRIBUTE", "EXTERNAL_PROCESS"]}},
+        "providers": {"type": "array", "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "\\S"}},
+        "regions": {"type": "array", "minItems": 1, "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "\\S"}},
+        "valid_from": {"type": ["string", "null"], "format": "date-time"},
+        "valid_to": {"type": ["string", "null"], "format": "date-time"}
+      }
+    },
+    "ArtifactSubmissionInput": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "ownership", "target_project_id", "category", "title", "original_evidence", "rights", "maintainer_id", "applicable_project_ids", "reviewer_id"],
+      "properties": {
+        "schema_version": {"const": "1.0.0"},
+        "ownership": {"enum": ["ENTERPRISE", "PROJECT"]},
+        "target_project_id": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/Id"}]},
+        "category": {"type": "string", "minLength": 1, "maxLength": 32, "pattern": "\\S"},
+        "title": {"type": "string", "minLength": 1, "maxLength": 512, "pattern": "\\S"},
+        "original_evidence": {"type": "array", "minItems": 1, "uniqueItems": true,
+          "items": {"$ref": "#/$defs/ArtifactSubmissionEvidence"}},
+        "rights": {"$ref": "#/$defs/ArtifactSubmissionRights"},
+        "maintainer_id": {"$ref": "#/$defs/Id"},
+        "applicable_project_ids": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/Id"}},
+        "reviewer_id": {"$ref": "#/$defs/Id"}
+      }
+    },
+    "ArtifactSubmissionReceipt": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "operation_id", "submission_id", "artifact_id", "source_id", "source_version", "parse_version", "rights_revision", "sharing_decision", "status", "approval_status", "lifecycle", "actor_id", "created_at", "current_context"],
+      "properties": {
+        "schema_version": {"const": "1.0.0"},
+        "operation_id": {"$ref": "#/$defs/Id"}, "submission_id": {"$ref": "#/$defs/Id"},
+        "artifact_id": {"$ref": "#/$defs/Id"}, "source_id": {"$ref": "#/$defs/Id"},
+        "source_version": {"$ref": "#/$defs/Id"}, "parse_version": {"$ref": "#/$defs/Id"},
+        "rights_revision": {"$ref": "#/$defs/Id"}, "sharing_decision": {"$ref": "#/$defs/Id"},
+        "status": {"const": "PENDING"}, "approval_status": {"const": "PENDING"},
+        "lifecycle": {"const": "ACTIVE"}, "actor_id": {"$ref": "#/$defs/Id"},
+        "created_at": {"type": "string", "format": "date-time"}, "current_context": {"type": "object"}
+      }
+    },
+    "FolderCreateInput": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "ownership", "owner_project_id", "parent_id", "category", "name"],
+      "properties": {
+        "schema_version": {"const": "1.0.0"}, "ownership": {"enum": ["ENTERPRISE", "PROJECT"]},
+        "owner_project_id": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/Id"}]},
+        "parent_id": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/Id"}]},
+        "category": {"type": "string", "minLength": 1, "maxLength": 32},
+        "name": {"type": "string", "minLength": 1, "maxLength": 256}
+      }
+    },
+    "FolderDecisionInput": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "decision", "name", "target_parent_id", "expected_revision"],
+      "properties": {
+        "schema_version": {"const": "1.0.0"}, "decision": {"enum": ["RENAME", "MOVE", "DELETE"]},
+        "name": {"type": ["string", "null"], "minLength": 1, "maxLength": 256},
+        "target_parent_id": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/Id"}]},
+        "expected_revision": {"$ref": "#/$defs/Revision"}
+      }
+    },
+    "FolderView": {
+      "type": "object", "additionalProperties": false,
+      "required": ["folder_id", "parent_id", "owner_project_id", "ownership", "category", "name", "revision", "created_at", "updated_at"],
+      "properties": {
+        "folder_id": {"$ref": "#/$defs/Id"}, "parent_id": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/Id"}]},
+        "owner_project_id": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/Id"}]},
+        "ownership": {"enum": ["ENTERPRISE", "PROJECT"]}, "category": {"type": "string", "minLength": 1, "maxLength": 32},
+        "name": {"type": "string", "minLength": 1, "maxLength": 256}, "revision": {"$ref": "#/$defs/Revision"},
+        "created_at": {"type": "string", "format": "date-time"}, "updated_at": {"type": "string", "format": "date-time"}
+      }
+    },
+    "FolderList": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "owner_project_id", "items"],
+      "properties": {
+        "schema_version": {"const": "1.0.0"},
+        "owner_project_id": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/Id"}]},
+        "items": {"type": "array", "items": {"$ref": "#/$defs/FolderView"}}
+      }
+    },
+    "FolderReceipt": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "operation_id", "decision", "folder"],
+      "properties": {
+        "schema_version": {"const": "1.0.0"}, "operation_id": {"$ref": "#/$defs/Id"},
+        "decision": {"enum": ["CREATE", "RENAME", "MOVE", "DELETE"]},
+        "folder": {"$ref": "#/$defs/FolderView"}
+      }
+    },
+    "OrganizationItemInput": {
+      "type": "object", "additionalProperties": false,
+      "required": ["item_id", "source_version", "decision", "folder_id", "labels", "expected_revision"],
+      "properties": {
+        "item_id": {"$ref": "#/$defs/Id"}, "source_version": {"$ref": "#/$defs/Id"},
+        "decision": {"enum": ["MOVE", "LABEL", "BOOKMARK", "UNBOOKMARK"]},
+        "folder_id": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/Id"}]},
+        "labels": {"type": ["array", "null"], "maxItems": 32, "items": {"type": "string", "minLength": 1, "maxLength": 64}, "uniqueItems": true},
+        "expected_revision": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/Revision"}]}
+      }
+    },
+    "OrganizationInput": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "items"],
+      "properties": {
+        "schema_version": {"const": "1.0.0"},
+        "items": {"type": "array", "minItems": 1, "maxItems": 100, "items": {"$ref": "#/$defs/OrganizationItemInput"}}
+      }
+    },
+    "OrganizationReceiptItem": {
+      "type": "object", "additionalProperties": false,
+      "required": ["item_id", "operation_id", "status", "source_version", "decision", "folder_id", "labels", "organization_revision", "bookmarked"],
+      "properties": {
+        "item_id": {"$ref": "#/$defs/Id"}, "operation_id": {"$ref": "#/$defs/Id"}, "status": {"const": "COMPLETED"},
+        "source_version": {"$ref": "#/$defs/Id"}, "decision": {"enum": ["MOVE", "LABEL", "BOOKMARK", "UNBOOKMARK"]},
+        "folder_id": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/Id"}]},
+        "labels": {"type": "array", "items": {"type": "string", "minLength": 1, "maxLength": 64}, "uniqueItems": true},
+        "organization_revision": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/Revision"}]},
+        "bookmarked": {"type": "boolean"}
+      }
+    },
+    "OrganizationReceipt": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "items"],
+      "properties": {
+        "schema_version": {"const": "1.0.0"},
+        "items": {"type": "array", "minItems": 1, "maxItems": 100, "items": {"$ref": "#/$defs/OrganizationReceiptItem"}}
+      }
+    },
+    "UsageItem": {
+      "type": "object", "additionalProperties": false,
+      "required": ["usage_key", "usage_kind", "relation_kind", "project_id", "resource_kind", "resource_id", "version_id", "title", "status", "impact_status", "created_at"],
+      "properties": {
+        "usage_key": {"type": "string", "minLength": 1, "maxLength": 256, "pattern": "^[0-9a-f:-]+$"},
+        "usage_kind": {"enum": ["PROJECT_BINDING", "COLLECTION_MEMBER", "SCOPE_SNAPSHOT", "DOCUMENT_EVIDENCE", "LINEAGE_DEPENDENCY", "REFERENCE_HOLD"]},
+        "relation_kind": {"type": "string", "minLength": 1, "maxLength": 64},
+        "project_id": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/Id"}]},
+        "resource_kind": {"enum": ["PROJECT", "COLLECTION", "DOCUMENT", "VERSION"]},
+        "resource_id": {"$ref": "#/$defs/Id"}, "version_id": {"$ref": "#/$defs/Id"},
+        "title": {"type": ["string", "null"], "minLength": 1, "maxLength": 512},
+        "status": {"type": "string", "minLength": 1, "maxLength": 64},
+        "impact_status": {"enum": ["BLOCKING", "OBSERVED", "HISTORICAL", "HELD", "EXPIRED"]},
+        "created_at": {"type": ["string", "null"], "format": "date-time"}
+      }
+    },
+    "UsagePage": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "source_version", "items", "total", "limit", "next_after", "dataset_watermark"],
+      "properties": {
+        "schema_version": {"const": "1.0.0"}, "source_version": {"$ref": "#/$defs/Id"},
+        "items": {"type": "array", "maxItems": 100, "items": {"$ref": "#/$defs/UsageItem"}},
+        "total": {"type": "string", "pattern": "^(0|[1-9][0-9]*)$"},
+        "limit": {"type": "integer", "minimum": 1, "maximum": 100},
+        "next_after": {"type": ["string", "null"], "maxLength": 256, "pattern": "^[0-9a-f:-]+$"},
+        "dataset_watermark": {"type": "string", "pattern": "^(0|[1-9][0-9]*)$"}
+      }
+    },
+    "ParsedContentItem": {
+      "type": "object", "additionalProperties": false,
+      "required": ["chunk_id", "ordinal", "node_id", "node_kind", "locator", "locator_sha256", "content_ref", "node_hash", "quote_hash", "raw_text"],
+      "properties": {
+        "chunk_id": {"$ref": "#/$defs/Id"}, "ordinal": {"type": "string", "pattern": "^(0|[1-9][0-9]*)$"},
+        "node_id": {"$ref": "#/$defs/Id"}, "node_kind": {"type": "string", "minLength": 1, "maxLength": 32},
+        "locator": {"type": "object"}, "locator_sha256": {"$ref": "#/$defs/Hash"},
+        "content_ref": {"type": "object"}, "node_hash": {"$ref": "#/$defs/Hash"},
+        "quote_hash": {"$ref": "#/$defs/Hash"}, "raw_text": {"type": "string"}
+      }
+    },
+    "OriginalContent": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "source_id", "source_version", "parse_version", "representation", "purpose", "media_type", "original_sha256", "content_sha256", "start_byte", "end_byte", "size_bytes", "encoding", "content", "chunk_sha256", "full_sha256", "next_start_byte", "read_at"],
+      "properties": {
+        "schema_version": {"const": "1.0.0"}, "source_id": {"$ref": "#/$defs/Id"},
+        "source_version": {"$ref": "#/$defs/Id"}, "parse_version": {"$ref": "#/$defs/Id"},
+        "representation": {"const": "ORIGINAL"}, "purpose": {"type": "string", "pattern": "^[A-Z][A-Z0-9_]{0,127}$"},
+        "media_type": {"type": "string", "minLength": 1, "maxLength": 128},
+        "original_sha256": {"$ref": "#/$defs/Hash"}, "content_sha256": {"$ref": "#/$defs/Hash"},
+        "start_byte": {"type": "string", "pattern": "^(0|[1-9][0-9]*)$"},
+        "end_byte": {"type": "string", "pattern": "^[1-9][0-9]*$"},
+        "size_bytes": {"type": "string", "pattern": "^[1-9][0-9]*$"}, "encoding": {"const": "BASE64"},
+        "content": {"type": "string", "pattern": "^[A-Za-z0-9+/]*={0,2}$"},
+        "chunk_sha256": {"$ref": "#/$defs/Hash"}, "full_sha256": {"$ref": "#/$defs/Hash"},
+        "next_start_byte": {"oneOf": [{"type": "null"}, {"type": "string", "pattern": "^[1-9][0-9]*$"}]},
+        "read_at": {"type": "string", "format": "date-time"}
+      }
+    },
+    "ParsedContent": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "source_id", "source_version", "parse_version", "representation", "purpose", "media_type", "original_sha256", "content_sha256", "items", "next_after_ordinal", "read_at"],
+      "properties": {
+        "schema_version": {"const": "1.0.0"}, "source_id": {"$ref": "#/$defs/Id"},
+        "source_version": {"$ref": "#/$defs/Id"}, "parse_version": {"$ref": "#/$defs/Id"},
+        "representation": {"const": "PARSED"}, "purpose": {"type": "string", "pattern": "^[A-Z][A-Z0-9_]{0,127}$"},
+        "media_type": {"type": "string", "minLength": 1, "maxLength": 128},
+        "original_sha256": {"$ref": "#/$defs/Hash"}, "content_sha256": {"$ref": "#/$defs/Hash"},
+        "items": {"type": "array", "items": {"$ref": "#/$defs/ParsedContentItem"}, "maxItems": 100},
+        "next_after_ordinal": {"oneOf": [{"type": "null"}, {"type": "string", "pattern": "^(0|[1-9][0-9]*)$"}]},
+        "read_at": {"type": "string", "format": "date-time"}
+      }
+    },
+    "ProcessingInput": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "project_id", "config_revision", "stage", "reason"],
+      "properties": {
+        "schema_version": {"const": "1.0.0"}, "project_id": {"$ref": "#/$defs/Id"},
+        "config_revision": {"$ref": "#/$defs/Id"}, "stage": {"enum": ["PARSE_ONLY", "PARSE_AND_INDEX"]},
+        "reason": {"type": "string", "minLength": 1, "maxLength": 2000}
+      }
+    },
+    "ProcessingReceipt": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "operation_id", "attempt_id", "run_id", "project_id", "source_version", "parse_version", "config_revision", "job_type", "stage", "status", "actor_id", "queued_at", "current_context"],
+      "properties": {
+        "schema_version": {"const": "1.0.0"}, "operation_id": {"$ref": "#/$defs/Id"},
+        "attempt_id": {"$ref": "#/$defs/Id"}, "run_id": {"$ref": "#/$defs/Id"},
+        "project_id": {"$ref": "#/$defs/Id"}, "source_version": {"$ref": "#/$defs/Id"},
+        "parse_version": {"$ref": "#/$defs/Id"}, "config_revision": {"$ref": "#/$defs/Id"},
+        "job_type": {"const": "PARSE"}, "stage": {"enum": ["PARSE_ONLY", "PARSE_AND_INDEX"]},
+        "status": {"const": "QUEUED"}, "actor_id": {"$ref": "#/$defs/Id"},
+        "queued_at": {"type": "string", "format": "date-time"}, "current_context": {"type": "object"}
+      }
+    },
+    "LifecycleInput": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "decision", "reason", "policy_revision", "expected_revision"],
+      "properties": {
+        "schema_version": {"const": "1.0.0"},
+        "decision": {"enum": ["DISABLE", "RECYCLE", "RESTORE", "PURGE"]},
+        "reason": {"type": "string", "minLength": 1, "maxLength": 2000},
+        "policy_revision": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/Id"}]},
+        "expected_revision": {"$ref": "#/$defs/Revision"}
+      }
+    },
+    "LifecycleReceipt": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "operation_id", "decision_id", "source_version", "decision", "previous_status", "current_status", "lifecycle_revision", "policy_revision", "deletion_id", "deletion_status", "deletion_item_count", "actor_id", "decided_at", "current_context"],
+      "properties": {
+        "schema_version": {"const": "1.0.0"}, "operation_id": {"$ref": "#/$defs/Id"},
+        "decision_id": {"$ref": "#/$defs/Id"}, "source_version": {"$ref": "#/$defs/Id"},
+        "decision": {"enum": ["DISABLE", "RECYCLE", "RESTORE", "PURGE"]},
+        "previous_status": {"enum": ["ACTIVE", "DISABLED", "RECYCLED", "PURGE_PENDING", "PURGED"]},
+        "current_status": {"enum": ["ACTIVE", "DISABLED", "RECYCLED", "PURGE_PENDING", "PURGED"]},
+        "lifecycle_revision": {"$ref": "#/$defs/Revision"},
+        "policy_revision": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/Id"}]},
+        "deletion_id": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/Id"}]},
+        "deletion_status": {"type": ["string", "null"]},
+        "deletion_item_count": {"type": "string", "pattern": "^(0|[1-9][0-9]*)$"},
+        "actor_id": {"$ref": "#/$defs/Id"}, "decided_at": {"type": "string", "format": "date-time"},
+        "current_context": {"type": "object"}
+      }
+    },
+    "DeletionReceiptInput": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "deletion_id", "item_id", "store_kind", "target_sha256", "receipt_ref", "expected_revision", "expected_lifecycle_revision"],
+      "properties": {
+        "schema_version": {"const": "1.0.0"}, "deletion_id": {"$ref": "#/$defs/Id"}, "item_id": {"$ref": "#/$defs/Id"},
+        "store_kind": {"enum": ["ORIGINAL", "PARSED", "FULLTEXT", "VECTOR", "CACHE", "DIAGNOSTIC"]},
+        "target_sha256": {"$ref": "#/$defs/Hash"}, "expected_revision": {"$ref": "#/$defs/Revision"},
+        "expected_lifecycle_revision": {"$ref": "#/$defs/Revision"},
+        "receipt_ref": {
+          "type": "object", "additionalProperties": false,
+          "required": ["deleted_at", "query_confirmed_at", "backup_confirmed_at", "evidence_sha256"],
+          "properties": {
+            "deleted_at": {"type": "string", "format": "date-time"},
+            "query_confirmed_at": {"type": "string", "format": "date-time"},
+            "backup_confirmed_at": {"type": "string", "format": "date-time"},
+            "evidence_sha256": {"$ref": "#/$defs/Hash"}
+          }
+        }
+      }
+    },
+    "DeletionReceipt": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "operation_id", "deletion_id", "item_id", "store_kind", "item_status", "item_revision", "job_status", "job_revision", "source_version", "lifecycle_status", "lifecycle_revision", "current_context"],
+      "properties": {
+        "schema_version": {"const": "1.0.0"}, "operation_id": {"$ref": "#/$defs/Id"},
+        "deletion_id": {"$ref": "#/$defs/Id"}, "item_id": {"$ref": "#/$defs/Id"},
+        "store_kind": {"enum": ["ORIGINAL", "PARSED", "FULLTEXT", "VECTOR", "CACHE", "DIAGNOSTIC"]},
+        "item_status": {"const": "CONFIRMED"}, "item_revision": {"$ref": "#/$defs/Revision"},
+        "job_status": {"enum": ["RUNNING", "COMPLETED"]}, "job_revision": {"$ref": "#/$defs/Revision"},
+        "source_version": {"$ref": "#/$defs/Id"}, "lifecycle_status": {"enum": ["PURGE_PENDING", "PURGED"]},
+        "lifecycle_revision": {"$ref": "#/$defs/Revision"}, "current_context": {"type": "object"}
+      }
+    },
+    "DeletionItemView": {
+      "type": "object", "additionalProperties": false,
+      "required": ["item_id", "store_kind", "target_ref", "target_sha256", "status", "receipt_ref", "backup_expiry", "revision"],
+      "properties": {
+        "item_id": {"$ref": "#/$defs/Id"},
+        "store_kind": {"enum": ["ORIGINAL", "PARSED", "FULLTEXT", "VECTOR", "CACHE", "DIAGNOSTIC"]},
+        "target_ref": {"type": "object"}, "target_sha256": {"$ref": "#/$defs/Hash"},
+        "status": {"enum": ["QUEUED", "RUNNING", "CONFIRMED"]},
+        "receipt_ref": {"type": ["object", "null"]},
+        "backup_expiry": {"type": ["string", "null"], "format": "date-time"},
+        "revision": {"$ref": "#/$defs/Revision"}
+      }
+    },
+    "DeletionJobView": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "deletion_id", "source_version", "policy_revision", "status", "revision", "updated_at", "lifecycle_status", "lifecycle_revision", "items"],
+      "properties": {
+        "schema_version": {"const": "1.0.0"}, "deletion_id": {"$ref": "#/$defs/Id"},
+        "source_version": {"$ref": "#/$defs/Id"}, "policy_revision": {"$ref": "#/$defs/Id"},
+        "status": {"enum": ["QUEUED", "RUNNING", "COMPLETED"]}, "revision": {"$ref": "#/$defs/Revision"},
+        "updated_at": {"type": "string", "format": "date-time"},
+        "lifecycle_status": {"enum": ["PURGE_PENDING", "PURGED"]}, "lifecycle_revision": {"$ref": "#/$defs/Revision"},
+        "items": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/DeletionItemView"}}
+      }
+    },
+    "DecisionInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "parse_version", "index_version", "rights_revision", "binding_revision", "reviewed_manifest_sha256", "decision", "reason", "expected_revision"],
+      "properties": {
+        "schema_version": {"const": "1.0.0"},
+        "parse_version": {"$ref": "#/$defs/Id"},
+        "index_version": {"$ref": "#/$defs/Id"},
+        "rights_revision": {"$ref": "#/$defs/Id"},
+        "binding_revision": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/Id"}]},
+        "reviewed_manifest_sha256": {"$ref": "#/$defs/Hash"},
+        "decision": {"enum": ["APPROVE", "RETURN", "DISABLE"]},
+        "reason": {"type": "string", "minLength": 1, "maxLength": 2000},
+        "expected_revision": {"$ref": "#/$defs/Revision"}
+      }
+    },
+    "BindingInput": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "source_version", "profile_revision", "profile_sha256", "applicability", "reason", "expected_binding_revision", "approval_attested"],
+      "properties": {
+        "schema_version": {"const": "1.0.0"}, "source_version": {"$ref": "#/$defs/Id"},
+        "profile_revision": {"$ref": "#/$defs/Id"}, "profile_sha256": {"$ref": "#/$defs/Hash"},
+        "applicability": {"enum": ["APPLICABLE", "NOT_APPLICABLE", "UNKNOWN"]},
+        "reason": {"type": "string", "minLength": 1, "maxLength": 2000},
+        "expected_binding_revision": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/Id"}]},
+        "approval_attested": {"const": true}
+      }
+    },
+    "BindingReceipt": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "operation_id", "decision_id", "project_id", "source_version", "binding_revision", "profile_revision", "applicability", "actor_id", "decided_at", "current_context"],
+      "properties": {
+        "schema_version": {"const": "1.0.0"}, "operation_id": {"$ref": "#/$defs/Id"}, "decision_id": {"$ref": "#/$defs/Id"},
+        "project_id": {"$ref": "#/$defs/Id"}, "source_version": {"$ref": "#/$defs/Id"}, "binding_revision": {"$ref": "#/$defs/Id"},
+        "profile_revision": {"$ref": "#/$defs/Id"}, "applicability": {"enum": ["APPLICABLE", "NOT_APPLICABLE", "UNKNOWN"]},
+        "actor_id": {"$ref": "#/$defs/Id"}, "decided_at": {"type": "string", "format": "date-time"}, "current_context": {"type": "object"}
+      }
+    },
+    "BindingView": {
+      "type": "object", "additionalProperties": false,
+      "required": ["project_id", "binding_revision", "applicability", "decision_manifest"],
+      "properties": {
+        "project_id": {"$ref": "#/$defs/Id"}, "binding_revision": {"$ref": "#/$defs/Id"},
+        "applicability": {"enum": ["APPLICABLE", "NOT_APPLICABLE", "UNKNOWN"]}, "decision_manifest": {"type": "object"}
+      }
+    },
+    "Review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["parse_version", "parse_status", "index_version", "index_mode", "index_status", "expected_count", "verified_count", "approval_revision", "approval_status", "upload_status", "lifecycle", "gate_revision", "current_decision", "reviewed_manifest_sha256", "decided_at", "review_manifest", "review_manifest_sha256"],
+      "properties": {
+        "parse_version": {"$ref": "#/$defs/Id"},
+        "parse_status": {"enum": ["QUEUED", "PROCESSING", "COMPLETE", "PARTIAL_FAILED", "FAILED"]},
+        "index_version": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/Id"}]},
+        "index_mode": {"type": ["string", "null"]},
+        "index_status": {"type": ["string", "null"]},
+        "expected_count": {"type": ["string", "null"], "pattern": "^(0|[1-9][0-9]*)$"},
+        "verified_count": {"type": ["string", "null"], "pattern": "^(0|[1-9][0-9]*)$"},
+        "approval_revision": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/Id"}]},
+        "approval_status": {"enum": ["PENDING", "APPROVED", "DISABLED"]},
+        "upload_status": {"enum": ["PENDING", "UPLOADING", "RECEIVED", "FAILED"]},
+        "lifecycle": {"enum": ["ACTIVE", "RECYCLED", "PURGE_PENDING", "PURGED"]},
+        "gate_revision": {"$ref": "#/$defs/Revision"},
+        "current_decision": {"type": ["string", "null"]},
+        "reviewed_manifest_sha256": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/Hash"}]},
+        "decided_at": {"type": ["string", "null"], "format": "date-time"},
+        "review_manifest": {"type": "object"},
+        "review_manifest_sha256": {"$ref": "#/$defs/Hash"}
+      }
+    },
+    "SourceVersionSummary": {
+      "type": "object", "additionalProperties": false,
+      "required": ["source_version", "version_no", "publisher_version", "original_sha256", "media_type", "size_bytes", "rights_revision", "lifecycle", "created_at", "selected"],
+      "properties": {
+        "source_version": {"$ref": "#/$defs/Id"}, "version_no": {"$ref": "#/$defs/Revision"},
+        "publisher_version": {"type": ["string", "null"]}, "original_sha256": {"$ref": "#/$defs/Hash"},
+        "media_type": {"type": "string", "minLength": 1, "maxLength": 128},
+        "size_bytes": {"type": "string", "pattern": "^[1-9][0-9]*$"}, "rights_revision": {"$ref": "#/$defs/Id"},
+        "lifecycle": {"enum": ["ACTIVE", "DISABLED", "RECYCLED", "PURGE_PENDING", "PURGED"]},
+        "created_at": {"type": "string", "format": "date-time"}, "selected": {"type": "boolean"}
+      }
+    },
+    "View": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "source_id", "source_version", "owner_project_id", "ownership", "title", "classification", "original_sha256", "media_type", "size_bytes", "rights_revision", "rights_purpose", "rights_status", "lifecycle_state", "lifecycle_revision", "last_lifecycle_decision", "deletion_id", "deletion_status", "versions", "reviews", "bindings", "allowed_actions"],
+      "properties": {
+        "schema_version": {"const": "1.0.0"},
+        "source_id": {"$ref": "#/$defs/Id"},
+        "source_version": {"$ref": "#/$defs/Id"},
+        "owner_project_id": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/Id"}]},
+        "ownership": {"enum": ["ENTERPRISE", "PROJECT", "SESSION"]},
+        "title": {"type": "string", "minLength": 1, "maxLength": 512},
+        "classification": {"type": "string"},
+        "original_sha256": {"$ref": "#/$defs/Hash"},
+        "media_type": {"type": "string", "minLength": 1, "maxLength": 128},
+        "size_bytes": {"type": "string", "pattern": "^[1-9][0-9]*$"},
+        "rights_revision": {"$ref": "#/$defs/Id"},
+        "rights_purpose": {"type": "string", "minLength": 1, "maxLength": 128},
+        "rights_status": {"type": "string"},
+        "lifecycle_state": {"enum": ["ACTIVE", "DISABLED", "RECYCLED", "PURGE_PENDING", "PURGED"]},
+        "lifecycle_revision": {"$ref": "#/$defs/Revision"},
+        "last_lifecycle_decision": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/Id"}]},
+        "deletion_id": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/Id"}]},
+        "deletion_status": {"type": ["string", "null"]},
+        "versions": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/SourceVersionSummary"}},
+        "reviews": {"type": "array", "items": {"$ref": "#/$defs/Review"}},
+        "bindings": {"type": "array", "items": {"$ref": "#/$defs/BindingView"}},
+        "allowed_actions": {"type": "array", "uniqueItems": true, "items": {"enum": ["source.approve"]}}
+      }
+    },
+    "Receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "operation_id", "decision_id", "source_version", "parse_version", "index_version", "decision", "approval_status", "approval_revision", "gate_revision", "actor_id", "decided_at", "current_context"],
+      "properties": {
+        "schema_version": {"const": "1.0.0"},
+        "operation_id": {"$ref": "#/$defs/Id"},
+        "decision_id": {"$ref": "#/$defs/Id"},
+        "source_version": {"$ref": "#/$defs/Id"},
+        "parse_version": {"$ref": "#/$defs/Id"},
+        "index_version": {"$ref": "#/$defs/Id"},
+        "decision": {"enum": ["APPROVE", "RETURN", "DISABLE"]},
+        "approval_status": {"enum": ["PENDING", "APPROVED", "DISABLED"]},
+        "approval_revision": {"$ref": "#/$defs/Id"},
+        "gate_revision": {"$ref": "#/$defs/Revision"},
+        "actor_id": {"$ref": "#/$defs/Id"},
+        "decided_at": {"type": "string", "format": "date-time"},
+        "current_context": {"type": "object"}
+      }
+    }
+  }
+}

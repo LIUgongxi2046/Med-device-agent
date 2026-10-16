@@ -148,6 +148,64 @@ final class SourceUploadTransport {
         T apply(com.ruoyi.medical.contracts.InterfaceProtocol.ObjectRef reference, byte[] bytes) throws Exception;
     }
     @FunctionalInterface interface DocumentRead<T> { T apply(S3ObjectReader reader, S3ObjectReader.TimedAdmission admission) throws Exception; }
+
+    <T> T readSourceJob(String tenantId, String actorId, int maximumBytes, S3ObjectReader.Admission current,
+            DocumentRead<T> reading) throws Exception {
+        requireJobOutsideTransaction(tenantId,actorId); current.requireCurrent();
+        try(var lease=concurrency.acquire(tenantId,actorId,limits,current);
+                var reader=new S3ObjectReader(endpoint,bucket,policy.region(),S3ObjectReader.Network.LOCAL_LOOPBACK,
+                    objectCredentials,directory,maximumBytes,policy.segmentBytes())) {
+            return reading.apply(reader,lease.guard(current));
+        }
+    }
+
+    com.ruoyi.medical.contracts.InterfaceProtocol.ObjectRef writeSourceJob(String tenantId, String actorId,
+            S3ObjectWriter.WriteIntent intent, Path content, Path privateDirectory, boolean recover, int maximumBytes,
+            S3ObjectReader.Admission current) throws Exception {
+        requireJobOutsideTransaction(tenantId,actorId); current.requireCurrent();
+        if(!intent.objectKey().startsWith("tenants/"+tenantId+"/source-parsed/"))
+            throw new TenantAccessException(com.ruoyi.medical.contracts.ErrorCode.ACCESS_DENIED);
+        try(var lease=concurrency.acquire(tenantId,actorId,limits,current);
+                var output=new S3ObjectWriter(endpoint,bucket,policy.region(),S3ObjectReader.Network.LOCAL_LOOPBACK,
+                    objectCredentials,privateDirectory,maximumBytes,policy.segmentBytes())) {
+            if(recover) return output.recoverVerified(intent,lease.guard(current));
+            return output.writeVerified(intent,content,lease.guard(current));
+        }
+    }
+
+    byte[] assembleSourceJob(String tenantId,String actorId,String uploadId,SourceCompletionObjects.Manifest manifest,
+            int maximumBytes,S3ObjectReader.Admission current) throws Exception {
+        requireJobOutsideTransaction(tenantId,actorId); com.ruoyi.medical.contracts.WireValues.uuid(uploadId);
+        if(!("tenants/"+tenantId+"/uploads/"+uploadId+"/parts").equals(manifest.objectPrefix()))
+            throw new TenantAccessException(com.ruoyi.medical.contracts.ErrorCode.ACCESS_DENIED);
+        return readSourceJob(tenantId,actorId,maximumBytes,current,(reader,admission) -> {
+            try(var originals=new S3ObjectWriter(endpoint,bucket,policy.region(),S3ObjectReader.Network.LOCAL_LOOPBACK,
+                    objectCredentials,directory,maximumBytes,policy.segmentBytes())) {
+                return new SourceCompletionObjects().assemble(manifest,directory,maximumBytes,reader,originals,admission);
+            }
+        });
+    }
+
+    com.ruoyi.medical.contracts.InterfaceProtocol.ObjectRef writeSourceOriginalJob(String tenantId,String actorId,String uploadId,
+            S3ObjectWriter.WriteIntent intent,Path content,Path privateDirectory,boolean recover,int maximumBytes,
+            S3ObjectReader.Admission current) throws Exception {
+        requireJobOutsideTransaction(tenantId,actorId); com.ruoyi.medical.contracts.WireValues.uuid(uploadId);
+        if(!("tenants/"+tenantId+"/source-uploads/"+uploadId+"/original").equals(intent.objectKey()))
+            throw new TenantAccessException(com.ruoyi.medical.contracts.ErrorCode.ACCESS_DENIED);
+        try(var lease=concurrency.acquire(tenantId,actorId,limits,current);
+                var writer=new S3ObjectWriter(endpoint,bucket,policy.region(),S3ObjectReader.Network.LOCAL_LOOPBACK,
+                    objectCredentials,privateDirectory,maximumBytes,policy.segmentBytes())) {
+            if(recover) return writer.recoverVerified(intent,lease.guard(current));
+            return writer.writeVerified(intent,content,lease.guard(current));
+        }
+    }
+
+    private static void requireJobOutsideTransaction(String tenantId,String actorId) {
+        com.ruoyi.medical.contracts.WireValues.uuid(tenantId); com.ruoyi.medical.contracts.WireValues.uuid(actorId);
+        if(org.springframework.transaction.support.TransactionSynchronizationManager.isActualTransactionActive())
+            throw new TenantAccessException(com.ruoyi.medical.contracts.ErrorCode.ACCESS_DENIED);
+    }
+
     <T> T readDocument(ApplicationSessionIdentity.Verified subject, String tenantId, int maximumBytes,
             S3ObjectReader.Admission current, DocumentRead<T> reading) throws Exception {
         DocumentUploadTransferService.requireOutsideTransaction(subject); current.requireCurrent();

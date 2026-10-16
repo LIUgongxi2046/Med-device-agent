@@ -798,7 +798,8 @@ public final class SourceUploadHttpTest {
     }
     private static JsonNode success(HttpResponse<byte[]> response, int status) throws Exception {
         assertEquals(status, response.statusCode(), new String(response.body(), java.nio.charset.StandardCharsets.UTF_8));
-        assertEquals("no-store", response.headers().firstValue("Cache-Control").orElseThrow());
+        assertEquals(List.of("no-store"), response.headers().allValues("Cache-Control"));
+        assertEquals(List.of("1.0.0"), response.headers().allValues("X-Schema-Version"));
         return JSON.readTree(response.body()).required("data");
     }
     private static HttpResponse<byte[]> putWithConcurrentReplay(HttpClient http, String origin, String context, String upload,

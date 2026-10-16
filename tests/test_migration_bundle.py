@@ -120,8 +120,13 @@ class MigrationBundleChecks(unittest.TestCase):
                                          str(ROOT / "tests/InspectAlterMigrations.java"), str(actual)],
                                         capture_output=True, text=True, check=True)
                 alterations = json.loads(result.stdout)
-                cls.native_alters.extend(item for item in alterations if "operation" in item)
+                cls.native_alters.extend({**item, "migration": entry.attrib["file"]} for item in alterations if "operation" in item)
                 for alteration in alterations:
+                    if "data_fill" in alteration:
+                        fill = sqlglot.parse_one(alteration["data_fill"], read="mysql")
+                        if not isinstance(fill, (exp.Update, exp.Insert)):
+                            raise ValueError("DATA_FILL_DEFINITION_REQUIRED")
+                        cls.statements.append(fill)
                     if "create" in alteration:
                         definition = sqlglot.parse_one(alteration["create"], read="mysql")
                         if not isinstance(definition, exp.Create) or definition.kind != "TABLE":
@@ -269,8 +274,11 @@ class MigrationBundleChecks(unittest.TestCase):
         self.assertEqual(checks[0].this, approved)
 
     def test_native_operation_retention_preserves_explicit_policy_and_expiry(self):
-        self.assertEqual(len(self.native_alters), 17)
-        self.assertEqual({entry["table"] for entry in self.native_alters},
+        original = [entry for entry in self.native_alters if entry["migration"] in {
+            "db/migration/017-member-identity-mode.sql", "db/migration/024-operation-retention.sql",
+            "db/migration/027-template-definition.sql", "db/migration/032-task-plan-content.sql"}]
+        self.assertEqual(len(original), 17)
+        self.assertEqual({entry["table"] for entry in original},
                          {"identity_binding", "operation_record", "version_registry", "template_version", "plan_revision"})
         plan_alters = [entry for entry in self.native_alters if entry["table"] == "plan_revision"]
         self.assertEqual([entry["operation"] for entry in plan_alters], ["ADD", "ADD"])
@@ -436,7 +444,7 @@ class MigrationBundleChecks(unittest.TestCase):
     def test_primary_and_foreign_keys_preserve_enterprise_identity(self):
         self.assertEqual(len(self.table_definitions), len(self.tables))
         business = [name for group in self.manifest["required_tables"].values() for name in group]
-        self.assertEqual(len(business), 163)
+        self.assertEqual(len(business), 178)
         for name in business:
             table = self.tables[name]
             with self.subTest(table=name):
@@ -488,6 +496,8 @@ class MigrationBundleChecks(unittest.TestCase):
                 source = statement.this.this.name
             elif isinstance(statement, exp.Alter):
                 source = statement.this.name
+            elif isinstance(statement, (exp.Insert, exp.Update)):
+                continue
             else:
                 raise ValueError("迁移包含未登记的语句类型")
             for foreign in statement.find_all(exp.ForeignKey):
@@ -562,6 +572,9 @@ class MigrationBundleChecks(unittest.TestCase):
             if name in core or name in self.manifest["framework_tables"]:
                 continue
             columns = {column.name: column for column in table.this.expressions if isinstance(column, exp.ColumnDef)}
+            for statement in self.statements:
+                if isinstance(statement, exp.Alter) and statement.this.name == name:
+                    columns.update({column.name: column for column in statement.find_all(exp.ColumnDef)})
             expected = {"created_by", "created_at", "classification"}
             if any(column.kind.this == exp.DataType.Type.JSON for column in columns.values()):
                 expected.update({"schema_version", "schema_manifest_sha256"})
@@ -569,6 +582,45 @@ class MigrationBundleChecks(unittest.TestCase):
                 self.assertLessEqual(expected, set(columns))
                 for field in expected:
                     self.assertTrue(any(isinstance(constraint.kind, exp.NotNullColumnConstraint) for constraint in columns[field].constraints))
+
+    def test_source_metadata_is_copied_from_original_records(self):
+        expected = {
+            "retrieval_hit": {("created_by", "created_by"), ("classification", "classification"),
+                              ("schema_version", "schema_version"), ("schema_manifest_sha256", "schema_manifest_sha256")},
+            "source_lifecycle_decision": {("created_by", "actor_id"), ("created_at", "decided_at")},
+            "source_lifecycle_state": {("created_by", "created_by"), ("created_at", "created_at"), ("classification", "classification")},
+        }
+        for table, assignments in expected.items():
+            updates = [statement for statement in self.statements if isinstance(statement, exp.Update)
+                       and statement.this.name == table and any(item.this.name == "created_by" for item in statement.expressions)]
+            self.assertEqual(len(updates), 1)
+            actual = set()
+            aliases = {reference.alias_or_name: reference.name for reference in updates[0].find_all(exp.Table)}
+            for assignment in updates[0].expressions:
+                self.assertIsInstance(assignment, exp.EQ)
+                self.assertIsInstance(assignment.expression, exp.Column)
+                source_table = aliases[assignment.expression.table] if assignment.expression.table else table
+                columns = {column.name for column in self.tables[source_table].this.expressions if isinstance(column, exp.ColumnDef)}
+                for statement in self.statements:
+                    if isinstance(statement, exp.Alter) and statement.this.name == source_table:
+                        columns.update(column.name for column in statement.find_all(exp.ColumnDef))
+                self.assertIn(assignment.expression.name, columns, source_table)
+                actual.add((assignment.this.name, assignment.expression.name))
+            self.assertEqual(actual, assignments)
+
+    def test_completion_rows_keep_full_upload_and_consumer_identity(self):
+        expected = {
+            "source_completion_checkpoint": {"tenant_id", "event_id", "consumer_id", "upload_id", "operation_id", "input_sha256",
+                "scan_command", "scan_receipt", "write_intent", "object_ref", "status", "revision"},
+            "source_upload_result": {"tenant_id", "event_id", "consumer_id", "upload_id", "operation_id", "source_id", "source_version",
+                "rights_revision", "parse_version", "attempt_id", "original_object_ref", "input_sha256", "result_ref"},
+        }
+        for table, fields in expected.items():
+            columns = {column.name for column in self.tables[table].this.expressions if isinstance(column, exp.ColumnDef)}
+            self.assertLessEqual(fields, columns)
+        references = {(key.args["reference"].this.this.name, tuple(item.name for item in key.expressions))
+                      for key in self.tables["source_upload_result"].find_all(exp.ForeignKey)}
+        self.assertIn(("source_completion_checkpoint", ("tenant_id", "event_id", "consumer_id", "upload_id", "operation_id")), references)
 
     def test_changeset_failures_stop_execution_and_have_stable_identity(self):
         identities = []

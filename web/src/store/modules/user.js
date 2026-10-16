@@ -34,6 +34,7 @@ const useUserStore = defineStore(
       medicalLoading: false,
       medicalWriting: false,
       medicalError: null,
+      medicalPendingNavigation: null,
       medicalPendingSelection: null,
       medicalPendingCredential: null,
       medicalPendingProfile: null

@@ -87,9 +87,23 @@ BACK-RUN-TOKEN-SIGNATURE-01为已授权C02常规实施选择，INFERRED/CONFIRME
 
 BACK-CURRENT-RUN-TOKEN-POLICY-01采用RunTokenPolicyStore与共享ProtectedConfigurationFile读取当前服务器配置。明确操作系统所有者、0700目录、固定run-token-policy.json、0600单一链接文件及配置字节容量共同提供，容量和令牌期限没有默认值。原openat/fstat、O_NOFOLLOW/O_NONBLOCK、设备/inode、权限、UID、容量及纳秒时间校验由ServiceCertificateTrustStore和RunTokenPolicyStore共同复用；格式或读取失败立即报告。
 
-run-token-policy.schema.json唯一维护schema_version=1.0.0、UUID revision、绝对URI issuer、唯一非空audience、public_key_der_base64、正整数maximum_lifetime_seconds和maximum_token_bytes。Jackson/networknt处理封闭JSON与重复字段，JDK KeyFactory/X509EncodedKeySpec读取实际RSA公钥SPKI，完整DER与标准Base64必须往返一致。服务器配置只包含公钥；C02签发私钥的完整受保护保存仍需独立实现。read返回私有构造的Current，保存实际配置修订、原字节摘要与明确Policy；verify在原签名验证前后分别读取当前配置，任何修订或字节变化均拒绝，并在返回前核查原到期时间。发布通过同目录0600文件及ATOMIC_MOVE一次替换全部内容。该组件不授予mTLS服务身份、持久运行归属或业务授权，原终态回执和完整Worker要求继续保持。
+run-token-policy.schema.json唯一维护schema_version=1.0.0、UUID revision、绝对URI issuer、唯一非空audience、public_key_der_base64、正整数maximum_lifetime_seconds和maximum_token_bytes。Jackson/networknt处理封闭JSON与重复字段，JDK KeyFactory/X509EncodedKeySpec读取实际RSA公钥SPKI，完整DER与标准Base64必须往返一致。该公钥配置保持独立定义。read返回私有构造的Current，保存实际配置修订、原字节摘要与明确Policy；verify在原签名验证前后分别读取当前配置，任何修订或字节变化均拒绝，并在返回前核查原到期时间。发布通过同目录0600文件及ATOMIC_MOVE一次替换全部内容。该组件不授予mTLS服务身份、持久运行归属或业务授权，原终态回执和完整Worker要求继续保持。
+
+RUN-TOKEN-SIGNING-KEY-01由RunTokenSigningKeyStore读取独立run-token-signing-key.json。封闭定义包含schema_version、配置revision、policy_revision、policy_sha256和private_key_der_base64；明确所有者、0700目录、0600单一链接文件及完整配置容量共同核查。成熟JDK KeyFactory/PKCS8EncodedKeySpec读取至少2048位的RSA CRT私钥，标准Base64及完整DER往返一致；从实际modulus/publicExponent生成公钥并与当前Policy完整SPKI比较。读取前后分别核查公钥Policy和私钥配置字节，修订、内容、权限或文件身份变化立即拒绝。
+
+sign固定完整JSON快照，复用RunTokenSignature的封闭Claims、发行者、受众、U64、动作及时间验证，再由Nimbus生成RS256、medical-run+jwt和当前kid。原签名与当前Policy核验通过后重新读取全部配置并检查原到期时间，任何变化拒绝返回。私钥不通过公开Current访问器或toString输出。该密码组件不登记客户运行、principal_token或业务许可；C02生产签发必须继续在当前授权事务绑定真实run_principal/execution_registry、jti、租约、mTLS与完整动作准入，合法成功及续期由相应业务验收核查。
 
 ### 2.2 权限动作及数据范围
+
+RUN-TOKEN-AUTHORITY-01在C02提供RunTokenAuthority及受保护配置绑定。唯一运行定义为run-token-authority.schema.json：ScopeManifest固定schema_version、tenant_id、project_id、initiator_id、run_id、execution_kind及明确resources；PrincipalManifest固定同一身份、principal_id、完整scope_sha256、services和permissions。每项Permission包含完整资源Scope、action和purpose；Service包含服务绝对URI和唯一audience。企业作业的project_id=null仍逐项限定真实资源；TASK必须绑定项目。RoleScope保存明确permissions，运行主体的全部许可需要同时包含于当前PUBLISHED的ROLE版本、原范围及当前人员授权。所有定义封闭，重复、未知字段、尾随JSON和非标准身份立即拒绝。
+
+053为run_step追加lease_owner与lease_expires_at，为principal_token追加token_sha256、service_uri、policy_revision、policy_sha256和lease_generation。历史记录的新增字段保持null；新动作准入要求完整绑定。claimStep锁定原企业、人员、运行与步骤，核查有效角色及完整许可，按expectedRevision领取READY步骤或取得已到期RUNNING步骤的新代际。renewStep要求原签名令牌和当前租约，只延长同一代际。期限必须明确提供且不超过当前Policy允许的生命周期，没有默认值。领取和续租保存原审计与Outbox并重新读取。
+
+issue依据登记mTLS服务、当前发起人员身份、成员、项目、运行、发布角色及明确动作许可签发，期限同时受当前Policy和步骤租约限制。原jti、Claims字段、原令牌摘要、当前完整Policy摘要、服务URI及租约代际共同保存到principal_token并重读。renew从原令牌读取固定身份与动作范围，重新核查全部当前许可，在同一事务保存新jti并撤销原jti；续期不能扩大范围。
+
+execute核验真实Servlet服务证书、当前签名、持久令牌与运行清单、原角色、人员及当前资源/动作/用途许可、步骤租约和step_action_binding的输入/参数摘要、kind、tool_version及代际，然后在同一短事务调用业务模块。业务模块仍需核查实际对象、固定依赖和自己的状态转换；外部发送使用另行提交的发送准入与原回执流程。返回前再次核验当前配置、服务证书及期限。该入口服务新动作，合法终态回执使用原独立准入要求。
+
+medical.run-authority.enabled=true时必须明确configuration-directory、configuration-owner和maximum-configuration-bytes，并在受保护目录提供trust.json、run-token-policy.json和run-token-signing-key.json。内部HTTP和正式RunActivities由BE-13及实际业务消费者连接，当前工程验证与未验收范围读取docs/development/RUN-TOKEN-AUTHORITY-01.md。
 
 每次判定输入为 `subject,resource,action,scope,condition`，判定点为 C02 和对象所属业务模块。身份、动作、企业、项目、会话、资料分类、来源权利及派生内容依赖全部满足才 `ALLOW`；需要用户确认的操作返回 `ASK` 对应 `pending_action`；权限不足返回 `DENY`。用户确认不能扩大其已有权限。
 
@@ -271,6 +285,14 @@ Qdrant 的 collection 按环境、Embedding 模型版本、维度及距离度量
 
 C03 用固定快照生成过滤条件，只取得候选 ID；主库再次核查权限、版本、治理状态后读取正文。MySQL FULLTEXT ngram、精确查询、Qdrant、关系查询各有指定模式。HYBRID 的任一必需通道失败即返回错误。向量全部逐项读取核对身份、维度和摘要后才发布 `READY`；清理失败不恢复使用权限。
 
+SOURCE-EXACT-01提供独立审核入口，字段为MODEL、PTR_NUMBER、DOCUMENT_NUMBER、STANDARD_NUMBER和STANDARD_YEAR。SourceExactController/Service/Schema/Policy/Mapper核查当前人员、source.approve、来源与项目读取、ENTERPRISE_USE、解析/索引/人工核准/权利/适用版本；完整字段按原文Unicode位置、quote_hash和Locator摘要逐项核验。原值保持原字节，别名具有独立审查理由；同一原值的多个别名分别保存。source_exact_revision及item不可变，head使用原修订CAS；版本、来源关系、治理水位、会话上下文、原操作、审计和事件同事务保存后重读。
+
+`POST /api/retrievals/exact`按明确字段、原查询摘要和CAST AS BINARY执行等值查询。候选使用当前字段head及实际READY索引，同片段的全部匹配字段合并保存。source_exact_query/hit固定请求、完整命中、字段版本、引用位置、原人员及数量/摘要；EXACT_RETRIEVAL和SOURCE_EXACT_REVISION具有实际领域资源映射，查询依赖登记来源关系和ReferenceHold。`GET /api/retrievals/exact/{id}`每次核验完整集合、全部字段投影、原文与位置、当前来源和适用许可，再返回指定页；超限拒绝完整响应。旧字段版本和原FULLTEXT查询保持独立身份。该入口purpose限定VERIFICATION；正式任务快照、固定检索策略、内部步骤身份和DENSE/HYBRID继续执行原要求。
+
+FULLTEXT消费者由SourceIndexWorker、Access、Manifest、Policy、Configuration及Mapper承载。原source.index.requested事件及成功的PARSE_AND_INDEX作业固定来源、解析、原内容摘要、处理配置、索引配置、项目和发起人员；每个短事务复用SourceProcessingAccess核查当前账号、成员、来源/项目/配置许可、权利、生命周期及完整发布定义。source-index.schema.json限定原八项命令、完整逐片段清单、ToolScope及终态Receipt；该定义独立于原解析和上传Schema。索引发布配置必须明确FULLTEXT、MySQL ngram、实际ngram_token_size、SOURCE-NODE-CHUNKS-1、完整容量与执行期限，且输入/输出Schema、运行class及Mapper摘要共同匹配。
+
+source_index_build固定原事件、SOURCE_INDEX_FULLTEXT消费者、原解析作业、权利、独立index_version、完整清单及摘要、开始时间、截止时间和回执；outbox_delivery维护owner、generation及revision。第一次领取创建BUILDING清单和INDEX_VERSION登记，后续领取继续原身份与期限，最多三次领取。实际S3固定解析对象、完整字节、原命令与回执、全部节点和片段、Locator、范围、原文/搜索文本摘要及物化记录逐项比较。完整IndexItem逐项保存并重新读取后，索引READY、构建结果、投递终态、consumer_receipt、治理水位、审计及事件共同提交。到期或领取达到上限保存FAILED及INDEX_LIMIT；旧代际拒绝提交。消费者不修改原解析、片段、人工核准或旧索引，没有Embedding发送。DENSE/HYBRID仍遵循完整向量及C07要求。LOCAL消费者默认关闭，合法客户许可及实际发布绑定缺少时不创建替代业务结果。
+
 原件、解析包、正文、调用输入输出及导出均保存对象版本和 SHA-256。浏览器经业务代理上传下载，Worker 的短期对象权限限定对象、操作、容量及有效期。Redis 缓存键包含企业、主体、项目、授权和治理水位、输入及配置版本；命中后重新授权。来源图保存在 MySQL 的 `lineage_edge/fact_usage/evidence_link`，循环检查在同企业治理事务顺序内完成。
 
 ### 3.7 迁移与持久化验收
@@ -400,11 +422,15 @@ RN-02的完整封闭输出由[run-view.schema.json](./business/medical-persisten
 | KN-02 / 上传器 | `PUT /api/uploads/{id}/parts/{part_no}` | 二进制、长度与摘要 → 分段回执 | 上传归属；B；`CONTENT_MISMATCH` |
 | KN-03 / 上传器 | `POST /api/uploads/{id}/completions` | 分段清单及版本意图 → 接收结果、处理操作或可读重复版本 | `source.write`；A；空文件、扫描失败或格式错误分别拒绝 |
 | KN-04 / 上传器 | `GET /api/uploads/{id}` | ID → 已接收分段、四类状态和失败项 | 上传归属；Q；支持断线后查询 |
+| KN-04-STATUS / 上传器 | `GET /api/uploads/{uploadId}/status` | 原上传ID → 接收、传输、原操作结果、解析、索引、核准、当前权利及原作业失败信息 | 原上传当前授权、来源读取及固定身份；Q；完整集合超限拒绝 |
+| KN-INDEX-STATUS / S04 | `GET /api/source-versions/{id}/index-builds?project_id={projectId}` | 固定来源及项目 → 全文构建、真实索引/投递状态、预期及核验数量、终态失败、开始及截止时间 | 当前来源元数据读取和项目读取；Q；完整集合容量明确，超限拒绝；不返回内部清单、对象位置或Worker身份 |
 | KN-05 / S04 | `GET /api/source-versions` | 范围、状态、类别、标签、资料集及分页 → 来源列表 | `source.read`；Q；列表不隐含任务选择 |
 | KN-06 / S05 | `GET /api/source-versions/{id}` | ID → 属性、处理版本、核准、权利和项目适用状态 | `source.read`；Q |
 | KN-07 / S05 | `GET /api/source-versions/{id}/content` | 固定解析、locator、读取目的及范围 → 受限原文或分段内容 | `source.read`；B；`SOURCE_MISSING/CONTENT_MISMATCH/LOCATOR_INVALID` |
 | KN-08 / S05 | `POST /api/source-versions/{id}/processing-attempts` | 处理配置、阶段和原因 → 新处理记录 | `source.write`；A；费用另经 C07；新解析 ID |
 | KN-09 / S05 | `POST /api/source-versions/{id}/approval-decisions` | `SourceApprovalInput` → 决定与当前门槛 | `source.approve`；W；`SOURCE_NOT_READY/RIGHTS_PENDING` |
+| KN-RIGHTS-PREVIEW / 审核人员 | `POST /api/source-versions/{id}/rights-reviews` | 完整决定及条件proposal → 当前权利、授权文件元数据及审查摘要 | 当前source.read/source.approve及适用project.read；SOURCE_RIGHTS_REVIEW；明确服务器政策 |
+| KN-RIGHTS-01 / 审核人员 | `POST /api/source-versions/{id}/rights-decisions` | 原权利、expected_revision、审查摘要、理由和APPROVE/RETURN/REVOKE → 固定决定及权利版本 | 当前审批许可及真实授权文件完整字节；W/B；CAS及原响应重放 |
 | KN-10 / S18 | `POST /api/projects/{id}/source-bindings` | 来源版本、适用决定、依据和属性版本 → 绑定版本 | 项目适用确认；W；未知条件保持待确认 |
 | KN-11 / S04 | `POST /api/collections` | 归属、标题、用途和成员版本 → 集合及首个版本 | 资料集写入；W；每个成员检查来源读取 |
 | KN-12 / S04 | `POST /api/collections/{id}/versions` | `VersionInput`，完整成员 → 新版本 | 资料集写入；W；旧任务成员不改变 |
@@ -598,6 +624,18 @@ SSE 返回 `Content-Type: text/event-stream`、`Cache-Control: no-store`，入�
 ## 5. 业务状态、Agent 管理与执行承载
 
 ### 5.1 资料状态与核准事务
+
+上传完成由SourceCompletionWorker、Access、Execution、CheckpointStore、Registration及Mapper消费原KN-03命令。固定上传、操作、事件和消费者身份，每次短事务重查原发起人员的账号、成员、权限、归属、会话和发布配置。完整分段重组后执行固定扫描发布及成熟格式核验，扫描回执具有固定format和format_verified。检查点先保存原扫描命令、回执及对象write_intent，再写入并核验固定原件；恢复只查询原write_id。首次数据库期限与发布清单保存于outbox_delivery，恢复不重置期限。
+
+登记事务保存来源版本、PENDING_REVIEW权利版本、归属关系、固定解析配置和QUEUED处理作业；同归属去重核查完整字节、声明、来源和项目读取许可、会话关联、当前权利与生命周期。终态结果由source-completion-result.schema.json核验，保存source_upload_result和consumer_receipt，并共同推进上传、会话、操作、投递、治理水位、审计及事件。过期、总执行期限、领取次数或实际扫描命令失败保存原操作失败结果；原202响应继续按原字节重放。关闭配置不创建执行Worker，开启时必须提供明确的企业、项目与获准发布绑定。
+
+持久解析使用 SourceProcessingWorker、SourceProcessingAccess、SourceProcessingResult 与 SourceProcessingMapper。Worker 按服务器批准的企业集合领取原 processing_attempt，每个短事务重新核查实际账号、成员、当前授权、来源及权利、项目和发布配置。原 owner、generation、revision、数据库期限及执行截止时间共同约束续期和提交。完整 input/output Schema、tool_scope、制品摘要、扫描发布、Python 运行文件和全部 Python 源文件摘要属于固定配置。PARSE_AND_INDEX 使用独立 index_config_revision，并重新核查当前发布及读取许可。
+
+C09 在私有目录读取固定原件，完成 ClamAV 扫描后执行成熟格式组件；完整输出包含节点、原文、Locator、quote_hash、片段、扫描原始输出及签名、实际处理身份和规范摘要。处理进程使用独立环境、固定时限和周期续期。外部对象写入前保存原 command_ref、result_ref 和 write_intent；恢复仅查询并重新读取原固定 write_id 对象。完整对象版本、字节数、摘要和元数据通过后，节点及片段、解析版本、版本登记、来源与配置关系、作业终态、治理水位、同步审计及事件共享企业事务，最终重新读取完整保存内容。核准继续保持 PENDING。
+
+SourceCompletionObjects 对 KN-03 的完整分段清单执行封闭 Schema、标准范围、序号、write_id、revision、归属前缀、对象版本及摘要核验。SourceUploadService 在保存及重放原完成命令时核查该清单；SourceUploadTransport.assembleSourceJob 使用服务器确定的企业和上传范围、现有有限传输名额及当前准入，复用 UploadObjectAssembly 连续读取。每份原对象重新核查固定 write_id、AES256、元数据、对象版本及完整字节，完整原件重读后清理私有文件。浏览器不能选择存储范围或客户端。
+
+当前处理 Worker 负责已登记来源的确定性重新解析。SourceRightsService提供独立人工权利审查及决定入口，核查完整当前权限、固定审查摘要、实际授权Artifact及全部来源关系、S3固定版本和完整字节；新权利、指针及状态CAS、原操作、审计、事件和回执同事务保存。source-rights-decisions.schema.json维护封闭输入、公开清单及内部读取证明；source-rights.schema.json继续限定原不可变权利载荷。source_rights_state保存当前修订，source_rights_decision保存完整人工决定和实际读取证明；明确启用政策及合法审批材料缺少时保持关闭。合法客户权利审批、索引消费者、图片、公式、复杂表格和适用 OCR，以及完整客户上传、非空记录的中断恢复与旧代际拒绝继续按照完整资料流程实施和验收。LOCAL_PARSER_CHECK 的扫描、解析、原件重组与对象读取结果不创建客户来源或人工决定。
 
 KN-01使用服务器确定的SOURCE_UPLOAD目的核查当前source.write，完整声明与upload_item、SOURCE传输会话、原操作响应、同步审计及Outbox共享EnterpriseAccess事务。上传期限采用数据库时间和明确服务器限制，并受当前授权截止时间约束。原操作响应采用RFC8785规范表示；重放重新核查当前授权和原上传身份，保持原上传ID、期限及响应字节。当前本地配置为104857600字节和3600秒，仅适用于LOCAL开发检查，生产限制须依批准环境提供。source-uploads.schema.json维护封闭Create、Created及当前登记读取Registration；Registration提供原声明、上传/传输状态和分段分页。完整KN-04仍需消费实际解析、索引、核准及失败范围，不能使用固定状态代替处理结果。
 

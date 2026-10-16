@@ -1,6 +1,28 @@
 # IMP-16 同版正文、候选比较及连续编辑
 
-唯一任务状态由实施任务计划§4.2维护，IMP-16保持IN_PROGRESS。需求依据为BIZ-07、AC-22/38、IC-16、HLD ADR-005和FRONT-I02/I03/I14。last_verified=2026-10-09，源码为未提交工作目录。全部开发输入采用明确标记的SIMULATION资料，期限为2026-10-10上午09:00（Asia/Shanghai）；正式客户验收独立登记。
+唯一任务状态由实施任务计划§4.2维护，IMP-16保持IN_PROGRESS。需求依据为BIZ-07、AC-22/38、IC-16、HLD ADR-005和FRONT-I02/I03/I14。源码为当前未提交工作目录。2026-10-13用户明确授权全部使用SIMULATION资料和业务输入，正式客户验收独立登记。
+
+## FE-16 全文目录、历史目录及正文选区
+
+2026-10-14 EXACT-CURRENT-01重新核查当前组件及共享Schema，开发六项和生产六项全部通过，exit_code=0、inputs_unchanged=true；8901项输入及66项产物。回执`.implementation-work/IC-FRONT-CONTINUE-DOCUMENT-SELECTION-20261014-EXACT-CURRENT-01/receipt.json`的SHA-256为`096aaa5e141b3978cd9a34187ac7e9f35699a2f5c2ab9cf3a267558e4f1b3b96`。检查覆盖全文与固定历史目录、完整文字标记、Unicode范围、图片和合并表格身份及上下文清理，输入标记SIMULATION、视觉NOT_RUN；当前专业消费者及完整业务继续原要求。
+
+`document-body-reader.vue`已经接入当前正文和固定历史正文。完整父子关系和ordinal决定阅读及目录顺序，稳定节点负责导航和焦点；不存在的父节点、重复身份、重复顺序或不可访问目录立即拒绝。只读内容复用`document-node-editor.vue`，保留原文、公式、表格跨度和图片固定身份。文字按原BOLD、ITALIC、UNDERLINE、SUPERSCRIPT及SUBSCRIPT标记完整呈现，同行文字节点保持连续；节点文字和标记均保留在原规范内容中，选区继续按原Unicode位置和完整Node摘要计算。
+
+`document-selection.ts`将原生DOM Range和键盘输入转换为正式Selection。文字逐节点保留UTF-8原文及完整Node的RFC8785摘要，UTF-16严格转换为Unicode code point，代理对中间位置拒绝。组合字符及换行保持原值，跨节点选择按实际正文顺序形成独立segment。图片使用同版artifact_id和sha256；表格采用成熟Element Plus表格及当前tablePositions，完整保留合并单元格覆盖的行、列及单元格身份。当前Java的DocumentRevisionService保存完整Node规范摘要，表格选区沿用同一摘要口径；后续专业消费者仍需实际联调核验。
+
+原文和Selection只保存在页面内存。正文、版本、编辑状态和身份变化清除选区、键盘输入及单元格选择，异步摘要结果需要原generation和正文版本仍有效。未保存正文明确标记，只供提问与修订建议；保存以后重新选择才能进入核验或审查。组件已经提供selected事件，Gru和专业审查消费者需要对应公开接口及完整请求定义，目前不自行提交专业操作。
+
+Given已授权SIMULATION正文、五种文字标记、emoji、组合字符、换行和合并表格；When从原文或键盘选择范围；Then文字标记和位置、原摘录摘要、固定图片、完整表格身份准确，非法Unicode和重复节点拒绝，版本及上下文变化清除全部选择。空文字节点通过完整DocumentBody校验，没有可选择的文字，跨节点Range仍保留两侧完整原文。入口为`tests/browser/document-selection-checks.js`和`web/tests/document-selection/`；严格类型检查通过，开发及生产浏览器完整检查与当前回执由`scripts/check_frontend_continuation.py --suite document-selection --execution`维护。有效Red保存于`.implementation-work/document-selection-red.log`、`.implementation-work/document-selection-empty-valid-red.log`及`.implementation-work/document-selection-marks-red.log`，分别覆盖完整目录、合法空文字节点和完整文字标记的必要断言。当前范围不包含图片像素读取、Gru业务提问、批注写入或正式签发。
+
+当前GREEN-05的开发六项、生产六项实际Chrome断言全部通过，exit_code=0、inputs_unchanged=true；8842项输入及66项产物绑定当前组件、共享Schema和依赖。回执为`.implementation-work/IC-FRONT-CONTINUE-DOCUMENT-SELECTION-20261013-GREEN-05/receipt.json`，SHA-256为`5d399095a944a1bcf183e3ced81557387690ff15e23f26bda51cbcc0a28ffa84`，原输出位于同目录`command/output.log`。五种文字标记、跨节点选区和全文摘要共同通过，视觉保持NOT_RUN，组件输入标记SIMULATION，没有HTTP业务写入；完整IC-16仍需专业消费者和业务集成。
+
+## FE-16 公式与固定原文面板
+
+`document-node-editor.vue`使用KaTeX呈现公式，保留LaTeX原文。编辑人员明确点击预览后呈现当前输入；只读正文呈现同版公式。配置禁止受信任扩展，未知语法立即报告，单次渲染使用独立宏定义。公式输入变化清理原预览。
+
+`document-evidence-panel.vue`按当前正文EvidenceLink打开固定原文。读取采用原source_version、parse_version、chunk_id和Locator摘要，重新核对来源身份、引用摘要与完整Locator；原文面板显示原始文字、固定版本及完整原件入口。关系标签保留支持、冲突和背景原含义。无法取得对应位置立即报告，身份、正文版本、证据关系或页面变化后清理原读取。完整原件入口由[IMP-08](IMP-08.md)维护。
+
+当前组件及接口消费已经通过严格类型检查。公式在实际Chrome开发和生产页面分别通过原LaTeX、数值原文、输入变化清理、受限链接及禁止外部请求断言。证据为`.implementation-work/FRONT-SOURCE-READER-20261013/browser-checks.json`和`formula-production.log`，与七格式阅读共22项通过。固定证据公开接口读取及专业关系确认继续纳入组合业务验收，完整IMP-16保持`IN_PROGRESS`。
 
 ## 正文读取与保存
 
@@ -38,4 +60,4 @@ PendingDocumentSave按公开接口顺序处理完整原字节、原许可、分�
 
 数据依赖037—039迁移、字段定义外键和同版证据投影由IMP-03维护；当前实际254项迁移、163张企业业务表、200张物理表。任务与完整计划由IMP-12维护；模型运行、专业Activity、当前正文检查、审查签发及导出分别由IMP-07/13—15/23/24/26维护。
 
-剩余开发包括受限图片内容及公式呈现、全文选区、BX-05/07/08的服务器候选及历史比较、历史目录、明确部分候选采用、页面DOM交互与统一部署验证。源数据许可、模板/字段归属、事实版本与原文定位始终由当前领域消费者核验。完整IC-16保持未完成，全部已定义功能继续开发。
+剩余开发包括受限图片内容、选区的Gru和专业审查接口消费、BX-05/07/08的服务器候选及历史比较、明确部分候选采用、公式及证据面板的实际业务验证、组合页面DOM交互与统一部署验证。源数据许可、模板/字段归属、事实版本与原文定位始终由当前领域消费者核验。完整IC-16保持未完成，全部已定义功能继续开发。

@@ -8,5 +8,5 @@
     "skipLibCheck": true, "noEmit": true,
     "baseUrl": ".", "paths": {"@/*": ["src/*"]}
   },
-  "include": ["src/api/medical/**/*.ts", "src/views/medical/**/*.vue", "src/views/system/user/profile/**/*.vue", "src/medical.d.ts", "tests/source-file-upload/**/*.ts", "tests/source-file-upload/**/*.vue", "node_modules/vue-cropper/shims-vue.d.ts"]
+  "include": ["src/api/medical/**/*.ts", "src/views/medical/**/*.vue", "src/views/system/user/profile/**/*.vue", "src/medical.d.ts", "tests/source-file-upload/**/*.ts", "tests/source-file-upload/**/*.vue", "tests/source-reader/**/*.ts", "tests/source-reader/**/*.vue", "tests/request-metadata/**/*.ts", "tests/document-selection/**/*.ts", "tests/document-selection/**/*.vue", "tests/template-fields/**/*.ts", "tests/source-rights/**/*.ts", "node_modules/vue-cropper/shims-vue.d.ts"]
 }

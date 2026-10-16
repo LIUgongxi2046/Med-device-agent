@@ -50,6 +50,58 @@ export async function documentBytesDigest(bytes: BufferSource): Promise<string> 
   return Array.from(hash, byte => byte.toString(16).padStart(2, '0')).join('')
 }
 
+export class VerifiedByteAssembly {
+  private parts: Uint8Array<ArrayBuffer>[] = []
+  private received = 0n
+  private disposed = false
+  private busy = false
+  private completed = false
+  private readonly size: bigint
+
+  constructor(sizeBytes: string, private readonly sha256: string) {
+    if (!/^[1-9][0-9]*$/.test(sizeBytes) || !/^[a-f0-9]{64}$/.test(sha256)) {
+      throw new MedicalFailure('SCHEMA_INVALID', '完整文件需要明确字节数与SHA-256')
+    }
+    this.size = BigInt(sizeBytes)
+    if (this.size > BigInt(Number.MAX_SAFE_INTEGER)) throw new MedicalFailure('CONTEXT_LIMIT', '文件大小超出浏览器可准确表示范围')
+  }
+
+  get receivedBytes(): string { return this.received.toString() }
+  private current(): void {
+    if (this.disposed) throw new MedicalFailure('ACTION_STALE', '文件读取内容已经清理')
+  }
+  async append(startByte: string, bytes: Uint8Array, sha256: string): Promise<void> {
+    this.current()
+    if (this.busy || this.completed) throw new MedicalFailure('ACTION_STALE', '文件分段不能重复或并发写入')
+    if (!/^(0|[1-9][0-9]*)$/.test(startByte) || BigInt(startByte) !== this.received
+        || bytes.length === 0 || this.received + BigInt(bytes.length) > this.size) {
+      throw new MedicalFailure('CONTENT_MISMATCH', '文件分段范围与已接收字节不一致')
+    }
+    this.busy = true
+    const copy = Uint8Array.from(bytes)
+    try {
+      if (await documentBytesDigest(copy) !== sha256) throw new MedicalFailure('CONTENT_MISMATCH', '文件分段摘要不一致')
+      this.current()
+      this.parts.push(copy); this.received += BigInt(copy.length)
+    } finally { this.busy = false }
+  }
+  async complete(mediaType: string): Promise<Blob> {
+    this.current()
+    if (this.busy || this.completed) throw new MedicalFailure('ACTION_STALE', '完整文件正在核验或已经交付')
+    if (this.received !== this.size) throw new MedicalFailure('CONTENT_MISMATCH', '完整文件字节尚未接收完毕')
+    this.busy = true
+    try {
+      const blob = new Blob(this.parts, { type: mediaType })
+      if (await documentBytesDigest(await blob.arrayBuffer()) !== this.sha256) {
+        throw new MedicalFailure('CONTENT_MISMATCH', '完整文件摘要与固定原件不一致')
+      }
+      this.current(); this.completed = true; this.parts = []
+      return blob
+    } finally { this.busy = false }
+  }
+  dispose(): void { this.disposed = true; this.parts = []; this.received = 0n }
+}
+
 export function immutableDocumentValue<T>(value: T): T {
   const copy = structuredClone(value)
   const visited = new WeakSet<object>()

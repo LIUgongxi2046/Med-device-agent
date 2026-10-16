@@ -107,6 +107,20 @@ flowchart LR
 
 ### 3.2 阶段输入、幂等与失败
 
+050-source-rights-decisions.sql提供source_rights_state及source_rights_decision。状态固定当前RightsRevision、最后人工决定及连续revision；决定固定来源、前后权利、原操作、完整请求、审查清单及摘要、实际对象字节证明、理由、回执及Schema身份。八项同企业复合外键及八项CHECK保护完整关联和决定状态。初始化只复制当前实际来源的原权利、人员、时间和分类，不创建批准决定。APPROVE写入完整新权利载荷及摘要，CAS替换当前指针；RETURN保留待审权利，REVOKE撤销批准状态，审计及Outbox共享原企业事务。当前实际286项登记、172张企业表及209张物理表；原283项checksum、来源指针和完整权利记录保持。
+
+048-source-completion-checkpoint.sql保存上传完成检查点和来源登记结果。source_completion_checkpoint固定tenant/event/consumer/upload/operation关联、完整原命令摘要、扫描命令及回执、原对象write_intent、固定ObjectRef和WRITING/ORIGINAL_VERIFIED状态；source_upload_result固定来源、权利、解析及处理作业、原件对象、结果与Schema身份。同企业复合外键及唯一约束保护完整关联。outbox_delivery保存首次开始时间、执行期限和运行发布清单；执行恢复沿用原期限。领取、续期与最终事务继续核查owner、generation、revision及数据库时间。
+
+完整扫描与成熟格式核验通过后登记SourceVersion和PENDING_REVIEW权利版本；上传声明中的证据身份保留在provenance，批准证据及正式权利审批继续独立核验。来源登记、处理作业、上传及操作终态、消费回执、治理水位、审计与事件共享企业事务。过期、总执行期限、领取次数及扫描命令失败保存封闭失败结果；原202响应保持原字节，操作查询显示真实终态。去重只允许相同企业、项目或会话范围，重新核查完整原件、声明、来源及项目读取许可、权利和生命周期。
+
+049-source-audit-metadata.sql提供retrieval_hit、retention_policy_revision、source_lifecycle_decision、source_lifecycle_state和outbox_delivery的十三项审计及Schema字段。既有字段从同企业的原查询及操作、原人员和时间、SourceVersion及Source分类、原事件载荷复制；未知身份立即阻止迁移。全部新增字段非空，人员具有同企业关联；消费者保存及重读原Schema版本和发布摘要。当前实际数据库283项登记，原270项checksum及生命周期状态保持，170张企业表及207张物理表由完整迁移检查维护。
+
+047-source-processing-worker.sql 为 processing_attempt 追加 lease_owner、lease_generation、lease_expires_at、execution_deadline、command_ref、result_ref 和 write_intent，并约束租约与终态关系；parse_version 追加 artifact_version 和 artifact_size_bytes，历史未知对象版本保持空值。failure_manifest 使用包含 schema_version 和 issues 的对象，原问题数组完整保存于 issues。领取、续期及最终提交同时核查当前 owner、generation、revision 与数据库期限。
+
+053-run-token-authority.sql为run_step追加lease_owner VARCHAR(512)、lease_expires_at DATETIME(6)、按企业/状态/期限的索引，以及完整租约关联CHECK；principal_token追加原签名token_sha256、服务service_uri、policy_revision、完整policy_sha256和lease_generation。历史新增字段全部保持null；完整新令牌绑定要求非空摘要、服务、Policy、正代际和step_id。原主键、企业外键、数据和既有迁移保持。当前来源为RUN-TOKEN-AUTHORITY-01，许可清单由run-token-authority.schema.json核验；C02逐动作重新读取当前人员及权限，租约和令牌写入保存审计与Outbox。
+
+解析包完整保存 ContentNode、原文、Locator、quote_hash、Chunk 和 chunk_node 范围，并记录固定扫描结果与签名、处理及配置身份。外部写入前保存固定命令、结果及对象写入意图；恢复读取原 write_id 的固定对象版本。对象完整核验后，版本登记、来源及配置关系、解析对象版本与字节数、完整节点及片段、处理终态、治理水位、审计与事件共同提交，保存内容逐项重新读取核查。专业核准保持独立人工决定。
+
 | 阶段 | 输入 → 输出 | 校验和幂等范围 | 失败状态与责任 |
 | --- | --- | --- | --- |
 | 接收 | 上传会话 → 私有隔离对象、`UploadItem` | 逐文件请求 ID、预期大小、服务端 SHA-256、格式探查、恶意内容扫描 | `UPLOAD_FAILED`；C03；未完整接收不能创建可引用版本 |
@@ -218,6 +232,8 @@ task_plan_head保存同一任务当前维护计划与CAS修订；task_plan_decis
 `033-task-missing-requirements.xml`追加task_input_revision.missing_requirements及requirements_sha256。前者为非空JSON数组，逐项使用原ResourceBindings.REQUIREMENT保存requirement_id、node_id、field_id、reason_code和allowed_actions；后者为完整数组的RFC8785 SHA-256。空数组必须来自实际缺项计算并保存摘要，读取不补充默认值。既有任务输入存在时迁移立即终止，必须另行提供可核查的原缺项记录，不能自行填充。TK-02核查固定输入、快照和已确认计划及摘要；当前可见文稿、运行、待办和处理动作分别通过当前授权检查。
 
 ### 4.3 来源定位与 EvidenceRef
+
+051-source-index-build.sql追加source_index_build，原迁移保持既有字节。新记录按企业、原事件及SOURCE_INDEX_FULLTEXT消费者唯一关联outbox_delivery，固定项目、成功解析作业、来源/解析/索引完整身份、配置、当前权利、原输入与清单摘要、执行期限及终态回执。七项同企业外键和六项CHECK核查完整归属、Schema、状态、期限及回执。IndexManifest及INDEX_VERSION登记在同事务建立，逐IndexItem核验后发布READY；consumer_receipt与投递终态共同保存。清单不修改原source_chunk，重建使用独立索引身份，历史引用继续固定原来源与解析位置。
 
 `EvidenceRef` 的传输结构位于 [dataset.schema.json](./data-design/dataset.schema.json) 的 `$defs.EvidenceRef`；`ContextReference` 在后续 Agent 设计中直接引用此结构。正式引用须包含 `tenant_id/project_id/source_id/source_version/parse_version/chunk_id/locator_kind/locator/quote_hash/approval_revision`。`source_version` 等字段在生产环境使用稳定 ID；本地样本在准入前使用文件 SHA-256 作为版本指纹，导入后保存指纹到生产 ID 的映射，不能把样本伪装成企业核准记录。
 
@@ -337,6 +353,12 @@ flowchart TD
 策略固定 `mode/required_channels/exact_fields/top_k_per_channel/fusion_parameters/rerank_config/max_graph_depth/context_token_budget`。模式为 `EXACT/FULLTEXT/DENSE/HYBRID/RELATION`，混合模式中的必需通道失败返回明确错误；用户主动选择另一模式时创建新查询记录。查询无结果返回 `EMPTY`；权限无效返回 `DENIED`；必需服务失败返回 `FAILED`，三者分别记录。
 
 型号、产品技术要求编号、文号、标准编号及年代号采用结构化字段等值查询；中文叙述使用全文与语义渠道；来源追踪、事实影响及方法覆盖使用关系查询。原始编号完整保存，规范化别名必须有审核记录。法规术语扩展只能使用当前批准词表，扩展记录进入查询清单。
+
+052新增source_exact_revision/head/item和source_exact_query/hit。字段版本固定原来源、解析、索引、人工核准及权利，清单保存明确项目适用依据、完整字段、原值、别名与审查理由、原文字段范围和Locator摘要；item按字段种类及原值/别名UTF8 SHA-256建立企业索引。实际比较继续核对完整二进制值，不依赖字符排序规则进行等值推断。修改产生新字段版本和CAS后的head，旧版本及固定查询保持原内容。
+
+EXACT审核查询按相同片段合并全部匹配字段，固定完整请求、原查询主体、每项来源/解析/索引/核准/权利/适用/字段版本、原位置、数量及集合摘要。原请求返回原Operation；分页先核查完整集合和全部当前来源许可，随后读取指定范围。来源关系和ReferenceHold保护查询采用的版本，保存期限仍由批准治理策略决定。正式任务内部检索继续绑定原ScopeSnapshot和retrieval_profile_revision；审核入口不产生这些批准身份。
+
+人工核准的approval_revision与项目适用的binding_revision分别在原决定事务登记APPROVAL_DECISION和SOURCE_BINDING，完整决定使用RFC8785 UTF8 SHA-256。核准登记继承来源项目归属，适用登记属于作出决定的项目；source、parse、index、rights及字段版本沿用各自既有登记。全部来源关系与ReferenceHold引用已登记的同企业固定版本，完整字段和固定查询继续重读每项实际依据与当前许可。
 
 ### 5.2 分块与 Qdrant 清单
 
@@ -482,6 +504,10 @@ ORDER BY e.document_revision, e.claim_id;
 保存策略字段为 `category/retention_duration/start_event/hold_override/approver/effective_from/purge_method/backup_expiry`，当前具体期限为 `UNKNOWN`。没有批准期限或原件权利要求不清楚时，永久删除及自动清理关闭。
 
 删除流程：专门权限检查 → 同事务锁定目标及引用保护，复查无有效引用和保留指令 → 标记 `PURGE_PENDING` 并禁止新引用 → 建立逐存储 `DeletionItem` 与 Outbox → 删除原件和全部对象版本、解析、全文、向量、缓存和可清理诊断 → 按各系统重新查询确认 → 等待备份到期及对应回执 → 记录 `PURGED`。每项具有稳定幂等键、目标摘要及完成证据；部分失败保持作业未完成，不重新开放资料。
+
+`046-source-deletion-worker.sql`为 deletion_item 增加 lease_owner、lease_generation、lease_expires_at、execution_evidence、worker_receipt 及领取索引和租约约束。SourceDeletionWorker 使用原批准主体、当前身份与企业事务领取，全部外部删除和查询重新验证权限、策略、引用、租约代际及修订。原件清理包含实际上传分段，诊断清理包含解析、处理失败与阅读定位。恢复时复查原存储；最终完成前重新核查全部已确认目标，已保存的查询证据不能替代当前查询。
+
+内部备份目录使用封闭 source-deletion.schema.json，固定 inventory_revision、tenant_id、source_version、store_id、captured_through、完整副本及签名。签名按去除 signature 后的 RFC8785 字节执行 HMAC-SHA256；备份到期且实际版本不存在才确认。共享副本由批准备份治理流程处理，完整目录或期限未知时保持 PURGE_PENDING。当前真实存储、迁移与隔离数据库恢复证据由 docs/development/IMP-36.md 维护；客户保存、全组件恢复及永久删除仍需独立验收。
 
 未引用且项目有效的版本可以进入回收站；恢复校验原归属、授权、对象及哈希，恢复为待核验。停用和回收均不改变旧版本字节。公共原件物理去重时，每个企业具有独立引用与加密/权限记录，只有所有合法保留引用释放后才清理共享对象；不得通过企业删除影响其他企业合法持有资料。
 

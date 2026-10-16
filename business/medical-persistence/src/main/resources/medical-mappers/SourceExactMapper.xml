@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.medical.persistence.mapper.SourceExactMapper">
+  <select id="head" resultType="map" useCache="false" flushCache="true">
+    SELECT field_revision,revision FROM source_exact_head
+    WHERE source_version=#{sourceVersion} AND parse_version=#{parseVersion} AND approval_revision=#{approvalRevision} FOR UPDATE
+  </select>
+  <select id="revision" resultType="map" useCache="false" flushCache="true">
+    SELECT e.*,v.content_sha256 AS registered_sha256,v.owner_project_id AS registered_project_id,v.entity_kind,s.source_id,s.owner_project_id
+    FROM source_exact_revision e
+    JOIN version_registry v ON v.tenant_id=e.tenant_id AND v.version_id=e.field_revision
+    JOIN source_version sv ON sv.tenant_id=e.tenant_id AND sv.source_version=e.source_version
+    JOIN source s ON s.tenant_id=sv.tenant_id AND s.source_id=sv.source_id
+    WHERE e.field_revision=#{fieldRevision} AND e.source_version=#{sourceVersion} FOR UPDATE
+  </select>
+  <select id="fields" resultType="map" useCache="false" flushCache="true">
+    SELECT ordinal,source_version,parse_version,approval_revision,field_revision,field_kind,raw_value,raw_value_sha256,
+      alias_value,alias_value_sha256,chunk_id,field_manifest,schema_version,schema_manifest_sha256,created_by,created_at,classification
+    FROM source_exact_item WHERE field_revision=#{fieldRevision} ORDER BY ordinal LIMIT #{fieldLimit}
+  </select>
+  <select id="chunk" resultType="map" useCache="false" flushCache="true">
+    SELECT chunk_id,raw_text,quote_hash,locator FROM source_chunk
+    WHERE source_version=#{sourceVersion} AND parse_version=#{parseVersion} AND chunk_id=#{chunkId}
+  </select>
+  <select id="candidates" resultType="map" useCache="false" flushCache="true">
+    SELECT e.source_version,e.parse_version,e.index_version,e.approval_revision,e.rights_revision,e.field_revision,
+      b.binding_revision,f.ordinal,f.field_manifest,c.chunk_id,c.raw_text,c.quote_hash,c.locator,s.source_id,s.title
+    FROM source_exact_item f
+    JOIN source_exact_revision e ON e.tenant_id=f.tenant_id AND e.field_revision=f.field_revision
+      AND e.source_version=f.source_version AND e.parse_version=f.parse_version AND e.approval_revision=f.approval_revision
+    JOIN source_exact_head h ON h.tenant_id=e.tenant_id AND h.source_version=e.source_version
+      AND h.parse_version=e.parse_version AND h.approval_revision=e.approval_revision AND h.field_revision=e.field_revision
+      AND h.revision=e.publication_revision
+    JOIN source_chunk c ON c.tenant_id=f.tenant_id AND c.source_version=f.source_version AND c.parse_version=f.parse_version AND c.chunk_id=f.chunk_id
+    JOIN source_version sv ON sv.tenant_id=e.tenant_id AND sv.source_version=e.source_version AND sv.rights_revision=e.rights_revision
+    JOIN source s ON s.tenant_id=sv.tenant_id AND s.source_id=sv.source_id
+    JOIN parse_version p ON p.tenant_id=e.tenant_id AND p.source_version=e.source_version AND p.parse_version=e.parse_version AND p.parse_status='COMPLETE'
+    JOIN source_use_gate g ON g.tenant_id=e.tenant_id AND g.source_version=e.source_version AND g.parse_version=e.parse_version
+      AND g.approval_revision=e.approval_revision AND g.approval_status='APPROVED' AND g.upload_status='RECEIVED' AND g.lifecycle='ACTIVE'
+    JOIN approval_decision a ON a.tenant_id=e.tenant_id AND a.source_version=e.source_version AND a.parse_version=e.parse_version
+      AND a.approval_revision=e.approval_revision AND a.decision='APPROVE'
+    JOIN index_manifest i ON i.tenant_id=e.tenant_id AND i.source_version=e.source_version AND i.parse_version=e.parse_version
+      AND i.index_version=e.index_version AND i.status='READY' AND i.expected_count&gt;0 AND i.expected_count=i.verified_count
+    JOIN project_source_binding b ON b.tenant_id=e.tenant_id AND b.source_version=e.source_version AND b.project_id=#{projectId}
+      AND b.is_current=TRUE AND b.applicability='APPLICABLE'
+    JOIN rights_revision r ON r.tenant_id=e.tenant_id AND r.source_version=e.source_version AND r.rights_revision=e.rights_revision
+      AND r.status='APPROVED' AND (r.valid_from IS NULL OR r.valid_from&lt;=UTC_TIMESTAMP(6)) AND (r.valid_to IS NULL OR r.valid_to&gt;UTC_TIMESTAMP(6))
+    WHERE f.field_kind=#{fieldKind}
+      AND ((f.raw_value_sha256=#{querySha256} AND CAST(f.raw_value AS BINARY)=CAST(#{queryText} AS BINARY))
+        OR (f.alias_value_sha256=#{querySha256} AND CAST(f.alias_value AS BINARY)=CAST(#{queryText} AS BINARY)))
+      AND JSON_CONTAINS(r.allowed_actions,JSON_QUOTE('READ')) AND JSON_CONTAINS(r.allowed_actions,JSON_QUOTE('ENTERPRISE_USE'))
+      AND JSON_CONTAINS(r.regions,JSON_QUOTE(#{region}))
+      AND JSON_CONTAINS(JSON_EXTRACT(r.evidence_manifest,'$.environments'),JSON_QUOTE(#{environment}))
+      AND JSON_CONTAINS(JSON_EXTRACT(r.evidence_manifest,'$.classifications'),JSON_QUOTE(s.classification))
+      AND EXISTS (SELECT 1 FROM permission_grant pg WHERE pg.tenant_id=s.tenant_id AND pg.subject_id=#{userId}
+        AND pg.action='source.read' AND pg.status='ACTIVE' AND pg.valid_from&lt;=UTC_TIMESTAMP(6)
+        AND (pg.valid_to IS NULL OR pg.valid_to&gt;UTC_TIMESTAMP(6))
+        AND JSON_CONTAINS(JSON_EXTRACT(pg.`condition`,'$.identity_modes'),JSON_QUOTE(#{identityMode}))
+        AND (JSON_EXTRACT(pg.`condition`,'$.purposes') IS NULL OR JSON_CONTAINS(JSON_EXTRACT(pg.`condition`,'$.purposes'),JSON_QUOTE(r.purpose)))
+        AND (pg.resource_kind='ENTERPRISE' AND pg.project_id IS NULL AND pg.resource_id=s.tenant_id
+          OR pg.resource_kind='PROJECT' AND s.owner_project_id IS NOT NULL AND pg.project_id=s.owner_project_id AND pg.resource_id=s.owner_project_id
+          OR pg.resource_kind='SOURCE' AND pg.project_id&lt;=&gt;s.owner_project_id AND (pg.resource_id IS NULL OR pg.resource_id=s.source_id)))
+    ORDER BY e.source_version,e.parse_version,c.chunk_id,f.ordinal
+    LIMIT #{matchLimit}
+  </select>
+  <select id="query" resultType="map" useCache="false" flushCache="true">
+    SELECT q.*,v.content_sha256 AS registered_sha256,v.owner_project_id AS registered_project_id,v.entity_kind FROM source_exact_query q
+    JOIN version_registry v ON v.tenant_id=q.tenant_id AND v.version_id=q.retrieval_id
+    WHERE q.retrieval_id=#{retrievalId} AND q.subject_id=#{userId} FOR UPDATE
+  </select>
+  <select id="hits" resultType="map" useCache="false" flushCache="true">
+    SELECT rank_no,source_version,parse_version,index_version,approval_revision,rights_revision,binding_revision,chunk_id,
+      field_revision,hit_manifest,schema_version,schema_manifest_sha256,created_by,created_at,classification
+    FROM source_exact_hit WHERE retrieval_id=#{retrievalId} ORDER BY rank_no LIMIT #{hitLimit}
+  </select>
+  <select id="operation" resultMap="com.ruoyi.medical.persistence.mapper.TenantSelectionMapper.operation" useCache="false" flushCache="true">
+    SELECT operation_id,request_sha256,state,http_status,response_ref,target_id,schema_version,schema_manifest_sha256
+    FROM operation_record WHERE subject_id=#{userId} AND operation_name=#{operationName} AND idempotency_key=#{key}
+  </select>
+  <insert id="saveVersion">
+    INSERT INTO version_registry(version_id,owner_project_id,entity_kind,content_sha256)
+    VALUES(#{versionId},#{ownerProjectId},#{entityKind},#{contentSha256})
+  </insert>
+  <insert id="saveRevision">
+    INSERT INTO source_exact_revision(source_version,parse_version,index_version,approval_revision,rights_revision,field_revision,
+      manifest,manifest_sha256,field_count,publication_revision,schema_version,schema_manifest_sha256,created_by,created_at,classification)
+    VALUES(#{sourceVersion},#{parseVersion},#{indexVersion},#{approvalRevision},#{rightsRevision},#{fieldRevision},#{manifest},
+      #{contentSha256},#{fieldCount},#{resultingRevision},'1.0.0',#{schemaManifest},#{userId},#{now},#{classification})
+  </insert>
+  <insert id="saveField">
+    INSERT INTO source_exact_item(source_version,parse_version,approval_revision,field_revision,ordinal,field_kind,raw_value,raw_value_sha256,
+      alias_value,alias_value_sha256,chunk_id,field_manifest,schema_version,schema_manifest_sha256,created_by,created_at,classification)
+    VALUES(#{sourceVersion},#{parseVersion},#{approvalRevision},#{fieldRevision},#{ordinal},#{field.field_kind},#{field.raw_value},#{rawSha256},
+      #{field.alias_value},#{aliasSha256},#{field.chunk_id},#{fieldManifest},'1.0.0',#{schemaManifest},#{userId},#{now},#{classification})
+  </insert>
+  <insert id="createHead">
+    INSERT INTO source_exact_head(source_version,parse_version,approval_revision,field_revision,revision,updated_at,
+      schema_version,schema_manifest_sha256,created_by,created_at,classification)
+    VALUES(#{sourceVersion},#{parseVersion},#{approvalRevision},#{fieldRevision},1,#{now},'1.0.0',#{schemaManifest},#{userId},#{now},#{classification})
+  </insert>
+  <update id="updateHead">
+    UPDATE source_exact_head SET field_revision=#{fieldRevision},revision=#{resultingRevision},updated_at=#{now}
+    WHERE source_version=#{sourceVersion} AND parse_version=#{parseVersion} AND approval_revision=#{approvalRevision} AND revision=#{expectedRevision}
+  </update>
+  <insert id="saveQuery">
+    INSERT INTO source_exact_query(project_id,retrieval_id,subject_id,request_manifest,query_sha256,selection_sha256,result_count,match_count,
+      status,auth_epoch,governance_epoch,schema_version,schema_manifest_sha256,created_by,created_at,classification)
+    VALUES(#{projectId},#{retrievalId},#{userId},#{requestManifest},#{querySha256},#{contentSha256},#{resultCount},#{matchCount},#{status},
+      #{authEpoch},#{governanceEpoch},'1.0.0',#{schemaManifest},#{userId},#{now},#{classification})
+  </insert>
+  <insert id="saveHit">
+    INSERT INTO source_exact_hit(project_id,retrieval_id,rank_no,source_version,parse_version,index_version,approval_revision,rights_revision,
+      binding_revision,chunk_id,field_revision,hit_manifest,schema_version,schema_manifest_sha256,created_by,created_at,classification)
+    VALUES(#{projectId},#{retrievalId},#{rank},#{sourceVersion},#{parseVersion},#{indexVersion},#{approvalRevision},#{rightsRevision},
+      #{bindingRevision},#{chunkId},#{fieldRevision},#{hitManifest},'1.0.0',#{schemaManifest},#{userId},#{now},#{classification})
+  </insert>
+  <insert id="saveOperation">
+    INSERT INTO operation_record(operation_id,subject_id,operation_name,idempotency_key,request_sha256,state,http_status,response_ref,target_id,error_code,
+      schema_version,schema_manifest_sha256,created_by,created_at,classification,revision,updated_at)
+    VALUES(#{operationId},#{userId},#{operationName},#{key},#{requestHash},'COMPLETED',201,#{response},#{targetId},NULL,
+      '1.0.0',#{schemaManifest},#{userId},#{now},#{classification},1,#{now})
+  </insert>
+  <insert id="saveLineage">
+    INSERT INTO lineage_edge(consumer_version_id,upstream_version_id,relation_kind,actor_id,created_at)
+    VALUES(#{versionId},#{upstreamId},#{relationKind},#{userId},#{now})
+  </insert>
+  <insert id="saveHold">
+    INSERT INTO reference_hold(project_id,hold_id,consumer_version_id,upstream_version_id,retain_until,legal_hold,
+      created_by,created_at,classification,revision,updated_at)
+    VALUES(#{projectId},#{holdId},#{versionId},#{upstreamId},NULL,FALSE,#{userId},#{now},#{classification},1,#{now})
+  </insert>
+  <update id="advanceGovernance">
+    UPDATE tenant SET governance_epoch=governance_epoch+1 WHERE governance_epoch=#{governanceEpoch}
+  </update>
+</mapper>

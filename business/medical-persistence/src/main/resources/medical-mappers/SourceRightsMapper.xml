@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.medical.persistence.mapper.SourceRightsMapper">
+  <resultMap id="state" type="com.ruoyi.medical.persistence.SourceRightsProtocol$StateRow">
+    <constructor>
+      <arg column="tenant_id" javaType="java.lang.String"/><arg column="source_version" javaType="java.lang.String"/>
+      <arg column="rights_revision" javaType="java.lang.String"/><arg column="last_decision_id" javaType="java.lang.String"/>
+      <arg column="revision" javaType="java.math.BigInteger"/><arg column="updated_at" javaType="java.time.LocalDateTime"/>
+      <arg column="schema_version" javaType="java.lang.String"/><arg column="schema_manifest_sha256" javaType="java.lang.String"/>
+      <arg column="created_by" javaType="java.lang.String"/><arg column="created_at" javaType="java.time.LocalDateTime"/>
+      <arg column="classification" javaType="java.lang.String"/><arg column="source_created_by" javaType="java.lang.String"/>
+      <arg column="lifecycle" javaType="java.lang.String"/><arg column="conversation_id" javaType="java.lang.String"/>
+      <arg column="conversation_owner_id" javaType="java.lang.String"/><arg column="conversation_status" javaType="java.lang.String"/>
+    </constructor>
+  </resultMap>
+  <select id="state" resultMap="state" useCache="false" flushCache="true">
+    SELECT r.tenant_id,r.source_version,r.rights_revision,r.last_decision_id,r.revision,r.updated_at,
+      r.schema_version,r.schema_manifest_sha256,r.created_by,r.created_at,r.classification,v.created_by AS source_created_by,
+      l.status AS lifecycle,c.conversation_id,c.owner_id AS conversation_owner_id,c.status AS conversation_status
+    FROM source_rights_state r
+    JOIN source_version v ON v.tenant_id=r.tenant_id AND v.source_version=r.source_version
+    JOIN source_lifecycle_state l ON l.tenant_id=r.tenant_id AND l.source_version=r.source_version
+    LEFT JOIN source_session_binding b ON b.tenant_id=v.tenant_id AND b.source_id=v.source_id
+    LEFT JOIN conversation c ON c.tenant_id=b.tenant_id AND c.project_id=b.project_id AND c.conversation_id=b.session_id
+    WHERE r.source_version=#{sourceVersion} FOR UPDATE
+  </select>
+  <resultMap id="operation" type="com.ruoyi.medical.persistence.SourceRightsProtocol$OperationRow">
+    <constructor>
+      <arg column="operation_id" javaType="java.lang.String"/><arg column="subject_id" javaType="java.lang.String"/>
+      <arg column="request_sha256" javaType="java.lang.String"/><arg column="state" javaType="java.lang.String"/>
+      <arg column="http_status" javaType="java.lang.Integer"/><arg column="response_ref" javaType="java.lang.String"/>
+      <arg column="target_id" javaType="java.lang.String"/><arg column="schema_version" javaType="java.lang.String"/>
+      <arg column="schema_manifest_sha256" javaType="java.lang.String"/><arg column="request_manifest" javaType="java.lang.String"/>
+      <arg column="decision_id" javaType="java.lang.String"/><arg column="reviewed_manifest" javaType="java.lang.String"/>
+      <arg column="evidence_proof" javaType="java.lang.String"/>
+      <arg column="decision_response" javaType="java.lang.String"/><arg column="from_rights_revision" javaType="java.lang.String"/>
+      <arg column="to_rights_revision" javaType="java.lang.String"/><arg column="resulting_revision" javaType="java.math.BigInteger"/>
+      <arg column="decision" javaType="java.lang.String"/><arg column="rights_status" javaType="java.lang.String"/>
+      <arg column="created_by" javaType="java.lang.String"/><arg column="created_at" javaType="java.time.LocalDateTime"/>
+    </constructor>
+  </resultMap>
+  <select id="operation" resultMap="operation" useCache="false" flushCache="true">
+    SELECT o.operation_id,o.subject_id,o.request_sha256,o.state,o.http_status,o.response_ref,o.target_id,
+      o.schema_version,o.schema_manifest_sha256,d.request_manifest,d.decision_id,d.reviewed_manifest,d.evidence_proof,
+      d.receipt_ref AS decision_response,d.from_rights_revision,d.to_rights_revision,d.resulting_revision,d.decision,
+      d.rights_status,d.created_by,d.created_at
+    FROM operation_record o LEFT JOIN source_rights_decision d ON d.tenant_id=o.tenant_id AND d.operation_id=o.operation_id
+    WHERE o.subject_id=#{userId} AND o.operation_name='KN-RIGHTS-01' AND o.idempotency_key=#{key}
+  </select>
+  <insert id="insertRights">
+    INSERT INTO rights_revision(rights_revision,source_version,purpose,allowed_actions,providers,regions,valid_from,valid_to,
+      status,evidence_manifest,content_sha256,schema_version,schema_manifest_sha256,created_by,created_at,classification)
+    VALUES(#{rightsRevision},#{sourceVersion},#{rightsPurpose},#{allowedActions},#{providers},#{regions},#{validFrom},#{validTo},
+      'APPROVED',#{rightsEvidence},#{rightsSha256},'1.0.0',#{rightsSchemaManifest},#{userId},#{now},#{classification})
+  </insert>
+  <update id="replaceSourceRights">
+    UPDATE source_version SET rights_revision=#{rightsRevision}
+    WHERE source_version=#{sourceVersion} AND rights_revision=#{baseRightsRevision} AND original_sha256=#{originalSha256}
+  </update>
+  <update id="revokeRights">
+    UPDATE rights_revision SET status='REVOKED'
+    WHERE source_version=#{sourceVersion} AND rights_revision=#{baseRightsRevision} AND status='APPROVED'
+      AND content_sha256=#{baseRightsSha256}
+  </update>
+  <insert id="insertEvidenceLineage">
+    INSERT INTO lineage_edge(consumer_version_id,upstream_version_id,relation_kind,actor_id,decision_ref,created_at)
+    VALUES(#{rightsRevision},#{evidenceId},'AUTHORIZATION_EVIDENCE',#{userId},#{decisionId},#{now})
+  </insert>
+  <insert id="saveOperation">
+    INSERT INTO operation_record(operation_id,subject_id,operation_name,idempotency_key,request_sha256,state,http_status,
+      response_ref,target_id,error_code,schema_version,schema_manifest_sha256,created_by,created_at,classification,revision,updated_at)
+    VALUES(#{operationId},#{userId},'KN-RIGHTS-01',#{key},#{requestHash},'COMPLETED',200,#{response},#{sourceVersion},NULL,
+      '1.0.0',#{schemaManifest},#{userId},#{now},#{classification},1,#{now})
+  </insert>
+  <insert id="insertDecision">
+    INSERT INTO source_rights_decision(source_version,decision_id,operation_id,from_rights_revision,to_rights_revision,
+      decision,rights_status,expected_revision,resulting_revision,reason,request_manifest,reviewed_manifest,
+      reviewed_manifest_sha256,evidence_proof,receipt_ref,schema_version,schema_manifest_sha256,created_by,created_at,classification)
+    VALUES(#{sourceVersion},#{decisionId},#{operationId},#{baseRightsRevision},#{rightsRevision},#{decision},#{rightsStatus},
+      #{expectedRevision},#{resultingRevision},#{reason},#{requestManifest},#{reviewedManifest},#{reviewedSha256},#{evidenceProof},
+      #{response},'1.0.0',#{schemaManifest},#{userId},#{now},#{classification})
+  </insert>
+  <update id="advanceState">
+    UPDATE source_rights_state SET rights_revision=#{rightsRevision},last_decision_id=#{decisionId},
+      revision=revision+1,updated_at=#{now},schema_version='1.0.0',schema_manifest_sha256=#{rightsSchemaManifest}
+    WHERE source_version=#{sourceVersion} AND rights_revision=#{baseRightsRevision} AND revision=#{expectedRevision}
+  </update>
+</mapper>

@@ -1,0 +1,47 @@
+--liquibase formatted sql
+
+--changeset medical-agent:1.0.0-294-source-index-build dbms:mysql runInTransaction:false failOnError:true
+CREATE TABLE source_index_build (
+  tenant_id CHAR(36) CHARACTER SET ascii NOT NULL,
+  project_id CHAR(36) CHARACTER SET ascii NOT NULL,
+  event_id CHAR(36) CHARACTER SET ascii NOT NULL,
+  consumer_id VARCHAR(64) NOT NULL,
+  source_version CHAR(36) CHARACTER SET ascii NOT NULL,
+  parse_version CHAR(36) CHARACTER SET ascii NOT NULL,
+  attempt_id CHAR(36) CHARACTER SET ascii NOT NULL,
+  index_version CHAR(36) CHARACTER SET ascii NOT NULL,
+  config_revision CHAR(36) CHARACTER SET ascii NOT NULL,
+  rights_revision CHAR(36) CHARACTER SET ascii NOT NULL,
+  input_sha256 CHAR(64) CHARACTER SET ascii NOT NULL,
+  manifest JSON NOT NULL,
+  manifest_sha256 CHAR(64) CHARACTER SET ascii NOT NULL,
+  status VARCHAR(24) NOT NULL,
+  execution_started_at DATETIME(6) NOT NULL,
+  execution_deadline DATETIME(6) NOT NULL,
+  result_ref JSON NULL,
+  schema_version VARCHAR(32) NOT NULL,
+  schema_manifest_sha256 CHAR(64) CHARACTER SET ascii NOT NULL,
+  created_by CHAR(36) CHARACTER SET ascii NOT NULL,
+  created_at DATETIME(6) NOT NULL,
+  classification VARCHAR(24) NOT NULL,
+  revision BIGINT UNSIGNED NOT NULL,
+  updated_at DATETIME(6) NOT NULL,
+  PRIMARY KEY (tenant_id,event_id,consumer_id),
+  UNIQUE KEY uq_index_build_version (tenant_id,index_version),
+  KEY ix_index_build_source (tenant_id,source_version,parse_version,status),
+  FOREIGN KEY (tenant_id,event_id,consumer_id) REFERENCES outbox_delivery (tenant_id,event_id,consumer_id),
+  FOREIGN KEY (tenant_id,project_id) REFERENCES project (tenant_id,project_id),
+  FOREIGN KEY (tenant_id,project_id,attempt_id) REFERENCES processing_attempt (tenant_id,project_id,attempt_id),
+  FOREIGN KEY (tenant_id,source_version,parse_version,index_version)
+    REFERENCES index_manifest (tenant_id,source_version,parse_version,index_version),
+  FOREIGN KEY (tenant_id,config_revision) REFERENCES version_registry (tenant_id,version_id),
+  FOREIGN KEY (tenant_id,source_version,rights_revision) REFERENCES rights_revision (tenant_id,source_version,rights_revision),
+  FOREIGN KEY (tenant_id,created_by) REFERENCES tenant_member (tenant_id,user_id),
+  CHECK (consumer_id='SOURCE_INDEX_FULLTEXT'),
+  CHECK (status IN ('BUILDING','READY','FAILED')),
+  CHECK (execution_deadline>execution_started_at AND execution_started_at=created_at),
+  CHECK (schema_version='1.0.0' AND revision>0 AND updated_at>=created_at),
+  CHECK (JSON_TYPE(manifest)='OBJECT'),
+  CHECK ((status='BUILDING' AND result_ref IS NULL)
+    OR (status IN ('READY','FAILED') AND result_ref IS NOT NULL AND JSON_TYPE(result_ref)='OBJECT'))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_as_cs;

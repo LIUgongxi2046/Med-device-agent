@@ -51,7 +51,15 @@ import collectionView from './collection-view.schema.json'
 import frameworkNavigation from '../../../../business/medical-identity/src/main/resources/framework-navigation.schema.json'
 import ownProfile from '../../../../business/medical-identity/src/main/resources/own-profile.schema.json'
 import sourceUploads from '../../../../business/medical-persistence/src/main/resources/source-uploads.schema.json'
+import sourceUploadStatus from '../../../../business/medical-persistence/src/main/resources/source-upload-status.schema.json'
+import sourceIndexView from '../../../../business/medical-persistence/src/main/resources/source-index-view.schema.json'
+import sourceExact from '../../../../business/medical-persistence/src/main/resources/source-exact.schema.json'
 import sourceUploadView from './source-upload-view.schema.json'
+import retrievalView from '../../../../business/medical-persistence/src/main/resources/retrieval-view.schema.json'
+import sourceGovernance from '../../../../business/medical-persistence/src/main/resources/source-governance.schema.json'
+import sourceRights from '../../../../business/medical-persistence/src/main/resources/source-rights-decisions.schema.json'
+import exportApi from '../../../../business/medical-persistence/src/main/resources/export-api.schema.json'
+import requestMetadata from './request-metadata.schema.json'
 import { parseErrorCode } from '../../../../contracts/typescript/src/errors'
 
 export interface Context {
@@ -135,14 +143,25 @@ ajv.addSchema(collectionView)
 ajv.addSchema(frameworkNavigation)
 ajv.addSchema(ownProfile)
 ajv.addSchema(sourceUploads)
+ajv.addSchema(sourceUploadStatus)
+ajv.addSchema(sourceIndexView)
 ajv.addSchema(sourceUploadView)
+ajv.addSchema(retrievalView)
+ajv.addSchema(sourceGovernance)
+ajv.addSchema(sourceRights, 'urn:medical:source-rights-decisions:1.0.0')
+ajv.addSchema(exportApi)
+ajv.addSchema(requestMetadata)
 const validators = new Map<string, ValidateFunction>()
 ajv.addSchema(runView)
+ajv.addSchema(sourceExact)
 ajv.addSchema(runControl, 'urn:medical:run-control:1.0.0')
 ajv.addSchema(runCancellationView)
 for (const reference of ['urn:medical:shared#/$defs/Envelope', 'urn:medical:shared#/$defs/Error', 'urn:medical:identity',
+  ...['Field', 'PublicationInput', 'Manifest', 'PublicationReceipt', 'SearchInput', 'Hit', 'Page']
+    .map(name => 'urn:medical:source-exact:1.0.0#/$defs/' + name),
   'urn:medical:identity#/$defs/SelectionRequest', 'urn:medical:identity#/$defs/SelectionReceipt',
   'urn:medical:selection-options', 'urn:medical:projects:1.0.0#/$defs/Listing', 'urn:medical:projects:1.0.0#/$defs/Project',
+  'urn:medical:projects:1.0.0#/$defs/Waiting', 'urn:medical:projects:1.0.0#/$defs/WaitingListing',
   'urn:medical:identity-binding:1.0.0', 'urn:medical:local-account-view:1.0.0#/$defs/View',
   'urn:medical:local-account-view:1.0.0#/$defs/Pending', 'urn:medical:identity#/$defs/LocalAccountCredential',
   'urn:medical:identity#/$defs/LocalAccountMutation',
@@ -153,6 +172,7 @@ for (const reference of ['urn:medical:shared#/$defs/Envelope', 'urn:medical:shar
   'urn:medical:project-write-view:1.0.0', 'urn:medical:budget-write-view:1.0.0',
   'urn:medical:budget-history:1.0.0#/$defs/Entry', 'urn:medical:budget-history:1.0.0#/$defs/Listing',
   'urn:medical:templates:1.0.0#/$defs/Content', 'urn:medical:template-approval:1.0.0#/$defs/Preview',
+  'urn:medical:templates:1.0.0#/$defs/Id',
   'urn:medical:template-approval:1.0.0#/$defs/Decide', 'urn:medical:template-approval:1.0.0#/$defs/Receipt',
   'urn:medical:template-approval:1.0.0#/$defs/Id', 'urn:medical:template-approval-view:1.0.0',
   'urn:medical:templates:1.0.0#/$defs/VersionInput', 'urn:medical:templates:1.0.0#/$defs/Basis',
@@ -173,6 +193,36 @@ for (const reference of ['urn:medical:shared#/$defs/Envelope', 'urn:medical:shar
   'urn:medical:collection-view:1.0.0',
   'urn:medical:framework-navigation:1.0.0',
   'urn:medical:source-upload-view:1.0.0',
+  'urn:medical:source-upload-status:1.0.0#/$defs/View',
+  'urn:medical:source-index-view:1.0.0#/$defs/Listing',
+  'urn:medical:request-metadata:1.0.0',
+  'urn:medical:request-metadata:1.0.0#/$defs/Id',
+  'https://schemas.medical-agent.invalid/1.0.0/data-design/dataset.schema.json#/$defs/locator',
+  'urn:medical:retrieval-view:1.0.0#/$defs/SearchInput',
+  'urn:medical:retrieval-view:1.0.0#/$defs/Hit',
+  'urn:medical:retrieval-view:1.0.0#/$defs/Page',
+  'urn:medical:source-governance:1.0.0#/$defs/DecisionInput',
+  'urn:medical:source-governance:1.0.0#/$defs/BindingInput',
+  'urn:medical:source-governance:1.0.0#/$defs/BindingReceipt',
+  'urn:medical:source-governance:1.0.0#/$defs/BindingView',
+  'urn:medical:source-governance:1.0.0#/$defs/CatalogueItem',
+  'urn:medical:source-governance:1.0.0#/$defs/Listing',
+  'urn:medical:source-governance:1.0.0#/$defs/UsageItem',
+  'urn:medical:source-governance:1.0.0#/$defs/UsagePage',
+  'urn:medical:source-governance:1.0.0#/$defs/ParsedContentItem',
+  'urn:medical:source-governance:1.0.0#/$defs/OriginalContent',
+  'urn:medical:source-governance:1.0.0#/$defs/ParsedContent',
+  'urn:medical:source-governance:1.0.0#/$defs/ProcessingInput',
+  'urn:medical:source-governance:1.0.0#/$defs/ProcessingReceipt',
+  'urn:medical:source-governance:1.0.0#/$defs/LifecycleInput',
+  'urn:medical:source-governance:1.0.0#/$defs/LifecycleReceipt',
+  'urn:medical:source-governance:1.0.0#/$defs/Review',
+  'urn:medical:source-governance:1.0.0#/$defs/View',
+  'urn:medical:source-governance:1.0.0#/$defs/Receipt',
+  ...['PreviewInput', 'DecisionInput', 'Proposal', 'Preview', 'Receipt', 'Proofs']
+    .map(name => 'urn:medical:source-rights-decisions:1.0.0#/$defs/' + name),
+  ...['CreateInput', 'RetryInput', 'ProcessInput', 'Basis', 'Validation', 'Item', 'View', 'History', 'Receipt']
+    .map(name => 'urn:medical:export-api:1.0.0#/$defs/' + name),
   ...['Id', 'Hash', 'Create', 'Created', 'Part', 'Registration', 'Completion'].map(name => 'urn:medical:source-uploads:1.0.0#/$defs/' + name),
   ...['Filter', 'Item', 'Page'].map(name => 'urn:medical:task-list:1.0.0#/$defs/' + name),
   ...['View', 'Step', 'Waiting', 'Invocation', 'Budget'].map(name => 'urn:medical:run-view:1.0.0#/$defs/' + name),
@@ -191,7 +241,7 @@ for (const reference of ['urn:medical:shared#/$defs/Envelope', 'urn:medical:shar
   'urn:medical:task-plan-write-view:1.0.0',
   ...['Baseline', 'Request', 'Receipt'].map(name => 'urn:medical:task-plan-decision:1.0.0#/$defs/' + name),
   'urn:medical:task-plan-return-view:1.0.0',
-  ...['Id', 'Operation', 'DocumentSnapshot', 'DocumentBody', 'TextContent', 'FieldValue', 'BodyPage', 'RevisionInput', 'UploadRequest', 'UploadGrant', 'UploadCompletion', 'ArtifactReceipt', 'PublicEvent', 'StreamCursor', 'CandidateDelta']
+  ...['Id', 'Operation', 'DocumentSnapshot', 'DocumentBody', 'TextContent', 'FieldValue', 'BodyPage', 'RevisionInput', 'UploadRequest', 'UploadGrant', 'UploadCompletion', 'ArtifactReceipt', 'PublicEvent', 'StreamCursor', 'CandidateDelta', 'Selection']
     .map(name => 'https://schemas.medical-agent.invalid/1.0.0/backend-design/interfaces.schema.yaml#/$defs/' + name),
   'https://schemas.medical-agent.invalid/1.0.0/backend-design/resource-details.schema.yaml#/$defs/TaskDetail',
   ...['Request', 'Pending', 'Profile'].map(name => 'urn:medical:own-profile:1.0.0#/$defs/' + name),

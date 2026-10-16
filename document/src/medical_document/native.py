@@ -14,11 +14,6 @@ from defusedxml import ElementTree
 from docx import Document
 from docx.table import Table
 from docx.text.paragraph import Paragraph
-from docling.datamodel.base_models import ConversionStatus, InputFormat
-from docling.datamodel.pipeline_options import ConvertPipelineOptions
-from docling.document_converter import DocumentConverter, PowerpointFormatOption, WordFormatOption
-from docling.pipeline.simple_pipeline import SimplePipeline
-from docling_core.types.io import DocumentStream
 from markdown_it import MarkdownIt
 from openpyxl import load_workbook
 import pandas as pd
@@ -93,12 +88,10 @@ class ScannedDocument:
 class NativeParser:
     def __init__(self, catalogue: SchemaCatalogue):
         self.bindings = DatasetBindings(catalogue)
-        # 原生格式处理关闭外部服务，模型识别必须经过独立批准的调用入口。
-        options = ConvertPipelineOptions(enable_remote_services=False, allow_external_plugins=False,
-            document_timeout=120, do_picture_classification=False, do_picture_description=False, do_chart_extraction=False)
-        self.converter = DocumentConverter(allowed_formats=[InputFormat.DOCX, InputFormat.PPTX], format_options={
-            InputFormat.DOCX: WordFormatOption(pipeline_cls=SimplePipeline, pipeline_options=options),
-            InputFormat.PPTX: PowerpointFormatOption(pipeline_cls=SimplePipeline, pipeline_options=options)})
+
+    def process_command(self, command_path: Path, result_path: Path) -> None:
+        from .processing_command import execute
+        execute(command_path, result_path, self)
 
     def scan_and_parse(self, request: SourceInput, release: Mapping[str, object], work_directory: Path) -> ScannedDocument:
         content = self._source_content(request)
@@ -129,10 +122,7 @@ class NativeParser:
         if request.format in ("DOCX", "XLSX", "PPTX"):
             self._package(content)
         if request.format in ("DOCX", "PPTX"):
-            converted = self.converter.convert(DocumentStream(name=request.path.name, stream=BytesIO(content)),
-                raises_on_error=True, max_num_pages=1000, max_file_size=MAX_FILE_BYTES)
-            if converted.status != ConversionStatus.SUCCESS:
-                raise ValueError("DOCUMENT_CONVERSION_INCOMPLETE")
+            converted = self._office(content, request.path.name)
             context.manifest["docling_pipeline"] = "SimplePipeline"
             context.manifest["docling_version"] = version("docling")
             context.manifest["docling_items"] = sum(1 for _ in converted.document.iterate_items())
@@ -144,6 +134,26 @@ class NativeParser:
         status = "COMPLETE" if not context.issues else "PARTIAL_FAILED" if context.nodes else "FAILED"
         return ParsedDocument(request.source_version, request.parse_version, request.sha256, status,
             tuple(context.nodes), tuple(context.issues), MappingProxyType(dict(context.manifest)))
+
+    @staticmethod
+    def _office(content: bytes, name: str):
+        from docling.datamodel.base_models import ConversionStatus, InputFormat
+        from docling.datamodel.pipeline_options import ConvertPipelineOptions
+        from docling.document_converter import DocumentConverter, PowerpointFormatOption, WordFormatOption
+        from docling.pipeline.simple_pipeline import SimplePipeline
+        from docling_core.types.io import DocumentStream
+
+        # 完成原件扫描后加载Office转换组件，转换仍关闭外部服务与插件。
+        options = ConvertPipelineOptions(enable_remote_services=False, allow_external_plugins=False,
+            document_timeout=120, do_picture_classification=False, do_picture_description=False, do_chart_extraction=False)
+        converter = DocumentConverter(allowed_formats=[InputFormat.DOCX, InputFormat.PPTX], format_options={
+            InputFormat.DOCX: WordFormatOption(pipeline_cls=SimplePipeline, pipeline_options=options),
+            InputFormat.PPTX: PowerpointFormatOption(pipeline_cls=SimplePipeline, pipeline_options=options)})
+        converted = converter.convert(DocumentStream(name=name, stream=BytesIO(content)),
+            raises_on_error=True, max_num_pages=1000, max_file_size=MAX_FILE_BYTES)
+        if converted.status != ConversionStatus.SUCCESS:
+            raise ValueError("DOCUMENT_CONVERSION_INCOMPLETE")
+        return converted
 
     @staticmethod
     def _package(content: bytes):
@@ -162,6 +172,57 @@ class NativeParser:
                     for relation in relationships:
                         if relation.attrib.get("TargetMode") == "External" and not relation.attrib.get("Type", "").endswith("/hyperlink"):
                             raise ValueError("OFFICE_EXTERNAL_CONTENT_DENIED")
+
+    @classmethod
+    def verify_format(cls, content: bytes, suffix: str) -> str:
+        formats = [name for name, extensions in EXTENSIONS.items() if suffix.lower() in extensions]
+        if len(formats) != 1 or not 0 < len(content) <= MAX_FILE_BYTES:
+            raise ValueError("SOURCE_FORMAT_UNSUPPORTED")
+        format_name = formats[0]
+        if format_name in ("DOCX", "XLSX", "PPTX"):
+            cls._package(content)
+        if format_name == "DOCX":
+            document = Document(BytesIO(content))
+            if len(document.paragraphs) + len(document.tables) > MAX_NODES:
+                raise ValueError("DOCUMENT_NODE_LIMIT")
+        elif format_name == "PDF":
+            reader = PdfReader(BytesIO(content), strict=True)
+            if reader.is_encrypted:
+                raise ValueError("PDF_ENCRYPTED")
+            if not 0 < len(reader.pages) <= 1000:
+                raise ValueError("PDF_PAGE_LIMIT")
+            for page in reader.pages:
+                page.get_contents()
+        elif format_name == "XLSX":
+            workbook = load_workbook(BytesIO(content), read_only=True, data_only=False, keep_links=False)
+            try:
+                count = 0
+                for worksheet in workbook:
+                    for row in worksheet.iter_rows():
+                        count += len(row)
+                        if count > MAX_NODES:
+                            raise ValueError("XLSX_CELL_LIMIT")
+            finally:
+                workbook.close()
+        elif format_name == "PPTX":
+            presentation = Presentation(BytesIO(content))
+            if len(presentation.slides) > MAX_NODES:
+                raise ValueError("PPTX_SLIDE_LIMIT")
+            for slide in presentation.slides:
+                if len(slide.shapes) > MAX_NODES:
+                    raise ValueError("PPTX_SHAPE_LIMIT")
+        else:
+            text = content.decode("utf-8", errors="strict")
+            if len(text) > MAX_TEXT_CHARACTERS:
+                raise ValueError("SOURCE_TEXT_LIMIT")
+            if format_name == "CSV":
+                table = pd.read_csv(StringIO(text), header=None, dtype=str, keep_default_na=False, na_filter=False,
+                    sep=",", quotechar='"', doublequote=True, skip_blank_lines=False, on_bad_lines="error", engine="python")
+                if table.size > MAX_NODES:
+                    raise ValueError("CSV_CELL_LIMIT")
+            elif format_name == "MARKDOWN":
+                MarkdownIt("commonmark", {"html": False}).parse(text)
+        return format_name
 
     def _docx(self, content: bytes, context):
         document = Document(BytesIO(content))

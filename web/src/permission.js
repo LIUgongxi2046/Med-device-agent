@@ -25,6 +25,7 @@ router.beforeEach(async (to, from) => {
     to.meta.title && useSettingsStore().setTitle(to.meta.title)
     if (to.meta.public) { NProgress.done(); return true }
     await useUserStore().readMedical()
+    useUserStore().medicalPendingNavigation = null
     return true
   }
   if (useUserStore().medicalMode) {

@@ -10,6 +10,9 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 class TemplateErrorResponseTest {
+    @Test void everyPublishedBusinessCodeReturnsItsOriginalCompleteError() throws Exception {
+        for (var code : ErrorCode.values()) requireError(code);
+    }
     @Test void unapprovedSourcesReturnACompleteNonRetryableError() throws Exception {
         requireError(ErrorCode.SOURCE_NOT_READY);
     }

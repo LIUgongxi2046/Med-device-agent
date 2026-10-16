@@ -108,7 +108,22 @@ public final class TenantScope implements AutoCloseable {
                 || statementId.startsWith("com.ruoyi.medical.persistence.mapper.DocumentUploadBasisMapper.")
                 || statementId.startsWith("com.ruoyi.medical.persistence.mapper.DocumentReadMapper.")
                 || statementId.startsWith("com.ruoyi.medical.persistence.mapper.DocumentRevisionMapper.")
-                || statementId.startsWith("com.ruoyi.medical.persistence.mapper.BudgetMapper.")) {
+                || statementId.startsWith("com.ruoyi.medical.persistence.mapper.ExportMapper.")
+                || statementId.startsWith("com.ruoyi.medical.persistence.mapper.BudgetMapper.")
+                || statementId.startsWith("com.ruoyi.medical.persistence.mapper.RetrievalMapper.")
+                || statementId.startsWith("com.ruoyi.medical.persistence.mapper.SourceExactMapper.")
+                || statementId.startsWith("com.ruoyi.medical.persistence.mapper.SourceGovernanceMapper.")
+                || statementId.startsWith("com.ruoyi.medical.persistence.mapper.SourceRightsMapper.")
+                || statementId.startsWith("com.ruoyi.medical.persistence.mapper.SourceDeletionMapper.")) {
+            requireSubject(parameter); return;
+        }
+        if (statementId.startsWith("com.ruoyi.medical.persistence.mapper.SourceProcessingMapper.")) {
+            requireSubject(parameter); return;
+        }
+        if (statementId.startsWith("com.ruoyi.medical.persistence.mapper.SourceIndexMapper.")) {
+            requireSubject(parameter); return;
+        }
+        if (statementId.startsWith("com.ruoyi.medical.persistence.mapper.SourceCompletionMapper.")) {
             requireSubject(parameter); return;
         }
         if (statementId.startsWith("com.ruoyi.medical.persistence.mapper.EnterpriseRoleMapper.")

@@ -48,7 +48,6 @@ class SourceUploadPartConfiguration {
                         var value = result.body();
                         exchange.getResponse().setStatusCode(org.springframework.http.HttpStatus.valueOf(result.status()));
                         exchange.getResponse().getHeaders().setContentType(MediaType.APPLICATION_JSON);
-                        exchange.getResponse().getHeaders().set("Cache-Control", "no-store");
                         exchange.getResponse().getHeaders().set("X-Schema-Version", "1.0.0");
                         exchange.getResponse().getHeaders().set("X-Request-Id", value.required("request_id").textValue());
                         byte[] bytes = ThrowingSupplier.of(() -> json.canonical(value).getBytes(java.nio.charset.StandardCharsets.UTF_8)).get();
@@ -70,7 +69,6 @@ class SourceUploadPartConfiguration {
                     byte[] bytes = ThrowingSupplier.of(() -> new IdentityErrorResponseWriter().encode(code, requestId)).get();
                     exchange.getResponse().setStatusCode(org.springframework.http.HttpStatus.valueOf(status));
                     exchange.getResponse().getHeaders().setContentType(MediaType.APPLICATION_JSON);
-                    exchange.getResponse().getHeaders().set("Cache-Control", "no-store");
                     exchange.getResponse().getHeaders().set("X-Schema-Version", "1.0.0");
                     exchange.getResponse().getHeaders().set("X-Request-Id", requestId);
                     return exchange.getResponse().writeWith(Mono.just(exchange.getResponse().bufferFactory().wrap(bytes)));

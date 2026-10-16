@@ -80,6 +80,15 @@ public final class SourceCompletionLeaseStore {
         return new Lease(lease.uploadId, lease.operationId, lease.command, after, lease.recoverExisting);
     }
 
+    void requireCurrent(Lease lease) throws IOException {
+        Objects.requireNonNull(lease);
+        var values=values(lease.uploadId,lease.operationId);
+        if(!lease.command.equals(command(values)) || !lease.row.equals(row(values))) mismatch();
+        LocalDateTime now=Objects.requireNonNull(permissions.databaseTime());
+        if(!owner.equals(lease.row.leaseOwner()) || !"DELIVERING".equals(lease.row.status())
+                || lease.row.leaseUntil()==null || !lease.row.leaseUntil().isAfter(now)) stale();
+    }
+
     private String command(Map<String,Object> values) throws IOException {
         var body = JSON.readTree(one(mapper.completionCommand(values)));
         String eventId = body.required("event_id").textValue(); WireValues.uuid(eventId);
@@ -91,6 +100,7 @@ public final class SourceCompletionLeaseStore {
                 || !scope.subjectId().equals(body.required("subject_id").textValue())
                 || !scope.tenantId().equals(body.required("context").required("tenant_id").textValue())) mismatch();
         values.put("eventId", eventId); values.put("consumerId", SourceUploadProtocol.COMPLETION_CONSUMER);
+        String manifest=body.required("schema_manifest_sha256").textValue(); WireValues.hash(manifest); values.put("manifest",manifest);
         return json.canonical(body);
     }
 
@@ -98,6 +108,7 @@ public final class SourceCompletionLeaseStore {
         var row = one(mapper.completionDelivery(values)); var scope = TenantScope.requireCurrent();
         if (!scope.tenantId().equals(row.tenantId()) || !scope.subjectId().equals(row.createdBy())
                 || !values.get("eventId").equals(row.eventId()) || !values.get("consumerId").equals(row.consumerId())
+                || !"1.0.0".equals(row.schemaVersion()) || !values.get("manifest").equals(row.schemaManifestSha256())
                 || row.revision() == null || row.revision().signum() <= 0 || row.createdAt() == null || row.updatedAt() == null
                 || row.updatedAt().isBefore(row.createdAt()) || row.nextAttemptAt() == null
                 || row.attemptNo() == null || row.leaseGeneration() == null) mismatch();
@@ -116,6 +127,7 @@ public final class SourceCompletionLeaseStore {
         return before.tenantId().equals(after.tenantId()) && before.eventId().equals(after.eventId())
             && before.consumerId().equals(after.consumerId()) && before.createdBy().equals(after.createdBy())
             && before.createdAt().equals(after.createdAt()) && before.classification().equals(after.classification())
+            && before.schemaVersion().equals(after.schemaVersion()) && before.schemaManifestSha256().equals(after.schemaManifestSha256())
             && before.nextAttemptAt().equals(after.nextAttemptAt()) && Objects.equals(before.lastError(), after.lastError());
     }
 
@@ -132,6 +144,8 @@ public final class SourceCompletionLeaseStore {
             this.uploadId = uploadId; this.operationId = operationId; this.command = command; this.row = row; this.recoverExisting = recoverExisting;
         }
         public SourceUploadProtocol.CompletionDelivery row() { return row; }
+        public String uploadId() { return uploadId; }
+        public String operationId() { return operationId; }
         public String command() { return command; }
         public boolean recoverExisting() { return recoverExisting; }
     }

@@ -11,14 +11,16 @@
       <el-button :disabled="!editable || !draft?.canUndo || unconfirmedFields > 0" @click="undo">撤销编辑</el-button>
       <el-button :disabled="!editable || !draft?.canRedo || unconfirmedFields > 0" @click="redo">重做编辑</el-button>
       <p>当前会话保留最近100次正文编辑，保存后的撤销内容通过新修订保存。</p>
+      <el-collapse><el-collapse-item title="全文阅读、目录与正文选区" name="full-reader">
+        <document-body-reader :body="body" :document-revision="saved.document_revision" :active="active" :dirty="hasUnsaved" />
+      </el-collapse-item></el-collapse>
       <document-node-editor v-for="node in body.nodes.filter(value => value.parent_id === null)" :key="node.node_id" :node="node" :body="body" :readonly="!editable" @changed="replace" />
       <h4>字段原始值与适用条件</h4>
       <el-card v-for="field in body.fields" :key="field.field_id" shadow="never">
         <p>字段标识：{{ field.field_id }}</p>
         <document-field-editor :field="field" :input="fieldInputs[field.field_id]" :readonly="!editable" @changed="editField" @input-changed="retainFieldInput" />
       </el-card>
-      <h4>固定原文与证据关系</h4>
-      <ul><li v-for="link in body.evidence_links" :key="link.evidence_link_id">{{ link.evidence.source_id }}；关系：{{ link.relation }}；定位：{{ link.evidence.locator_kind }}；原文摘要：{{ link.evidence.quote_hash }}</li></ul>
+      <document-evidence-panel :session="session" :links="body.evidence_links" :document-revision="saved.document_revision" :active="active" />
       <el-form :disabled="!editable || writing" label-position="top">
         <el-form-item label="本次修订理由"><el-input v-model="reason" type="textarea" maxlength="2000" show-word-limit /></el-form-item>
       </el-form>
@@ -26,6 +28,7 @@
       <p v-if="unconfirmedFields > 0" role="status">请确认 {{ unconfirmedFields }} 项字段修改后保存正文</p>
       <el-button type="primary" :disabled="!editable || writing || !draft?.dirty || unconfirmedFields > 0 || reason.trim().length === 0" @click="save">{{ pending ? '继续原保存请求' : '保存正文修订' }}</el-button>
       <el-button :disabled="!active || writing || loading || !draft?.dirty || unconfirmedFields > 0 || pending !== null" @click="refreshKeepingEdits">读取最新版本并保留当前编辑</el-button>
+      <document-export :session="session" :document-id="documentId" :document-revision="saved.document_revision" :active="active && !hasUnsaved" />
     </template>
     <el-form v-if="saved" label-position="top">
       <el-form-item label="历史正文版本"><el-input v-model="historyRevision" placeholder="输入固定正文版本标识" /></el-form-item>
@@ -34,7 +37,7 @@
     <el-dialog v-model="historyVisible" title="固定历史正文" width="90%" :close-on-click-modal="false">
       <template v-if="historyDocument">
         <p>固定正文版本：{{ historyDocument.snapshot.document_revision }}；内容摘要：{{ historyDocument.snapshot.body.sha256 }}</p>
-        <document-node-editor v-for="node in historyDocument.body.nodes.filter(value => value.parent_id === null)" :key="node.node_id" :node="node" :body="historyDocument.body" readonly />
+        <document-body-reader :body="historyDocument.body" :document-revision="historyDocument.snapshot.document_revision" :active="active && historyVisible" :dirty="false" />
         <el-card v-for="field in historyDocument.body.fields" :key="field.field_id" shadow="never">
           <document-field-editor :field="field" :input="undefined" readonly />
         </el-card>
@@ -73,6 +76,9 @@ import { documentDraftKey, retainDocumentDraft, resumeDocumentDraft } from '@/ap
 import useUserStore from '@/store/modules/user'
 import DocumentNodeEditor from './document-node-editor.vue'
 import DocumentFieldEditor from './document-field-editor.vue'
+import DocumentExport from './document-export.vue'
+import DocumentEvidencePanel from './document-evidence-panel.vue'
+import DocumentBodyReader from './document-body-reader.vue'
 
 const props = defineProps<{ session: MedicalSession; projectId: string; documentId: string; active: boolean }>()
 const user = useUserStore(); const saved = shallowRef<DocumentSnapshot | null>(null); const body = shallowRef<DocumentBody | null>(null)

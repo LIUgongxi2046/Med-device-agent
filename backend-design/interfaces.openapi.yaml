@@ -33,6 +33,80 @@ components:
     Operation: &operation {description: 已受理，终态通过 status_url 读取。, content: {application/json: {schema: {allOf: [{$ref: './interfaces.schema.yaml#/$defs/Envelope'}, {properties: {data: {$ref: './interfaces.schema.yaml#/$defs/Operation'}}}]}}}}
     SSE: &sse {description: 标准 SSE，每个 data 是完整 JSON；候选增量不携带 SSE id；逐帧授权。, content: {text/event-stream: {schema: {oneOf: [{$ref: './interfaces.schema.yaml#/$defs/PublicEvent'}, {$ref: './interfaces.schema.yaml#/$defs/CandidateDelta'}]}}}}
 paths:
+  /api/source-versions/{id}/exact-fields:
+    post:
+      operationId: approveSourceExactFields
+      description: KN-EXACT-PUBLISH使用当前source.approve及来源/项目读取许可核准完整结构化字段；固定解析、索引、核准、权利及适用版本。expected_revision=0用于首次发布，后续使用当前字段修订。原文字段按Unicode位置核验；别名必须有人工审查理由。
+      parameters: [*id, *version, *context, *idem, *csrf]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '../business/medical-persistence/src/main/resources/source-exact.schema.json#/$defs/PublicationInput'}}}}
+      responses:
+        '201': {description: 保存后重读的完整核准清单、字段修订、原操作及当前上下文。, content: {application/json: {schema: {allOf: [{$ref: './interfaces.schema.yaml#/$defs/Envelope'}, {properties: {data: {$ref: '../business/medical-persistence/src/main/resources/source-exact.schema.json#/$defs/PublicationReceipt'}}}]}}}}
+        default: *error
+    get:
+      operationId: readCurrentSourceExactFields
+      description: 按明确来源、解析及核准身份读取当前字段清单；重新核查原文、当前位置及当前来源许可。
+      parameters: [*id, *version, *context, {name: project_id, in: query, required: true, schema: {$ref: './interfaces.schema.yaml#/$defs/Id'}}, {name: parse_version, in: query, required: true, schema: {$ref: './interfaces.schema.yaml#/$defs/Id'}}, {name: approval_revision, in: query, required: true, schema: {$ref: './interfaces.schema.yaml#/$defs/Id'}}]
+      responses:
+        '200': {description: 完整当前字段清单，resource_revision为字段发布修订。, content: {application/json: {schema: {allOf: [{$ref: './interfaces.schema.yaml#/$defs/Envelope'}, {properties: {data: {$ref: '../business/medical-persistence/src/main/resources/source-exact.schema.json#/$defs/Manifest'}}}]}}}}
+        default: *error
+  /api/source-versions/{id}/exact-fields/{revision}:
+    get:
+      operationId: readSourceExactFields
+      parameters: [*id, *version, *context, {name: revision, in: path, required: true, schema: {$ref: './interfaces.schema.yaml#/$defs/Id'}}, {name: project_id, in: query, required: true, schema: {$ref: './interfaces.schema.yaml#/$defs/Id'}}]
+      responses:
+        '200': {description: 当前许可下的原固定字段清单，完整原值和位置保持。, content: {application/json: {schema: {allOf: [{$ref: './interfaces.schema.yaml#/$defs/Envelope'}, {properties: {data: {$ref: '../business/medical-persistence/src/main/resources/source-exact.schema.json#/$defs/Manifest'}}}]}}}}
+        default: *error
+  /api/retrievals/exact:
+    post:
+      operationId: createExactRetrieval
+      description: KN-14-EXACT按明确字段对原值及人工核准别名执行等值查询；原文字节、大小写和空白保持。完整候选及结果超限直接拒绝；许可、原位置和完整清单复查后保存固定集合。
+      parameters: [*version, *context, *idem, *csrf]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '../business/medical-persistence/src/main/resources/source-exact.schema.json#/$defs/SearchInput'}}}}
+      responses:
+        '201': *operation
+        default: *error
+  /api/retrievals/exact/{id}:
+    get:
+      operationId: readExactRetrieval
+      description: 仅原查询人员读取固定集合；每次分页核验全部命中、字段清单、数量和摘要，并重新核查全部当前来源、核准及适用许可。
+      parameters: [*id, *version, *context, *page, *size]
+      responses:
+        '200': {description: 原查询、固定结果及全部匹配字段；空集合保持EMPTY。, content: {application/json: {schema: {allOf: [{$ref: './interfaces.schema.yaml#/$defs/Envelope'}, {properties: {data: {$ref: '../business/medical-persistence/src/main/resources/source-exact.schema.json#/$defs/Page'}}}]}}}}
+        default: *error
+  /api/source-versions/{id}/index-builds:
+    get:
+      operationId: readSourceIndexBuilds
+      description: KN-INDEX-STATUS读取同项目完整全文构建、实际索引和投递状态、终态回执及失败原因；重新核查当前来源元数据及项目读取权限，超限拒绝完整响应。
+      parameters: [*id, *version, *context, {name: project_id, in: query, required: true, schema: {$ref: './interfaces.schema.yaml#/$defs/Id'}}]
+      responses:
+        '200': {description: 真实状态、预期和核验数量、原始时间及失败结果；不返回内部清单、对象位置或Worker身份。, content: {application/json: {schema: {allOf: [{$ref: './interfaces.schema.yaml#/$defs/Envelope'}, {properties: {data: {$ref: '../business/medical-persistence/src/main/resources/source-index-view.schema.json#/$defs/Listing'}}}]}}}}
+        default: *error
+  /api/uploads/{uploadId}/status:
+    get:
+      operationId: sourceUploadProcessingStatus
+      description: KN-04读取本人原上传的实际接收、传输、KN-03操作与消费者结果，以及登记来源的解析、索引、核准、当前权利和原解析作业。重新检查原上传授权及来源读取许可；相同企业事务内核验完整原命令和回执。尚未产生的结果保持null；容量超过明确服务器限制时返回CONTEXT_LIMIT，原件对象地址不提供浏览器。
+      parameters: [*version, *context, {name: uploadId, in: path, required: true, schema: {$ref: './interfaces.schema.yaml#/$defs/Id'}}]
+      responses:
+        '200': {description: 实际逐阶段状态、原作业失败信息和固定来源，resource_revision表示原上传revision；来源门槛具有各自gate_revision。, content: {application/json: {schema: {allOf: [{$ref: './interfaces.schema.yaml#/$defs/Envelope'}, {properties: {data: {$ref: '../business/medical-persistence/src/main/resources/source-upload-status.schema.json#/$defs/View'}}}]}}}}
+        default: *error
+  /api/source-versions/{id}/rights-reviews:
+    post:
+      operationId: previewSourceRights
+      description: 核查当前source.read、source.approve及适用project.read，返回固定来源、当前权利及人工决定的审查摘要。用途为SOURCE_RIGHTS_REVIEW。APPROVE必须明确完整用途、操作、提供方、区域、期限及实际授权Artifact；授权文件的Schema和读取范围由服务器配置。该查询不保存决定，缺少启用配置返回DEPENDENCY_UNAVAILABLE。
+      parameters: [*id, *version, *context, *csrf]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '../business/medical-persistence/src/main/resources/source-rights-decisions.schema.json#/$defs/PreviewInput'}}}}
+      responses:
+        '200': {description: 当前权利审查清单，resource_revision为source_rights_state的revision。, content: {application/json: {schema: {allOf: [{$ref: './interfaces.schema.yaml#/$defs/Envelope'}, {properties: {data: {$ref: '../business/medical-persistence/src/main/resources/source-rights-decisions.schema.json#/$defs/Preview'}}}]}}}}
+        default: *error
+  /api/source-versions/{id}/rights-decisions:
+    post:
+      operationId: decideSourceRights
+      description: KN-RIGHTS-01保存人工APPROVE、RETURN或REVOKE。请求固定审查清单摘要、原权利身份及expected_revision；实际授权文件按固定S3版本读取并核验完整字节。新权利、状态CAS、原操作、审计、Outbox和回执同事务保存。相同原键及完整请求重读原结果，异参拒绝；批准不改变解析、索引或资料采用门槛。
+      parameters: [*id, *version, *context, *idem, *csrf]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '../business/medical-persistence/src/main/resources/source-rights-decisions.schema.json#/$defs/DecisionInput'}}}}
+      responses:
+        '200': {description: 已保存人工权利决定、固定权利版本及当前会话上下文。, content: {application/json: {schema: {allOf: [{$ref: './interfaces.schema.yaml#/$defs/Envelope'}, {properties: {data: {$ref: '../business/medical-persistence/src/main/resources/source-rights-decisions.schema.json#/$defs/Receipt'}}}]}}}}
+        default: *error
   /api/scenarios:
     get:
       operationId: scenarioCatalogue
