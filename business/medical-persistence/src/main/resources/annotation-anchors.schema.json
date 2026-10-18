@@ -1,0 +1,601 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:annotation-anchors:1.0.0",
+  "$defs": {
+    "Id": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "Revision": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]{0,19})$"
+    },
+    "Hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "Content": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 16000
+    },
+    "Status": {
+      "enum": [
+        "OPEN",
+        "RESOLVED",
+        "RETURNED",
+        "REANCHOR_REQUIRED"
+      ]
+    },
+    "Selection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "document_revision",
+        "segments"
+      ],
+      "properties": {
+        "document_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "segments": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "oneOf": [
+              {
+                "$ref": "#/$defs/TextSelection"
+              },
+              {
+                "$ref": "#/$defs/ImageSelection"
+              },
+              {
+                "$ref": "#/$defs/TableSelection"
+              }
+            ]
+          }
+        }
+      }
+    },
+    "Annotation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "annotation_id",
+        "document_revision",
+        "revision",
+        "selection",
+        "selection_artifact_id",
+        "selection_sha256",
+        "content",
+        "actor_id",
+        "created_at",
+        "status",
+        "location_status",
+        "reply_count"
+      ],
+      "properties": {
+        "annotation_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "document_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "selection": {
+          "$ref": "#/$defs/Selection"
+        },
+        "selection_artifact_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "selection_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "content": {
+          "$ref": "#/$defs/Content"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "status": {
+          "$ref": "#/$defs/Status"
+        },
+        "location_status": {
+          "enum": [
+            "CURRENT_VERSION",
+            "ORIGINAL_VERSION"
+          ]
+        },
+        "reply_count": {
+          "$ref": "#/$defs/Revision"
+        }
+      }
+    },
+    "TextSelection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "node_id",
+        "node_sha256",
+        "start_cp",
+        "end_cp",
+        "quote_sha256"
+      ],
+      "properties": {
+        "kind": {
+          "const": "TEXT"
+        },
+        "node_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "node_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "start_cp": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "end_cp": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "quote_sha256": {
+          "$ref": "#/$defs/Hash"
+        }
+      }
+    },
+    "ImageSelection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "node_id",
+        "image_artifact_id",
+        "image_sha256"
+      ],
+      "properties": {
+        "kind": {
+          "const": "IMAGE"
+        },
+        "node_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "image_artifact_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "image_sha256": {
+          "$ref": "#/$defs/Hash"
+        }
+      }
+    },
+    "TableSelection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "node_id",
+        "row_ids",
+        "column_ids",
+        "cell_ids",
+        "table_sha256"
+      ],
+      "properties": {
+        "kind": {
+          "const": "TABLE"
+        },
+        "node_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "row_ids": {
+          "$ref": "#/$defs/Ids",
+          "minItems": 1
+        },
+        "column_ids": {
+          "$ref": "#/$defs/Ids",
+          "minItems": 1
+        },
+        "cell_ids": {
+          "$ref": "#/$defs/Ids",
+          "minItems": 1
+        },
+        "table_sha256": {
+          "$ref": "#/$defs/Hash"
+        }
+      }
+    },
+    "Ids": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/Id"
+      }
+    },
+    "Anchor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "anchor_id",
+        "document_revision",
+        "selection_artifact_id",
+        "selection_sha256",
+        "selection",
+        "annotation_revision",
+        "actor_id",
+        "created_at",
+        "reason",
+        "previous_anchor_id"
+      ],
+      "properties": {
+        "anchor_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "document_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "selection_artifact_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "selection_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "selection": {
+          "$ref": "#/$defs/Selection"
+        },
+        "annotation_revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "reason": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Content"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "previous_anchor_id": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "Create": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "document_revision",
+        "expected_revision",
+        "expected_document_revision",
+        "expected_anchor_id",
+        "expected_anchor_revision",
+        "selection",
+        "reason",
+        "human_confirmed"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "document_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "expected_revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "expected_document_revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "expected_anchor_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "expected_anchor_revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "selection": {
+          "$ref": "#/$defs/Selection"
+        },
+        "reason": {
+          "$ref": "#/$defs/Content"
+        },
+        "human_confirmed": {
+          "const": true
+        }
+      }
+    },
+    "Item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "annotation",
+        "effective_anchor",
+        "anchor_revision",
+        "location_status"
+      ],
+      "properties": {
+        "annotation": {
+          "$ref": "#/$defs/Annotation"
+        },
+        "effective_anchor": {
+          "$ref": "#/$defs/Anchor"
+        },
+        "anchor_revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "location_status": {
+          "enum": [
+            "CURRENT_VERSION",
+            "ORIGINAL_VERSION",
+            "REANCHOR_REQUIRED"
+          ]
+        }
+      }
+    },
+    "Listing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "document_id",
+        "document_revision",
+        "revision",
+        "issue_watermark",
+        "evidence_watermark",
+        "complete",
+        "total",
+        "items",
+        "listing_sha256"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "document_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "document_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "issue_watermark": {
+          "$ref": "#/$defs/Revision"
+        },
+        "evidence_watermark": {
+          "$ref": "#/$defs/Revision"
+        },
+        "complete": {
+          "const": true
+        },
+        "total": {
+          "$ref": "#/$defs/Revision"
+        },
+        "items": {
+          "type": "array",
+          "maxItems": 100,
+          "items": {
+            "$ref": "#/$defs/Item"
+          }
+        },
+        "listing_sha256": {
+          "$ref": "#/$defs/Hash"
+        }
+      }
+    },
+    "History": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "document_id",
+        "document_revision",
+        "revision",
+        "annotation_id",
+        "status",
+        "anchor_revision",
+        "effective_anchor_id",
+        "complete",
+        "total",
+        "items",
+        "listing_sha256",
+        "lifecycle"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "document_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "document_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "annotation_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "status": {
+          "$ref": "#/$defs/Status"
+        },
+        "anchor_revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "effective_anchor_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "complete": {
+          "const": true
+        },
+        "total": {
+          "$ref": "#/$defs/Revision"
+        },
+        "items": {
+          "type": "array",
+          "maxItems": 100,
+          "items": {
+            "$ref": "#/$defs/Anchor"
+          }
+        },
+        "listing_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "lifecycle": {
+          "type": "array",
+          "maxItems": 10000,
+          "items": {
+            "$ref": "#/$defs/LifecycleEvent"
+          }
+        }
+      }
+    },
+    "Receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "document_id",
+        "document_revision",
+        "revision",
+        "issue_watermark",
+        "evidence_watermark",
+        "annotation_id",
+        "status",
+        "operation_id",
+        "previous_revision",
+        "document_head_revision",
+        "previous_document_revision",
+        "previous_anchor_id",
+        "previous_anchor_revision",
+        "anchor_revision",
+        "effective_anchor",
+        "effective_anchor_sha256",
+        "invalidated_review_ids",
+        "receipt_sha256"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "document_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "document_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "issue_watermark": {
+          "$ref": "#/$defs/Revision"
+        },
+        "evidence_watermark": {
+          "$ref": "#/$defs/Revision"
+        },
+        "annotation_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "status": {
+          "const": "OPEN"
+        },
+        "operation_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "previous_revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "document_head_revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "previous_document_revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "previous_anchor_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "previous_anchor_revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "anchor_revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "effective_anchor": {
+          "$ref": "#/$defs/Anchor"
+        },
+        "effective_anchor_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "invalidated_review_ids": {
+          "type": "array",
+          "maxItems": 1000,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/Id"
+          }
+        },
+        "receipt_sha256": {
+          "$ref": "#/$defs/Hash"
+        }
+      }
+    },
+    "LifecycleEvent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "previous_revision",
+        "revision",
+        "previous_status",
+        "status"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "DECISION",
+            "REPLY",
+            "INVALIDATE",
+            "REANCHOR"
+          ]
+        },
+        "previous_revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "previous_status": {
+          "$ref": "#/$defs/Status"
+        },
+        "status": {
+          "$ref": "#/$defs/Status"
+        }
+      }
+    }
+  }
+}

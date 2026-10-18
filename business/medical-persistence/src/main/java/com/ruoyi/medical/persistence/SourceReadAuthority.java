@@ -23,11 +23,14 @@ public final class SourceReadAuthority {
 
     SourceReadProtocol.VerifiedSource require(EnterpriseAccess.Admission admission, SourceReadProtocol.ReadRequirement requirement) throws IOException {
         Objects.requireNonNull(admission); Objects.requireNonNull(requirement);
+        if(admission.formalWorker())admission.formalProof().requireActive();
         TenantScope.requireSqlAccess("com.ruoyi.medical.persistence.mapper.SourceReadMapper.source");
         var source = single(mapper.source(requirement.sourceVersion()));
         if (!admission.context().tenant_id().equals(source.tenantId()) || !source.sourceVersion().equals(requirement.sourceVersion())) denied();
         if (!source.originalSha256().equals(source.registeredSha256())
                 || !Objects.equals(source.ownerProjectId(), source.registeredProjectId())) mismatch();
+        // A formal run is not the initiator's private conversation session, including REVIEW/HISTORY.
+        if(admission.formalWorker() && "SESSION".equals(source.ownership()))denied();
         var scope = new PermissionProtocol.Scope(source.tenantId(), source.ownerProjectId(), "SOURCE", source.sourceId());
         var sourceGrant = authority.require(admission, scope, "source.read", requirement.purpose());
         PermissionProtocol.GrantRow projectGrant = null;
@@ -48,13 +51,14 @@ public final class SourceReadAuthority {
         }
         SourceReadProtocol.ConversationRow conversation = null;
         if ("SESSION".equals(source.ownership())) {
+            if(admission.simulationWorker()) denied();
             if (requirement.conversationId() == null || requirement.use() == SourceReadProtocol.Use.FORMAL
                     || requirement.use() == SourceReadProtocol.Use.MODEL_SEND) denied();
             conversation = single(mapper.conversation(requirement.conversationId()).stream()
                 .filter(row -> row.sourceId().equals(source.sourceId())).toList());
             if (!source.tenantId().equals(conversation.tenantId()) || !requirement.projectId().equals(conversation.projectId())
                     || !requirement.conversationId().equals(conversation.conversationId()) || !"ACTIVE".equals(conversation.status())
-                    || !admission.subject().user().user_id().equals(conversation.ownerId())) denied();
+                    || !admission.actorId().equals(conversation.ownerId())) denied();
         } else if (requirement.conversationId() != null) denied();
         SourceReadProtocol.SelectionRow selection = null;
         if (requirement.snapshotId() != null) {
@@ -87,7 +91,7 @@ public final class SourceReadAuthority {
         Objects.requireNonNull(admission); Objects.requireNonNull(requirement);
         String statement = "com.ruoyi.medical.persistence.mapper.SourceReadMapper.snapshotCandidate";
         TenantScope.requireSqlAccess(statement);
-        TenantScope.requireSubjectParameter(statement, java.util.Map.of("userId", admission.subject().user().user_id()));
+        TenantScope.requireSubjectParameter(statement, java.util.Map.of("userId", admission.actorId()));
         // 尚未保存的快照没有身份；原组件核查当前读取授权，正式用途继续核查 ENTERPRISE_USE。
         var readRequirement = new SourceReadProtocol.ReadRequirement(requirement.sourceVersion(), requirement.rightsRevision(),
                 requirement.projectId(), null, null, null, SourceReadProtocol.Use.REVIEW, requirement.purpose(),
@@ -95,7 +99,7 @@ public final class SourceReadAuthority {
         var verified = require(admission, readRequirement);
         rights.requireEnterpriseUse(verified.rights());
         var candidates = mapper.snapshotCandidate(requirement.sourceVersion(), requirement.projectId(), requirement.parseVersion(),
-                requirement.indexVersion(), requirement.approvalRevision(), requirement.bindingRevision(), admission.subject().user().user_id());
+                requirement.indexVersion(), requirement.approvalRevision(), requirement.bindingRevision(), admission.actorId());
         if (candidates.isEmpty()) throw new TenantAccessException(ErrorCode.SOURCE_NOT_READY);
         if (candidates.size() != 1) mismatch();
         var selection = candidates.get(0);

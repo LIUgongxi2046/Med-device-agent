@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.medical.persistence.mapper.GruMapper">
+<resultMap id="headRow" type="com.ruoyi.medical.persistence.GruProtocol$Head"><constructor>
+<arg column="tenant_id" javaType="java.lang.String"/>
+<arg column="project_id" javaType="java.lang.String"/>
+<arg column="conversation_id" javaType="java.lang.String"/>
+<arg column="owner_id" javaType="java.lang.String"/>
+<arg column="document_id" javaType="java.lang.String"/>
+<arg column="status" javaType="java.lang.String"/>
+<arg column="revision" javaType="java.math.BigInteger"/>
+<arg column="created_by" javaType="java.lang.String"/>
+<arg column="created_at" javaType="java.time.LocalDateTime"/>
+<arg column="classification" javaType="java.lang.String"/>
+</constructor></resultMap>
+<resultMap id="contextRow" type="com.ruoyi.medical.persistence.GruProtocol$Context"><constructor>
+<arg column="tenant_id" javaType="java.lang.String"/>
+<arg column="conversation_id" javaType="java.lang.String"/>
+<arg column="project_id" javaType="java.lang.String"/>
+<arg column="document_id" javaType="java.lang.String"/>
+<arg column="document_revision" javaType="java.lang.String"/>
+<arg column="scope_snapshot_id" javaType="java.lang.String"/>
+<arg column="scope_json" javaType="java.lang.String"/>
+<arg column="scope_manifest_sha256" javaType="java.lang.String"/>
+<arg column="dependency_access_set_id" javaType="java.lang.String"/>
+<arg column="canonical_request_json" javaType="java.lang.String"/>
+<arg column="request_body_sha256" javaType="java.lang.String"/>
+<arg column="operation_request_sha256" javaType="java.lang.String"/>
+<arg column="operation_id" javaType="java.lang.String"/>
+<arg column="receipt_json" javaType="java.lang.String"/>
+<arg column="schema_version" javaType="java.lang.String"/>
+<arg column="schema_manifest_sha256" javaType="java.lang.String"/>
+<arg column="created_by" javaType="java.lang.String"/>
+<arg column="created_at" javaType="java.time.LocalDateTime"/>
+<arg column="classification" javaType="java.lang.String"/>
+</constructor></resultMap>
+<resultMap id="messageRow" type="com.ruoyi.medical.persistence.GruProtocol$Message"><constructor>
+<arg column="tenant_id" javaType="java.lang.String"/>
+<arg column="project_id" javaType="java.lang.String"/>
+<arg column="conversation_id" javaType="java.lang.String"/>
+<arg column="message_id" javaType="java.lang.String"/>
+<arg column="scope_snapshot_id" javaType="java.lang.String"/>
+<arg column="document_revision" javaType="java.lang.String"/>
+<arg column="selection" javaType="java.lang.String"/>
+<arg column="content_ref" javaType="java.lang.String"/>
+<arg column="content_sha256" javaType="java.lang.String"/>
+<arg column="dependency_access_set_id" javaType="java.lang.String"/>
+<arg column="operation_id" javaType="java.lang.String"/>
+<arg column="candidate_ids" javaType="java.lang.String"/>
+<arg column="sender_kind" javaType="java.lang.String"/>
+<arg column="schema_version" javaType="java.lang.String"/>
+<arg column="schema_manifest_sha256" javaType="java.lang.String"/>
+<arg column="created_by" javaType="java.lang.String"/>
+<arg column="created_at" javaType="java.time.LocalDateTime"/>
+<arg column="classification" javaType="java.lang.String"/>
+<arg column="message_sequence" javaType="java.math.BigInteger"/>
+<arg column="canonical_request_json" javaType="java.lang.String"/>
+<arg column="request_body_sha256" javaType="java.lang.String"/>
+<arg column="operation_request_sha256" javaType="java.lang.String"/>
+<arg column="receipt_json" javaType="java.lang.String"/>
+<arg column="intent" javaType="java.lang.String"/>
+<arg column="execution_state" javaType="java.lang.String"/>
+</constructor></resultMap>
+<select id="listed" resultType="java.lang.String" useCache="false" flushCache="true">SELECT c.conversation_id FROM conversation c JOIN gru_conversation_context g ON g.tenant_id=c.tenant_id AND g.conversation_id=c.conversation_id WHERE c.owner_id=#{userId} AND c.project_id=#{projectId} AND c.status='ACTIVE' ORDER BY c.created_at,c.conversation_id LIMIT 101</select>
+<select id="head" resultMap="headRow" useCache="false" flushCache="true">SELECT tenant_id,project_id,conversation_id,owner_id,document_id,status,revision,created_by,created_at,classification FROM conversation WHERE owner_id=#{userId} AND conversation_id=#{conversationId}</select>
+<select id="context" resultMap="contextRow" useCache="false" flushCache="true">SELECT g.tenant_id,g.conversation_id,g.project_id,g.document_id,g.document_revision,g.scope_snapshot_id,g.scope_json,g.scope_manifest_sha256,g.dependency_access_set_id,g.canonical_request_json,g.request_body_sha256,g.operation_request_sha256,g.operation_id,g.receipt_json,g.schema_version,g.schema_manifest_sha256,g.created_by,g.created_at,g.classification FROM gru_conversation_context g JOIN conversation c ON c.tenant_id=g.tenant_id AND c.conversation_id=g.conversation_id WHERE c.owner_id=#{userId} AND c.conversation_id=#{conversationId}</select>
+<select id="messages" resultMap="messageRow" useCache="false" flushCache="true">SELECT m.tenant_id,m.project_id,m.conversation_id,m.message_id,m.scope_snapshot_id,m.document_revision,m.selection,m.content_ref,m.content_sha256,m.dependency_access_set_id,m.operation_id,m.candidate_ids,m.sender_kind,m.schema_version,m.schema_manifest_sha256,m.created_by,m.created_at,m.classification,r.message_sequence,r.canonical_request_json,r.request_body_sha256,r.operation_request_sha256,r.receipt_json,r.intent,r.execution_state FROM conversation_message m JOIN gru_message_record r ON r.tenant_id=m.tenant_id AND r.message_id=m.message_id AND r.project_id=m.project_id AND r.conversation_id=m.conversation_id AND r.schema_version=m.schema_version AND r.schema_manifest_sha256=m.schema_manifest_sha256 AND r.created_by=m.created_by AND r.created_at=m.created_at AND r.classification=m.classification JOIN conversation c ON c.tenant_id=m.tenant_id AND c.conversation_id=m.conversation_id WHERE c.owner_id=#{userId} AND c.conversation_id=#{conversationId} ORDER BY r.message_sequence LIMIT 501</select>
+<select id="operation" resultMap="com.ruoyi.medical.persistence.mapper.TenantSelectionMapper.operation" useCache="false" flushCache="true">SELECT operation_id,request_sha256,state,http_status,response_ref,target_id,schema_version,schema_manifest_sha256 FROM operation_record WHERE operation_name=#{operationName} AND subject_id=#{userId} AND idempotency_key=#{key}</select>
+<select id="operationById" resultMap="com.ruoyi.medical.persistence.mapper.TenantSelectionMapper.operation" useCache="false" flushCache="true">SELECT operation_id,request_sha256,state,http_status,response_ref,target_id,schema_version,schema_manifest_sha256 FROM operation_record WHERE operation_name=#{operationName} AND subject_id=#{creatorId} AND operation_id=#{operationId}</select>
+<select id="audit" resultType="java.lang.String" useCache="false" flushCache="true">SELECT resource_ref FROM audit_event WHERE project_id=#{projectId} AND subject_id=#{creatorId} AND created_by=#{creatorId} AND request_id=#{operationId} AND trace_id=#{operationId} AND action=#{action} AND result='SUCCESS' AND reason_code IS NULL AND schema_version='1.0.0' AND schema_manifest_sha256=#{manifest} AND classification=#{classification}</select>
+<select id="event" resultType="java.lang.String" useCache="false" flushCache="true">SELECT payload FROM outbox_event WHERE event_id=#{operationId} AND aggregate_id=#{targetId} AND aggregate_revision=1 AND event_type=#{action}</select>
+<insert id="insertConversation">INSERT INTO conversation(project_id,conversation_id,owner_id,document_id,status,created_by,created_at,classification,revision,updated_at) VALUES(#{projectId},#{conversationId},#{userId},#{documentId},'ACTIVE',#{userId},#{now},#{classification},1,#{now})</insert>
+<insert id="insertContext">INSERT INTO gru_conversation_context(conversation_id,project_id,document_id,document_revision,scope_snapshot_id,scope_json,scope_manifest_sha256,dependency_access_set_id,canonical_request_json,request_body_sha256,operation_request_sha256,operation_id,receipt_json,schema_version,schema_manifest_sha256,created_by,created_at,classification) VALUES(#{row.conversationId},#{row.projectId},#{row.documentId},#{row.documentRevision},#{row.snapshotId},#{row.scopeJson},#{row.scopeManifestHash},#{row.accessSetId},#{row.canonicalRequest},#{row.requestBodyHash},#{row.operationRequestHash},#{row.operationId},#{row.receiptJson},#{row.schemaVersion},#{row.schemaManifest},#{row.createdBy},#{row.createdAt},#{row.classification})</insert>
+<insert id="insertMessage">INSERT INTO conversation_message(project_id,conversation_id,message_id,scope_snapshot_id,document_revision,selection,content_ref,content_sha256,dependency_access_set_id,operation_id,candidate_ids,sender_kind,schema_version,schema_manifest_sha256,created_by,created_at,classification,run_id) VALUES(#{message.projectId},#{message.conversationId},#{message.messageId},#{message.snapshotId},#{message.documentRevision},#{message.selectionJson},#{message.contentRef},#{message.contentHash},#{message.accessSetId},#{message.operationId},#{message.candidateIds},#{message.senderKind},#{message.schemaVersion},#{message.schemaManifest},#{message.createdBy},#{message.createdAt},#{message.classification},NULL)</insert>
+<insert id="insertMessageRecord">INSERT INTO gru_message_record(project_id,conversation_id,message_id,message_sequence,canonical_request_json,request_body_sha256,operation_request_sha256,receipt_json,intent,execution_state,schema_version,schema_manifest_sha256,created_by,created_at,classification) VALUES(#{message.projectId},#{message.conversationId},#{message.messageId},#{message.sequence},#{message.canonicalRequest},#{message.requestBodyHash},#{message.operationRequestHash},#{message.receiptJson},#{message.intent},#{message.executionState},#{message.schemaVersion},#{message.schemaManifest},#{message.createdBy},#{message.createdAt},#{message.classification})</insert>
+<insert id="insertVersion">INSERT INTO version_registry(version_id,owner_project_id,entity_kind,content_sha256) VALUES(#{messageId},#{projectId},'CONVERSATION_MESSAGE',#{hash})</insert>
+<insert id="insertLineage">INSERT INTO lineage_edge(consumer_version_id,upstream_version_id,relation_kind,actor_id,decision_ref,created_at) VALUES(#{messageId},#{upstream},'MESSAGE_CONTEXT',#{userId},NULL,#{now})</insert>
+<update id="advanceConversation">UPDATE conversation SET revision=#{nextRevision},updated_at=#{now} WHERE conversation_id=#{conversationId} AND owner_id=#{userId} AND status='ACTIVE' AND revision=#{expectedRevision}</update>
+<insert id="saveOperation">INSERT INTO operation_record(operation_id,subject_id,operation_name,idempotency_key,request_sha256,state,http_status,response_ref,target_id,error_code,schema_version,schema_manifest_sha256,created_by,created_at,classification,revision,updated_at) VALUES(#{operationId},#{userId},#{operationName},#{key},#{requestHash},'COMPLETED',201,#{response},#{targetId},NULL,'1.0.0',#{manifest},#{userId},#{now},#{classification},1,#{now})</insert>
+<select id="version" resultType="java.lang.String" useCache="false" flushCache="true">SELECT content_sha256 FROM version_registry WHERE version_id=#{messageId} AND owner_project_id=#{projectId} AND entity_kind='CONVERSATION_MESSAGE'</select>
+<select id="parents" resultType="java.lang.String" useCache="false" flushCache="true">SELECT CASE WHEN relation_kind='MESSAGE_CONTEXT' AND actor_id=#{creatorId} AND decision_ref IS NULL THEN upstream_version_id ELSE 'INVALID_LINEAGE' END FROM lineage_edge WHERE consumer_version_id=#{messageId} ORDER BY upstream_version_id</select>
+<resultMap id="countsRow" type="com.ruoyi.medical.persistence.GruProtocol$Counts"><constructor><arg column="message_count" javaType="java.math.BigInteger"/><arg column="record_count" javaType="java.math.BigInteger"/></constructor></resultMap>
+<select id="messageCounts" resultMap="countsRow" useCache="false" flushCache="true">
+ SELECT COUNT(m.message_id) AS message_count,COUNT(r.message_id) AS record_count FROM conversation c
+ LEFT JOIN conversation_message m ON m.tenant_id=c.tenant_id AND m.conversation_id=c.conversation_id AND m.project_id=c.project_id
+ LEFT JOIN gru_message_record r ON r.tenant_id=m.tenant_id AND r.message_id=m.message_id AND r.project_id=m.project_id AND r.conversation_id=m.conversation_id
+ AND r.schema_version=m.schema_version AND r.schema_manifest_sha256=m.schema_manifest_sha256 AND r.created_by=m.created_by AND r.created_at=m.created_at AND r.classification=m.classification
+ WHERE c.owner_id=#{userId} AND c.conversation_id=#{conversationId} GROUP BY c.conversation_id
+</select>
+<select id="lockHead" resultMap="headRow" useCache="false" flushCache="true">
+ SELECT tenant_id,project_id,conversation_id,owner_id,document_id,status,revision,created_by,created_at,classification
+ FROM conversation WHERE owner_id=#{userId} AND conversation_id=#{conversationId} FOR UPDATE
+</select>
+<select id="recoveryOperation" resultMap="com.ruoyi.medical.persistence.mapper.TenantSelectionMapper.operation" useCache="false" flushCache="true">
+ SELECT operation_id,request_sha256,state,http_status,response_ref,target_id,schema_version,schema_manifest_sha256
+ FROM operation_record WHERE subject_id=#{userId} AND operation_name='GRU-RECORD-APPEND' AND idempotency_key=#{key} FOR UPDATE
+</select>
+</mapper>

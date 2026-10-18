@@ -1,0 +1,11 @@
+package com.ruoyi.medical.persistence;
+import com.fasterxml.jackson.databind.*;import com.networknt.schema.*;import com.ruoyi.medical.contracts.*;import com.ruoyi.medical.identity.ApplicationSessionIdentity;
+import jakarta.servlet.http.*;import org.springframework.security.core.Authentication;import org.springframework.web.bind.annotation.*;import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+@RestController @ConditionalOnProperty(prefix="medical.formal-evaluation-input",name="enabled",havingValue="true")
+public final class FormalEvaluationInputCandidatesController {
+ private final ApplicationSessionIdentity identities;private final FormalEvaluationInputService service;private final PermissionSchema json;private final JsonSchema schema;
+ public FormalEvaluationInputCandidatesController(ApplicationSessionIdentity identities,FormalEvaluationInputService service,PermissionSchema json)throws java.io.IOException{this.identities=identities;this.service=service;this.json=json;try(var in=java.util.Objects.requireNonNull(getClass().getResourceAsStream("/formal-evaluation-input-candidates.schema.json"))){var root=JsonSchemaFactory.getInstance(SpecVersion.VersionFlag.V202012).getSchema(new ObjectMapper().readTree(in),SchemaValidatorsConfig.builder().formatAssertionsEnabled(true).build());root.initializeValidators();schema=root.getSubSchema(new JsonNodePath(PathType.JSON_POINTER).append("$defs").append("Candidates"));}}
+ @GetMapping("/api/formal-evaluation-input-source-candidates/{purpose}/{offset}")
+ public JsonNode read(HttpServletRequest request,HttpServletResponse response,Authentication authentication,@PathVariable String purpose,@PathVariable String offset){String context=FormalEvaluationInputHttp.headers(request,response,false);var result=service.candidates(identities.requireCurrent(request,authentication),context,purpose,offset);if(!schema.validate(result).isEmpty())throw new TenantAccessException(ErrorCode.CONTENT_MISMATCH);String id=java.util.UUID.randomUUID().toString();response.setHeader("X-Request-Id",id);return json.tree(new InterfaceProtocol.Envelope("1.0.0",id,"1",result));}
+ @ExceptionHandler(Exception.class)void failure(Exception failure,HttpServletResponse response)throws java.io.IOException{FormalEvaluationInputHttp.failure(failure,response);}
+}

@@ -12,6 +12,8 @@ public final class DocumentReadProtocol {
             String accessSetId, BigInteger issueWatermark, String contentSha256, String createdBy,
             LocalDateTime createdAt, String classification) { }
     public record Projection(String artifactId, String artifactKind) { }
+    public record ArtifactOwner(String tenantId, String projectId, String artifactId, String documentId,
+            String documentRevision, String artifactKind) { }
     public record Watermarks(BigInteger issueWatermark, BigInteger evidenceWatermark) { }
     public record StreamRow(String streamId, String resourceId, String sequence) { }
 }

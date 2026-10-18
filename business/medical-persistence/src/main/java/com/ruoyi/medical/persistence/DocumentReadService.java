@@ -28,7 +28,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.function.ThrowingSupplier;
 
 @Service
-@EnableConfigurationProperties(DocumentReadPolicy.class)
+@EnableConfigurationProperties({DocumentReadPolicy.class, ArtifactContentReadPolicy.class})
 public final class DocumentReadService {
     private static final String PURPOSE = "DOCUMENT_BODY";
     private final EnterpriseAccess access;
@@ -44,6 +44,8 @@ public final class DocumentReadService {
     private final SourceUploadTransport transport;
     private final DocumentUploadPolicy storage;
     private final DocumentReadPolicy paging;
+    private final ArtifactContentReadPolicy artifactPaging;
+    private final ArtifactContentPageCache artifactCache;
     private final PermissionSchema json;
     private final SchemaCatalogue schemas;
     private final String interfacesHash;
@@ -51,16 +53,100 @@ public final class DocumentReadService {
     public DocumentReadService(EnterpriseAccess access, DocumentReadMapper documents, PermissionMapper permissions,
             ResourceReadAuthority resources, TaskMapper tasks, ScopeSnapshotSchema snapshots, ArtifactRegistryMapper artifacts,
             DependencyLineage lineage, ArtifactSourceAuthority authority, ArtifactContentService content, SourceUploadTransport transport,
-            DocumentUploadPolicy storage, DocumentReadPolicy paging, PermissionSchema json) throws IOException, NoSuchAlgorithmException {
+            DocumentUploadPolicy storage, DocumentReadPolicy paging, ArtifactContentReadPolicy artifactPaging,
+            ArtifactContentPageCache artifactCache, PermissionSchema json) throws IOException, NoSuchAlgorithmException {
         this.access = access; this.documents = documents; this.permissions = permissions; this.resources = resources;
         this.tasks = tasks; this.snapshots = snapshots; this.artifacts = artifacts; this.lineage = lineage; this.authority = authority;
-        this.content = content; this.transport = transport; this.storage = storage; this.paging = paging; this.json = json;
+        this.content = content; this.transport = transport; this.storage = storage; this.paging = paging; this.artifactPaging = artifactPaging; this.json = json;
+        this.artifactCache = artifactCache;
         schemas = SchemaCatalogue.fromClasspath();
         interfacesHash = schemas.bind("interfaces", com.fasterxml.jackson.databind.node.NullNode.instance, "NullableId").schemaSha256();
     }
 
     JsonNode snapshot(ApplicationSessionIdentity.Verified subject, String context, String documentId) throws Exception {
         return snapshotFixed(subject, context, documentId, null);
+    }
+
+    /** Internal proof produced only after the existing complete, source-aware object reads. */
+    static final class FixedRead {
+        private final State state;
+        private final Loaded loaded;
+        private FixedRead(State state, Loaded loaded) { this.state = state; this.loaded = loaded; }
+        DocumentReadProtocol.Header header() { return state.header(); }
+        DocumentReadProtocol.Watermarks watermarks() { return state.watermarks(); }
+        InterfaceProtocol.DocumentBody body() { return loaded.body(); }
+        String digest() { return state.digest(); }
+        ContentReadProtocol.ReadIntent bodyIntent() { return state.intents().get("DOCUMENT_BODY"); }
+        ArtifactRegistryProtocol.DependencyManifest dependencies() {
+            return state.verified().get("DOCUMENT_BODY").registration().manifest();
+        }
+    }
+
+    /** Authorization metadata only. Never proves that body bytes were downloaded or validated. */
+    static final class MetadataRead {
+        private final State state;
+        private MetadataRead(State state) { this.state = state; }
+        DocumentReadProtocol.Header header() { return state.header(); }
+        CommonProtocol.ArtifactRef artifactReference(String kind) throws Exception {
+            if (!java.util.Set.of("DOCUMENT_BODY", "DOCUMENT_FIELDS", "DOCUMENT_EVIDENCE").contains(kind)) throw new IllegalArgumentException("Unsupported metadata artifact");
+            return reference(state, kind);
+        }
+    }
+
+    MetadataRead authorizeMetadata(EnterpriseAccess.Admission admission, String context,
+            String documentId, String revision) throws Exception {
+        return new MetadataRead(prepare(admission, context, documentId, revision, true));
+    }
+
+    void requireMetadataCurrent(EnterpriseAccess.Admission admission, MetadataRead proof) throws Exception {
+        var original = proof.state;
+        var current = prepare(admission, original.context(), original.header().documentId(), original.header().documentRevision(), true);
+        if (!original.digest().equals(current.digest())) throw new TenantAccessException(ErrorCode.SCOPE_STALE);
+    }
+
+    FixedRead readFixed(ApplicationSessionIdentity.Verified subject, String context, String documentId, String revision) throws Exception {
+        var initial = prepare(subject, context, documentId, revision);
+        var loaded = load(subject, initial, UUID.randomUUID().toString());
+        return new FixedRead(current(subject, context, documentId, revision, initial), loaded);
+    }
+
+    void requireCurrent(ApplicationSessionIdentity.Verified subject, FixedRead proof) {
+        access.execute(subject, admission -> ThrowingSupplier.of(() -> { requireCurrent(admission, proof); return null; }).get());
+    }
+
+    /** Caller already owns the tenant transaction; never nest EnterpriseAccess.execute. */
+    void requireCurrent(EnterpriseAccess.Admission admission, FixedRead proof) throws Exception {
+        var original = proof.state;
+        var current = prepare(admission, original.context(), original.header().documentId(), original.header().documentRevision());
+        if (!original.digest().equals(current.digest())) throw new TenantAccessException(ErrorCode.SCOPE_STALE);
+    }
+
+    JsonNode artifactContent(ApplicationSessionIdentity.Verified subject, String context, String artifactId,
+            int limitBytes, String cursor) throws Exception {
+        // Resolve only the domain's real fixed document revision. Binding metadata alone is not authority.
+        var owner = access.execute(subject, admission -> {
+            if (!context.equals(admission.context().context_revision())) throw new TenantAccessException(ErrorCode.CONTEXT_CHANGED);
+            var row = one(documents.artifactOwner(Map.of("userId", subject.user().user_id(), "artifactId", artifactId)));
+            if (!admission.context().tenant_id().equals(row.tenantId()) || !artifactId.equals(row.artifactId()))
+                throw new TenantAccessException(ErrorCode.ACCESS_DENIED);
+            return row;
+        });
+        var initial = prepare(subject, context, owner.documentId(), owner.documentRevision());
+        var intent = initial.intents().get(owner.artifactKind());
+        if (intent == null || !artifactId.equals(intent.artifactId()) || !owner.projectId().equals(initial.header().projectId()))
+            throw new TenantAccessException(ErrorCode.ACCESS_DENIED);
+        artifactPaging.requireLimit(limitBytes);
+        String requestId = UUID.randomUUID().toString();
+        Runnable current = () -> current(subject, context, owner.documentId(), owner.documentRevision(), initial);
+        return transport.readDocument(subject, owner.tenantId(), storage.maximumBytes().intValueExact(), current::run,
+            (reader, admission) -> {
+                var chunk = content.readPage(subject, intent, artifactPaging.paging(reader, artifactCache,
+                    new ArtifactContentPageCache.Owner(owner.tenantId(), subject.user().user_id())), admission, limitBytes,
+                    storage.maximumBytes().intValueExact(), cursor, requestId, initial.digest(), current);
+                var tree = json.tree(chunk); schemas.validate("interfaces", tree, "ContentChunk");
+                var response = envelope(tree, requestId, initial.header().revision().toString());
+                current.run(); admission.requireCurrent(); return response;
+            });
     }
 
     JsonNode snapshotFixed(ApplicationSessionIdentity.Verified subject, String context, String documentId, String revision) throws Exception {
@@ -184,21 +270,38 @@ public final class DocumentReadService {
     }
 
     private State prepare(ApplicationSessionIdentity.Verified subject, String context, String documentId, String revision) {
-        return access.execute(subject, admission -> ThrowingSupplier.of(() -> {
+        return access.execute(subject, admission -> ThrowingSupplier.of(() -> prepare(admission, context, documentId, revision)).get());
+    }
+
+    private State prepare(EnterpriseAccess.Admission admission, String context, String documentId, String revision) throws Exception {
+        return prepare(admission, context, documentId, revision, false);
+    }
+
+    /** Metadata proof excludes unrelated UI collections; complete content authorization is unchanged. */
+    private State prepare(EnterpriseAccess.Admission admission, String context, String documentId, String revision, boolean metadataOnly) throws Exception {
             if (!admission.context().context_revision().equals(context)) throw new TenantAccessException(ErrorCode.CONTEXT_CHANGED);
             var owners = permissions.resourceOwner("DOCUMENT", documentId);
             if (owners.size() != 1 || owners.get(0).projectId() == null) throw new TenantAccessException(ErrorCode.ACCESS_DENIED);
-            String project = owners.get(0).projectId(), tenant = admission.context().tenant_id(), user = subject.user().user_id();
+            String project = owners.get(0).projectId(), tenant = admission.context().tenant_id(), user = admission.subject().user().user_id();
             var scope = new PermissionProtocol.Scope(tenant, project, "DOCUMENT", documentId);
             var grant = resources.require(admission, scope, "document.read", PURPOSE); storage.requireConfigured();
             var values = new HashMap<String,Object>(); values.put("userId", user); values.put("projectId", project);
             values.put("documentId", documentId); values.put("documentRevision", revision);
-            var header = one(documents.header(values)); values.put("documentRevision", header.documentRevision());
+            var header = (metadataOnly ? metadataOne(documents.metadataHeader(values)) : one(documents.header(values))); values.put("documentRevision", header.documentRevision());
             validateHeader(header, tenant, project, documentId, revision);
-            var snapshot = one(tasks.snapshot(user, project, header.snapshotId())); values.put("snapshotId", header.snapshotId());
-            long count = Objects.requireNonNull(documents.sourceCount(values));
+            values.put("snapshotId", header.snapshotId());
+            values.put("metadataLimit", (long)storage.maximumSources() + 1L); values.put("maximumMetadataBytes", storage.maximumBytes());
+            if (metadataOnly) {
+                var bytes = metadataOne(documents.metadataSnapshotBytes(values));
+                if (bytes == null || bytes.signum() <= 0) mismatch();
+                if (bytes.compareTo(storage.maximumBytes()) > 0) throw new TenantAccessException(ErrorCode.CONTEXT_LIMIT);
+            }
+            var snapshot = (metadataOnly ? metadataOne(documents.metadataSnapshot(values)) : one(tasks.snapshot(user, project, header.snapshotId())));
+            long count = Objects.requireNonNull(metadataOnly ? documents.metadataSourceCount(values) : documents.sourceCount(values));
+            if (metadataOnly && count < 0) mismatch();
             if (count > storage.maximumSources()) throw new TenantAccessException(ErrorCode.CONTEXT_LIMIT);
-            var members = tasks.members(user, project, header.snapshotId());
+            var members = metadataOnly ? documents.metadataMembers(values) : tasks.members(user, project, header.snapshotId());
+            if (metadataOnly && members.size() > storage.maximumSources()) throw new TenantAccessException(ErrorCode.CONTEXT_LIMIT);
             var manifest = snapshots.require(snapshot.manifest(), snapshot.manifestHash(), tenant, project, header.snapshotId(), header.profileRevision(),
                 snapshot.authEpoch(), snapshot.governanceEpoch(), null, members);
             if (!snapshot.manifestHash().equals(snapshot.registryHash()) || count != members.size()) mismatch();
@@ -208,7 +311,9 @@ public final class DocumentReadService {
                 project, header.snapshotId(), member.parse_version(), null, use, PURPOSE, storage.environment(), storage.region(), null));
             var contextRead = new VersionResourceProtocol.ReadContext(use, null);
             var selected = new LinkedHashMap<String,String>(); selected.put("DOCUMENT_BODY", header.bodyArtifactId());
-            for (var projection : documents.projections(values)) if (selected.putIfAbsent(projection.artifactKind(), projection.artifactId()) != null) mismatch();
+            var projections = metadataOnly ? documents.metadataProjections(values) : documents.projections(values);
+            if (metadataOnly && (projections.size() != 2 || projections.stream().anyMatch(java.util.Objects::isNull))) mismatch();
+            for (var projection : projections) if (selected.putIfAbsent(projection.artifactKind(), projection.artifactId()) != null) mismatch();
             if (!selected.keySet().equals(java.util.Set.of("DOCUMENT_BODY", "DOCUMENT_FIELDS", "DOCUMENT_EVIDENCE")))
                 throw new TenantAccessException(ErrorCode.DEPENDENCY_UNAVAILABLE);
             var intents = new LinkedHashMap<String,ContentReadProtocol.ReadIntent>();
@@ -233,11 +338,11 @@ public final class DocumentReadService {
                 intents.put(entry.getKey(), intent); verified.put(entry.getKey(), current);
                 authorizations.put(entry.getKey(), ContentReadAuthorization.digest(admission, intent, current));
             }
-            var marks = one(documents.watermarks(values)); WireValues.revision(marks.issueWatermark().toString()); WireValues.revision(marks.evidenceWatermark().toString());
-            var checks = documents.checks(values); var reviews = documents.reviews(values); var signatures = documents.signatures(values);
-            var reasons = documents.invalidationReasons(values); var streams = documents.streams(values);
+            var marks = (metadataOnly ? metadataOne(documents.metadataWatermarks(values)) : one(documents.watermarks(values))); WireValues.revision(marks.issueWatermark().toString()); WireValues.revision(marks.evidenceWatermark().toString());
+            List<String> checks = metadataOnly ? List.of() : documents.checks(values); List<String> reviews = metadataOnly ? List.of() : documents.reviews(values); List<String> signatures = metadataOnly ? List.of() : documents.signatures(values);
+            List<String> reasons = metadataOnly ? List.of() : documents.invalidationReasons(values); List<DocumentReadProtocol.StreamRow> streams = metadataOnly ? List.of() : documents.streams(values);
             var actions = new ArrayList<String>();
-            if (header.documentRevision().equals(header.currentDocumentRevision()) && "ACTIVE".equals(header.projectStatus()) && !"SIGNED".equals(header.status())
+            if (!metadataOnly && header.documentRevision().equals(header.currentDocumentRevision()) && "ACTIVE".equals(header.projectStatus()) && !"SIGNED".equals(header.status())
                     && resources.find(admission, scope, "document.write", PURPOSE).isPresent()) actions.add("document.edit");
             var identity = new LinkedHashMap<String,Object>(); identity.put("header", header); identity.put("snapshot", snapshot); identity.put("members", members);
             identity.put("grant", grant); identity.put("authorizations", authorizations); identity.put("watermarks", marks);
@@ -246,7 +351,6 @@ public final class DocumentReadService {
             return new State(header, context, Map.copyOf(intents), Map.copyOf(verified), WireValues.sha256(ContentReadAuthorization.canonicalBytes(identity)),
                 marks, List.copyOf(checks), List.copyOf(reviews), List.copyOf(signatures), List.copyOf(reasons), List.copyOf(streams), List.copyOf(actions),
                 admission.watermarks().authEpoch().toString(), admission.watermarks().governanceEpoch().toString());
-        }).get());
     }
 
     private Map<String,ArtifactRegistryProtocol.ReadRequirement> upstream(String id, EnterpriseAccess.Admission admission) throws IOException {
@@ -281,6 +385,10 @@ public final class DocumentReadService {
         if (!header.bodySha256().equals(header.contentSha256()) || header.revision().signum() <= 0 || header.createdAt() == null) mismatch();
         var registered = one(artifacts.version(header.documentRevision()));
         if (!header.contentSha256().equals(registered.contentSha256()) || !project.equals(registered.projectId())) mismatch();
+    }
+
+    private static <T> T metadataOne(List<T> rows) {
+        if (rows.size() != 1 || rows.get(0) == null) mismatch(); return rows.get(0);
     }
 
     private static <T> T one(List<T> rows) {

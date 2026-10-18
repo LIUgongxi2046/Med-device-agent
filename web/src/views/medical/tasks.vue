@@ -8,6 +8,16 @@
     <p v-else-if="!permitted">任务列表需要当前企业身份及项目任务读取许可</p>
     <template v-else>
       <p>当前项目：{{ projectId }}</p>
+      <section v-if="waitingContext.requested" class="waiting-context" aria-labelledby="waiting-context-title">
+        <h2 id="waiting-context-title">定位待办关联任务</h2>
+        <p>只根据当前任务页返回的待办或活动运行关联核对。不会自动扫描其他页，也不会自动打开任务。</p>
+        <el-alert v-if="waitingContext.invalid" title="待办定位参数无效，未用于关联匹配。请返回工作台重新选择待办。" type="warning" :closable="false" />
+        <p v-else-if="loading" role="status">正在核查当前页的任务关联</p>
+        <p v-else-if="listing && contextMatches.length" role="status">当前页找到 {{ contextMatches.length }} 项关联任务。请核对下方关联类型；“活动运行关联”不代表该待办仍在此任务中等待。</p>
+        <p v-else-if="listing" role="status">当前页未找到关联任务。这不表示待办或任务不存在；可继续翻页或调整筛选条件。</p>
+        <p v-else>查询当前任务页后显示关联结果。</p>
+        <el-button :disabled="loading" @click="clearWaitingContext">退出待办定位</el-button>
+      </section>
       <el-form :inline="true" @submit.prevent="search">
         <el-form-item label="任务状态" :error="errors.status">
           <el-select v-model="form.status" clearable placeholder="全部获授权状态" :disabled="loading" @change="invalidateResult">
@@ -25,10 +35,16 @@
       </el-form>
       <p>时间选择器使用当前设备时区，提交查询时转换为 UTC。</p>
       <p v-if="loading" role="status">正在核查获授权任务及固定版本</p>
+      <el-alert v-if="readError" :title="readError" type="error" :closable="false"><el-button :disabled="loading" @click="search">重新查询首页</el-button></el-alert>
       <section v-if="listing" data-task-table>
         <p>获授权任务数量：{{ listing.page_info.total }}；分页水位：{{ listing.page_info.watermark }}</p>
         <p>过滤摘要：{{ listing.page_info.filter_sha256 }}</p>
         <el-table :data="listing.items" :row-key="(item: TaskItem) => item.detail.task_id" empty-text="当前授权和过滤范围没有任务">
+          <el-table-column v-if="waitingContext.requested && !waitingContext.invalid" label="待办关联" min-width="165"><template #default="scope">
+            <el-tag v-if="waitingTaskMatch(scope.row, waitingContext) === 'WAITING_ITEM'" type="success">待办直接关联</el-tag>
+            <el-tag v-else-if="waitingTaskMatch(scope.row, waitingContext) === 'ACTIVE_RUN'" type="warning">活动运行关联，待核对</el-tag>
+            <span v-else>当前记录未匹配</span>
+          </template></el-table-column>
           <el-table-column prop="goal" label="任务目标" min-width="260" />
           <el-table-column label="文档类型" min-width="150"><template #default="scope">{{ taskDocumentLabels[scope.row.document_type as keyof typeof taskDocumentLabels] }}</template></el-table-column>
           <el-table-column prop="detail.owner_id" label="责任人员" min-width="260" />
@@ -81,7 +97,7 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import useUserStore from '@/store/modules/user'
 import Pagination from '@/components/Pagination/index.vue'
 import { schemaIssues } from '@/api/medical/protocol'
@@ -91,10 +107,11 @@ import { listTasks, taskDocumentLabels, taskFilterReference, taskIdReference, ta
 import type { TaskFilter, TaskItem, TaskPage, TaskStatus } from '@/api/medical/tasks'
 import { taskReadAllowed } from '@/api/medical/task-detail'
 import { useMedicalRouteRead } from '@/api/medical/route-read'
+import { readWaitingTaskContext, waitingTaskMatch } from '@/utils/medical-task-context'
 import SessionPanel from './session-panel.vue'
 
 const user = useUserStore()
-const route = useRoute()
+const route = useRoute(), router = useRouter()
 const session = computed<MedicalSession | null>(() => user.medicalSession)
 const projectId = computed(() => typeof route.params.projectId === 'string' ? route.params.projectId : '')
 const validProject = computed(() => schemaIssues(taskIdReference, projectId.value).length === 0)
@@ -103,13 +120,20 @@ const form = reactive<{ status: TaskStatus | ''; owner: string; dates: [Date, Da
 const errors = reactive<Record<string, string>>({})
 const listing = ref<TaskPage | null>(null)
 const selected = ref<TaskItem | null>(null)
+const readError = ref('')
+const waitingContext = computed(() => readWaitingTaskContext(route.query))
+const contextMatches = computed(() => (listing.value?.items ?? []).filter(item => waitingTaskMatch(item, waitingContext.value)))
+async function clearWaitingContext(): Promise<void> {
+  const query = { ...route.query }; delete query.waiting_item_id; delete query.run_id
+  await router.replace({ path: route.path, query })
+}
 const loading = ref(false); const page = ref(1); const pageSize = ref(20)
 let generation = 0; let controller: AbortController | null = null
 let boundFilter: TaskFilter | null = null
 
 function invalidateResult(): void {
   generation += 1; controller?.abort(); controller = null
-  listing.value = null; selected.value = null; loading.value = false; boundFilter = null; page.value = 1
+  readError.value = ''; listing.value = null; selected.value = null; loading.value = false; boundFilter = null; page.value = 1
   for (const key of Object.keys(errors)) delete errors[key]
 }
 
@@ -125,8 +149,12 @@ async function load(filter: TaskFilter, previous: TaskPage | null): Promise<void
   const current = generation; const reading = new AbortController(); controller = reading; loading.value = true
   try {
     const result = await listTasks(actual, target, filter, previous, reading.signal)
-    if (generation !== current || session.value !== actual || route.fullPath !== path || document.hidden) return
+    if (generation !== current || session.value !== actual || route.fullPath !== path || !permitted.value || reading.signal.aborted || document.hidden) return
     listing.value = result; boundFilter = { ...filter }; page.value = result.page_info.page; pageSize.value = result.page_info.page_size
+  } catch {
+    if (generation === current && session.value === actual && route.fullPath === path && permitted.value && !reading.signal.aborted && !document.hidden) {
+      readError.value = '当前任务页读取失败，无法判断关联关系。请重新查询首页；若权限变化，请重新核查会话。'
+    }
   } finally { if (generation === current) loading.value = false }
 }
 
@@ -173,3 +201,9 @@ onBeforeUnmount(() => {
   reset(); document.removeEventListener('visibilitychange', visibilityChanged); window.removeEventListener('pagehide', reset)
 })
 </script>
+
+<style scoped>
+.waiting-context { margin: 20px 0; padding: 16px; background: #f5f7fa; border: 1px solid #dce3ec; border-radius: 8px; }
+.waiting-context h2 { margin-top: 0; font-size: 18px; }
+.waiting-context p { line-height: 1.7; }
+</style>

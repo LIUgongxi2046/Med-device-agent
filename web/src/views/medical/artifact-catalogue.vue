@@ -7,7 +7,7 @@
       <router-link to="/library"><el-button>返回资料中心</el-button></router-link>
     </nav>
     <el-form :inline="true" aria-label="成果筛选" @submit.prevent="applyFilters">
-      <el-form-item label="项目编号"><el-input v-model="filters.project_id" clearable /></el-form-item>
+      <el-form-item label="项目范围"><project-scope-select v-model="filters.project_id" /></el-form-item>
       <el-form-item label="成果类型"><el-input v-model="filters.artifact_kind" clearable maxlength="32" /></el-form-item>
       <el-form-item><el-button type="primary" native-type="submit" :loading="loading">查询</el-button></el-form-item>
     </el-form>
@@ -107,6 +107,8 @@
 
 <script setup lang="ts">
 import { onBeforeUnmount, reactive, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
+import ProjectScopeSelect from '@/components/Medical/ProjectScopeSelect.vue'
 import SessionPanel from './session-panel.vue'
 import useUserStore from '@/store/modules/user'
 import { artifactSubmissionAllowed, readArtifactCatalogue, submitArtifactAsSource } from '@/api/medical/source-governance'
@@ -116,7 +118,7 @@ import type { MedicalSession } from '@/api/medical/protocol'
 import { fail } from '@/api/medical/protocol'
 import { useMedicalRouteRead } from '@/api/medical/route-read'
 
-const user = useUserStore(); const page = ref<ArtifactCataloguePage | null>(null); const loading = ref(false)
+const route = useRoute(); const user = useUserStore(); const page = ref<ArtifactCataloguePage | null>(null); const loading = ref(false)
 const filters = reactive({ project_id: '', artifact_kind: '' }); let controller: AbortController | null = null; let generation = 0
 const active = useMedicalRouteRead('MedicalArtifactCatalogue', clear)
 const dialog = ref(false); const receiptDialog = ref(false); const selected = ref<ArtifactCatalogueItem | null>(null)
@@ -205,7 +207,7 @@ async function submit(): Promise<void> {
     receipt.value = result; dialog.value = false; receiptDialog.value = true; await read()
   } finally { user.medicalWriting = false }
 }
-watch(() => [user.medicalSession, active.value], () => { clear(); if (active.value) return read() }, { immediate: true, flush: 'sync' })
+watch(() => [user.medicalSession, active.value, route.query.project_id], () => { clear(); filters.project_id = typeof route.query.project_id === 'string' ? route.query.project_id : ''; if (active.value) return read() }, { immediate: true, flush: 'sync' })
 onBeforeUnmount(clear)
 </script>
 

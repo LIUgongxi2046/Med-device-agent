@@ -33,6 +33,23 @@ components:
     Operation: &operation {description: 已受理，终态通过 status_url 读取。, content: {application/json: {schema: {allOf: [{$ref: './interfaces.schema.yaml#/$defs/Envelope'}, {properties: {data: {$ref: './interfaces.schema.yaml#/$defs/Operation'}}}]}}}}
     SSE: &sse {description: 标准 SSE，每个 data 是完整 JSON；候选增量不携带 SSE id；逐帧授权。, content: {text/event-stream: {schema: {oneOf: [{$ref: './interfaces.schema.yaml#/$defs/PublicEvent'}, {$ref: './interfaces.schema.yaml#/$defs/CandidateDelta'}]}}}}
 paths:
+  /api/model-config-revisions:
+    post:
+      operationId: CP-08
+      description: 保存完整固定模型草稿。model.configure 当前许可、企业上下文、原请求幂等、维护头 CAS 和依赖登记摘要必须一致。只产生 DRAFT；不验证秘密服务、价格批准、外发授权或供应商连接，也不发布或调用模型。
+      parameters: [*version, *context, *idem, *csrf]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '../business/medical-persistence/src/main/resources/model-configuration.schema.json#/$defs/Save'}}}}
+      responses:
+        '201': {description: 原固定版本及当前上下文回执；同键原请求返回原固定回执，维护头推进不会创建替代版本。, content: {application/json: {schema: {allOf: [{$ref: './interfaces.schema.yaml#/$defs/Envelope'}, {properties: {data: {$ref: '../business/medical-persistence/src/main/resources/model-configuration.schema.json#/$defs/Receipt'}}}]}}}}
+        default: *error
+  /api/model-config-revisions/{revisionId}:
+    get:
+      operationId: readModelConfigurationRevision
+      description: 当前 configuration.read 许可下读取原固定模型草稿及当前维护头。auth_ref 和 credential_revision 不返回；content_sha256 对应完整内部固定定义。REGISTRY_REFERENCE_ONLY 只表示引用登记核验，不代表依赖批准或运行资格。
+      parameters: [*version, *context, {name: revisionId, in: path, required: true, schema: {$ref: './interfaces.schema.yaml#/$defs/Id'}}]
+      responses:
+        '200': {description: 原固定版本的脱敏视图；resource_revision 为当前维护头修订。, content: {application/json: {schema: {allOf: [{$ref: './interfaces.schema.yaml#/$defs/Envelope'}, {properties: {data: {$ref: '../business/medical-persistence/src/main/resources/model-configuration.schema.json#/$defs/View'}}}]}}}}
+        default: *error
   /api/source-versions/{id}/exact-fields:
     post:
       operationId: approveSourceExactFields
@@ -477,7 +494,13 @@ paths:
   /api/artifacts/{id}/content:
     get:
       operationId: BX-37
-      parameters: [*id, *version, *cursor, *limit]
+      description: 当前实现只开放已登记且归属固定文稿版本的 DOCUMENT_BODY、DOCUMENT_FIELDS、DOCUMENT_EVIDENCE；其他领域制品尚未提供公开解析器并统一拒绝。limit 明确为原始字节数，不复用列表项数量语义。
+      parameters:
+        - *id
+        - *version
+        - *context
+        - {name: cursor, in: query, schema: {type: string, minLength: 1, maxLength: 8192}}
+        - {name: limit, in: query, description: 原始内容字节数；服务端还应用已配置的分片上限。, schema: {type: integer, minimum: 1, maximum: 1048576, default: 65536}}
       responses: {'200': {description: 当前授权的固定产物内容分片；完整摘要验证后使用。, content: {application/json: {schema: {allOf: [{$ref: './interfaces.schema.yaml#/$defs/Envelope'}, {properties: {data: {$ref: './interfaces.schema.yaml#/$defs/ContentChunk'}}}]}}}}, default: *error}
   /internal/v1/agent-input-reads:
     post:

@@ -1,0 +1,3 @@
+<template><dl v-if="value !== null && typeof value === 'object'" class="parameters"><template v-for="(entry,key) in value" :key="key"><dt>{{ key }}</dt><dd><execution-policy-value :value="entry" /></dd></template><span v-if="!Object.keys(value).length">无</span></dl><span v-else>{{ value === null ? '空值' : String(value) }}</span></template>
+<script setup lang="ts">defineProps<{value:unknown}>()</script>
+<style scoped>.parameters{display:grid;grid-template-columns:minmax(80px,1fr) minmax(0,3fr);gap:8px;font-size:13px}.parameters dt{color:#596b82}.parameters dd{margin:0;overflow-wrap:anywhere}</style>

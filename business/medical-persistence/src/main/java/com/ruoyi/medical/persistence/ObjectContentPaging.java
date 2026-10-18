@@ -43,8 +43,15 @@ public final class ObjectContentPaging {
     private final String keyId;
     private final Duration cursorLifetime;
     private final int maximumChunkBytes;
+    private final ArtifactContentPageCache cache;
+    private final ArtifactContentPageCache.Owner owner;
 
     public ObjectContentPaging(S3ObjectReader reader, SecretKey key, String keyId, Duration cursorLifetime, int maximumChunkBytes) {
+        this(reader, key, keyId, cursorLifetime, maximumChunkBytes, null, null);
+    }
+
+    ObjectContentPaging(S3ObjectReader reader, SecretKey key, String keyId, Duration cursorLifetime, int maximumChunkBytes,
+            ArtifactContentPageCache cache, ArtifactContentPageCache.Owner owner) {
         this.reader = Objects.requireNonNull(reader); Objects.requireNonNull(key); WireValues.uuid(keyId);
         if (!"AES".equals(key.getAlgorithm()) || key.getEncoded() == null || key.getEncoded().length != 32)
             throw new IllegalArgumentException("内容游标需要独立AES-256密钥");
@@ -53,9 +60,16 @@ public final class ObjectContentPaging {
             throw new IllegalArgumentException("游标有效期和内容分片容量必须完整配置");
         this.key = new SecretKeySpec(key.getEncoded(), "AES"); this.keyId = keyId;
         this.cursorLifetime = cursorLifetime; this.maximumChunkBytes = maximumChunkBytes;
+        if ((cache == null) != (owner == null)) throw new IllegalArgumentException("公开内容缓存必须绑定当前企业和主体");
+        this.cache = cache; this.owner = owner;
     }
 
     public Page read(ObjectRef reference, Supplier<String> currentAuthorization, int limitBytes, String cursor) throws Exception {
+        return read(reference, currentAuthorization, limitBytes, cursor, null);
+    }
+
+    Page read(ObjectRef reference, Supplier<String> currentAuthorization, int limitBytes, String cursor,
+            S3ObjectReader.TimedAdmission transport) throws Exception {
         Objects.requireNonNull(reference); Objects.requireNonNull(currentAuthorization);
         if (limitBytes <= 0 || limitBytes > maximumChunkBytes) throw new IllegalArgumentException("内容分片超出已配置范围");
         long size = WireValues.revision(reference.sizeBytes()).longValueExact();
@@ -65,27 +79,38 @@ public final class ObjectContentPaging {
         String selection = rangeDigest(objectDigest, 0, size);
         Position position = cursor == null ? initial(authorization, objectDigest, selection, limitBytes)
             : decode(cursor, authorization, objectDigest, selection, limitBytes, size);
-        S3ObjectReader.Admission admission = () -> {
+        S3ObjectReader.Admission authorizationGuard = () -> {
             String current = Objects.requireNonNull(currentAuthorization.get()); WireValues.hash(current);
             if (!authorization.equals(current)) throw new TenantAccessException(ErrorCode.SCOPE_STALE);
             currentTime(position);
         };
+        // Preserve the transport lease's actual remaining deadline through the S3 SDK request.
+        S3ObjectReader.Admission admission = transport == null ? authorizationGuard : new S3ObjectReader.TimedAdmission() {
+            @Override public void requireCurrent() {
+                transport.requireCurrent(); authorizationGuard.requireCurrent(); transport.requireCurrent();
+            }
+            @Override public Duration remainingTime() { requireCurrent(); return transport.remainingTime(); }
+        };
         admission.requireCurrent();
-        try (var verified = reader.readVerified(reference, admission)) {
-            int length = (int) Math.min(limitBytes, size - position.start());
-            long end = position.start() + length;
-            byte[] bytes = verified.chunk(position.start(), length);
+        int length = (int) Math.min(limitBytes, size - position.start());
+        long end = position.start() + length;
+        byte[] bytes;
+        if (cache == null) {
+            try (var verified = reader.readVerified(reference, admission)) { bytes = verified.chunk(position.start(), length); }
+        } else {
+            bytes = cache.read(reader, reference, owner, authorization, position.issuedAt(), position.expiresAt(),
+                limitBytes, position.start(), length, admission);
+        }
             String chunkDigest = WireValues.sha256(bytes);
             String delivered = rangeDigest(objectDigest, position.start(), end);
             String next = end == size ? null : encode(new Position(authorization, objectDigest, selection, end,
                 limitBytes, position.issuedAt(), position.expiresAt()));
             var coverage = new Coverage(selection, delivered, end == size, next);
             var page = new Page(Encoding.BASE64, Base64.getEncoder().encodeToString(bytes), reference.mediaType(),
-                chunkDigest, verified.fullSha256(), Long.toString(position.start()), Long.toString(end), coverage);
+                chunkDigest, reference.sha256(), Long.toString(position.start()), Long.toString(end), coverage);
             // 返回前继续使用原准入；当前主体、水位、来源和固定对象由业务消费者共同绑定。
             admission.requireCurrent();
             return page;
-        }
     }
 
     public byte[] readComplete(ObjectRef reference, Supplier<String> currentAuthorization, int limitBytes,

@@ -65,7 +65,7 @@
         <el-button :disabled="pending !== null || user.medicalWriting || checking" @click="openPublish(selected)">修订岗位发布</el-button>
         <el-button v-if="selected.status === 'ACTIVE'" :disabled="pending !== null || user.medicalWriting || checking" @click="openRevoke">撤销岗位版本</el-button>
         <el-form label-position="top" @submit.prevent="history">
-          <el-form-item label="历史岗位版本标识" for="role-history"><el-input id="role-history" v-model="historyVersion" :disabled="checking || user.medicalWriting" /></el-form-item>
+          <el-form-item label="历史岗位版本标识" for="role-history" :error="historyError"><el-input id="role-history" v-model="historyVersion" :disabled="checking || user.medicalWriting" /></el-form-item>
           <el-button native-type="submit" :disabled="checking || user.medicalWriting || !historyVersion">读取历史岗位版本</el-button>
         </el-form>
       </section>
@@ -128,7 +128,7 @@ const user = useUserStore(); const route = useRoute(); const router = useRouter(
 const permitted = computed(() => roleAllowed(user.medicalSession))
 const listing = ref<RoleListing | null>(null); const selected = ref<EnterpriseRole | null>(null)
 const pending = ref<PendingRole | null>(null); const receipt = ref<RoleReceipt | null>(null)
-const lookupResult = ref<OperationLookup | null>(null); const historyVersion = ref('')
+const lookupResult = ref<OperationLookup | null>(null); const historyVersion = ref(''); const historyError = ref('')
 const dialog = ref(false); const discardDialog = ref(false); const mode = ref<'PUBLISH' | 'REVOKE'>('PUBLISH')
 const loading = ref(false); const checking = ref(false); const originalTarget = ref<EnterpriseRole | null>(null)
 const formElement = ref<{ $el: HTMLElement } | null>(null)
@@ -150,7 +150,7 @@ function clearForm(): void {
 function clear(): void {
   generation++; controller?.abort(); controller = null
   listing.value = null; selected.value = null; receipt.value = null; pending.value = null; lookupResult.value = null
-  historyVersion.value = ''; loading.value = false; checking.value = false; dialog.value = false; discardDialog.value = false; clearForm()
+  historyVersion.value = ''; historyError.value = ''; loading.value = false; checking.value = false; dialog.value = false; discardDialog.value = false; clearForm()
 }
 function dirty(): boolean { return Object.values(form).some(Boolean) }
 async function readPage(after: string | null): Promise<void> {
@@ -180,7 +180,12 @@ async function select(roleId: string, versionId: string): Promise<void> {
   } finally { if (current === generation) checking.value = false }
 }
 async function history(): Promise<void> {
-  if (!selected.value || schemaIssues(roleReference('Id'), historyVersion.value).length) fail('SCHEMA_INVALID', '请填写规范的历史岗位版本标识')
+  historyError.value = ''
+  if (!selected.value) return
+  if (schemaIssues(roleReference('Id'), historyVersion.value).length) {
+    historyError.value = '请填写规范的历史岗位版本标识'
+    await nextTick(); document.getElementById('role-history')?.focus(); return
+  }
   await select(selected.value.role_id, historyVersion.value)
 }
 function openPublish(role: EnterpriseRole | null): void {

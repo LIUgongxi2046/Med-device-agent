@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.medical.persistence.mapper.DocumentTechnicalCheckMapper">
+ <resultMap id="Registration" type="com.ruoyi.medical.persistence.mapper.DocumentTechnicalCheckMapper$Registration"><constructor><arg column="tenant_id" javaType="java.lang.String"/><arg column="project_id" javaType="java.lang.String"/><arg column="check_id" javaType="java.lang.String"/><arg column="run_id" javaType="java.lang.String"/><arg column="document_id" javaType="java.lang.String"/><arg column="document_revision" javaType="java.lang.String"/><arg column="execution_manifest_id" javaType="java.lang.String"/><arg column="canonical_manifest" javaType="java.lang.String"/><arg column="manifest_sha256" javaType="java.lang.String"/><arg column="canonical_input" javaType="java.lang.String"/><arg column="input_sha256" javaType="java.lang.String"/><arg column="canonical_coverage" javaType="java.lang.String"/><arg column="canonical_findings" javaType="java.lang.String"/><arg column="coverage_artifact_id" javaType="java.lang.String"/><arg column="findings_artifact_id" javaType="java.lang.String"/><arg column="coverage_intent" javaType="java.lang.String"/><arg column="findings_intent" javaType="java.lang.String"/><arg column="coverage_reference" javaType="java.lang.String"/><arg column="findings_reference" javaType="java.lang.String"/><arg column="dependency_access_set_id" javaType="java.lang.String"/><arg column="dependency_manifest_sha256" javaType="java.lang.String"/><arg column="baseline_json" javaType="java.lang.String"/><arg column="post_evidence_watermark" javaType="java.math.BigInteger"/><arg column="post_issue_watermark" javaType="java.math.BigInteger"/><arg column="canonical_request" javaType="java.lang.String"/><arg column="request_body_sha256" javaType="java.lang.String"/><arg column="operation_request_sha256" javaType="java.lang.String"/><arg column="operation_id" javaType="java.lang.String"/><arg column="receipt_json" javaType="java.lang.String"/><arg column="schema_version" javaType="java.lang.String"/><arg column="schema_manifest_sha256" javaType="java.lang.String"/><arg column="created_by" javaType="java.lang.String"/><arg column="created_at" javaType="java.time.LocalDateTime"/><arg column="classification" javaType="java.lang.String"/><arg column="execution_mode" javaType="java.lang.String"/></constructor></resultMap>
+ <resultMap id="Head" type="com.ruoyi.medical.persistence.mapper.DocumentTechnicalCheckMapper$Head"><constructor><arg column="tenant_id" javaType="java.lang.String"/><arg column="project_id" javaType="java.lang.String"/><arg column="document_id" javaType="java.lang.String"/><arg column="current_document_revision" javaType="java.lang.String"/><arg column="status" javaType="java.lang.String"/><arg column="revision" javaType="java.math.BigInteger"/></constructor></resultMap>
+ <resultMap id="Check" type="com.ruoyi.medical.persistence.mapper.DocumentTechnicalCheckMapper$Check"><constructor><arg column="tenant_id" javaType="java.lang.String"/><arg column="project_id" javaType="java.lang.String"/><arg column="check_id" javaType="java.lang.String"/><arg column="target_kind" javaType="java.lang.String"/><arg column="target_id" javaType="java.lang.String"/><arg column="target_revision" javaType="java.lang.String"/><arg column="input_sha256" javaType="java.lang.String"/><arg column="scope_manifest_id" javaType="java.lang.String"/><arg column="rule_manifest_id" javaType="java.lang.String"/><arg column="rule_manifest" javaType="java.lang.String"/><arg column="input_watermarks" javaType="java.lang.String"/><arg column="evidence_watermark" javaType="java.math.BigInteger"/><arg column="issue_watermark" javaType="java.math.BigInteger"/><arg column="coverage_artifact_id" javaType="java.lang.String"/><arg column="findings_artifact_id" javaType="java.lang.String"/><arg column="result_ref" javaType="java.lang.String"/><arg column="invalidation_reason" javaType="java.lang.String"/><arg column="run_id" javaType="java.lang.String"/><arg column="step_id" javaType="java.lang.String"/><arg column="action_id" javaType="java.lang.String"/><arg column="status" javaType="java.lang.String"/><arg column="schema_version" javaType="java.lang.String"/><arg column="schema_manifest_sha256" javaType="java.lang.String"/><arg column="created_by" javaType="java.lang.String"/><arg column="created_at" javaType="java.time.LocalDateTime"/><arg column="classification" javaType="java.lang.String"/><arg column="revision" javaType="java.math.BigInteger"/><arg column="updated_at" javaType="java.time.LocalDateTime"/></constructor></resultMap>
+ <resultMap id="Job" type="com.ruoyi.medical.persistence.mapper.DocumentTechnicalCheckMapper$Job"><constructor><arg column="tenant_id" javaType="java.lang.String"/><arg column="project_id" javaType="java.lang.String"/><arg column="run_id" javaType="java.lang.String"/><arg column="execution_kind" javaType="java.lang.String"/><arg column="job_type" javaType="java.lang.String"/><arg column="initiator_id" javaType="java.lang.String"/><arg column="input_manifest" javaType="java.lang.String"/><arg column="config_revision" javaType="java.lang.String"/><arg column="target_kind" javaType="java.lang.String"/><arg column="target_id" javaType="java.lang.String"/><arg column="target_revision" javaType="java.lang.String"/><arg column="input_sha256" javaType="java.lang.String"/><arg column="scope_manifest_id" javaType="java.lang.String"/><arg column="rule_manifest_id" javaType="java.lang.String"/><arg column="coverage_artifact_id" javaType="java.lang.String"/><arg column="status" javaType="java.lang.String"/><arg column="workflow_id" javaType="java.lang.String"/><arg column="started_at" javaType="java.time.LocalDateTime"/><arg column="ended_at" javaType="java.time.LocalDateTime"/><arg column="schema_version" javaType="java.lang.String"/><arg column="schema_manifest_sha256" javaType="java.lang.String"/><arg column="created_by" javaType="java.lang.String"/><arg column="created_at" javaType="java.time.LocalDateTime"/><arg column="classification" javaType="java.lang.String"/><arg column="revision" javaType="java.math.BigInteger"/><arg column="updated_at" javaType="java.time.LocalDateTime"/></constructor></resultMap>
+ <resultMap id="Execution" type="com.ruoyi.medical.persistence.mapper.DocumentTechnicalCheckMapper$Execution"><constructor><arg column="tenant_id" javaType="java.lang.String"/><arg column="project_id" javaType="java.lang.String"/><arg column="run_id" javaType="java.lang.String"/><arg column="execution_kind" javaType="java.lang.String"/><arg column="scope_manifest" javaType="java.lang.String"/><arg column="schema_version" javaType="java.lang.String"/><arg column="schema_manifest_sha256" javaType="java.lang.String"/><arg column="created_by" javaType="java.lang.String"/><arg column="created_at" javaType="java.time.LocalDateTime"/><arg column="classification" javaType="java.lang.String"/></constructor></resultMap>
+ <select id="registration" resultMap="Registration" useCache="false" flushCache="true">
+ SELECT * FROM document_technical_check WHERE check_id=#{checkId}
+ </select>
+ <select id="registrationByOperation" resultMap="Registration" useCache="false" flushCache="true">
+ SELECT * FROM document_technical_check WHERE project_id=#{projectId} AND operation_id=#{operationId}
+ </select>
+ <select id="lockHead" resultMap="Head" useCache="false" flushCache="true">
+ SELECT * FROM document_head WHERE project_id=#{projectId} AND document_id=#{documentId} FOR UPDATE
+ </select>
+ <select id="check" resultMap="Check" useCache="false" flushCache="true">
+ SELECT * FROM check_run WHERE project_id=#{projectId} AND check_id=#{checkId}
+ </select>
+ <select id="job" resultMap="Job" useCache="false" flushCache="true">
+ SELECT * FROM system_job_run WHERE project_id=#{projectId} AND run_id=#{runId}
+ </select>
+ <select id="execution" resultMap="Execution" useCache="false" flushCache="true">
+ SELECT * FROM execution_registry WHERE project_id=#{projectId} AND run_id=#{runId}
+ </select>
+ <select id="operation" resultMap="com.ruoyi.medical.persistence.mapper.TenantSelectionMapper.operation" useCache="false" flushCache="true">
+ SELECT operation_id,request_sha256,state,http_status,response_ref,target_id,schema_version,schema_manifest_sha256 FROM operation_record WHERE operation_name='DOCUMENT-TECHNICAL-CHECK' AND subject_id=#{userId} AND idempotency_key=#{key} FOR UPDATE
+ </select>
+ <select id="operationById" resultMap="com.ruoyi.medical.persistence.mapper.TenantSelectionMapper.operation" useCache="false" flushCache="true">
+ SELECT operation_id,request_sha256,state,http_status,response_ref,target_id,schema_version,schema_manifest_sha256 FROM operation_record WHERE operation_name='DOCUMENT-TECHNICAL-CHECK' AND subject_id=#{creatorId} AND operation_id=#{operationId}
+ </select>
+ <insert id="insertRegistration">
+ INSERT INTO document_technical_check(project_id,check_id,run_id,document_id,document_revision,execution_manifest_id,canonical_manifest,manifest_sha256,canonical_input,input_sha256,canonical_coverage,canonical_findings,coverage_artifact_id,findings_artifact_id,coverage_intent,findings_intent,coverage_reference,findings_reference,dependency_access_set_id,dependency_manifest_sha256,baseline_json,post_evidence_watermark,post_issue_watermark,canonical_request,request_body_sha256,operation_request_sha256,operation_id,receipt_json,schema_version,schema_manifest_sha256,created_by,created_at,classification,execution_mode)
+ VALUES(#{row.projectId},#{row.checkId},#{row.runId},#{row.documentId},#{row.documentRevision},#{row.executionManifestId},#{row.canonicalManifest},#{row.manifestSha256},#{row.canonicalInput},#{row.inputSha256},#{row.canonicalCoverage},#{row.canonicalFindings},#{row.coverageArtifactId},#{row.findingsArtifactId},#{row.coverageIntent},#{row.findingsIntent},#{row.coverageReference},#{row.findingsReference},#{row.accessSetId},#{row.dependencyManifestSha256},#{row.baselineJson},#{row.postEvidenceWatermark},#{row.postIssueWatermark},#{row.canonicalRequest},#{row.requestBodySha256},#{row.operationRequestSha256},#{row.operationId},#{row.receiptJson},#{row.schemaVersion},#{row.schemaManifest},#{row.createdBy},#{row.createdAt},#{row.classification},'SYNC_REQUEST')
+ </insert>
+ <insert id="insertVersion">
+ INSERT INTO version_registry(version_id,owner_project_id,entity_kind,content_sha256) VALUES(#{versionId},#{projectId},#{versionKind},#{versionHash})
+ </insert>
+ <insert id="insertExecution">
+ INSERT INTO execution_registry(project_id,run_id,execution_kind,scope_manifest,schema_version,schema_manifest_sha256,created_by,created_at,classification) VALUES(#{projectId},#{runId},'SYSTEM_JOB',#{scopeManifest},'1.0.0',#{manifest},#{userId},#{now},#{classification})
+ </insert>
+ <insert id="insertJob">
+ INSERT INTO system_job_run(project_id,run_id,execution_kind,job_type,initiator_id,input_manifest,config_revision,target_kind,target_id,target_revision,input_sha256,scope_manifest_id,rule_manifest_id,status,workflow_id,schema_version,schema_manifest_sha256,created_by,created_at,classification,revision,updated_at) VALUES(#{projectId},#{runId},'SYSTEM_JOB','DOCUMENT_TECHNICAL_CHECK',#{userId},#{inputJson},#{executionManifestId},'DOCUMENT',#{documentId},#{documentRevision},#{inputHash},#{snapshotId},#{executionManifestId},'QUEUED',NULL,'1.0.0',#{manifest},#{userId},#{now},#{classification},1,#{now})
+ </insert>
+ <update id="claimJob">
+ UPDATE system_job_run SET status='RUNNING',started_at=#{now},revision=revision+1,updated_at=#{now} WHERE project_id=#{projectId} AND run_id=#{runId} AND job_type='DOCUMENT_TECHNICAL_CHECK' AND status='QUEUED' AND revision=1
+ </update>
+ <update id="completeJob">
+ UPDATE system_job_run SET status='SUCCEEDED',coverage_artifact_id=#{coverageArtifactId},ended_at=#{now},revision=revision+1,updated_at=#{now} WHERE project_id=#{projectId} AND run_id=#{runId} AND job_type='DOCUMENT_TECHNICAL_CHECK' AND status='RUNNING' AND revision=2
+ </update>
+ <insert id="insertCheck">
+ INSERT INTO check_run(project_id,check_id,target_kind,target_id,target_revision,input_sha256,scope_manifest_id,rule_manifest_id,rule_manifest,input_watermarks,evidence_watermark,issue_watermark,status,schema_version,schema_manifest_sha256,created_by,created_at,classification,revision,updated_at) VALUES(#{projectId},#{checkId},'DOCUMENT',#{documentId},#{documentRevision},#{inputHash},#{snapshotId},#{executionManifestId},#{manifestJson},#{baselineJson},#{evidenceWatermark},#{issueWatermark},'QUEUED','1.0.0',#{manifest},#{userId},#{now},#{classification},1,#{now})
+ </insert>
+ <update id="claimCheck">
+ UPDATE check_run SET status='RUNNING',revision=revision+1,updated_at=#{now} WHERE project_id=#{projectId} AND check_id=#{checkId} AND status='QUEUED' AND revision=1
+ </update>
+ <update id="completeCheck">
+ UPDATE check_run SET status='SUCCEEDED',coverage_artifact_id=#{coverageArtifactId},findings_artifact_id=#{findingsArtifactId},result_ref=#{resultRef},revision=revision+1,updated_at=#{now} WHERE project_id=#{projectId} AND check_id=#{checkId} AND status='RUNNING' AND revision=2
+ </update>
+ <insert id="insertArtifact">
+ INSERT INTO artifact(project_id,artifact_id,run_id,document_revision,artifact_kind,object_ref,object_key,object_version,sha256,size_bytes,media_type,dependency_access_set_id,content_sha256,schema_version,schema_manifest_sha256,created_by,created_at,classification) VALUES(#{projectId},#{artifactId},#{runId},#{documentRevision},#{artifactKind},#{storedObject},#{reference.objectKey},#{reference.objectVersion},#{reference.sha256},#{reference.sizeBytes},#{reference.mediaType},#{accessSetId},#{reference.sha256},'1.0.0',#{manifest},#{userId},#{now},#{classification})
+ </insert>
+ <insert id="insertBinding">
+ INSERT INTO artifact_content_binding(project_id,artifact_id,resource_kind,resource_id,schema_ref,schema_document_sha256,dependency_access_set_id,dependency_manifest_sha256,created_by,created_at,classification) VALUES(#{projectId},#{artifactId},'DOCUMENT',#{documentId},#{schemaRef},#{schemaHash},#{accessSetId},#{dependencyHash},#{userId},#{now},#{classification})
+ </insert>
+ <insert id="insertLineage">
+ INSERT INTO lineage_edge(consumer_version_id,upstream_version_id,relation_kind,actor_id,decision_ref,created_at) VALUES(#{consumerId},#{upstreamId},'DOCUMENT_TECHNICAL_INPUT',#{userId},NULL,#{now})
+ </insert>
+ <insert id="startOperation">
+ INSERT INTO operation_record(operation_id,subject_id,operation_name,idempotency_key,request_sha256,state,response_ref,target_id,schema_version,schema_manifest_sha256,created_by,created_at,classification,revision,updated_at) VALUES(#{operationId},#{userId},'DOCUMENT-TECHNICAL-CHECK',#{key},#{requestHash},'PROCESSING',#{commandJson},#{checkId},'1.0.0',#{operationManifest},#{userId},#{now},#{classification},1,#{now})
+ </insert>
+ <update id="updateCommand">
+ UPDATE operation_record SET response_ref=#{commandJson},revision=revision+1,updated_at=#{now} WHERE operation_id=#{operationId} AND subject_id=#{userId} AND operation_name='DOCUMENT-TECHNICAL-CHECK' AND idempotency_key=#{key} AND request_sha256=#{requestHash} AND target_id=#{checkId} AND state='PROCESSING' AND revision=#{operationRevision}
+ </update>
+ <update id="completeOperation">
+ UPDATE operation_record SET state='COMPLETED',http_status=201,response_ref=#{response},revision=revision+1,updated_at=#{now} WHERE operation_id=#{operationId} AND subject_id=#{userId} AND operation_name='DOCUMENT-TECHNICAL-CHECK' AND idempotency_key=#{key} AND request_sha256=#{requestHash} AND target_id=#{checkId} AND state='PROCESSING' AND revision=#{operationRevision}
+ </update>
+ <select id="audit" resultType="java.lang.String" useCache="false" flushCache="true">
+ SELECT resource_ref FROM audit_event WHERE project_id=#{projectId} AND subject_id=#{creatorId} AND created_by=#{creatorId} AND request_id=#{operationId} AND trace_id=#{operationId} AND action='document.technical_check.completed' AND result='SUCCESS' AND reason_code IS NULL AND schema_version='1.0.0' AND schema_manifest_sha256=#{operationManifest} AND classification=#{classification}
+ </select>
+ <select id="event" resultType="java.lang.String" useCache="false" flushCache="true">
+ SELECT payload FROM outbox_event WHERE event_id=#{operationId} AND aggregate_id=#{checkId} AND aggregate_revision=1 AND event_type='document.technical_check.completed'
+ </select>
+ <select id="operationRevision" resultType="java.math.BigInteger" useCache="false" flushCache="true">
+ SELECT revision FROM operation_record WHERE operation_id=#{operationId} AND subject_id=#{userId}
+ AND operation_name='DOCUMENT-TECHNICAL-CHECK' AND idempotency_key=#{key} AND request_sha256=#{requestHash}
+ AND target_id=#{checkId} FOR UPDATE
+ </select>
+ <resultMap id="Manifest" type="com.ruoyi.medical.persistence.mapper.DocumentTechnicalCheckMapper$Manifest"><constructor>
+<arg column="tenant_id" javaType="java.lang.String"/><arg column="project_id" javaType="java.lang.String"/><arg column="execution_manifest_id" javaType="java.lang.String"/><arg column="canonical_manifest" javaType="java.lang.String"/><arg column="manifest_sha256" javaType="java.lang.String"/><arg column="schema_version" javaType="java.lang.String"/><arg column="schema_manifest_sha256" javaType="java.lang.String"/><arg column="created_by" javaType="java.lang.String"/><arg column="created_at" javaType="java.time.LocalDateTime"/><arg column="classification" javaType="java.lang.String"/></constructor></resultMap>
+ <select id="manifest" resultMap="Manifest" useCache="false" flushCache="true">
+ SELECT * FROM document_technical_check_manifest WHERE project_id=#{projectId} AND manifest_sha256=#{executionManifestHash}
+ </select>
+ <select id="existingInput" resultType="java.lang.String" useCache="false" flushCache="true">
+ SELECT check_id FROM check_run WHERE project_id=#{projectId} AND target_kind='DOCUMENT' AND target_revision=#{documentRevision}
+ AND rule_manifest_id=#{executionManifestId} AND input_sha256=#{inputHash}
+ </select>
+ <insert id="insertManifest">
+ INSERT INTO document_technical_check_manifest(project_id,execution_manifest_id,canonical_manifest,manifest_sha256,schema_version,schema_manifest_sha256,created_by,created_at,classification)
+ VALUES(#{projectId},#{executionManifestId},#{manifestJson},#{executionManifestHash},'1.0.0',#{manifest},#{userId},#{now},#{classification})
+ </insert>
+ <resultMap id="ArtifactOwner" type="com.ruoyi.medical.persistence.mapper.DocumentTechnicalCheckMapper$ArtifactOwner"><constructor>
+ <arg column="document_revision" javaType="java.lang.String"/><arg column="run_id" javaType="java.lang.String"/>
+ </constructor></resultMap>
+ <select id="artifactOwner" resultMap="ArtifactOwner" useCache="false" flushCache="true">
+ SELECT document_revision,run_id FROM artifact WHERE artifact_id=#{artifactId}
+ </select>
+<resultMap id="RecoveryIntent" type="com.ruoyi.medical.persistence.mapper.DocumentTechnicalCheckMapper$RecoveryIntent"><constructor><arg column="tenant_id" javaType="java.lang.String"/><arg column="project_id" javaType="java.lang.String"/><arg column="operation_id" javaType="java.lang.String"/><arg column="check_id" javaType="java.lang.String"/><arg column="document_revision" javaType="java.lang.String"/><arg column="idempotency_key" javaType="java.lang.String"/><arg column="canonical_command" javaType="java.lang.String"/><arg column="intent_sha256" javaType="java.lang.String"/><arg column="start_event_id" javaType="java.lang.String"/><arg column="schema_version" javaType="java.lang.String"/><arg column="schema_manifest_sha256" javaType="java.lang.String"/><arg column="created_by" javaType="java.lang.String"/><arg column="created_at" javaType="java.time.LocalDateTime"/><arg column="classification" javaType="java.lang.String"/></constructor></resultMap>
+<insert id="insertRecoveryIntent">INSERT INTO document_technical_check_intent(project_id,operation_id,check_id,document_revision,idempotency_key,canonical_command,intent_sha256,start_event_id,schema_version,schema_manifest_sha256,created_by,created_at,classification) VALUES(#{row.projectId},#{row.operationId},#{row.checkId},#{row.documentRevision},#{row.idempotencyKey},#{row.canonicalCommand},#{row.intentSha256},#{row.startEventId},#{row.schemaVersion},#{row.schemaManifest},#{row.createdBy},#{row.createdAt},#{row.classification})</insert>
+<resultMap id="RecoveryAttempt" type="com.ruoyi.medical.persistence.mapper.DocumentTechnicalCheckMapper$RecoveryAttempt"><constructor><arg column="tenant_id" javaType="java.lang.String"/><arg column="project_id" javaType="java.lang.String"/><arg column="operation_id" javaType="java.lang.String"/><arg column="check_id" javaType="java.lang.String"/><arg column="output_kind" javaType="java.lang.String"/><arg column="write_id" javaType="java.lang.String"/><arg column="artifact_id" javaType="java.lang.String"/><arg column="intent_sha256" javaType="java.lang.String"/><arg column="schema_version" javaType="java.lang.String"/><arg column="schema_manifest_sha256" javaType="java.lang.String"/><arg column="created_by" javaType="java.lang.String"/><arg column="created_at" javaType="java.time.LocalDateTime"/><arg column="classification" javaType="java.lang.String"/></constructor></resultMap>
+<insert id="insertRecoveryAttempt">INSERT INTO document_technical_check_attempt(project_id,operation_id,check_id,output_kind,write_id,artifact_id,intent_sha256,schema_version,schema_manifest_sha256,created_by,created_at,classification) VALUES(#{row.projectId},#{row.operationId},#{row.checkId},#{row.outputKind},#{row.writeId},#{row.artifactId},#{row.intentSha256},#{row.schemaVersion},#{row.schemaManifest},#{row.createdBy},#{row.createdAt},#{row.classification})</insert>
+<select id="recoveryIntent" resultMap="RecoveryIntent" useCache="false" flushCache="true">SELECT * FROM document_technical_check_intent WHERE project_id=#{projectId} AND operation_id=#{operationId} AND check_id=#{checkId}</select>
+<select id="recoveryAttempts" resultMap="RecoveryAttempt" useCache="false" flushCache="true">SELECT * FROM document_technical_check_attempt WHERE project_id=#{projectId} AND operation_id=#{operationId} AND check_id=#{checkId}</select>
+<select id="recoveryStartAudit" resultType="java.lang.String" useCache="false" flushCache="true">SELECT resource_ref FROM audit_event WHERE project_id=#{projectId} AND request_id=#{operationId} AND trace_id=#{operationId} AND subject_id=#{creatorId} AND created_by=#{creatorId} AND result='SUCCESS' AND reason_code IS NULL AND action='document.technical_check.started' AND schema_version='1.0.0' AND schema_manifest_sha256=#{manifest} AND classification=#{classification}</select>
+<select id="recoveryStartEvent" resultType="java.lang.String" useCache="false" flushCache="true">SELECT payload FROM outbox_event WHERE event_id=#{startEventId} AND aggregate_id=#{checkId} AND aggregate_revision=1 AND event_type='document.technical_check.started'</select>
+<select id="recoveryRevision" resultType="java.math.BigInteger" useCache="false" flushCache="true">SELECT revision FROM operation_record WHERE operation_id=#{operationId} AND subject_id=#{userId} AND operation_name='DOCUMENT-TECHNICAL-CHECK' FOR UPDATE</select>
+<select id="recoveryIntentByKey" resultMap="RecoveryIntent" useCache="false" flushCache="true">SELECT * FROM document_technical_check_intent WHERE created_by=#{creatorId} AND idempotency_key=#{key}</select>
+<select id="recoveryOriginalOperation" resultMap="com.ruoyi.medical.persistence.mapper.TenantSelectionMapper.operation" useCache="false" flushCache="true">SELECT operation_id,request_sha256,state,http_status,response_ref,target_id,schema_version,schema_manifest_sha256 FROM operation_record WHERE subject_id=#{creatorId} AND idempotency_key=#{key} AND operation_id=#{operationId} AND operation_name='DOCUMENT-TECHNICAL-CHECK' FOR UPDATE</select>
+</mapper>

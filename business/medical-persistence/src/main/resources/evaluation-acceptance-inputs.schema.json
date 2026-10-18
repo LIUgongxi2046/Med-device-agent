@@ -1,0 +1,153 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:evaluation-acceptance-inputs:1.0.0",
+  "$defs": {
+    "Id": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^[0-9a-f-]{36}$"
+    },
+    "Hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "Basis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version_id",
+        "content_sha256"
+      ],
+      "properties": {
+        "version_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "content_sha256": {
+          "$ref": "#/$defs/Hash"
+        }
+      }
+    },
+    "DatasetSample": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sample_id",
+        "source_family",
+        "input_ref",
+        "expected_ref",
+        "source_versions"
+      ],
+      "properties": {
+        "sample_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "source_family": {
+          "$ref": "#/$defs/Id"
+        },
+        "input_ref": {
+          "$ref": "#/$defs/Basis"
+        },
+        "expected_ref": {
+          "$ref": "#/$defs/Basis"
+        },
+        "source_versions": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 100,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/Basis"
+          }
+        }
+      }
+    },
+    "FormalEvaluationDataset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "samples"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "samples": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 100,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/DatasetSample"
+          }
+        }
+      }
+    },
+    "Family": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_family",
+        "sample_ids"
+      ],
+      "properties": {
+        "source_family": {
+          "$ref": "#/$defs/Id"
+        },
+        "sample_ids": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 100,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/Id"
+          }
+        }
+      }
+    },
+    "SamplingDesign": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "dataset",
+        "sample_manifest_artifact",
+        "method",
+        "families",
+        "independence_evidence_sources"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "dataset": {
+          "$ref": "#/$defs/Basis"
+        },
+        "sample_manifest_artifact": {
+          "$ref": "#/$defs/Basis"
+        },
+        "method": {
+          "const": "SOURCE_FAMILY_INDEPENDENT_CLUSTERING_V1"
+        },
+        "families": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 100,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/Family"
+          }
+        },
+        "independence_evidence_sources": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 100,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/Basis"
+          }
+        }
+      }
+    }
+  }
+}

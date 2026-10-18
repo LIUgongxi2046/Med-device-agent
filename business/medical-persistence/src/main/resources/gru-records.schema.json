@@ -1,0 +1,617 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:gru-records:1.0.0",
+  "$defs": {
+    "Create": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "project_id",
+        "document_id",
+        "document_revision",
+        "scope_snapshot_id",
+        "scope",
+        "reason"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "project_id": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^[a-f0-9-]{36}$"
+        },
+        "document_id": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^[a-f0-9-]{36}$"
+        },
+        "document_revision": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^[a-f0-9-]{36}$"
+        },
+        "scope_snapshot_id": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^[a-f0-9-]{36}$"
+        },
+        "scope": {
+          "type": "object"
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        }
+      }
+    },
+    "Append": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "expected_revision",
+        "document_revision",
+        "scope_snapshot_id",
+        "scope",
+        "selection",
+        "intent",
+        "execution_mode",
+        "text",
+        "reason"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "expected_revision": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]{0,19})$"
+        },
+        "document_revision": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^[a-f0-9-]{36}$"
+        },
+        "scope_snapshot_id": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^[a-f0-9-]{36}$"
+        },
+        "scope": {
+          "type": "object"
+        },
+        "selection": {
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "intent": {
+          "enum": [
+            "QUERY",
+            "RETRIEVE",
+            "CHECK",
+            "PROPOSE_EDIT"
+          ]
+        },
+        "execution_mode": {
+          "const": "RECORD_ONLY"
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 16384,
+          "pattern": "\\S"
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        }
+      }
+    },
+    "Context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "project_id",
+        "document_id",
+        "document_revision",
+        "scope_snapshot_id",
+        "scope"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "project_id": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^[a-f0-9-]{36}$"
+        },
+        "document_id": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^[a-f0-9-]{36}$"
+        },
+        "document_revision": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^[a-f0-9-]{36}$"
+        },
+        "scope_snapshot_id": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^[a-f0-9-]{36}$"
+        },
+        "scope": {
+          "type": "object"
+        }
+      }
+    },
+    "Receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "conversation_id",
+        "message_id",
+        "operation_id",
+        "revision",
+        "execution_state",
+        "request_body_sha256"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "conversation_id": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^[a-f0-9-]{36}$"
+        },
+        "message_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^[a-f0-9-]{36}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "operation_id": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^[a-f0-9-]{36}$"
+        },
+        "revision": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]{0,19})$"
+        },
+        "execution_state": {
+          "const": "NOT_EXECUTED"
+        },
+        "request_body_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      }
+    },
+    "View": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "project_id",
+        "document_id",
+        "document_revision",
+        "scope_snapshot_id",
+        "scope",
+        "conversation_id",
+        "revision",
+        "status",
+        "owner_id",
+        "mode",
+        "execution_state",
+        "created_at"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "project_id": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^[a-f0-9-]{36}$"
+        },
+        "document_id": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^[a-f0-9-]{36}$"
+        },
+        "document_revision": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^[a-f0-9-]{36}$"
+        },
+        "scope_snapshot_id": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^[a-f0-9-]{36}$"
+        },
+        "scope": {
+          "type": "object"
+        },
+        "conversation_id": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^[a-f0-9-]{36}$"
+        },
+        "revision": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]{0,19})$"
+        },
+        "status": {
+          "const": "ACTIVE"
+        },
+        "owner_id": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^[a-f0-9-]{36}$"
+        },
+        "mode": {
+          "const": "RECORD_ONLY"
+        },
+        "execution_state": {
+          "const": "NOT_EXECUTED"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "Read": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "project_id",
+        "document_id",
+        "document_revision",
+        "scope_snapshot_id",
+        "scope",
+        "conversation_id",
+        "revision",
+        "status",
+        "owner_id",
+        "mode",
+        "execution_state",
+        "created_at",
+        "messages",
+        "message_records",
+        "page_info"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "project_id": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^[a-f0-9-]{36}$"
+        },
+        "document_id": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^[a-f0-9-]{36}$"
+        },
+        "document_revision": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^[a-f0-9-]{36}$"
+        },
+        "scope_snapshot_id": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^[a-f0-9-]{36}$"
+        },
+        "scope": {
+          "type": "object"
+        },
+        "conversation_id": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^[a-f0-9-]{36}$"
+        },
+        "revision": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]{0,19})$"
+        },
+        "status": {
+          "const": "ACTIVE"
+        },
+        "owner_id": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^[a-f0-9-]{36}$"
+        },
+        "mode": {
+          "const": "RECORD_ONLY"
+        },
+        "execution_state": {
+          "const": "NOT_EXECUTED"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "messages": {
+          "type": "array",
+          "maxItems": 100,
+          "items": {
+            "type": "object"
+          }
+        },
+        "message_records": {
+          "type": "array",
+          "maxItems": 100,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "message_id",
+              "intent",
+              "execution_state",
+              "revision"
+            ],
+            "properties": {
+              "message_id": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^[a-f0-9-]{36}$"
+              },
+              "intent": {
+                "enum": [
+                  "QUERY",
+                  "RETRIEVE",
+                  "CHECK",
+                  "PROPOSE_EDIT"
+                ]
+              },
+              "execution_state": {
+                "const": "NOT_EXECUTED"
+              },
+              "revision": {
+                "type": "string",
+                "pattern": "^(0|[1-9][0-9]{0,19})$"
+              }
+            }
+          }
+        },
+        "page_info": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "page",
+            "page_size",
+            "total",
+            "dataset_watermark",
+            "next_page"
+          ],
+          "properties": {
+            "page": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "page_size": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "total": {
+              "type": "string",
+              "pattern": "^(0|[1-9][0-9]{0,19})$"
+            },
+            "dataset_watermark": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "next_page": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 2
+            }
+          }
+        }
+      }
+    },
+    "List": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "project_id",
+        "mode",
+        "items"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "project_id": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^[a-f0-9-]{36}$"
+        },
+        "mode": {
+          "const": "RECORD_ONLY"
+        },
+        "items": {
+          "type": "array",
+          "maxItems": 100,
+          "items": {
+            "$ref": "#/$defs/View"
+          }
+        }
+      }
+    },
+    "RecoveryRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "idempotency_key",
+        "request"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "idempotency_key": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._:-]{16,128}$"
+        },
+        "request": {
+          "$ref": "#/$defs/Append"
+        }
+      }
+    },
+    "Recovery": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "status",
+        "current_context",
+        "actor_id",
+        "conversation_id",
+        "idempotency_key",
+        "request_body_sha256",
+        "expected_revision",
+        "current_revision",
+        "checked_at",
+        "receipt"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "status": {
+          "enum": [
+            "FOUND",
+            "NOT_APPLIED_STALE",
+            "UNKNOWN"
+          ]
+        },
+        "current_context": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "tenant_id",
+            "context_revision",
+            "auth_epoch",
+            "governance_epoch"
+          ],
+          "properties": {
+            "tenant_id": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+            },
+            "context_revision": {
+              "$ref": "#/$defs/Revision"
+            },
+            "auth_epoch": {
+              "$ref": "#/$defs/Revision"
+            },
+            "governance_epoch": {
+              "$ref": "#/$defs/Revision"
+            }
+          }
+        },
+        "actor_id": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^[a-f0-9-]{36}$"
+        },
+        "conversation_id": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^[a-f0-9-]{36}$"
+        },
+        "idempotency_key": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._:-]{16,128}$"
+        },
+        "request_body_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "expected_revision": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]{0,19})$"
+        },
+        "current_revision": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]{0,19})$"
+        },
+        "checked_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "receipt": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Receipt"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "FOUND"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "receipt": {
+                "$ref": "#/$defs/Receipt"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "receipt": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "Revision": {
+      "type": "string",
+      "pattern": "^[1-9][0-9]{0,19}$"
+    }
+  }
+}

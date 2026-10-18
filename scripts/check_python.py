@@ -21,11 +21,15 @@ def main():
 
     catalogue = json.loads((ROOT / "contracts/catalogue.json").read_bytes())
     dataset = json.loads((ROOT / "data-design/sample_dataset.json").read_bytes())
-    inputs = {"scripts/check_python.py", "contracts/catalogue.json", "data-design/sample_dataset.json",
+    inputs = {"scripts/check_python.py", "contracts/catalogue.json", "business/medical-persistence/src/main/resources/evaluation-results.schema.json", "contracts/extensions/evaluation-results.catalogue.json", "data-design/sample_dataset.json",
               "contracts/python/pyproject.toml", "contracts/python/requirements.lock",
-              "tests/test_shared_contracts.py", "tests/test_python_domain.py", "tests/check_python_contracts.py",
+              "tests/test_shared_contracts.py", "tests/test_simulation_contract_extension.py", "tests/test_python_domain.py", "tests/check_python_contracts.py",
               "contracts/python/.gitignore", "LLD-后端.md", "tests/error_design.py", "tests/test_error_codes.py"}
+    inputs.add("contracts/extensions/simulation-execution.catalogue.json")
+    inputs.add("contracts/fixtures/simulation-context.synthetic.json")
+    inputs.update(entry["path"] for entry in json.loads((ROOT / "contracts/extensions/simulation-execution.catalogue.json").read_bytes())["schemas"])
     inputs.update(entry["path"] for entry in catalogue["schemas"])
+    inputs.update(entry["path"] for entry in json.loads((ROOT / "contracts/extensions/evaluation-results.catalogue.json").read_bytes())["schemas"])
     inputs.update(str(path.relative_to(ROOT)) for path in (ROOT / "contracts/python/src").rglob("*.py"))
     inputs.update(str(path.relative_to(ROOT)) for path in (ROOT / ".implementation-work/python-wheels").glob("*.whl"))
     for source in dataset["sources"]:

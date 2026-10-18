@@ -1,0 +1,41 @@
+{
+  "schema_version": "1.0.0",
+  "base_catalogue_sha256": "dcd72acbb7a45775373662e0ffe4557030d4740b0afacdee8375e7768e761915",
+  "schemas": [
+    {
+      "name": "replay-manifest",
+      "path": "agent-design/replay-manifest.schema.json",
+      "sha256": "62a67dc87c6bb70c6bdce1454b7802eeb9d99cc6d28f3150df60c393a7c756c2"
+    },
+    {
+      "name": "runtime-governance",
+      "path": "business/medical-persistence/src/main/resources/runtime-governance.schema.json",
+      "sha256": "08691ccc28626fc7cab378c2b2a1c6bf15cc613b5a9a6e501618e5e701daf30c"
+    },
+    {
+      "name": "agent-execution-policy",
+      "path": "business/medical-persistence/src/main/resources/agent-execution-policy.schema.json",
+      "sha256": "55abc7b1a692ebf418c8e399a50563e26e5bd98c6ade3ea2cd8713680358e994"
+    },
+    {
+      "name": "runtime-retention",
+      "path": "business/medical-persistence/src/main/resources/runtime-retention.schema.json",
+      "sha256": "91933a4e5f0a5d7d0bbbd3f91f31703025c9de4d56a679ed115c2b64c9f9cd57"
+    },
+    {
+      "name": "run-token-authority",
+      "path": "business/medical-persistence/src/main/resources/run-token-authority.schema.json",
+      "sha256": "318d28d7f6fc05e8ca0db1747e1c97f26ef681065e84395aa62645f52380a772"
+    },
+    {
+      "name": "projects",
+      "path": "business/medical-persistence/src/main/resources/projects.schema.json",
+      "sha256": "33424d2c0fa0edff784d60836fbe021ee6ce84cd2911da833d9310fea8d261b2"
+    },
+    {
+      "name": "budgets",
+      "path": "business/medical-persistence/src/main/resources/budgets.schema.json",
+      "sha256": "11de940cabe338142cb570731a6988106be4e57575c93065ceaace3c02515ec8"
+    }
+  ]
+}

@@ -34,7 +34,8 @@ public final class TaskWorkflowImpl implements TaskWorkflow {
         reference = input;
         if (!reference.workflowId().equals(Workflow.getInfo().getWorkflowId())) invalid("WORKFLOW_OWNER_MISMATCH");
         control = Workflow.newActivityStub(RunActivities.class, options(reference.controlTaskQueue(), reference.readTimeoutMillis(), 3));
-        professional = Workflow.newActivityStub(ProfessionalActivity.class, options(reference.professionalTaskQueue(), reference.stepTimeoutMillis(), 1));
+        professional = Workflow.newActivityStub(ProfessionalActivity.class, options(reference.professionalTaskQueue(), reference.stepTimeoutMillis(), 1)
+            .toBuilder().setHeartbeatTimeout(Duration.ofSeconds(45)).build());
         var plan = control.load(reference); steps.putAll(WorkflowPlan.require(reference, plan));
         if (plan.completedReceipt() != null) {
             var complete = plan.completedReceipt(); if (!reference.runId().equals(complete.runId())) invalid("RUN_FINAL_RECEIPT_MISMATCH");
@@ -79,7 +80,7 @@ public final class TaskWorkflowImpl implements TaskWorkflow {
             var command = pendingCommands.removeFirst(); var receipt = control.consume(reference, command);
             if (!command.commandId().equals(receipt.commandId()) || !command.commandSha256().equals(receipt.commandSha256())
                     || !reference.runId().equals(receipt.runId())) invalid("COMMAND_RECEIPT_MISMATCH");
-            for (var step : receipt.steps()) accept(step);
+            for (var step : receipt.steps()) accept(step, command.kind() == CommandKind.RESOLVE_WAITING);
             consumed.add(command.commandId());
             commandReceipts.put(command.commandId(), receipt);
             if (receipt.cancelRequested() && !cancelRequested) { cancelRequested = true; cancellationId = command.commandId(); cancellationReason = "RUN_CANCEL_REQUESTED"; }
@@ -118,10 +119,19 @@ public final class TaskWorkflowImpl implements TaskWorkflow {
             accept(result); active.remove(entry.getKey());
         }
     }
-    private void accept(Receipt receipt) {
+    private void accept(Receipt receipt) { accept(receipt, false); }
+    private void accept(Receipt receipt, boolean resolvedWaiting) {
         var step = steps.get(receipt.stepId());
         if (step == null || !step.inputSha256().equals(receipt.inputSha256())) invalid("STEP_RECEIPT_MISMATCH");
         if (receipt.leaseGeneration() < step.leaseGeneration()) invalid("STEP_LEASE_MISMATCH");
+        if (step.status() == State.WAITING_INPUT && resolvedWaiting && receipt.status() == State.QUEUED) {
+            if (!WaitingStepTransition.valid(step, receipts.get(step.stepId()), receipt)) invalid("WAITING_RESOLUTION_MISMATCH");
+            // Only the durable consumed resolution may queue a fresh attempt. The
+            // original waiting receipt remains immutable in persistent history.
+            steps.put(step.stepId(), new Step(step.stepId(),step.inputSha256(),step.dependsOnStepIds(),step.required(),
+                State.QUEUED,step.leaseGeneration(),null,null,List.of()));
+            receipts.remove(step.stepId()); return;
+        }
         if (step.status() == State.WAITING_INPUT || step.status() == State.SUCCEEDED || step.status() == State.FAILED || step.status() == State.CANCELLED) {
             if (!receipt.equals(receipts.get(step.stepId()))) invalid("IMMUTABLE_STEP_RECEIPT_MISMATCH");
             return;

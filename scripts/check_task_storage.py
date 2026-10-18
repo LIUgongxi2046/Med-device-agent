@@ -16,7 +16,7 @@ def main():
     if Path(arguments.execution).name != arguments.execution or arguments.execution in (".", ".."):
         raise ValueError("执行身份必须使用独立目录名称")
     inputs = ["scripts/check_task_storage.py", "scripts/local_runtime.py", "tests/test_task_storage_runtime.py",
-        "LLD-后端.md", "LLD-数据.md", "contracts/catalogue.json",
+        "LLD-后端.md", "LLD-数据.md", "contracts/catalogue.json", "contracts/extensions/evaluation-results.catalogue.json", "business/medical-persistence/src/main/resources/evaluation-results.schema.json",
         "data-design/core.sql", ".implementation-work/runtime/service-identity.json"]
     inputs.extend(str(path.relative_to(ROOT)) for path in sorted((ROOT / "business/medical-data/src/main/resources").rglob("*"))
         if path.is_file())

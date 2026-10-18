@@ -95,13 +95,16 @@ onBeforeUnmount(clear)
 </script>
 
 <style scoped>
-.file-frame { width: 100%; height: 65vh; min-height: 360px; border: 1px solid var(--el-border-color); }
-.text-content { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; }
-.sheet-scroll { overflow: auto; max-height: 65vh; margin-top: 12px; }
+.source-file-preview { min-width: 0; }
+.file-frame { display: block; background: var(--el-fill-color-light); border-radius: 6px; width: 100%; height: 65vh; min-height: 360px; border: 1px solid var(--el-border-color); }
+.text-content { margin: 0; padding: 24px; max-height: 70vh; overflow: auto; border: 1px solid var(--el-border-color-light); border-radius: 6px; background: var(--el-bg-color); white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; line-height: 1.8; }
+.sheet-scroll { overflow: auto; max-height: 65vh; max-width: 100%; margin-top: 12px; border: 1px solid var(--el-border-color-light); border-radius: 6px; }
+.sheet-scroll th { position: sticky; left: 0; background: var(--el-fill-color-light); }
 table { border-collapse: collapse; white-space: pre-wrap; }
 td, th { padding: 8px 12px; border: 1px solid var(--el-border-color); min-width: 100px; }
 .original-formula { display: block; white-space: pre-wrap; color: var(--el-text-color-secondary); }
-.markdown-content { overflow-wrap: anywhere; line-height: 1.8; }
+.markdown-content { padding: 24px; max-height: 70vh; overflow: auto; border: 1px solid var(--el-border-color-light); border-radius: 6px; overflow-wrap: anywhere; line-height: 1.8; }
+.markdown-content :deep(img) { max-width: 100%; height: auto; }
 .markdown-content :deep(table) { display: block; overflow: auto; }
 .markdown-content :deep(pre) { overflow: auto; }
 </style>

@@ -40,8 +40,8 @@
         <el-button @click="addSection">增加章节</el-button>
         <el-card v-for="(section, index) in content.sections" :key="section.section_id" shadow="never">
           <p>章节顺序 {{ index + 1 }}；章节标识：{{ section.section_id }}</p>
-          <el-form-item label="章节目标"><el-input v-model="section.goal" type="textarea" :autosize="{ minRows: 2, maxRows: 8 }" /></el-form-item>
-          <el-form-item label="对应目录节点">
+          <el-form-item label="章节目标" :error="inputIssue('/content/sections/' + index + '/goal')"><el-input v-model="section.goal" type="textarea" :autosize="{ minRows: 2, maxRows: 8 }" /></el-form-item>
+          <el-form-item label="对应目录节点" :error="inputIssue('/content/sections/' + index + '/requirement_node_ids')">
             <el-select v-model="section.requirement_node_ids" multiple filterable :aria-label="'章节目录 ' + (index + 1)">
               <el-option v-for="id in content.requirement_node_ids" :key="id" :value="id" :label="nodeLabel(id)" />
             </el-select>
@@ -52,7 +52,7 @@
           <el-form-item label="处理方法">
             <el-select v-model="section.method"><el-option v-for="(label, value) in methodLabels" :key="value" :value="value" :label="label" /></el-select>
           </el-form-item>
-          <el-form-item label="依赖章节">
+          <el-form-item label="依赖章节" :error="inputIssue('/content/sections/' + index + '/depends_on_section_ids')">
             <el-select v-model="section.depends_on_section_ids" multiple filterable>
               <el-option v-for="item in content.sections.filter(item => item.section_id !== section.section_id)" :key="item.section_id" :value="item.section_id" :label="item.goal || item.section_id" />
             </el-select>
@@ -69,12 +69,12 @@
         <h3>研究问题与依赖</h3>
         <el-button @click="addQuestion">增加研究问题</el-button>
         <el-card v-for="(question, index) in content.questions" :key="index" shadow="never">
-          <el-form-item label="问题身份"><el-input v-model="question.question_key" /></el-form-item>
-          <el-form-item label="研究问题"><el-input v-model="question.question" type="textarea" :autosize="{ minRows: 2, maxRows: 8 }" /></el-form-item>
-          <el-form-item label="所属章节">
+          <el-form-item label="问题身份" :error="inputIssue('/content/questions/' + index + '/question_key')"><el-input v-model="question.question_key" /></el-form-item>
+          <el-form-item label="研究问题" :error="inputIssue('/content/questions/' + index + '/question')"><el-input v-model="question.question" type="textarea" :autosize="{ minRows: 2, maxRows: 8 }" /></el-form-item>
+          <el-form-item label="所属章节" :error="inputIssue('/content/questions/' + index + '/section_id')">
             <el-select v-model="question.section_id"><el-option v-for="section in content.sections" :key="section.section_id" :value="section.section_id" :label="section.goal || section.section_id" /></el-select>
           </el-form-item>
-          <el-form-item label="对应目录要求">
+          <el-form-item label="对应目录要求" :error="inputIssue('/content/questions/' + index + '/requirement_ids')">
             <el-select v-model="question.requirement_ids" multiple filterable>
               <el-option v-for="id in questionNodes(question.section_id)" :key="id" :value="id" :label="nodeLabel(id)" />
             </el-select>
@@ -82,7 +82,7 @@
           <el-form-item label="完成检查规则">
             <el-select v-model="question.completion_rule_ids" multiple filterable><el-option v-for="id in ruleOptions" :key="id" :value="id" :label="id" /></el-select>
           </el-form-item>
-          <el-form-item label="依赖研究问题">
+          <el-form-item label="依赖研究问题" :error="inputIssue('/content/questions/' + index + '/depends_on_question_keys')">
             <el-select v-model="question.depends_on_question_keys" multiple filterable>
               <el-option v-for="item in content.questions.filter(item => item !== question && item.question_key.length > 0)" :key="item.question_key" :value="item.question_key" :label="item.question || item.question_key" />
             </el-select>
@@ -91,8 +91,8 @@
           <el-button :disabled="index === content.questions.length - 1" @click="move(content.questions, index, 1)">向下移动</el-button>
           <el-button @click="content.questions.splice(index, 1)">移除研究问题</el-button>
         </el-card>
-        <el-form-item label="计划修订理由"><el-input v-model="reason" type="textarea" maxlength="2000" show-word-limit /></el-form-item>
-        <p v-if="issues.length" role="alert">计划输入需要修改：{{ issues.map(item => item.path || '完整计划').join('、') }}</p>
+        <el-form-item label="计划修订理由" :error="inputIssue('/reason')"><el-input v-model="reason" type="textarea" maxlength="2000" show-word-limit /></el-form-item>
+        <p v-if="issues.length" role="alert">计划输入需要修改：{{ issues.map(item => (item.path || '完整计划') + '：' + item.message).join('；') }}</p>
         <p v-if="coverageIssue" role="alert">{{ coverageIssue }}</p>
         <el-button native-type="submit" type="primary" :disabled="!editable || issues.length > 0 || coverageIssue.length > 0">保存计划草稿</el-button>
       </el-form>
@@ -104,7 +104,8 @@
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import useUserStore from '@/store/modules/user'
 import TaskPlanReturn from './task-plan-return.vue'
-import { fail, schemaIssues } from '@/api/medical/protocol'
+import { fail } from '@/api/medical/protocol'
+import { planInputIssues } from '@/api/medical/plan-input-issues'
 import type { MedicalSession } from '@/api/medical/protocol'
 import { taskActionAllowed } from '@/api/medical/task-detail'
 import type { CurrentTask } from '@/api/medical/task-detail'
@@ -128,7 +129,8 @@ const editable = computed(() => props.active && canWrite.value && mutable.value 
   && content.value.template_version === basis.value.template_version && content.value.profile_revision === basis.value.profile_revision && !pending.value && !busy.value)
 const body = computed<PlanVersionInput | null>(() => content.value === null ? null : ({ schema_version: '1.0.0', expected_revision: props.current.revision,
   base_version: stored.value?.current_plan_revision ?? null, schema_ref: planContentReference, content: content.value, reason: reason.value }))
-const issues = computed(() => body.value === null ? [] : schemaIssues('urn:medical:tasks:1.0.0#/$defs/PlanVersionInput', body.value))
+const issues = computed(() => body.value === null ? [] : planInputIssues(body.value))
+function inputIssue(path: string): string { return issues.value.find(issue => issue.path === path)?.message ?? '' }
 const coverageIssue = computed(() => {
   if (!content.value) return ''
   const ids = content.value.sections.flatMap(section => section.requirement_node_ids)

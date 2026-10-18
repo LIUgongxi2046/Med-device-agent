@@ -29,7 +29,7 @@ def main():
         raise ValueError("前端制品需要浏览器检查")
     inputs = ["scripts/check_project_simulation.py", "business/pom.xml", "business/ruoyi-admin/pom.xml",
         "business/medical-persistence/pom.xml", "LLD-后端.md", "backend-design/接口补充设计.md",
-        "contracts/catalogue.json", ".implementation-work/runtime/service-identity.json"]
+        "contracts/catalogue.json", "contracts/extensions/evaluation-results.catalogue.json", "business/medical-persistence/src/main/resources/evaluation-results.schema.json", ".implementation-work/runtime/service-identity.json"]
     for directory in ("business/medical-contracts/src", "business/medical-data/src", "business/medical-identity/src",
             "business/medical-persistence/src", "business/ruoyi-admin/src", "business/ruoyi-framework/src",
             "business/ruoyi-system/src", "business/ruoyi-common/src"):

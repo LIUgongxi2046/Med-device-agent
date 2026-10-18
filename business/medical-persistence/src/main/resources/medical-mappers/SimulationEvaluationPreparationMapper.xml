@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.medical.persistence.mapper.SimulationEvaluationPreparationMapper">
+ <resultMap id="registrationRow" type="com.ruoyi.medical.persistence.SimulationEvaluationPreparationProtocol$Registration"><constructor><arg column="tenant_id" javaType="java.lang.String"/><arg column="artifact_id" javaType="java.lang.String"/><arg column="kind" javaType="java.lang.String"/><arg column="source_version" javaType="java.lang.String"/><arg column="rights_revision" javaType="java.lang.String"/><arg column="canonical_document" javaType="java.lang.String"/><arg column="document_sha256" javaType="java.lang.String"/><arg column="canonical_request_json" javaType="java.lang.String"/><arg column="request_body_sha256" javaType="java.lang.String"/><arg column="operation_request_sha256" javaType="java.lang.String"/><arg column="receipt_json" javaType="java.lang.String"/><arg column="operation_id" javaType="java.lang.String"/><arg column="schema_version" javaType="java.lang.String"/><arg column="schema_manifest_sha256" javaType="java.lang.String"/><arg column="created_by" javaType="java.lang.String"/><arg column="created_at" javaType="java.time.LocalDateTime"/><arg column="classification" javaType="java.lang.String"/></constructor></resultMap>
+ <select id="registration" resultMap="registrationRow" useCache="false" flushCache="true">
+ SELECT tenant_id,artifact_id,kind,source_version,rights_revision,canonical_document,document_sha256,canonical_request_json,request_body_sha256,operation_request_sha256,receipt_json,operation_id,schema_version,schema_manifest_sha256,created_by,created_at,classification FROM simulation_evaluation_preparation WHERE artifact_id=#{artifactId}
+ </select>
+ <select id="lockSource" resultType="java.lang.String" useCache="false" flushCache="true">
+ SELECT source_version FROM source_version WHERE source_version=#{sourceVersion} FOR UPDATE
+ </select>
+ <insert id="insertRegistration">
+ INSERT INTO simulation_evaluation_preparation(artifact_id,kind,source_version,rights_revision,canonical_document,document_sha256,
+ canonical_request_json,request_body_sha256,operation_request_sha256,receipt_json,operation_id,schema_version,schema_manifest_sha256,created_by,created_at,classification)
+ VALUES(#{row.artifactId},#{row.kind},#{row.sourceVersion},#{row.rightsRevision},#{row.canonicalDocument},#{row.documentSha256},
+ #{row.canonicalRequest},#{row.requestBodySha256},#{row.operationRequestSha256},#{row.receiptJson},#{row.operationId},#{row.schemaVersion},#{row.schemaManifest},#{row.createdBy},#{row.createdAt},#{row.classification})
+ </insert>
+ <insert id="insertArtifact">
+ INSERT INTO artifact(project_id,artifact_id,artifact_kind,object_ref,object_key,object_version,sha256,size_bytes,media_type,
+ dependency_access_set_id,content_sha256,schema_version,schema_manifest_sha256,created_by,created_at,classification)
+ VALUES(NULL,#{artifactId},#{artifactKind},#{storedObject},#{reference.objectKey},#{reference.objectVersion},#{reference.sha256},
+ #{reference.sizeBytes},#{reference.mediaType},#{accessId},#{reference.sha256},'1.0.0',#{schemaHash},#{userId},#{now},#{classification})
+ </insert>
+ <insert id="insertBinding">
+ INSERT INTO artifact_content_binding(project_id,artifact_id,resource_kind,resource_id,schema_ref,schema_document_sha256,
+ dependency_access_set_id,dependency_manifest_sha256,created_by,created_at,classification)
+ VALUES(NULL,#{artifactId},'SOURCE',#{sourceId},#{schemaRef},#{schemaHash},#{accessId},#{dependencyHash},#{userId},#{now},#{classification})
+ </insert>
+ <select id="operation" resultMap="com.ruoyi.medical.persistence.mapper.TenantSelectionMapper.operation" useCache="false" flushCache="true">
+ SELECT operation_id,request_sha256,state,http_status,response_ref,target_id,schema_version,schema_manifest_sha256
+ FROM operation_record WHERE subject_id=#{userId} AND operation_name='SIM-EVALUATION-PREPARE' AND idempotency_key=#{key}
+ </select>
+ <select id="operationById" resultMap="com.ruoyi.medical.persistence.mapper.TenantSelectionMapper.operation" useCache="false" flushCache="true">
+ SELECT operation_id,request_sha256,state,http_status,response_ref,target_id,schema_version,schema_manifest_sha256
+ FROM operation_record WHERE subject_id=#{creatorId} AND operation_name='SIM-EVALUATION-PREPARE' AND operation_id=#{operationId}
+ </select>
+ <insert id="saveOperation">
+ INSERT INTO operation_record(operation_id,subject_id,operation_name,idempotency_key,request_sha256,state,http_status,response_ref,
+ target_id,error_code,schema_version,schema_manifest_sha256,created_by,created_at,classification,revision,updated_at)
+ VALUES(#{operationId},#{userId},'SIM-EVALUATION-PREPARE',#{key},#{requestHash},'COMPLETED',201,#{response},#{artifactId},NULL,
+ '1.0.0',#{operationManifest},#{userId},#{now},#{classification},1,#{now})
+ </insert>
+ <select id="audit" resultType="java.lang.String" useCache="false" flushCache="true">
+ SELECT resource_ref FROM audit_event WHERE project_id IS NULL AND subject_id=#{creatorId} AND created_by=#{creatorId}
+ AND request_id=#{operationId} AND trace_id=#{operationId} AND action='simulation.evaluation.preparation_registered'
+ AND result='SUCCESS' AND reason_code IS NULL AND schema_version='1.0.0' AND schema_manifest_sha256=#{operationManifest} AND classification=#{classification}
+ </select>
+ <select id="event" resultType="java.lang.String" useCache="false" flushCache="true">
+ SELECT payload FROM outbox_event WHERE event_id=#{operationId} AND aggregate_id=#{artifactId} AND aggregate_revision=1
+ AND event_type='simulation.evaluation.preparation_registered'
+ </select>
+</mapper>

@@ -1,0 +1,699 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:model-verification-input-workflow:1.0.0",
+  "$defs": {
+    "Register": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "project_id": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$"
+        },
+        "source": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "version_id": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$"
+            },
+            "content_sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          },
+          "required": [
+            "version_id",
+            "content_sha256"
+          ]
+        },
+        "rights_revision": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$"
+        },
+        "profile_revision": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$"
+        },
+        "model_config_revision": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$"
+        },
+        "scope_selection": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "mode",
+            "collection_versions",
+            "source_versions",
+            "network_enabled",
+            "network_policy_revision",
+            "approved_query_revision"
+          ],
+          "properties": {
+            "mode": {
+              "enum": [
+                "PROJECT_APPROVED",
+                "COLLECTION_VERSIONS",
+                "SOURCE_VERSIONS",
+                "COMBINED"
+              ]
+            },
+            "collection_versions": {
+              "type": "array",
+              "maxItems": 128,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$"
+              }
+            },
+            "source_versions": {
+              "type": "array",
+              "maxItems": 128,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$"
+              }
+            },
+            "network_enabled": {
+              "const": false
+            },
+            "network_policy_revision": {
+              "type": "null"
+            },
+            "approved_query_revision": {
+              "type": "null"
+            }
+          }
+        },
+        "business_purpose": {
+          "enum": [
+            "DOCUMENT_BODY",
+            "MODEL_VERIFICATION"
+          ]
+        }
+      },
+      "required": [
+        "schema_version",
+        "project_id",
+        "source",
+        "rights_revision",
+        "profile_revision",
+        "model_config_revision",
+        "scope_selection",
+        "business_purpose"
+      ]
+    },
+    "Receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "project_id": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$"
+        },
+        "artifact_kind": {
+          "const": "EXACT_INPUT"
+        },
+        "artifact": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "version_id": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$"
+            },
+            "content_sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          },
+          "required": [
+            "version_id",
+            "content_sha256"
+          ]
+        },
+        "source": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "version_id": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$"
+            },
+            "content_sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          },
+          "required": [
+            "version_id",
+            "content_sha256"
+          ]
+        },
+        "rights_revision": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$"
+        },
+        "operation_id": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$"
+        },
+        "created_by": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "input_schema_ref": {
+          "const": "urn:medical:simulation-execution:1.0.0#/$defs/ExactInput"
+        },
+        "input_schema_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "business_purpose": {
+          "enum": [
+            "DOCUMENT_BODY",
+            "MODEL_VERIFICATION"
+          ]
+        },
+        "exact_input": {
+          "$ref": "#/$defs/ArtifactRef"
+        },
+        "scope_snapshot_basis": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "version_id": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$"
+            },
+            "content_sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          },
+          "required": [
+            "version_id",
+            "content_sha256"
+          ]
+        },
+        "profile_revision": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$"
+        },
+        "model_config_revision": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$"
+        },
+        "request_body_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      },
+      "required": [
+        "schema_version",
+        "project_id",
+        "artifact_kind",
+        "artifact",
+        "source",
+        "rights_revision",
+        "operation_id",
+        "created_by",
+        "created_at",
+        "input_schema_ref",
+        "input_schema_sha256",
+        "business_purpose",
+        "exact_input",
+        "scope_snapshot_basis",
+        "profile_revision",
+        "model_config_revision",
+        "request_body_sha256"
+      ]
+    },
+    "Read": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "receipt": {
+          "$ref": "#/$defs/Receipt"
+        },
+        "document": {
+          "$ref": "#/$defs/ExactInput"
+        }
+      },
+      "required": [
+        "receipt",
+        "document"
+      ]
+    },
+    "Id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "Hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "Count": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]{0,19})$"
+    },
+    "Coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "selection_digest",
+        "delivered_digest",
+        "complete",
+        "next_cursor"
+      ],
+      "properties": {
+        "selection_digest": {
+          "$ref": "#/$defs/Hash"
+        },
+        "delivered_digest": {
+          "$ref": "#/$defs/Hash"
+        },
+        "complete": {
+          "const": true
+        },
+        "next_cursor": {
+          "type": "null"
+        }
+      }
+    },
+    "ArtifactRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact_id",
+        "sha256",
+        "schema_ref",
+        "coverage"
+      ],
+      "properties": {
+        "artifact_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "schema_ref": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2048
+        },
+        "coverage": {
+          "$ref": "#/$defs/Coverage"
+        }
+      }
+    },
+    "AssistantMessage": {
+      "additionalProperties": false,
+      "properties": {
+        "role": {
+          "const": "assistant",
+          "title": "Role",
+          "type": "string"
+        },
+        "content": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Content"
+        },
+        "tool_calls": {
+          "items": {
+            "$ref": "#/$defs/ToolCall"
+          },
+          "title": "Tool Calls",
+          "type": "array"
+        }
+      },
+      "required": [
+        "role",
+        "content",
+        "tool_calls"
+      ],
+      "title": "AssistantMessage",
+      "type": "object"
+    },
+    "FunctionCall": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "arguments": {
+          "minLength": 1,
+          "title": "Arguments",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "arguments"
+      ],
+      "title": "FunctionCall",
+      "type": "object"
+    },
+    "FunctionDefinition": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "pattern": "^[A-Za-z0-9_-]{1,128}$",
+          "title": "Name",
+          "type": "string"
+        },
+        "description": {
+          "minLength": 1,
+          "title": "Description",
+          "type": "string"
+        },
+        "parameters": {
+          "additionalProperties": true,
+          "title": "Parameters",
+          "type": "object"
+        }
+      },
+      "required": [
+        "name",
+        "description",
+        "parameters"
+      ],
+      "title": "FunctionDefinition",
+      "type": "object"
+    },
+    "PlainMessage": {
+      "additionalProperties": false,
+      "properties": {
+        "role": {
+          "enum": [
+            "system",
+            "user"
+          ],
+          "title": "Role",
+          "type": "string"
+        },
+        "content": {
+          "minLength": 1,
+          "title": "Content",
+          "type": "string"
+        }
+      },
+      "required": [
+        "role",
+        "content"
+      ],
+      "title": "PlainMessage",
+      "type": "object"
+    },
+    "ToolCall": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "type": {
+          "const": "function",
+          "title": "Type",
+          "type": "string"
+        },
+        "function": {
+          "$ref": "#/$defs/FunctionCall"
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "function"
+      ],
+      "title": "ToolCall",
+      "type": "object"
+    },
+    "ToolDefinition": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "function",
+          "title": "Type",
+          "type": "string"
+        },
+        "function": {
+          "$ref": "#/$defs/FunctionDefinition"
+        }
+      },
+      "required": [
+        "type",
+        "function"
+      ],
+      "title": "ToolDefinition",
+      "type": "object"
+    },
+    "ToolMessage": {
+      "additionalProperties": false,
+      "properties": {
+        "role": {
+          "const": "tool",
+          "title": "Role",
+          "type": "string"
+        },
+        "content": {
+          "title": "Content",
+          "type": "string"
+        },
+        "tool_call_id": {
+          "minLength": 1,
+          "title": "Tool Call Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "role",
+        "content",
+        "tool_call_id"
+      ],
+      "title": "ToolMessage",
+      "type": "object"
+    },
+    "ExactInput": {
+      "additionalProperties": false,
+      "properties": {
+        "messages": {
+          "items": {
+            "oneOf": [
+              {
+                "$ref": "#/$defs/PlainMessage"
+              },
+              {
+                "$ref": "#/$defs/AssistantMessage"
+              },
+              {
+                "$ref": "#/$defs/ToolMessage"
+              }
+            ]
+          },
+          "minItems": 1,
+          "title": "Messages",
+          "type": "array"
+        },
+        "tools": {
+          "items": {
+            "$ref": "#/$defs/ToolDefinition"
+          },
+          "title": "Tools",
+          "type": "array"
+        }
+      },
+      "required": [
+        "messages",
+        "tools"
+      ],
+      "title": "ExactInput",
+      "type": "object"
+    },
+    "Recovery": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "receipt": {
+          "$ref": "#/$defs/Receipt"
+        },
+        "document": {
+          "$ref": "#/$defs/ExactInput"
+        },
+        "original_request": {
+          "$ref": "#/$defs/Register"
+        },
+        "original_idempotency_key": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._:-]{16,128}$"
+        },
+        "original_context_revision": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]{0,19}$"
+        }
+      },
+      "required": [
+        "receipt",
+        "document",
+        "original_request",
+        "original_idempotency_key",
+        "original_context_revision"
+      ]
+    },
+    "Candidates": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "project_id",
+        "model_config_revision",
+        "business_purpose",
+        "profile_basis",
+        "sources",
+        "missing_input_reasons"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "project_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "model_config_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "business_purpose": {
+          "enum": [
+            "DOCUMENT_BODY",
+            "MODEL_VERIFICATION"
+          ]
+        },
+        "profile_basis": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "version_id": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$"
+            },
+            "content_sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          },
+          "required": [
+            "version_id",
+            "content_sha256"
+          ]
+        },
+        "sources": {
+          "type": "array",
+          "maxItems": 128,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "source_id",
+              "source",
+              "rights_revision",
+              "size_bytes",
+              "media_type",
+              "content_validation"
+            ],
+            "properties": {
+              "source_id": {
+                "$ref": "#/$defs/Id"
+              },
+              "source": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "version_id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$"
+                  },
+                  "content_sha256": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  }
+                },
+                "required": [
+                  "version_id",
+                  "content_sha256"
+                ]
+              },
+              "rights_revision": {
+                "$ref": "#/$defs/Id"
+              },
+              "size_bytes": {
+                "$ref": "#/$defs/Count"
+              },
+              "media_type": {
+                "enum": [
+                  "application/json",
+                  "text/plain"
+                ]
+              },
+              "content_validation": {
+                "const": "NOT_READ"
+              }
+            }
+          }
+        },
+        "missing_input_reasons": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1,
+          "items": {
+            "enum": [
+              "NO_CURRENT_PROJECT_SOURCE_CANDIDATE",
+              "EXACT_INPUT_CONTENT_VALIDATION_REQUIRED"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

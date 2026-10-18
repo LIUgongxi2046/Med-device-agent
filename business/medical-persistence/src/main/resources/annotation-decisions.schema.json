@@ -1,0 +1,350 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:annotation-decisions:1.0.0",
+  "description": "Additive bounded RV-06 RESOLVE/REOPEN subset; not REANCHOR, review confirmation or signing.",
+  "$defs": {
+    "Id": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "Revision": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]{0,19})$"
+    },
+    "Hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "Content": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 16000
+    },
+    "Status": {
+      "enum": [
+        "OPEN",
+        "RESOLVED",
+        "RETURNED",
+        "REANCHOR_REQUIRED"
+      ]
+    },
+    "Create": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "document_revision",
+        "expected_revision",
+        "expected_document_revision",
+        "decision",
+        "reason"
+      ],
+      "properties": {
+        "document_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "expected_revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "expected_document_revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "decision": {
+          "enum": [
+            "RESOLVE",
+            "REOPEN"
+          ]
+        },
+        "reason": {
+          "$ref": "#/$defs/Content"
+        }
+      }
+    },
+    "Listing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "annotation_id",
+        "document_id",
+        "document_revision",
+        "revision",
+        "status",
+        "location_status",
+        "total",
+        "complete",
+        "items",
+        "listing_sha256"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "annotation_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "document_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "document_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "status": {
+          "$ref": "#/$defs/Status"
+        },
+        "location_status": {
+          "enum": [
+            "CURRENT_VERSION",
+            "ORIGINAL_VERSION"
+          ]
+        },
+        "total": {
+          "$ref": "#/$defs/Revision"
+        },
+        "complete": {
+          "const": true
+        },
+        "items": {
+          "type": "array",
+          "maxItems": 100,
+          "items": {
+            "$ref": "#/$defs/Decision"
+          }
+        },
+        "listing_sha256": {
+          "$ref": "#/$defs/Hash"
+        }
+      }
+    },
+    "Receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "annotation_id",
+        "document_id",
+        "document_revision",
+        "revision",
+        "status",
+        "operation_id",
+        "previous_revision",
+        "previous_document_revision",
+        "document_head_revision",
+        "issue_watermark",
+        "evidence_watermark",
+        "invalidated_review_ids",
+        "decision",
+        "decision_sha256"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "annotation_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "document_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "document_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "status": {
+          "$ref": "#/$defs/Status"
+        },
+        "operation_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "previous_revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "previous_document_revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "document_head_revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "issue_watermark": {
+          "$ref": "#/$defs/Revision"
+        },
+        "evidence_watermark": {
+          "$ref": "#/$defs/Revision"
+        },
+        "invalidated_review_ids": {
+          "type": "array",
+          "maxItems": 1000,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/Id"
+          }
+        },
+        "decision": {
+          "$ref": "#/$defs/Decision"
+        },
+        "decision_sha256": {
+          "$ref": "#/$defs/Hash"
+        }
+      }
+    },
+    "Event": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "annotation_id",
+        "document_id",
+        "document_revision",
+        "revision",
+        "status",
+        "operation_id",
+        "previous_revision",
+        "previous_document_revision",
+        "document_head_revision",
+        "issue_watermark",
+        "evidence_watermark",
+        "invalidated_review_ids",
+        "decision_sha256",
+        "decision_id",
+        "actor_id",
+        "created_at",
+        "previous_status",
+        "action"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "annotation_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "document_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "document_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "status": {
+          "$ref": "#/$defs/Status"
+        },
+        "operation_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "previous_revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "previous_document_revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "document_head_revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "issue_watermark": {
+          "$ref": "#/$defs/Revision"
+        },
+        "evidence_watermark": {
+          "$ref": "#/$defs/Revision"
+        },
+        "invalidated_review_ids": {
+          "type": "array",
+          "maxItems": 1000,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/Id"
+          }
+        },
+        "decision_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "decision_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "previous_status": {
+          "enum": [
+            "OPEN",
+            "RESOLVED"
+          ]
+        },
+        "action": {
+          "enum": [
+            "RESOLVE",
+            "REOPEN"
+          ]
+        }
+      }
+    },
+    "Decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "decision_id",
+        "annotation_id",
+        "actor_id",
+        "created_at",
+        "decision",
+        "reason",
+        "previous_status",
+        "status",
+        "previous_revision",
+        "revision"
+      ],
+      "properties": {
+        "decision_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "annotation_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "decision": {
+          "enum": [
+            "RESOLVE",
+            "REOPEN"
+          ]
+        },
+        "reason": {
+          "$ref": "#/$defs/Content"
+        },
+        "previous_status": {
+          "enum": [
+            "OPEN",
+            "RESOLVED"
+          ]
+        },
+        "status": {
+          "enum": [
+            "OPEN",
+            "RESOLVED"
+          ]
+        },
+        "previous_revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "revision": {
+          "$ref": "#/$defs/Revision"
+        }
+      }
+    }
+  }
+}

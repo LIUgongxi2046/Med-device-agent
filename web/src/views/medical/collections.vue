@@ -2,14 +2,16 @@
   <main class="medical-page">
     <h1>资料集与固定版本</h1>
     <session-panel />
+    <el-alert v-if="errors.import" :title="errors.import" type="error" :closable="false" role="alert" />
     <router-link v-if="canSearch" to="/library/search">进入资料全文检索</router-link>
     <router-link v-if="canUpload" to="/projects">从项目详情上传资料</router-link>
     <p v-if="!permitted">资料集操作需要当前企业的明确权限</p>
     <p v-else-if="creating && !canCreate">创建资料集需要当前归属的维护和读取权限</p>
+    <el-alert v-if="!collectionId && !creating" title="按编号打开已有资料集，或创建新的固定成员版本" description="当前接口支持指定资料集及版本历史读取，资料集目录列表尚未提供。" type="info" :closable="false" />
     <el-form v-if="!collectionId && !creating" :inline="true" @submit.prevent="open">
       <el-form-item label="资料集编号" :error="errors.target"><el-input v-model="target" :disabled="busy || !canRead" /></el-form-item>
       <el-button native-type="submit" :disabled="busy || !canRead">打开资料集</el-button>
-      <el-button :disabled="busy || !canCreate" @click="router.push('/library/collections/new')">创建资料集</el-button>
+      <el-button :disabled="busy || !canCreate" @click="router.push({ path: '/library/collections/new', query: route.query.project_id ? { project_id: route.query.project_id } : {} })">创建资料集</el-button>
     </el-form>
     <el-alert v-if="pending" title="原资料集请求待核查" type="warning" :closable="false" data-collection-pending>
       <p>原请求标识：{{ pending.key }}；原上下文修订：{{ pending.context.context_revision }}</p>
@@ -120,6 +122,7 @@ import useUserStore from '@/store/modules/user'
 import { fail, schemaIssues } from '@/api/medical/protocol'
 import type { Basis, MedicalSession } from '@/api/medical/protocol'
 import { readBoundedJson } from '@/api/medical/project-json'
+import { draftJsonIssue, collectionInputIssue } from './template-collection-input'
 import { projectTextIssue } from '@/api/medical/project-write'
 import { canonicalTemplateValue } from '@/api/medical/template-approval'
 import { lookupOperation } from '@/api/medical/operations'
@@ -194,6 +197,7 @@ async function reset(): Promise<void> {
   if (id !== null && schemaIssues('urn:medical:templates:1.0.0#/$defs/Id', id).length) fail('SCHEMA_INVALID', '资料集编号无效')
   if (creating.value || id !== null) {
     pending.value = readPendingCollection(session, id)
+    if (creating.value && typeof route.query.project_id === 'string') { form.owner_mode = 'PROJECT'; form.project = route.query.project_id }
     if (pending.value && creating.value) { form.owner_mode = pending.value.owner_project_id === null ? 'ENTERPRISE' : 'PROJECT'; form.project = pending.value.owner_project_id ?? '' }
   }
   if (!user.medicalWriting) await read()
@@ -243,8 +247,16 @@ async function body(): Promise<CollectionBody | null> {
 }
 async function importBody(file: UploadFile): Promise<void> {
   const session = user.medicalSession; const current = generation; if (busy.value || !session || document.hidden) return
-  if (!file.raw) fail('SCHEMA_INVALID', '资料集导入缺少实际文件')
-  const value = validateCollectionBody(readBoundedJson(await file.raw.text()), collectionId.value)
+  errors.import = ''
+  if (!file.raw) { errors.import = '资料集导入缺少实际文件'; return }
+  let text: string
+  try { text = await file.raw.text() } catch { if (current === generation && user.medicalSession === session && !document.hidden) errors.import = '文件读取失败，请重新选择；现有输入已保留'; return }
+  if (current !== generation || user.medicalSession !== session || document.hidden) return
+  const syntax = draftJsonIssue(text)
+  if (syntax) { errors.import = syntax; return }
+  const input = readBoundedJson(text), issue = collectionInputIssue(input, collectionId.value)
+  if (issue) { errors.import = issue; return }
+  const value = validateCollectionBody(input, collectionId.value)
   if (current !== generation || user.medicalSession !== session || document.hidden) return
   if ('owner_project_id' in value) {
     if (pending.value && value.owner_project_id !== pending.value.owner_project_id) fail('CONTENT_MISMATCH', '导入参数与原资料集归属不一致')

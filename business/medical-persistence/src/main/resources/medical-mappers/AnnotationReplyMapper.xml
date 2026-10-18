@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.medical.persistence.mapper.AnnotationReplyMapper">
+  <resultMap id="parent" type="com.ruoyi.medical.persistence.AnnotationReplyProtocol$Parent">
+    <constructor>
+      <arg column="tenant_id" javaType="java.lang.String"/><arg column="project_id" javaType="java.lang.String"/>
+      <arg column="annotation_id" javaType="java.lang.String"/><arg column="document_id" javaType="java.lang.String"/>
+      <arg column="document_revision" javaType="java.lang.String"/><arg column="current_document_revision" javaType="java.lang.String"/>
+      <arg column="body_sha256" javaType="java.lang.String"/><arg column="document_head_revision" javaType="java.math.BigInteger"/>
+      <arg column="revision" javaType="java.math.BigInteger"/><arg column="status" javaType="java.lang.String"/>
+      <arg column="classification" javaType="java.lang.String"/>
+    </constructor>
+  </resultMap>
+  <resultMap id="reply" type="com.ruoyi.medical.persistence.AnnotationReplyProtocol$Row">
+    <constructor>
+      <arg column="tenant_id" javaType="java.lang.String"/><arg column="project_id" javaType="java.lang.String"/>
+      <arg column="reply_id" javaType="java.lang.String"/><arg column="annotation_id" javaType="java.lang.String"/>
+      <arg column="content" javaType="java.lang.String"/><arg column="actor_id" javaType="java.lang.String"/>
+      <arg column="created_by" javaType="java.lang.String"/><arg column="created_at" javaType="java.time.LocalDateTime"/>
+      <arg column="classification" javaType="java.lang.String"/>
+    </constructor>
+  </resultMap>
+  <select id="parent" resultMap="parent" useCache="false" flushCache="true">
+    SELECT a.tenant_id,a.project_id,a.annotation_id,m.document_id,k.document_revision,h.current_document_revision,
+      m.body_sha256,h.revision AS document_head_revision,a.revision,a.status,a.classification
+    FROM annotation a JOIN annotation_effective_anchor e ON e.tenant_id=a.tenant_id AND e.project_id=a.project_id AND e.annotation_id=a.annotation_id
+    JOIN annotation_anchor k ON k.tenant_id=e.tenant_id AND k.project_id=e.project_id AND k.annotation_id=e.annotation_id AND k.anchor_id=e.anchor_id
+    JOIN document_revision_meta m ON m.tenant_id=a.tenant_id AND m.project_id=a.project_id
+      AND m.document_revision=k.document_revision
+    JOIN document_head h ON h.tenant_id=m.tenant_id AND h.project_id=m.project_id AND h.document_id=m.document_id
+    WHERE a.annotation_id=#{annotationId} FOR UPDATE
+  </select>
+  <select id="originalDocumentRevision" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT document_revision FROM annotation WHERE annotation_id=#{annotationId}
+  </select>
+  <!-- Last crossed validity boundary, also used by configuration discovery. Captured before the
+       source-aware document read and rechecked inside the final tenant transaction and before return. -->
+  <select id="authorizationClock" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT COALESCE(DATE_FORMAT(MAX(v.boundary),'%Y-%m-%dT%H:%i:%s.%fZ'),'NONE') FROM (
+      SELECT valid_from AS boundary FROM permission_grant g WHERE subject_id=#{userId} AND status='ACTIVE' AND valid_from &lt;= UTC_TIMESTAMP(6)
+      UNION ALL SELECT valid_to AS boundary FROM permission_grant g WHERE subject_id=#{userId} AND status='ACTIVE' AND valid_to &lt;= UTC_TIMESTAMP(6)
+      UNION ALL SELECT valid_from AS boundary FROM rights_revision r WHERE valid_from &lt;= UTC_TIMESTAMP(6)
+      UNION ALL SELECT valid_to AS boundary FROM rights_revision r WHERE valid_to &lt;= UTC_TIMESTAMP(6)
+    ) v
+  </select>
+  <select id="replyCount" resultType="java.lang.Long" useCache="false" flushCache="true">
+    SELECT COUNT(*) FROM annotation_reply r WHERE project_id=#{projectId} AND annotation_id=#{annotationId}
+  </select>
+  <sql id="replyColumns">tenant_id,project_id,reply_id,annotation_id,content,actor_id,created_by,created_at,classification</sql>
+  <select id="replies" resultMap="reply" useCache="false" flushCache="true">
+    SELECT <include refid="replyColumns"/> FROM annotation_reply r
+    WHERE project_id=#{projectId} AND annotation_id=#{annotationId} ORDER BY created_at,reply_id LIMIT #{fetchLimit}
+  </select>
+  <select id="reply" resultMap="reply" useCache="false" flushCache="true">
+    SELECT <include refid="replyColumns"/> FROM annotation_reply r
+    WHERE project_id=#{projectId} AND annotation_id=#{annotationId} AND reply_id=#{replyId}
+  </select>
+  <insert id="insertReply">
+    INSERT INTO annotation_reply(project_id,reply_id,annotation_id,content,actor_id,created_by,created_at,classification)
+    VALUES(#{projectId},#{replyId},#{annotationId},#{content},#{userId},#{userId},#{now},#{classification})
+  </insert>
+  <!-- A reply advances concurrency identity only. It cannot resolve, reopen, reanchor, or approve. -->
+  <update id="advanceParent">
+    UPDATE annotation SET revision=revision+1,updated_at=#{now}
+    WHERE project_id=#{projectId} AND annotation_id=#{annotationId} AND document_revision=#{originalDocumentRevision}
+      AND revision=#{expected} AND status=#{parentStatus}
+      AND EXISTS(SELECT 1 FROM annotation_effective_anchor e JOIN annotation_anchor k ON k.tenant_id=e.tenant_id AND k.project_id=e.project_id AND k.annotation_id=e.annotation_id AND k.anchor_id=e.anchor_id
+        WHERE e.tenant_id=annotation.tenant_id AND e.project_id=annotation.project_id AND e.annotation_id=annotation.annotation_id AND k.document_revision=#{documentRevision})
+  </update>
+  <select id="operation" resultMap="com.ruoyi.medical.persistence.mapper.TenantSelectionMapper.operation" useCache="false" flushCache="true">
+    SELECT operation_id,request_sha256,state,http_status,response_ref,target_id,schema_version,schema_manifest_sha256
+    FROM operation_record o WHERE subject_id=#{userId} AND operation_name='RV-05-REPLY-1' AND idempotency_key=#{key} FOR UPDATE
+  </select>
+  <insert id="saveOperation">
+    INSERT INTO operation_record(operation_id,subject_id,operation_name,idempotency_key,request_sha256,state,http_status,response_ref,
+      target_id,error_code,schema_version,schema_manifest_sha256,created_by,created_at,classification,revision,updated_at)
+    VALUES(#{operationId},#{userId},'RV-05-REPLY-1',#{key},#{requestHash},'COMPLETED',201,#{response},#{annotationId},NULL,
+      '1.0.0',#{manifest},#{userId},#{now},#{classification},1,#{now})
+  </insert>
+  <select id="audit" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT resource_ref FROM audit_event a WHERE subject_id=#{userId} AND project_id=#{projectId}
+      AND action='annotation.replied' AND result='SUCCESS' AND reason_code IS NULL AND request_id=#{requestId} AND trace_id=#{requestId}
+      AND schema_version='1.0.0' AND schema_manifest_sha256=#{manifest} AND created_by=#{userId} AND classification=#{classification}
+  </select>
+  <select id="event" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT payload FROM outbox_event e WHERE aggregate_id=#{annotationId} AND aggregate_revision=#{resulting}
+      AND event_type='annotation.replied'
+  </select>
+</mapper>

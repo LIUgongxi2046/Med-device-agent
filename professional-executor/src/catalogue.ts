@@ -1,7 +1,7 @@
 import { readFile, realpath } from 'node:fs/promises'
-import { isAbsolute, relative, resolve } from 'node:path'
+import { isAbsolute, relative, resolve, sep } from 'node:path'
 import $RefParser from '@apidevtools/json-schema-ref-parser'
-import { SchemaCatalogue, type CatalogueManifest } from '@medical-agent/contracts'
+import { mergePublishedCatalogue, SchemaCatalogue, type CatalogueManifest } from '@medical-agent/contracts'
 import { readJson } from './json.js'
 
 const additionalSchemas = [
@@ -11,14 +11,23 @@ const additionalSchemas = [
 
 export async function loadCatalogue(root: string) {
   const allowed = await realpath(root)
-  const original = readJson(await readFile(resolve(allowed, 'contracts/catalogue.json'), 'utf-8')) as unknown as CatalogueManifest
+  const readRegistered = async (registered: string): Promise<Uint8Array> => {
+    const path = await realpath(resolve(allowed, registered))
+    const location = relative(allowed, path)
+    if (isAbsolute(location) || location === '..' || location.startsWith(`..${sep}`)) throw new Error('Schema 文件超出固定目录')
+    return new Uint8Array(await readFile(path))
+  }
+  const original = await mergePublishedCatalogue(
+    await readRegistered('contracts/catalogue.json'),
+    await readRegistered('contracts/extensions/evaluation-results.catalogue.json'),
+    await readRegistered('contracts/extensions/simulation-execution.catalogue.json'),
+    await readRegistered('contracts/extensions/task-runtime.catalogue.json'),
+    await readRegistered('contracts/extensions/evaluation-context-compiler.catalogue.json'),
+  )
   const manifest: CatalogueManifest = { ...original, schemas: [...original.schemas, ...additionalSchemas] }
   const files = new Map<string, Uint8Array>()
   for (const entry of manifest.schemas) {
-    const path = await realpath(resolve(allowed, entry.path))
-    const location = relative(allowed, path)
-    if (isAbsolute(location) || location.startsWith('..')) throw new Error('Schema 文件超出固定目录')
-    files.set(entry.path, await readFile(path))
+    files.set(entry.path, await readRegistered(entry.path))
   }
   const catalogue = await SchemaCatalogue.create(manifest, files)
   const published = new Map<string, Uint8Array>()

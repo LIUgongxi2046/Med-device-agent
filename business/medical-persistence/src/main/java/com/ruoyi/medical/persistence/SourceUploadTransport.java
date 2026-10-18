@@ -200,6 +200,33 @@ final class SourceUploadTransport {
         }
     }
 
+    com.ruoyi.medical.contracts.InterfaceProtocol.ObjectRef writeSimulationResult(String tenantId, String actorId,
+            S3ObjectWriter.WriteIntent intent, byte[] canonicalBytes, boolean recover, int maximumBytes,
+            S3ObjectReader.Admission current) throws Exception {
+        VerifiedS3SimulationResultTransport.validate(tenantId, actorId, intent, canonicalBytes, maximumBytes, current);
+        try (var lease = concurrency.acquire(tenantId, actorId, limits, current);
+                var output = new S3ObjectWriter(endpoint, bucket, policy.region(), S3ObjectReader.Network.LOCAL_LOOPBACK,
+                    objectCredentials, directory, maximumBytes, policy.segmentBytes())) {
+            var guard = lease.guard(current);
+            var reference = VerifiedS3SimulationResultTransport.writeVerified(output, directory, intent, canonicalBytes, recover, guard);
+            guard.requireCurrent();
+            return reference;
+        }
+    }
+
+    /** Private sealed original-attempt route; does not alter the SOURCE key boundary. */
+    com.ruoyi.medical.contracts.InterfaceProtocol.ObjectRef writeRuntimeObject(RuntimeObjectAttempt attempt,
+            Path privateDirectory,int maximumBytes,S3ObjectReader.Admission current)throws Exception {
+        RuntimeObjectTransport.validateAttempt(attempt,maximumBytes);
+        requireJobOutsideTransaction(attempt.tenantId(),attempt.actorId());current.requireCurrent();
+        try(var lease=concurrency.acquire(attempt.tenantId(),attempt.actorId(),limits,current)) {
+            var guard=lease.guard(current);
+            var transport=new RuntimeObjectTransport(() -> new S3ObjectWriter(endpoint,bucket,policy.region(),
+                S3ObjectReader.Network.LOCAL_LOOPBACK,objectCredentials,privateDirectory,maximumBytes,policy.segmentBytes()),privateDirectory,maximumBytes);
+            var actual=transport.transferVerified(attempt,guard);guard.requireCurrent();return actual.reference();
+        }
+    }
+
     private static void requireJobOutsideTransaction(String tenantId,String actorId) {
         com.ruoyi.medical.contracts.WireValues.uuid(tenantId); com.ruoyi.medical.contracts.WireValues.uuid(actorId);
         if(org.springframework.transaction.support.TransactionSynchronizationManager.isActualTransactionActive())
@@ -213,6 +240,19 @@ final class SourceUploadTransport {
                 var reader = new S3ObjectReader(endpoint, bucket, policy.region(), S3ObjectReader.Network.LOCAL_LOOPBACK,
                     objectCredentials, directory, maximumBytes, policy.segmentBytes())) {
             return reading.apply(reader, lease);
+        }
+    }
+
+    <T> T readSimulationWorker(SimulationWorkerAccess.Proof proof,int maximumBytes,
+            S3ObjectReader.Admission current,DocumentRead<T> reading) throws Exception {
+        java.util.Objects.requireNonNull(proof);
+        if(org.springframework.transaction.support.TransactionSynchronizationManager.isActualTransactionActive())
+            throw new TenantAccessException(com.ruoyi.medical.contracts.ErrorCode.CONTEXT_CHANGED);
+        current.requireCurrent();
+        try(var lease=concurrency.acquire(proof.identity().tenant(),proof.actorId(),limits,current);
+                var reader=new S3ObjectReader(endpoint,bucket,policy.region(),S3ObjectReader.Network.LOCAL_LOOPBACK,
+                    objectCredentials,directory,maximumBytes,policy.segmentBytes())) {
+            return reading.apply(reader,lease);
         }
     }
 

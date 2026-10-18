@@ -10,3 +10,6 @@ dependencies = ["openai==3.24.0", "medical-contracts==1.0.0"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+medical_model_gateway = ["simulation-execution.schema.json", "provider-response-capture.schema.json", "runtime-step.schema.json"]

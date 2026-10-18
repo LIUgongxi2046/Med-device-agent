@@ -1,0 +1,20 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"urn:medical:simulation-input-artifact-lookup:1.0.0",
+  "$defs":{
+    "Request":{
+      "type":"object","additionalProperties":false,
+      "required":["schema_version","original_key","original_request"],
+      "properties":{
+        "schema_version":{"const":"1.0.0"},
+        "original_key":{"type":"string","pattern":"^[A-Za-z0-9._:-]{16,128}$"},
+        "original_request":{"type":"object"}
+      }
+    },
+    "Result":{
+      "type":"object","additionalProperties":false,"required":["schema_version","status","receipt"],
+      "properties":{"schema_version":{"const":"1.0.0"},"status":{"enum":["FOUND","NOT_FOUND"]},"receipt":{"type":["object","null"]}},
+      "allOf":[{"if":{"properties":{"status":{"const":"FOUND"}}},"then":{"properties":{"receipt":{"type":"object"}}},"else":{"properties":{"receipt":{"type":"null"}}}}]
+    }
+  }
+}

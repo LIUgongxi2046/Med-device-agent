@@ -18,7 +18,7 @@ def main():
     if Path(args.execution).name != args.execution or args.execution in (".", ".."):
         raise ValueError("执行身份必须使用单一目录名称")
     inputs = ["scripts/check_template_approval.py", "business/pom.xml", "PRD.md", "LLD-数据.md", "LLD-后端.md",
-              "backend-design/接口补充设计.md", "contracts/catalogue.json"]
+              "backend-design/接口补充设计.md", "contracts/catalogue.json", "contracts/extensions/evaluation-results.catalogue.json", "business/medical-persistence/src/main/resources/evaluation-results.schema.json"]
     for module in ("medical-contracts", "medical-data", "medical-identity", "medical-persistence"):
         inputs.append("business/" + module + "/pom.xml")
         inputs.extend(str(path.relative_to(ROOT)) for path in sorted((ROOT / "business" / module / "src").rglob("*")) if path.is_file())

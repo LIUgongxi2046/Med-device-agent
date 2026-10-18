@@ -1,0 +1,5 @@
+# Initial executable price profile
+
+Explicit tariff `TOKEN_ONLY_PER_MILLION`, all four rates required even when zero: uncached input, cache read, cache write, output; currency ISO-style uppercase 3 letters; external fixed source-version basis and exact model configuration/version; explicit rounding `CEILING_8_DECIMAL_PLACES`. No implicit cached-token discount, currency conversion, default price or fixed fee. Unsupported tariffs reject before sending. Provider receipt must supply complete disjoint token categories and total consistency. An authenticated adapter lacking categories must retain liability as DISPUTED rather than invent usage.
+
+Reservation uses the greater input-class rate for the entire approved maximum input token bound and the exact maximum output bound. Usage settlement applies fixed original schedule and one final ceiling to 8 decimal places. Strict integer bounds and DECIMAL(24,8) overflow checks apply. Price bytes and actual source/governance approval will be independently verified by the price reader; constructing a Schedule alone grants no authority.

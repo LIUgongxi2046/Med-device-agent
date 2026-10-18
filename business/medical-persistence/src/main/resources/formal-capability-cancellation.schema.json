@@ -1,0 +1,490 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:formal-capability-cancellation:1.0.0",
+  "$defs": {
+    "Id": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "Hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "Count": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]{0,19})$"
+    },
+    "VersionRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version_id",
+        "content_sha256"
+      ],
+      "properties": {
+        "version_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "content_sha256": {
+          "$ref": "#/$defs/Hash"
+        }
+      }
+    },
+    "PublishedSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_ref",
+        "schema_sha256"
+      ],
+      "properties": {
+        "schema_ref": {
+          "type": "string",
+          "format": "uri",
+          "minLength": 1
+        },
+        "schema_sha256": {
+          "$ref": "#/$defs/Hash"
+        }
+      }
+    },
+    "Reason": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2000
+    },
+    "Revision": {
+      "type": "string",
+      "pattern": "^[1-9][0-9]{0,19}$"
+    },
+    "Receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "operation_id",
+        "resource_id",
+        "kind",
+        "content_sha256",
+        "request_body_sha256"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "operation_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "resource_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "kind": {
+          "enum": [
+            "AUTHOR",
+            "POLICY",
+            "QUALIFICATION",
+            "ACCEPTANCE",
+            "PUBLICATION",
+            "POLICY_DRAFT",
+            "EXECUTION_POLICY",
+            "EXECUTION_POLICY_DRAFT",
+            "EXECUTION_POLICY_AUTHOR",
+            "EXECUTION_POLICY_DECISION",
+            "FORMAL_CAPABILITY_AUTHOR"
+          ]
+        },
+        "content_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "request_body_sha256": {
+          "$ref": "#/$defs/Hash"
+        }
+      }
+    },
+    "Context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tenant_id",
+        "context_revision",
+        "auth_epoch",
+        "governance_epoch"
+      ],
+      "properties": {
+        "tenant_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "context_revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "auth_epoch": {
+          "$ref": "#/$defs/Revision"
+        },
+        "governance_epoch": {
+          "$ref": "#/$defs/Revision"
+        }
+      }
+    },
+    "FormalCapability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "project_id",
+        "kind",
+        "source_artifact",
+        "input_schema_ref",
+        "output_schema_ref",
+        "tool_scope",
+        "execution_mode",
+        "reason"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "project_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "kind": {
+          "enum": [
+            "ROLE",
+            "PROMPT"
+          ]
+        },
+        "source_artifact": {
+          "$ref": "#/$defs/VersionRef"
+        },
+        "input_schema_ref": {
+          "$ref": "#/$defs/PublishedSchema"
+        },
+        "output_schema_ref": {
+          "$ref": "#/$defs/PublishedSchema"
+        },
+        "tool_scope": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/RuntimeRoleScope"
+            },
+            {
+              "type": "array",
+              "maxItems": 0
+            }
+          ]
+        },
+        "execution_mode": {
+          "const": "PRODUCTION"
+        },
+        "reason": {
+          "$ref": "#/$defs/Reason"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "ROLE"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "tool_scope": {
+                "$ref": "#/$defs/RuntimeRoleScope"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "tool_scope": {
+                "type": "array",
+                "maxItems": 0
+              }
+            }
+          }
+        }
+      ]
+    },
+    "Time": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "Z$"
+    },
+    "RuntimeNullableId": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Id"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "RuntimeAction": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_.-]{0,63}$"
+    },
+    "RuntimeScope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tenant_id",
+        "project_id",
+        "resource_kind",
+        "resource_id"
+      ],
+      "properties": {
+        "tenant_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "project_id": {
+          "$ref": "#/$defs/RuntimeNullableId"
+        },
+        "resource_kind": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9_]{0,63}$"
+        },
+        "resource_id": {
+          "$ref": "#/$defs/Id"
+        }
+      }
+    },
+    "RuntimePermission": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scope",
+        "action",
+        "purpose"
+      ],
+      "properties": {
+        "scope": {
+          "$ref": "#/$defs/RuntimeScope"
+        },
+        "action": {
+          "$ref": "#/$defs/RuntimeAction"
+        },
+        "purpose": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9_]{0,63}$"
+        }
+      }
+    },
+    "RuntimeRoleScope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "permissions"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "permissions": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/RuntimePermission"
+          },
+          "maxItems": 128
+        }
+      }
+    },
+    "Grant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "grant_id",
+        "revision"
+      ],
+      "properties": {
+        "grant_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "revision": {
+          "$ref": "#/$defs/Count"
+        }
+      }
+    },
+    "CancelRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "original_kind",
+        "original_key",
+        "original_request"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "original_kind": {
+          "const": "FORMAL_CAPABILITY_AUTHOR"
+        },
+        "original_key": {
+          "type": "string",
+          "pattern": "^[!-~]{16,128}$"
+        },
+        "original_request": {
+          "$ref": "#/$defs/FormalCapability"
+        }
+      }
+    },
+    "CancelReceipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "status",
+        "cancellation_id",
+        "operation_id",
+        "tenant_id",
+        "actor_id",
+        "original_kind",
+        "original_key",
+        "original_request_sha256",
+        "cancellation_request_sha256",
+        "recorded_at",
+        "receipt"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "status": {
+          "enum": [
+            "CANCELLED",
+            "COMPLETED"
+          ]
+        },
+        "cancellation_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "operation_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "tenant_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "original_kind": {
+          "const": "FORMAL_CAPABILITY_AUTHOR"
+        },
+        "original_key": {
+          "type": "string",
+          "pattern": "^[!-~]{16,128}$"
+        },
+        "original_request_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "cancellation_request_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "recorded_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "receipt": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Receipt"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "Cancellation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "request",
+        "receipt",
+        "session_id",
+        "context",
+        "cancel_key",
+        "audit_id",
+        "event_id",
+        "read_grant"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "request": {
+          "$ref": "#/$defs/CancelRequest"
+        },
+        "receipt": {
+          "$ref": "#/$defs/CancelReceipt"
+        },
+        "session_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255
+        },
+        "context": {
+          "$ref": "#/$defs/Context"
+        },
+        "cancel_key": {
+          "type": "string",
+          "pattern": "^[!-~]{16,128}$"
+        },
+        "audit_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "event_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "read_grant": {
+          "$ref": "#/$defs/Grant"
+        }
+      }
+    },
+    "CancelRecovery": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "status",
+        "receipt"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "status": {
+          "enum": [
+            "FOUND",
+            "NOT_FOUND"
+          ]
+        },
+        "receipt": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CancelReceipt"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

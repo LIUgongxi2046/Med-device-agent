@@ -70,7 +70,7 @@ class AgentReleaseManifestSchemaTest {
         var runtime = value.putObject("runtime_manifest");
         runtime.put("source_repository", ROOT.toUri().toString()).put("source_commit", "a51a838b71b446ea27256900efe7ed2faa2a02fd").put("source_version", "3.9.2");
         runtime.set("harness_distribution", JSON.createObjectNode().put("name", "medical-source").put("version", "3.9.2").set("artifact", artifact("business/pom.xml")));
-        runtime.set("python_runtime", JSON.createObjectNode().put("name", "Python").put("version", "3.12").set("artifact", artifact(".implementation-work/document-venv/bin/python")));
+        runtime.set("python_runtime", JSON.createObjectNode().put("name", "Python").put("version", "3.12").set("artifact", artifact(System.getProperty("medical.test.python", ".implementation-work/document-venv/bin/python"))));
         runtime.putObject("platform").put("operating_system", System.getProperty("os.name")).put("architecture", System.getProperty("os.arch")).put("python_abi", "cp312");
         var plugins = runtime.putArray("plugins");
         plugins.addObject().put("plugin_id", "consumer").put("version", "1.0.0").set("artifact", artifact("agent-design/artifacts.schema.json"));

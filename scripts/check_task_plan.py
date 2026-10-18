@@ -32,7 +32,7 @@ def main():
         raise SystemExit(completed.returncode)
     if Path(args.execution).name != args.execution or args.execution in (".", ".."):
         raise ValueError("执行身份必须使用独立目录名称")
-    inputs = ["scripts/check_task_plan.py", "contracts/catalogue.json", "LLD-后端.md", "LLD-Agent.md",
+    inputs = ["scripts/check_task_plan.py", "contracts/catalogue.json", "contracts/extensions/evaluation-results.catalogue.json", "business/medical-persistence/src/main/resources/evaluation-results.schema.json", "LLD-后端.md", "LLD-Agent.md",
               "backend-design/接口补充设计.md", "PRD.md", "实施任务计划.md", "docs/development/IMP-12.md"]
     catalogue = json.loads((ROOT / "contracts/catalogue.json").read_bytes())
     inputs.extend(item["path"] for item in catalogue["schemas"])

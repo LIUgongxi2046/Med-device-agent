@@ -1,0 +1,16 @@
+{
+  "schema_version": "1.0.0",
+  "base_catalogue_sha256": "dcd72acbb7a45775373662e0ffe4557030d4740b0afacdee8375e7768e761915",
+  "schemas": [
+    {
+      "name": "simulation-execution",
+      "path": "agent-design/simulation-execution.schema.json",
+      "sha256": "b33c7716b12062abb131015d439a6297883411c9156dc6ce21a2b167688d3ede"
+    },
+    {
+      "name": "local-simulation-provenance",
+      "path": "model-gateway/src/medical_model_gateway/simulation-execution.schema.json",
+      "sha256": "ba6ee6a53f72ed4f62bec2243e35853706add8bf4e24e272b441fa50ef6dbc4c"
+    }
+  ]
+}

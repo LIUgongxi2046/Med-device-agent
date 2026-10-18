@@ -1,0 +1,11 @@
+{
+  "schema_version": "1.0.0",
+  "base_catalogue_sha256": "dcd72acbb7a45775373662e0ffe4557030d4740b0afacdee8375e7768e761915",
+  "schemas": [
+    {
+      "name": "evaluation-results",
+      "path": "business/medical-persistence/src/main/resources/evaluation-results.schema.json",
+      "sha256": "099ed6deb25b020880641848fa0f40e6fd03eceba0d0236b5d2518a4430d3a89"
+    }
+  ]
+}

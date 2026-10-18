@@ -1,0 +1,57 @@
+package com.ruoyi.medical.persistence;
+import static org.junit.jupiter.api.Assertions.*;import static org.mockito.Mockito.*;
+import org.junit.jupiter.api.Test;import java.util.*;import java.math.BigInteger;import java.time.LocalDateTime;import java.util.concurrent.Callable;
+import org.springframework.jdbc.core.JdbcTemplate;import org.springframework.transaction.support.TransactionSynchronizationManager;
+import com.ruoyi.medical.identity.*;import com.ruoyi.medical.persistence.mapper.PermissionMapper;
+import static com.ruoyi.medical.persistence.FormalEvaluationContextProtocol.*;import static com.ruoyi.medical.persistence.FormalEvaluationContextSchemaTest.*;
+/** Actual author/decision/reader/private Approved proof. SQL and dependency authorities explicitly doubled.
+ * This is not MySQL, real capability approval, external I/O or execution evidence. */
+class FormalEvaluationContextStoreTest {
+ final PermissionSchema json=new PermissionSchema();final FormalEvaluationContextSchema schema=new FormalEvaluationContextSchema(json);final JdbcTemplate db=mock(JdbcTemplate.class);
+ final FormalEvaluationContextDependencies dependencies=mock(FormalEvaluationContextDependencies.class);final FormalEvaluationContextDependencies.Checked checked=mock(FormalEvaluationContextDependencies.Checked.class);
+ final ResourceReadAuthority resources=mock(ResourceReadAuthority.class);final PermissionMapper permissions=mock(PermissionMapper.class);final PlatformMemberIdentityStatus identities=mock(PlatformMemberIdentityStatus.class);
+ final EnterpriseAccess.Admission a=mock(EnterpriseAccess.Admission.class);final FormalEvaluationContextStore store;
+ final Map<String,List<Map<String,Object>>> tables=new HashMap<>();final Map<String,PermissionProtocol.GrantRow> grants=new HashMap<>();final String tenant=id(100);String actor=id(101);final LocalDateTime now=LocalDateTime.of(2026,10,18,20,0);
+ FormalEvaluationContextStoreTest()throws Exception{
+  when(a.actorId()).thenAnswer(i->actor);when(a.context()).thenReturn(new BusinessSessionProtocol.Context(tenant,"1","1","1"));when(a.bindingView()).thenAnswer(i->new AuthenticatedIdentityBinding.View("local",actor,null,null));when(a.watermarks()).thenReturn(new TenantWatermarks(BigInteger.ONE,BigInteger.ONE));when(permissions.databaseTime()).thenReturn(now);
+  when(dependencies.require(eq(a),any())).thenReturn(checked);when(checked.candidateAuthor()).thenReturn(id(102));when(checked.classification()).thenReturn("INTERNAL");when(checked.authorizations()).thenReturn(json.object().put("explicit_test_double",true));when(checked.versions()).thenReturn(List.of(b(2),b(3),b(4),b(5),b(6)));
+  when(resources.require(eq(a),any(),anyString(),anyString())).thenAnswer(i->grant(i.getArgument(1),i.getArgument(2),i.getArgument(3)));
+  when(permissions.targetMember(anyString())).thenAnswer(i->List.of(new TenantMemberRow(tenant,id(110),i.getArgument(0),"ACTIVE",now.minusDays(1),now.plusDays(1),BigInteger.ONE)));
+  when(permissions.targetBinding(anyString())).thenAnswer(i->List.of(new PermissionProtocol.BindingRow(i.getArgument(0),id(111),"local",null,null,i.getArgument(0),"ACTIVE")));
+  when(permissions.currentGrant(anyString())).thenAnswer(i->{var g=grants.get(i.getArgument(0));return g==null?List.of():List.of(g);});when(identities.active(any())).thenReturn(true);
+  doAnswer(i->select(i.getArgument(0),Arrays.copyOfRange(i.getArguments(),1,i.getArguments().length))).when(db).queryForList(anyString(),any(Object[].class));
+  doAnswer(i->write(i.getArgument(0),Arrays.copyOfRange(i.getArguments(),1,i.getArguments().length))).when(db).update(anyString(),any(Object[].class));
+  store=new FormalEvaluationContextStore(db,json,schema,dependencies,resources,permissions,new PermissionAuthority(json),identities);
+ }
+ PermissionProtocol.GrantRow grant(PermissionProtocol.Scope scope,String action,String purpose)throws Exception{
+  String key=actor+":"+action+":"+purpose;var prior=grants.values().stream().filter(g->g.subjectId().equals(actor)&&g.action().equals(action)&&g.condition().contains(purpose)).findFirst();if(prior.isPresent())return prior.get();
+  var c=new PermissionProtocol.Condition("1.0.0",List.of("local"),List.of(purpose),new PermissionProtocol.Delegation(List.of(),List.of(),List.of(),null,null));var g=new PermissionProtocol.GrantRow(UUID.randomUUID().toString(),actor,scope.project_id(),scope.resource_kind(),scope.resource_id(),action,json.canonicalObject(c),"ACTIVE",now.minusDays(1),now.plusDays(1),id(120),"1.0.0",json.manifestSha256(),BigInteger.ONE);grants.put(g.grantId(),g);return g;
+ }
+ List<Map<String,Object>> rows(String table){return tables.computeIfAbsent(table,k->new ArrayList<>());}
+ List<Map<String,Object>> select(String sql,Object[] args){if(sql.startsWith("SELECT user_id"))return List.of(Map.of("user_id",actor));String table=sql.split(" FROM ")[1].split(" ")[0];var matches=new ArrayList<Map<String,Object>>();for(var row:rows(table)){boolean match=true;int index=0;var m=java.util.regex.Pattern.compile("([a-z_][a-z_0-9]*)=\\?").matcher(sql);while(m.find())if(!Objects.equals(row.get(m.group(1)),args[index++]))match=false;if(match)matches.add(row);}return matches;}
+ int write(String sql,Object[] args){
+  if(sql.startsWith("UPDATE tenant SET"))return 1;
+  if(sql.startsWith("UPDATE formal_evaluation_context_state")){var row=rows("formal_evaluation_context_state").get(0);if(!Objects.equals(row.get("status"),args[6])||!new BigInteger(row.get("revision").toString()).equals(args[7]))return 0;row.put("status",args[0]);row.put("revision",args[1]);row.put("latest_decision_id",args[2]);row.put("updated_at",args[3]);return 1;}
+  if(!sql.startsWith("INSERT INTO "))throw new AssertionError(sql);String table=sql.substring(12,sql.indexOf('(')).strip();String[] columns=sql.substring(sql.indexOf('(')+1,sql.indexOf(')')).split(",");String values=sql.substring(sql.indexOf("VALUES (")+8,sql.lastIndexOf(')'));String[] tokens=values.split(",");var row=new LinkedHashMap<String,Object>();int index=0;for(int n=0;n<columns.length;n++){String token=tokens[n].strip();Object value=token.equals("?")?args[index++]:token.equals("NULL")?null:token.startsWith("'")?token.substring(1,token.length()-1):new BigInteger(token);row.put(columns[n].strip(),value);}rows(table).add(row);return 1;
+ }
+ <T>T tx(Callable<T> work)throws Exception{try(var scope=TenantScope.open(new TenantScope.Identity(tenant,actor,BigInteger.ONE,BigInteger.ONE,BigInteger.ONE))){TransactionSynchronizationManager.setActualTransactionActive(true);try{return work.call();}finally{TransactionSynchronizationManager.clear();}}}
+ byte[] bytes(Object value)throws Exception{return json.canonicalObject(value).getBytes(java.nio.charset.StandardCharsets.UTF_8);}
+ FormalEvaluationContextStore.Receipt author()throws Exception{return tx(()->store.author(a,"author-original-key",bytes(new Author("1.0.0",definition(),"Explicit context binding"))));}
+ FormalEvaluationContextStore.Receipt approve(FormalEvaluationContextStore.Receipt r)throws Exception{actor=id(103);return tx(()->store.decide(a,"review-original-key",bytes(new Decide("1.0.0",r.binding(),"1","APPROVE","Independent review"))));}
+ @Test void persistsActualOriginalDraftAndRecoversSameOperation()throws Exception{var r=author();assertEquals("DRAFT",r.status());assertEquals(r,author());assertEquals(1,rows("operation_record").size());assertEquals(1,rows("audit_event").size());assertEquals(5,rows("lineage_edge").size());}
+ @Test void noApprovedProofBeforeIndependentDecision()throws Exception{var r=author();assertThrows(TenantAccessException.class,()->tx(()->store.requireApproved(a,r.binding(),b(2),b(3))));}
+ @Test void actualIndependentDecisionMintsPrivateProofAndRereadsOriginal()throws Exception{var r=author();assertEquals("APPROVED",approve(r).status());tx(()->{var proof=store.requireApproved(a,r.binding(),b(2),b(3));assertEquals(b(5),proof.node("N01").prompt());proof.requireUnchanged();return null;});assertEquals(2,rows("operation_record").size());}
+ @Test void authorCannotReviewOwnBinding()throws Exception{var r=author();assertThrows(TenantAccessException.class,()->tx(()->store.decide(a,"review-original-key",bytes(new Decide("1.0.0",r.binding(),"1","APPROVE","reason")))));assertEquals(1,rows("operation_record").size());}
+ @Test void candidateAuthorCannotReviewBinding()throws Exception{var r=author();actor=id(102);assertThrows(TenantAccessException.class,()->tx(()->store.decide(a,"review-original-key",bytes(new Decide("1.0.0",r.binding(),"1","APPROVE","reason")))));}
+ @Test void missingOriginalAuditBlocksRecovery()throws Exception{author();rows("audit_event").clear();assertThrows(TenantAccessException.class,this::author);}
+ @Test void missingOriginalOperationBlocksRead()throws Exception{var r=author();rows("operation_record").clear();assertThrows(TenantAccessException.class,()->tx(()->store.read(a,r.binding().version_id())));}
+ @Test void missingOriginalEventBlocksRead()throws Exception{var r=author();rows("outbox_event").clear();assertThrows(TenantAccessException.class,()->tx(()->store.read(a,r.binding().version_id())));}
+ @Test void changedOriginalLineageBlocksRead()throws Exception{var r=author();rows("lineage_edge").remove(0);assertThrows(TenantAccessException.class,()->tx(()->store.read(a,r.binding().version_id())));}
+ @Test void currentReviewerPlatformDisableBlocksProof()throws Exception{var r=author();approve(r);when(identities.active(any())).thenReturn(false);assertThrows(TenantAccessException.class,()->tx(()->store.requireApproved(a,r.binding(),b(2),b(3))));}
+ @Test void originalReviewerGrantRevocationBlocksProof()throws Exception{var r=author();approve(r);grants.values().removeIf(g->g.action().equals("agent.publish"));assertThrows(TenantAccessException.class,()->tx(()->store.requireApproved(a,r.binding(),b(2),b(3))));}
+ @Test void proofCannotCrossTransactionScope()throws Exception{var r=author();approve(r);var proof=tx(()->store.requireApproved(a,r.binding(),b(2),b(3)));assertThrows(TenantAccessException.class,()->tx(()->{proof.requireUnchanged();return null;}));}
+ @Test void changingContextInvalidatesPrivateProof()throws Exception{var r=author();approve(r);tx(()->{var proof=store.requireApproved(a,r.binding(),b(2),b(3));rows("outbox_event").clear();assertThrows(TenantAccessException.class,proof::requireUnchanged);return null;});}
+ @Test void differentCandidateCannotConsumeProof()throws Exception{var r=author();approve(r);tx(()->{var proof=store.requireApproved(a,r.binding(),b(2),b(3));assertThrows(TenantAccessException.class,()->proof.requireConsumer(a,b(22),b(3)));return null;});}
+ @Test void exactAuthorReceiptSurvivesSubsequentApproval()throws Exception{var r=author();approve(r);actor=id(101);assertEquals(r,author());}
+ @Test void disableRequiresNewIndependentDecisionAndRevokesExecutionProof()throws Exception{var r=author();approve(r);var disabled=tx(()->store.decide(a,"disable-original-key",bytes(new Decide("1.0.0",r.binding(),"2","DISABLE","Changed requirements"))));assertEquals("DISABLED",disabled.status());assertThrows(TenantAccessException.class,()->tx(()->store.requireApproved(a,r.binding(),b(2),b(3))));assertEquals("DISABLED",tx(()->store.read(a,r.binding().version_id())).required("status").asText());var retry=tx(()->store.decide(a,"review-original-key",bytes(new Decide("1.0.0",r.binding(),"1","APPROVE","Independent review"))));assertEquals("APPROVED",retry.status());assertEquals("2",retry.revision());}
+}

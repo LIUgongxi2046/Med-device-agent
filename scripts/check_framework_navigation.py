@@ -124,7 +124,7 @@ def main():
     inputs = ["scripts/check_framework_navigation.py", "business/pom.xml", "business/ruoyi-admin/pom.xml",
         "business/medical-persistence/pom.xml", "business/medical-contracts/pom.xml", "business/medical-identity/pom.xml",
         "business/ruoyi-common/pom.xml", "business/ruoyi-system/pom.xml", "business/ruoyi-framework/pom.xml",
-        "business/ruoyi-quartz/pom.xml", "business/ruoyi-generator/pom.xml", "contracts/catalogue.json",
+        "business/ruoyi-quartz/pom.xml", "business/ruoyi-generator/pom.xml", "contracts/catalogue.json", "contracts/extensions/evaluation-results.catalogue.json", "business/medical-persistence/src/main/resources/evaluation-results.schema.json",
         "backend-design/接口补充设计.md", "LLD-前端.md", ".implementation-work/runtime/service-identity.json",
         "scripts/local_runtime.py", ".implementation-work/runtime/ruoyi-token-configuration-receipt.json"]
     for directory in ("business/medical-contracts/src", "business/medical-data/src", "business/medical-persistence/src",

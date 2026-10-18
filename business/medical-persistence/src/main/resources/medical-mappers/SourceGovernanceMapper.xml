@@ -133,20 +133,42 @@
   </resultMap>
   <select id="artifactSubmission" resultMap="artifactSubmission" useCache="false" flushCache="true">
     SELECT s.tenant_id,s.project_id,s.submission_id,s.artifact_id,s.artifact_owner_project_id,s.target_source_id,s.target_source_version,
-      (SELECT p.parse_version FROM parse_version p WHERE p.tenant_id=s.tenant_id AND p.source_version=s.target_source_version
-       ORDER BY p.created_at,p.parse_version LIMIT 1) AS parse_version,sv.rights_revision,
+      p.parse_version,sv.rights_revision,
       s.sharing_decision,s.original_evidence,s.status,s.created_by,s.created_at,s.classification,s.revision,s.updated_at
     FROM knowledge_submission s
     JOIN source_version sv ON sv.tenant_id=s.tenant_id AND sv.source_version=s.target_source_version
+    LEFT JOIN outbox_event original_event ON original_event.tenant_id=s.tenant_id
+      AND original_event.aggregate_id=s.target_source_version AND original_event.aggregate_revision=1
+      AND original_event.event_type='artifact.submitted_as_source'
+      AND JSON_UNQUOTE(JSON_EXTRACT(original_event.payload,'$.schema_version'))='1.0.0'
+      AND JSON_UNQUOTE(JSON_EXTRACT(original_event.payload,'$.submission_id'))=s.submission_id
+      AND JSON_UNQUOTE(JSON_EXTRACT(original_event.payload,'$.artifact_id'))=s.artifact_id
+      AND JSON_UNQUOTE(JSON_EXTRACT(original_event.payload,'$.source_id'))=s.target_source_id
+      AND JSON_UNQUOTE(JSON_EXTRACT(original_event.payload,'$.source_version'))=s.target_source_version
+      AND JSON_UNQUOTE(JSON_EXTRACT(original_event.payload,'$.sharing_decision'))=s.sharing_decision
+      AND JSON_UNQUOTE(JSON_EXTRACT(original_event.payload,'$.actor_id'))=s.created_by
+    LEFT JOIN parse_version p ON p.tenant_id=s.tenant_id AND p.source_version=s.target_source_version
+      AND p.parse_version=JSON_UNQUOTE(JSON_EXTRACT(original_event.payload,'$.parse_version'))
     WHERE s.submission_id=#{submissionId}
   </select>
   <select id="pendingArtifactSubmission" resultMap="artifactSubmission" useCache="false" flushCache="true">
     SELECT s.tenant_id,s.project_id,s.submission_id,s.artifact_id,s.artifact_owner_project_id,s.target_source_id,s.target_source_version,
-      (SELECT p.parse_version FROM parse_version p WHERE p.tenant_id=s.tenant_id AND p.source_version=s.target_source_version
-       ORDER BY p.created_at,p.parse_version LIMIT 1) AS parse_version,sv.rights_revision,
+      p.parse_version,sv.rights_revision,
       s.sharing_decision,s.original_evidence,s.status,s.created_by,s.created_at,s.classification,s.revision,s.updated_at
     FROM knowledge_submission s
     JOIN source_version sv ON sv.tenant_id=s.tenant_id AND sv.source_version=s.target_source_version
+    LEFT JOIN outbox_event original_event ON original_event.tenant_id=s.tenant_id
+      AND original_event.aggregate_id=s.target_source_version AND original_event.aggregate_revision=1
+      AND original_event.event_type='artifact.submitted_as_source'
+      AND JSON_UNQUOTE(JSON_EXTRACT(original_event.payload,'$.schema_version'))='1.0.0'
+      AND JSON_UNQUOTE(JSON_EXTRACT(original_event.payload,'$.submission_id'))=s.submission_id
+      AND JSON_UNQUOTE(JSON_EXTRACT(original_event.payload,'$.artifact_id'))=s.artifact_id
+      AND JSON_UNQUOTE(JSON_EXTRACT(original_event.payload,'$.source_id'))=s.target_source_id
+      AND JSON_UNQUOTE(JSON_EXTRACT(original_event.payload,'$.source_version'))=s.target_source_version
+      AND JSON_UNQUOTE(JSON_EXTRACT(original_event.payload,'$.sharing_decision'))=s.sharing_decision
+      AND JSON_UNQUOTE(JSON_EXTRACT(original_event.payload,'$.actor_id'))=s.created_by
+    LEFT JOIN parse_version p ON p.tenant_id=s.tenant_id AND p.source_version=s.target_source_version
+      AND p.parse_version=JSON_UNQUOTE(JSON_EXTRACT(original_event.payload,'$.parse_version'))
     WHERE s.artifact_id=#{artifactId} AND s.status='PENDING'
       <choose><when test="targetProjectId != null">AND s.project_id=#{targetProjectId}</when><otherwise>AND s.project_id IS NULL</otherwise></choose>
     FOR UPDATE

@@ -19,7 +19,7 @@ def main():
     java_home = (toolchains / "jdk-17.0.20.1+1/Contents/Home").resolve(strict=True)
     maven = (toolchains / "apache-maven-3.9.16/bin/mvn").resolve(strict=True)
     inputs = ["scripts/check_stored_object_references.py", "business/pom.xml", "business/medical-persistence/pom.xml",
-              "business/medical-identity/pom.xml", "business/medical-contracts/pom.xml", "contracts/catalogue.json",
+              "business/medical-identity/pom.xml", "business/medical-contracts/pom.xml", "contracts/catalogue.json", "contracts/extensions/evaluation-results.catalogue.json", "business/medical-persistence/src/main/resources/evaluation-results.schema.json",
               "backend-design/interfaces.schema.yaml", "backend-design/接口补充设计.md", "LLD-后端.md", "data-design/core.sql",
               "business/medical-data/src/main/resources/db/migration/005-document-evidence.sql",
               ".implementation-work/runtime/service-identity.json", ".implementation-work/runtime/object-storage/deployment.json",

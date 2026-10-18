@@ -1,0 +1,54 @@
+openapi: 3.1.0
+info:
+  title: 升级前旧位置批注明确核对扩展
+  version: 1.0.0
+  description: >-
+    Additive explicit present-time reconciliation. Does not retroactively invent historical invalidations,
+    change existing anchor manifests, rewrite migration 059, or move an anchor.
+jsonSchemaDialect: https://json-schema.org/draft/2020-12/schema
+security: [{Session: []}]
+components:
+  securitySchemes:
+    Session: {type: apiKey, in: cookie, name: SESSION}
+paths:
+  /api/annotation-threads/{id}/anchor-reconciliations:
+    post:
+      operationId: reconcileLegacyAnnotationAnchorV1
+      description: >-
+        review.decide / DOCUMENT_REVIEW. Explicit human-confirmed origin-only stale OPEN/RESOLVED annotation,
+        ACTIVE project and current unsigned body. Requires current annotation, document-head and pointer CAS.
+        Validates the complete lifecycle, original Selection bytes, all historical anchor sources and actual current body.
+        Single transaction appends INVALIDATE with current actor and database time, advances annotation/head/issues once,
+        leaves evidence and anchor pointer unchanged, invalidates current whole-document confirmations and saves receipt/audit/outbox.
+        Original annotation, Selection, author/time, anchor and 058 decision rows remain immutable.
+        Operation RV-06-ANCHOR-RECONCILE-1 and its schema manifest are distinct from normal reanchor.
+        Completed retry rechecks permissions/sources/history/original evidence and returns the original receipt before fresh eligibility.
+        No query parameters. Maximum request 1048576 bytes. Reason is excluded from audit/outbox plaintext.
+      parameters:
+        - {name: id, in: path, required: true, schema: {$ref: '../business/medical-persistence/src/main/resources/annotation-anchor-reconciliations.schema.json#/$defs/Id'}}
+        - {name: X-Schema-Version, in: header, required: true, schema: {const: 1.0.0}}
+        - {name: X-Context-Revision, in: header, required: true, schema: {$ref: '../business/medical-persistence/src/main/resources/annotation-anchor-reconciliations.schema.json#/$defs/Revision'}}
+        - {name: Idempotency-Key, in: header, required: true, schema: {type: string, minLength: 16, maxLength: 128, pattern: '^[\x21-\x7e]+$'}}
+        - {name: X-CSRF-Token, in: header, required: true, schema: {type: string, minLength: 1}}
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: '../business/medical-persistence/src/main/resources/annotation-anchor-reconciliations.schema.json#/$defs/Create'}}}
+      responses:
+        '201':
+          description: >-
+            Immutable reconciliation receipt. status REANCHOR_REQUIRED, previous_status reflects the real legacy state.
+            anchor_revision remains 1; origin_anchor_sha256 authenticates the unchanged original anchor.
+            Refresh full snapshot, list and history before manually selecting the new position through the existing reanchor endpoint.
+          headers:
+            Cache-Control: {schema: {const: no-store}}
+            X-Schema-Version: {schema: {const: 1.0.0}}
+            X-Request-Id: {schema: {type: string, format: uuid}}
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - {$ref: './interfaces.schema.yaml#/$defs/Envelope'}
+                  - {properties: {data: {$ref: '../business/medical-persistence/src/main/resources/annotation-anchor-reconciliations.schema.json#/$defs/Receipt'}}}
+        default:
+          description: Identity, source, lifecycle, context, CAS, capacity or integrity failure; no private content or database details.
+          content: {application/json: {schema: {$ref: './interfaces.schema.yaml#/$defs/Error'}}}

@@ -1,0 +1,32 @@
+import assert from 'node:assert/strict'
+import fs from 'node:fs'
+import vm from 'node:vm'
+import {test} from 'node:test'
+import * as Vue from '../../web/node_modules/vue/dist/vue.runtime.esm-bundler.js'
+import ts from '../../web/node_modules/typescript/lib/typescript.js'
+import {parse,compileScript,compileTemplate} from '../../web/node_modules/@vue/compiler-sfc/dist/compiler-sfc.esm-browser.js'
+const read=p=>fs.readFileSync(new URL('../../'+p,import.meta.url),'utf8'),id=n=>'00000000-0000-0000-0000-'+String(n).padStart(12,'0')
+const transpile=s=>ts.transpileModule(s,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText
+const workspace={};vm.runInNewContext(transpile(read('web/src/api/medical/task-workspace.ts')),{exports:workspace})
+const current={snapshot:{document_revision:id(3),allowed_actions:[],body:{sha256:'a'.repeat(64)}},body:{fields:[],evidence_links:[]}}
+function harness(query=id(4),history=async()=>({snapshot:{document_revision:id(4)},body:{fields:[],evidence_links:[]}})){
+ const calls=[],fails=[],cleanup=[],scope=Vue.effectScope(),props=Vue.reactive({session:{user:{user_id:id(1)},current_context:{context_revision:'1'}},projectId:id(2),documentId:id(3),active:true,reviewMode:false,historyRevisionRequest:query}),user=Vue.reactive({medicalWriting:false})
+ const documents={readSavedDocument:async()=>current,readSavedDocumentRevision:async(...args)=>{calls.push(args);return history(...args)}}
+ function require(path){if(path==='vue')return {...Vue,onBeforeUnmount:f=>cleanup.push(f)};if(path==='@/store/modules/user')return {default:()=>user};if(path.endsWith('/protocol'))return {fail:code=>{fails.push(code);throw Error(code)}};if(path.endsWith('/task-workspace'))return workspace;if(path.endsWith('/documents'))return documents;if(path.endsWith('/document-body'))return {DocumentEditBuffer:class {constructor(body){this.body=body;this.dirty=false}invalidate(){}},canonicalDocumentValue:JSON.stringify};if(path.endsWith('/document-session-drafts'))return {documentDraftKey:()=>'',resumeDocumentDraft:()=>null,retainDocumentDraft:()=>true};return {}}
+ const {descriptor}=parse(read('web/src/views/medical/document-editor.vue')),out={};vm.runInNewContext(transpile(compileScript(descriptor,{id:'history'}).content),{exports:out,require,AbortController,window:{addEventListener(){},removeEventListener(){}}})
+ const b=scope.run(()=>out.default.setup(props,{expose(){},emit(){}}))
+ return {b,props,calls,fails,user,async ready(){await Vue.nextTick();await Promise.resolve()},close(){cleanup.forEach(f=>f());scope.stop()}}
+}
+test('all integrated templates compile and task passes untrusted query without claiming authorization',()=>{
+ for(const name of ['index.vue','medical/task-detail.vue','medical/document-editor.vue','medical/document-revision-assignment-queue.vue']){const {descriptor}=parse(read('web/src/views/'+name));assert.equal(compileTemplate({source:descriptor.template.content,filename:name,id:name}).errors.length,0)}
+ assert.match(read('web/src/views/medical/task-detail.vue'),/:history-revision-request="route.query.history_revision"/)
+ assert.match(read('web/src/views/index.vue'),/<document-revision-assignment-queue v-if="session\?\.current_context" :session="session" :active="routeActive"/)
+ assert.match(read('web/src/views/medical/document-revision-assignment-queue.vue'),/history_revision:item.decision.document_revision/)
+})
+test('strict query rejects arrays, null, whitespace and malformed UUID locally',()=>{for(const query of [[id(4)],null,'',id(4)+' ','garbage','ABCDEF12-0000-4000-8000-000000000004']){assert.equal(workspace.workspaceHistoryRevision(query).revision,null);assert.ok(workspace.workspaceHistoryRevision(query).issue)}assert.equal(workspace.workspaceHistoryRevision(undefined).issue,'')})
+test('valid query does not auto-read; explicit historical read preserves current body, draft and selected annotation',async()=>{const r=harness();try{await r.ready();assert.equal(r.calls.length,0);const body=r.b.body.value,draft=r.b.draft.value;draft.dirty=true;r.b.annotationSelection.value={selected:'current'};await r.b.openRequestedHistory();assert.equal(r.calls.length,1);assert.equal(r.calls[0][3],id(4));assert.equal(r.b.body.value,body);assert.equal(r.b.draft.value,draft);assert.equal(r.b.hasUnsaved.value,true);assert.equal(r.b.annotationSelection.value.selected,'current');assert.equal(r.b.historyVisible.value,true)}finally{r.close()}})
+test('invalid manual revision clears old history and never calls strict API or failure dispatch',async()=>{const r=harness();try{await r.ready();await r.b.openRequestedHistory();r.b.historyRevision.value='bad';await r.b.readHistory();assert.equal(r.calls.length,1);assert.equal(r.b.historyDocument.value,null);assert.equal(r.b.historyVisible.value,false);assert.ok(r.b.historyError.value);assert.equal(r.fails.length,0)}finally{r.close()}})
+test('query changes invalidate in-flight history without fetching new version or replacing draft',async()=>{let resolve;const r=harness(id(4),()=>new Promise(r=>resolve=r));try{await r.ready();const old=r.b.openRequestedHistory();r.props.historyRevisionRequest=id(5);assert.equal(r.b.historyDocument.value,null);resolve({snapshot:{document_revision:id(4)},body:{}});await old;assert.equal(r.b.historyDocument.value,null);assert.equal(r.calls.length,1);assert.equal(r.b.historyLoading.value,false)}finally{r.close()}})
+test('history read failure removes stale display but preserves original API rejection',async()=>{const r=harness(id(4),async()=>{throw Error('ACCESS_DENIED')});try{await r.ready();r.b.historyDocument.value=current;r.b.historyVisible.value=true;await assert.rejects(r.b.openRequestedHistory(),/ACCESS_DENIED/);assert.equal(r.b.historyDocument.value,null);assert.equal(r.b.historyVisible.value,false)}finally{r.close()}})
+test('parent write lock blocks explicit history request',async()=>{const r=harness();try{await r.ready();r.user.medicalWriting=true;await r.b.openRequestedHistory();assert.equal(r.calls.length,0);assert.equal(r.user.medicalWriting,true)}finally{r.close()}})
+test('late history after editor unmount cannot restore old dialog or history',async()=>{let resolve;const r=harness(id(4),()=>new Promise(r=>resolve=r));await r.ready();const pending=r.b.openRequestedHistory();r.close();resolve({snapshot:{document_revision:id(4)},body:{}});await pending;assert.equal(r.b.historyDocument.value,null);assert.equal(r.b.historyVisible.value,false)})

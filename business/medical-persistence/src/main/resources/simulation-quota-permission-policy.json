@@ -1,0 +1,11 @@
+{
+  "schema_version": "1.0.0",
+  "registration_id": "SIMULATION_QUOTA_CONFIGURATION_V1",
+  "action": "model.simulation.quota.configure",
+  "purpose": "SIMULATION_EVALUATION",
+  "resource_kinds": ["ENTERPRISE", "EVALUATION"],
+  "units": ["CALL", "CANONICAL_UTF8_BYTE"],
+  "grants_created": false,
+  "authorizes_execution": false,
+  "financial_budget_approval": false
+}

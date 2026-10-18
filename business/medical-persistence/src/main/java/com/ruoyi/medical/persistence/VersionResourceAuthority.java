@@ -32,15 +32,31 @@ public final class VersionResourceAuthority {
             String purpose, VersionResourceProtocol.ReadContext context,
             Map<String, ArtifactRegistryProtocol.ReadRequirement> artifactRequirements) throws IOException {
         TenantScope.requireSqlAccess("com.ruoyi.medical.persistence.mapper.VersionResourceMapper.owners");
+        Objects.requireNonNull(admission);Objects.requireNonNull(lineage);Objects.requireNonNull(context);Objects.requireNonNull(artifactRequirements);
+        if(purpose==null||!purpose.matches("[A-Z][A-Z0-9_]{0,127}"))throw new IllegalArgumentException("派生内容用途无效");
+        var purposes=new LinkedHashMap<String,String>();lineage.versions().keySet().forEach(id->purposes.put(id,purpose));
+        return requireWithPurposes(admission,lineage,purposes,context,artifactRequirements);
+    }
+
+    /** Only typed, approved business readers may supply an exhaustive per-version purpose plan.
+     * This method never derives purposes from stored rights and does not omit any ancestor. */
+    Map<String, VerifiedVersion> requireWithPurposes(EnterpriseAccess.Admission admission, DependencyLineage.VerifiedLineage lineage,
+            Map<String,String> purposes, VersionResourceProtocol.ReadContext context,
+            Map<String,ArtifactRegistryProtocol.ReadRequirement> artifactRequirements)throws IOException {
+        TenantScope.requireSqlAccess("com.ruoyi.medical.persistence.mapper.VersionResourceMapper.owners");
+        Objects.requireNonNull(admission);Objects.requireNonNull(lineage);Objects.requireNonNull(context);Objects.requireNonNull(artifactRequirements);
+        if(purposes==null||!purposes.keySet().equals(lineage.versions().keySet()))mismatch();
+        for(String purpose:purposes.values())if(purpose==null||!purpose.matches("[A-Z][A-Z0-9_]{0,127}"))mismatch();
+        TenantScope.requireSqlAccess("com.ruoyi.medical.persistence.mapper.VersionResourceMapper.owners");
         Objects.requireNonNull(admission); Objects.requireNonNull(lineage); Objects.requireNonNull(context);
         Objects.requireNonNull(artifactRequirements);
         if (!TenantScope.requireCurrent().tenantId().equals(admission.context().tenant_id())) denied();
-        if (purpose == null || !purpose.matches("[A-Z][A-Z0-9_]{0,127}")) throw new IllegalArgumentException("派生内容用途无效");
         var verified = new LinkedHashMap<String, VerifiedVersion>(); var actualArtifacts = new TreeSet<String>();
         var domainOwners = mapper.ownersAcrossDomains(lineage.versions().keySet().stream().sorted().toList(), DOMAINS);
         for (var row : domainOwners) if (!lineage.versions().containsKey(row.owner().versionId())) mismatch();
         var ownersByVersion = domainOwners.stream().collect(java.util.stream.Collectors.groupingBy(row -> row.owner().versionId()));
         for (var version : lineage.versions().values()) {
+            String purpose=purposes.get(version.id());
             // 全部领域在同一次企业查询中核查，继续要求版本具有唯一实际身份。
             var actualOwners = ownersByVersion.getOrDefault(version.id(), List.of());
             if (actualOwners.stream().map(VersionResourceProtocol.DomainOwnerRow::domain).distinct().count() > 1) mismatch();
@@ -85,7 +101,7 @@ public final class VersionResourceAuthority {
         if (owner.sourceVersion() != null) WireValues.uuid(owner.sourceVersion());
         if (owner.conversationId() != null) {
             if (!owner.conversationId().equals(context.conversationId())
-                    || !admission.subject().user().user_id().equals(owner.conversationOwnerId())) denied();
+                    || !admission.actorId().equals(owner.conversationOwnerId())) denied();
             boolean active = "ACTIVE".equals(owner.conversationStatus());
             boolean history = context.use() == SourceReadProtocol.Use.REVIEW || context.use() == SourceReadProtocol.Use.HISTORY;
             if (!active && !(history && "ARCHIVED".equals(owner.conversationStatus()))) denied();

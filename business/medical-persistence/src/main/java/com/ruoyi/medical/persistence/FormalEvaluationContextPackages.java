@@ -1,0 +1,44 @@
+package com.ruoyi.medical.persistence;
+import com.fasterxml.jackson.databind.JsonNode;import com.ruoyi.medical.contracts.*;import com.ruoyi.medical.identity.ApplicationSessionIdentity;import com.ruoyi.medical.persistence.mapper.*;
+import java.util.*;import java.io.IOException;import org.springframework.util.function.ThrowingSupplier;import org.springframework.transaction.support.TransactionSynchronizationManager;
+/** Actual immutable package GET with current full governance provenance; never model-send permission. */
+public final class FormalEvaluationContextPackages {
+ static final String PURPOSE="AGENT_PUBLICATION";static final int MAX=2*1024*1024;
+ private final EnterpriseAccess access;private final ArtifactContentService content;private final SourceUploadTransport transport;private final ArtifactRegistryMapper artifacts;private final SourceReadMapper sources;
+ private final DependencyLineage lineage;private final AgentPublicationDependencies dependencies;private final EvaluationReferences profiles;private final EvaluationDependencyPolicy policy;private final PermissionSchema json;
+ public FormalEvaluationContextPackages(EnterpriseAccess access,ArtifactContentService content,SourceUploadTransport transport,ArtifactRegistryMapper artifacts,SourceReadMapper sources,DependencyLineage lineage,AgentPublicationDependencies dependencies,EvaluationReferences profiles,EvaluationDependencyPolicy policy,PermissionSchema json){this.access=access;this.content=content;this.transport=transport;this.artifacts=artifacts;this.sources=sources;this.lineage=lineage;this.dependencies=dependencies;this.profiles=profiles;this.policy=policy;this.json=json;}
+ static final class Plan {
+  private final String tenant,actor,context,project,schemaRef,schemaHash,digest,classification;private final PermissionProtocol.Basis artifact;private final InterfaceProtocol.ObjectRef object;private final ContentReadProtocol.ReadIntent intent;private final List<String> sourceVersions;
+  private Plan(String tenant,String actor,String context,String project,String schemaRef,String schemaHash,String digest,String classification,PermissionProtocol.Basis artifact,InterfaceProtocol.ObjectRef object,ContentReadProtocol.ReadIntent intent,List<String> sourceVersions){this.tenant=tenant;this.actor=actor;this.context=context;this.project=project;this.schemaRef=schemaRef;this.schemaHash=schemaHash;this.digest=digest;this.classification=classification;this.artifact=artifact;this.object=object;this.intent=intent;this.sourceVersions=List.copyOf(sourceVersions);}
+  List<String> sources(){return sourceVersions;}String classification(){return classification;}PermissionProtocol.Basis artifact(){return artifact;}
+ }
+ Plan plan(EnterpriseAccess.Admission a,String context,String project,PermissionProtocol.Basis artifact,String schemaRef,String schemaHash)throws Exception{
+  FormalEvaluationExecutionAdmission.current(a);if(!context.equals(a.context().context_revision()))throw new TenantAccessException(ErrorCode.CONTEXT_CHANGED);policy.requireConfigured();
+  var dependency=dependencies.require(a,project,List.of(artifact),PURPOSE);var row=one(artifacts.artifact(artifact.version_id()));var rootBinding=one(artifacts.binding(artifact.version_id()));
+  if(!a.context().tenant_id().equals(row.tenantId())||!artifact.content_sha256().equals(row.contentSha256())||!artifact.content_sha256().equals(row.sha256())||row.projectId()!=null&&!project.equals(row.projectId())||!schemaRef.equals(rootBinding.schemaRef())||!schemaHash.equals(rootBinding.schemaDocumentSha256()))bad();
+  var object=StoredObjectReferences.decode(row.storedObject(),row.reference());if(!object.objectKey().startsWith("tenants/"+a.context().tenant_id()+"/")||object.objectKey().contains("..")||new java.math.BigInteger(object.sizeBytes()).compareTo(java.math.BigInteger.valueOf(MAX))>0)bad();
+  var graph=lineage.inspect(artifact.version_id(),policy.limits());var requirements=new TreeMap<String,ArtifactRegistryProtocol.ReadRequirement>();var sourceRequirements=new ArrayList<SourceReadProtocol.ReadRequirement>();var sourceIds=new ArrayList<String>();String classification=row.classification();
+  for(var version:graph.versions().values()){
+   if(version.projectId()!=null&&!project.equals(version.projectId()))throw new TenantAccessException(ErrorCode.ACCESS_DENIED);
+   var rows=sources.source(version.id());if(rows.size()>1)bad();if(!rows.isEmpty()){var source=rows.get(0);sourceIds.add(source.sourceVersion());classification=max(classification,source.classification(),one(sources.rights(source.rightsRevision())).classification());sourceRequirements.add(new SourceReadProtocol.ReadRequirement(source.sourceVersion(),source.rightsRevision(),project,null,null,null,SourceReadProtocol.Use.REVIEW,PURPOSE,policy.environment(),policy.region(),null));}
+   if("ARTIFACT".equals(version.entityKind())){var binding=one(artifacts.binding(version.id()));var p=profiles.profile(binding.schemaRef(),PURPOSE,binding.resourceKind());requirements.put(version.id(),new ArtifactRegistryProtocol.ReadRequirement(new PermissionProtocol.Scope(a.context().tenant_id(),binding.projectId(),p.resourceKind(),binding.resourceId()),p.action(),PURPOSE,p.schemaRef(),p.schemaDocumentSha256(),p.artifactSchemaManifest(),policy.limits()));classification=max(classification,one(artifacts.artifact(version.id())).classification());}
+  }
+  var root=requirements.remove(artifact.version_id());if(root==null)bad();sourceIds.sort(String::compareTo);sourceRequirements.sort(Comparator.comparing(SourceReadProtocol.ReadRequirement::sourceVersion));var intent=new ContentReadProtocol.ReadIntent(artifact.version_id(),context,root,sourceRequirements,new VersionResourceProtocol.ReadContext(SourceReadProtocol.Use.REVIEW,null),requirements);
+  var witness=json.object().put("tenant",a.context().tenant_id()).put("actor",a.actorId()).put("context",context).put("classification",classification);witness.set("intent",json.tree(intent));witness.set("artifact",AgentPublicationWitness.tree(row));witness.set("binding",AgentPublicationWitness.tree(rootBinding));witness.set("dependencies",dependency.authorizations());
+  return new Plan(a.context().tenant_id(),a.actorId(),context,project,schemaRef,schemaHash,org.apache.commons.codec.digest.DigestUtils.sha256Hex(json.canonical(witness).getBytes(java.nio.charset.StandardCharsets.UTF_8)),classification,artifact,object,intent,sourceIds);
+ }
+ final class Read {
+  private final Plan plan;private final byte[] bytes;private final List<String> receipts;
+  private Read(Plan plan,byte[] bytes,List<String> receipts){this.plan=plan;this.bytes=bytes.clone();this.receipts=List.copyOf(receipts);}
+  byte[] bytes(){return bytes.clone();}List<String> receipts(){return receipts;}JsonNode witness(){var w=json.object().put("artifact_id",plan.artifact.version_id()).put("sha256",plan.artifact.content_sha256()).put("authorization_sha256",plan.digest);w.set("object",json.tree(plan.object));w.set("receipt_ids",json.tree(receipts));return w;}
+  void requireCurrent(EnterpriseAccess.Admission a)throws Exception{samePlan(a,plan);if(!plan.artifact.content_sha256().equals(org.apache.commons.codec.digest.DigestUtils.sha256Hex(bytes))||receipts.isEmpty())bad();}
+ }
+ Read read(ApplicationSessionIdentity.Verified subject,Plan expected)throws Exception{
+  if(TransactionSynchronizationManager.isActualTransactionActive())throw new TenantAccessException(ErrorCode.CONTEXT_CHANGED);
+  S3ObjectReader.Admission guard=()->access.execute(subject,a->ThrowingSupplier.of(()->{samePlan(a,expected);return null;}).get());guard.requireCurrent();
+  var read=transport.readDocument(subject,expected.tenant,MAX,guard,(reader,current)->content.readVerifiedComplete(subject,expected.intent,reader,current,MAX,UUID.randomUUID().toString()));
+  var holder=new java.util.concurrent.atomic.AtomicReference<byte[]>();read.consume(bytes->{if(!expected.artifact.content_sha256().equals(org.apache.commons.codec.digest.DigestUtils.sha256Hex(bytes)))bad();holder.set(bytes);});var receipts=read.receiptIds();guard.requireCurrent();if(receipts.isEmpty())bad();return new Read(expected,holder.get(),receipts);
+ }
+ private void samePlan(EnterpriseAccess.Admission a,Plan expected)throws Exception{if(!expected.tenant.equals(a.context().tenant_id())||!expected.actor.equals(a.actorId())||!expected.digest.equals(plan(a,expected.context,expected.project,expected.artifact,expected.schemaRef,expected.schemaHash).digest))throw new TenantAccessException(ErrorCode.SCOPE_STALE);}
+ private static <T>T one(List<T> values){if(values.size()!=1)bad();return values.get(0);}static String max(String... values){var order=List.of("PUBLIC","INTERNAL","RESTRICTED","PERSONAL_HEALTH");int n=0;for(var v:values){int i=order.indexOf(v);if(i<0)bad();n=Math.max(n,i);}return order.get(n);}private static void bad(){throw new TenantAccessException(ErrorCode.CONTENT_MISMATCH);}
+}

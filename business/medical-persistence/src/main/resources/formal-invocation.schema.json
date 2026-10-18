@@ -1,0 +1,298 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:formal-invocation:1.0.0",
+  "$defs": {
+    "Id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "Hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "Count": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]{0,19})$"
+    },
+    "Positive": {
+      "type": "string",
+      "pattern": "^[1-9][0-9]{0,19}$"
+    },
+    "Money": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]{0,15})(\\.[0-9]{1,8})?$"
+    },
+    "Basis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version_id",
+        "content_sha256"
+      ],
+      "properties": {
+        "version_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "content_sha256": {
+          "$ref": "#/$defs/Hash"
+        }
+      }
+    },
+    "Coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "selection_digest",
+        "delivered_digest",
+        "complete",
+        "next_cursor"
+      ],
+      "properties": {
+        "selection_digest": {
+          "$ref": "#/$defs/Hash"
+        },
+        "delivered_digest": {
+          "$ref": "#/$defs/Hash"
+        },
+        "complete": {
+          "const": true
+        },
+        "next_cursor": {
+          "type": "null"
+        }
+      }
+    },
+    "ArtifactRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact_id",
+        "sha256",
+        "schema_ref",
+        "coverage"
+      ],
+      "properties": {
+        "artifact_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "schema_ref": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2048
+        },
+        "coverage": {
+          "$ref": "#/$defs/Coverage"
+        }
+      }
+    },
+    "RequestParameters": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "max_output_tokens",
+        "temperature",
+        "reasoning_effort",
+        "stop",
+        "purpose"
+      ],
+      "properties": {
+        "max_output_tokens": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "temperature": {
+          "anyOf": [
+            {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 2
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "reasoning_effort": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "stop": {
+          "type": "array",
+          "maxItems": 16,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024
+          },
+          "uniqueItems": true
+        },
+        "purpose": {
+          "const": "VERIFICATION"
+        }
+      }
+    },
+    "VerificationRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "project_id",
+        "model_config_revision",
+        "purpose",
+        "business_purpose",
+        "exact_input",
+        "scope_snapshot_basis",
+        "tokenizer_basis",
+        "role_basis",
+        "prompt_basis",
+        "rule_bases",
+        "enterprise_budget_basis",
+        "parent_budget_basis",
+        "maximum_input_tokens",
+        "request_parameters",
+        "reason"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "project_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "model_config_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "purpose": {
+          "const": "MODEL_VERIFICATION"
+        },
+        "business_purpose": {
+          "enum": [
+            "DOCUMENT_BODY",
+            "MODEL_VERIFICATION"
+          ]
+        },
+        "exact_input": {
+          "$ref": "#/$defs/ArtifactRef"
+        },
+        "scope_snapshot_basis": {
+          "$ref": "#/$defs/Basis"
+        },
+        "tokenizer_basis": {
+          "$ref": "#/$defs/Basis"
+        },
+        "role_basis": {
+          "$ref": "#/$defs/Basis"
+        },
+        "prompt_basis": {
+          "$ref": "#/$defs/Basis"
+        },
+        "rule_bases": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 64,
+          "items": {
+            "$ref": "#/$defs/Basis"
+          },
+          "uniqueItems": true
+        },
+        "enterprise_budget_basis": {
+          "$ref": "#/$defs/Basis"
+        },
+        "parent_budget_basis": {
+          "$ref": "#/$defs/Basis"
+        },
+        "maximum_input_tokens": {
+          "$ref": "#/$defs/Positive"
+        },
+        "request_parameters": {
+          "$ref": "#/$defs/RequestParameters"
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+        }
+      }
+    },
+    "PriceProfile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "kind",
+        "provider",
+        "model_id",
+        "model_version",
+        "currency",
+        "uncached_input_per_million",
+        "cache_read_per_million",
+        "cache_write_per_million",
+        "output_per_million",
+        "rounding"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "kind": {
+          "const": "TOKEN_ONLY_PER_MILLION"
+        },
+        "provider": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "model_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "model_version": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "currency": {
+          "type": "string",
+          "pattern": "^[A-Z]{3}$"
+        },
+        "uncached_input_per_million": {
+          "$ref": "#/$defs/Money"
+        },
+        "cache_read_per_million": {
+          "$ref": "#/$defs/Money"
+        },
+        "cache_write_per_million": {
+          "$ref": "#/$defs/Money"
+        },
+        "output_per_million": {
+          "$ref": "#/$defs/Money"
+        },
+        "rounding": {
+          "enum": [
+            "CEILING_8_DECIMAL_PLACES"
+          ]
+        }
+      }
+    }
+  }
+}

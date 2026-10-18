@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.medical.persistence.mapper.AnnotationThreadMapper">
+  <resultMap id="annotation" type="com.ruoyi.medical.persistence.AnnotationThreadProtocol$Row">
+    <constructor>
+      <arg column="tenant_id" javaType="java.lang.String"/><arg column="project_id" javaType="java.lang.String"/>
+      <arg column="annotation_id" javaType="java.lang.String"/><arg column="document_revision" javaType="java.lang.String"/>
+      <arg column="node_id" javaType="java.lang.String"/><arg column="selection" javaType="java.lang.String"/>
+      <arg column="selection_artifact_id" javaType="java.lang.String"/><arg column="quoted_sha256" javaType="java.lang.String"/>
+      <arg column="status" javaType="java.lang.String"/><arg column="content" javaType="java.lang.String"/>
+      <arg column="actor_id" javaType="java.lang.String"/><arg column="schema_version" javaType="java.lang.String"/>
+      <arg column="schema_manifest_sha256" javaType="java.lang.String"/><arg column="created_by" javaType="java.lang.String"/>
+      <arg column="created_at" javaType="java.time.LocalDateTime"/><arg column="classification" javaType="java.lang.String"/>
+      <arg column="revision" javaType="java.math.BigInteger"/><arg column="updated_at" javaType="java.time.LocalDateTime"/>
+      <arg column="reply_count" javaType="java.math.BigInteger"/>
+    </constructor>
+  </resultMap>
+  <select id="authorizationClock" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT COALESCE(DATE_FORMAT(MAX(v.boundary),'%Y-%m-%dT%H:%i:%s.%fZ'),'NONE') FROM (
+      SELECT valid_from AS boundary FROM permission_grant g WHERE subject_id=#{userId} AND status='ACTIVE' AND valid_from &lt;= UTC_TIMESTAMP(6)
+      UNION ALL SELECT valid_to AS boundary FROM permission_grant g WHERE subject_id=#{userId} AND status='ACTIVE' AND valid_to &lt;= UTC_TIMESTAMP(6)
+      UNION ALL SELECT valid_from AS boundary FROM rights_revision r WHERE valid_from &lt;= UTC_TIMESTAMP(6)
+      UNION ALL SELECT valid_to AS boundary FROM rights_revision r WHERE valid_to &lt;= UTC_TIMESTAMP(6)
+    ) v
+  </select>
+  <select id="artifactDocumentRevision" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT document_revision FROM artifact a WHERE project_id=#{projectId} AND artifact_id=#{artifactId} AND artifact_kind='SELECTION' FOR UPDATE
+  </select>
+  <select id="annotationCount" resultType="java.lang.Long" useCache="false" flushCache="true">
+    SELECT COUNT(*) FROM annotation a WHERE project_id=#{projectId} AND document_revision=#{documentRevision}
+    <if test="status != null">AND status=#{status}</if>
+  </select>
+  <sql id="columns">a.tenant_id,a.project_id,a.annotation_id,a.document_revision,a.node_id,a.selection,a.selection_artifact_id,
+    a.quoted_sha256,a.status,a.content,a.actor_id,a.schema_version,a.schema_manifest_sha256,a.created_by,a.created_at,
+    a.classification,a.revision,a.updated_at,
+    (SELECT COUNT(*) FROM annotation_reply r WHERE r.tenant_id=a.tenant_id AND r.project_id=a.project_id AND r.annotation_id=a.annotation_id) AS reply_count</sql>
+  <select id="annotations" resultMap="annotation" useCache="false" flushCache="true">
+    SELECT <include refid="columns"/> FROM annotation a WHERE a.project_id=#{projectId} AND a.document_revision=#{documentRevision}
+    <if test="status != null">AND a.status=#{status}</if>
+    ORDER BY a.created_at,a.annotation_id LIMIT #{fetchLimit} FOR UPDATE
+  </select>
+  <select id="annotation" resultMap="annotation" useCache="false" flushCache="true">
+    SELECT <include refid="columns"/> FROM annotation a WHERE a.project_id=#{projectId} AND a.document_revision=#{documentRevision}
+      AND a.annotation_id=#{annotationId} FOR UPDATE
+  </select>
+  <select id="originalAnnotation" resultMap="annotation" useCache="false" flushCache="true">
+    SELECT <include refid="columns"/> FROM annotation a WHERE a.project_id=#{projectId} AND a.annotation_id=#{annotationId} FOR UPDATE
+  </select>
+  <select id="effectiveAnnotation" resultMap="annotation" useCache="false" flushCache="true">
+    SELECT a.tenant_id,a.project_id,a.annotation_id,k.document_revision,k.node_id,k.selection,k.selection_artifact_id,
+      k.selection_sha256 AS quoted_sha256,a.status,a.content,a.actor_id,a.schema_version,a.schema_manifest_sha256,a.created_by,a.created_at,
+      a.classification,a.revision,a.updated_at,
+      (SELECT COUNT(*) FROM annotation_reply r WHERE r.tenant_id=a.tenant_id AND r.project_id=a.project_id AND r.annotation_id=a.annotation_id) AS reply_count
+    FROM annotation a JOIN annotation_effective_anchor e ON e.tenant_id=a.tenant_id AND e.project_id=a.project_id AND e.annotation_id=a.annotation_id
+      JOIN annotation_anchor k ON k.tenant_id=e.tenant_id AND k.project_id=e.project_id AND k.annotation_id=e.annotation_id AND k.anchor_id=e.anchor_id
+    WHERE a.project_id=#{projectId} AND a.annotation_id=#{annotationId} AND k.document_revision=#{documentRevision} FOR UPDATE
+  </select>
+  <select id="confirmations" resultType="com.ruoyi.medical.persistence.AnnotationThreadProtocol$Review" useCache="false" flushCache="true">
+    SELECT r.review_id AS reviewId,r.document_revision AS documentRevision,r.decision,r.target_key AS targetKey
+    FROM review_decision r WHERE r.project_id=#{projectId} AND r.document_revision=#{documentRevision}
+      AND r.decision='CONFIRM' AND r.target_key='DOCUMENT' AND NOT EXISTS (SELECT 1 FROM review_invalidation i
+        WHERE i.tenant_id=r.tenant_id AND i.project_id=r.project_id AND i.review_id=r.review_id)
+    ORDER BY r.review_id LIMIT #{reviewLimit} FOR UPDATE
+  </select>
+  <select id="invalidations" resultType="com.ruoyi.medical.persistence.AnnotationThreadProtocol$Invalidation" useCache="false" flushCache="true">
+    SELECT invalidation_id AS invalidationId,review_id AS reviewId,trigger_version AS triggerVersion,reason_code AS reasonCode
+    FROM review_invalidation i WHERE project_id=#{projectId} AND trigger_version=#{artifactId}
+      AND reason_code='ANNOTATION_OPENED' ORDER BY review_id FOR UPDATE
+  </select>
+  <select id="operation" resultMap="com.ruoyi.medical.persistence.mapper.UploadIssuanceMapper.operation" useCache="false" flushCache="true">
+    SELECT tenant_id,operation_id,subject_id,operation_name,idempotency_key,request_sha256,state,http_status,response_ref,
+      target_id,error_code,schema_version,schema_manifest_sha256,created_by,created_at,classification,revision,updated_at,
+      dedup_expires_at,dedup_policy_revision FROM operation_record o
+    WHERE subject_id=#{userId} AND operation_name='RV-04-THREAD-1' AND idempotency_key=#{key} FOR UPDATE
+  </select>
+  <insert id="startOperation">
+    INSERT INTO operation_record(operation_id,subject_id,operation_name,idempotency_key,request_sha256,state,http_status,response_ref,
+      target_id,error_code,schema_version,schema_manifest_sha256,created_by,created_at,classification,revision,updated_at)
+    VALUES(#{operationId},#{userId},'RV-04-THREAD-1',#{key},#{requestHash},'PROCESSING',NULL,#{commandJson},#{documentId},NULL,
+      '1.0.0',#{manifest},#{userId},#{now},#{classification},1,#{now})
+  </insert>
+  <update id="updateCommand">
+    UPDATE operation_record o SET response_ref=#{commandJson},revision=revision+1,updated_at=#{now}
+    WHERE subject_id=#{userId} AND operation_name='RV-04-THREAD-1' AND idempotency_key=#{key}
+      AND operation_id=#{operationId} AND target_id=#{documentId} AND request_sha256=#{requestHash} AND state='PROCESSING' AND revision=#{operationRevision}
+  </update>
+  <update id="completeOperation">
+    UPDATE operation_record o SET state='COMPLETED',http_status=201,response_ref=#{response},revision=revision+1,updated_at=#{now}
+    WHERE subject_id=#{userId} AND operation_name='RV-04-THREAD-1' AND idempotency_key=#{key}
+      AND operation_id=#{operationId} AND target_id=#{documentId} AND request_sha256=#{requestHash} AND state='PROCESSING' AND revision=#{operationRevision}
+  </update>
+  <insert id="saveVersion">
+    INSERT INTO version_registry(version_id,owner_project_id,entity_kind,content_sha256)
+    VALUES(#{artifactId},#{projectId},'ARTIFACT',#{selectionSha256})
+  </insert>
+  <insert id="saveArtifact">
+    INSERT INTO artifact(project_id,artifact_id,run_id,document_revision,artifact_kind,object_ref,object_key,object_version,sha256,
+      size_bytes,media_type,dependency_access_set_id,content_sha256,schema_version,schema_manifest_sha256,created_by,created_at,classification)
+    VALUES(#{projectId},#{artifactId},NULL,#{documentRevision},'SELECTION',#{storedObject},#{reference.objectKey},#{reference.objectVersion},
+      #{selectionSha256},#{reference.sizeBytes},'application/json',#{accessSetId},#{selectionSha256},'1.0.0',#{artifactManifest},#{userId},#{now},#{classification})
+  </insert>
+  <insert id="saveBinding">
+    INSERT INTO artifact_content_binding(project_id,artifact_id,resource_kind,resource_id,schema_ref,schema_document_sha256,
+      dependency_access_set_id,dependency_manifest_sha256,created_by,created_at,classification)
+    VALUES(#{projectId},#{artifactId},'DOCUMENT',#{documentId},#{selectionSchema},#{interfacesHash},#{accessSetId},#{dependencyHash},#{userId},#{now},#{classification})
+  </insert>
+  <insert id="saveLineage">
+    INSERT INTO lineage_edge(consumer_version_id,upstream_version_id,relation_kind,actor_id,decision_ref,created_at)
+    VALUES(#{artifactId},#{upstreamId},'ANNOTATION_SELECTION_INPUT',#{userId},NULL,#{now})
+  </insert>
+  <insert id="insertAnnotation">
+    INSERT INTO annotation(project_id,annotation_id,document_revision,node_id,selection,selection_artifact_id,quoted_sha256,status,content,
+      actor_id,schema_version,schema_manifest_sha256,created_by,created_at,classification,revision,updated_at)
+    VALUES(#{projectId},#{annotationId},#{documentRevision},#{anchorNodeId},#{selectionJson},#{artifactId},#{selectionSha256},'OPEN',#{content},
+      #{userId},'1.0.0',#{manifest},#{userId},#{now},#{classification},1,#{now})
+  </insert>
+  <update id="advanceHead">
+    UPDATE document_head d SET revision=revision+1,updated_at=#{now}
+    WHERE project_id=#{projectId} AND document_id=#{documentId} AND current_document_revision=#{documentRevision}
+      AND revision=#{expectedRevision} AND status&lt;&gt;'SIGNED'
+  </update>
+  <update id="advanceIssues">
+    UPDATE document_revision_state s SET issue_watermark=issue_watermark+1,revision=revision+1,updated_at=#{now}
+    WHERE project_id=#{projectId} AND document_revision=#{documentRevision}
+      AND issue_watermark=#{issueWatermark} AND evidence_watermark=#{evidenceWatermark}
+  </update>
+  <insert id="invalidateReview">
+    INSERT INTO review_invalidation(project_id,invalidation_id,review_id,trigger_version,reason_code,created_by,created_at,classification)
+    VALUES(#{projectId},#{invalidationId},#{reviewId},#{artifactId},'ANNOTATION_OPENED',#{userId},#{now},#{classification})
+  </insert>
+  <select id="audit" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT resource_ref FROM audit_event a WHERE subject_id=#{userId} AND project_id=#{projectId} AND action='annotation.created'
+      AND result='SUCCESS' AND reason_code IS NULL AND request_id=#{requestId} AND trace_id=#{requestId}
+      AND schema_version='1.0.0' AND schema_manifest_sha256=#{manifest} AND created_by=#{userId} AND classification=#{classification}
+  </select>
+  <select id="event" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT payload FROM outbox_event e WHERE aggregate_id=#{annotationId} AND aggregate_revision='1' AND event_type='annotation.created'
+  </select>
+</mapper>

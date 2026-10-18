@@ -1,0 +1,35 @@
+--liquibase formatted sql
+-- 080 formal candidate identity only. Publication lifecycle is reserved for additive 086.
+--changeset medical-agent:080-formal-agent-candidate-1 dbms:mysql runInTransaction:false failOnError:true
+CREATE TABLE formal_agent_candidate_binding (
+ tenant_id CHAR(36) CHARACTER SET ascii NOT NULL,
+ project_id CHAR(36) CHARACTER SET ascii NULL,
+ project_key VARCHAR(36) CHARACTER SET ascii GENERATED ALWAYS AS (COALESCE(project_id,'ENTERPRISE')) STORED,
+ version_id CHAR(36) CHARACTER SET ascii NOT NULL,
+ content_sha256 CHAR(64) CHARACTER SET ascii NOT NULL,
+ author_record_id CHAR(36) CHARACTER SET ascii NOT NULL,
+ author_kind VARCHAR(32) NOT NULL,
+ policy_version_id CHAR(36) CHARACTER SET ascii NOT NULL,
+ policy_sha256 CHAR(64) CHARACTER SET ascii NOT NULL,
+ fixed_json LONGTEXT NOT NULL,
+ schema_version VARCHAR(20) CHARACTER SET ascii NOT NULL,
+ schema_manifest_sha256 CHAR(64) CHARACTER SET ascii NOT NULL,
+ created_by CHAR(36) CHARACTER SET ascii NOT NULL,
+ created_at DATETIME(6) NOT NULL,
+ classification VARCHAR(32) CHARACTER SET ascii NOT NULL,
+ PRIMARY KEY(tenant_id,version_id),
+ UNIQUE KEY uq_fac_scoped_identity(tenant_id,project_key,version_id,content_sha256),
+ UNIQUE KEY uq_fac_original_author(tenant_id,author_record_id),
+ FOREIGN KEY(tenant_id,version_id,content_sha256) REFERENCES version_registry(tenant_id,version_id,content_sha256),
+ FOREIGN KEY(tenant_id,version_id) REFERENCES agent_version(tenant_id,agent_version_id),
+ FOREIGN KEY(tenant_id,project_key,version_id,author_record_id,author_kind) REFERENCES agent_publication_record(tenant_id,project_key,resource_id,record_id,kind),
+ FOREIGN KEY(tenant_id,policy_version_id,policy_sha256) REFERENCES version_registry(tenant_id,version_id,content_sha256),
+ FOREIGN KEY(tenant_id,policy_version_id) REFERENCES agent_execution_policy_version(tenant_id,version_id),
+ FOREIGN KEY(tenant_id,project_id) REFERENCES project(tenant_id,project_id),
+ FOREIGN KEY(tenant_id,created_by) REFERENCES tenant_member(tenant_id,user_id),
+ CHECK(author_kind='AUTHOR'),
+ CHECK(schema_version='1.0.0'),
+ CHECK(classification IN ('PUBLIC','INTERNAL','RESTRICTED','PERSONAL_HEALTH')),
+ CHECK(content_sha256 REGEXP '^[a-f0-9]{64}$' AND policy_sha256 REGEXP '^[a-f0-9]{64}$' AND schema_manifest_sha256 REGEXP '^[a-f0-9]{64}$'),
+ CHECK(JSON_VALID(fixed_json) AND JSON_TYPE(CAST(fixed_json AS JSON))='OBJECT')
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_as_cs;

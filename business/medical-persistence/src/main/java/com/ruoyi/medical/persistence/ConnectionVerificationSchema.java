@@ -1,0 +1,9 @@
+package com.ruoyi.medical.persistence;
+import com.fasterxml.jackson.databind.*;import com.fasterxml.jackson.databind.json.JsonMapper;import com.networknt.schema.*;import com.ruoyi.medical.contracts.*;import java.io.*;import java.util.*;
+public final class ConnectionVerificationSchema {
+ private final JsonMapper parser=JsonMapper.builder().enable(com.fasterxml.jackson.core.StreamReadFeature.STRICT_DUPLICATE_DETECTION).disable(com.fasterxml.jackson.core.StreamReadFeature.INCLUDE_SOURCE_IN_LOCATION).enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS).build();private final JsonSchema definition;private final String manifest;private final RuntimeGovernanceSchema responses=new RuntimeGovernanceSchema();
+ public ConnectionVerificationSchema()throws IOException{byte[] bytes;try(var in=Objects.requireNonNull(getClass().getResourceAsStream("/formal-invocation.schema.json"))){bytes=in.readAllBytes();}var root=JsonSchemaFactory.getInstance(SpecVersion.VersionFlag.V202012).getSchema(parser.readTree(bytes),SchemaValidatorsConfig.builder().formatAssertionsEnabled(true).build());definition=root.getSubSchema(new JsonNodePath(PathType.JSON_POINTER).append("$defs").append("VerificationRequest"));manifest=responses.hash(Map.of("formal_request",org.apache.commons.codec.digest.DigestUtils.sha256Hex(bytes),"runtime_governance",responses.manifest()));}
+ public JsonNode response(JsonNode node)throws IOException{return responses.validate("ConnectionResult",node);}
+ public JsonNode read(String value)throws IOException{return parser.readTree(value);}
+ public String manifest(){return manifest;}public JsonNode request(byte[] bytes)throws IOException{if(bytes==null||bytes.length==0||bytes.length>65536)throw new SchemaRejection(ErrorCode.SCHEMA_INVALID);var node=parser.readTree(bytes);if(!definition.validate(node).isEmpty())throw new SchemaRejection(ErrorCode.SCHEMA_INVALID);return node;}
+}

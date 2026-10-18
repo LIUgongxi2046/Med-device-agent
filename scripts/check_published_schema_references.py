@@ -19,7 +19,7 @@ def main():
     java_home = (toolchains / "jdk-17.0.20.1+1/Contents/Home").resolve(strict=True)
     maven = (toolchains / "apache-maven-3.9.16/bin/mvn").resolve(strict=True)
     inputs = ["scripts/check_published_schema_references.py", "business/pom.xml", "business/medical-contracts/pom.xml",
-              "contracts/catalogue.json", "data-design/dataset.schema.json", "data-design/sample_dataset.json",
+              "contracts/catalogue.json", "contracts/extensions/evaluation-results.catalogue.json", "business/medical-persistence/src/main/resources/evaluation-results.schema.json", "data-design/dataset.schema.json", "data-design/sample_dataset.json",
               "backend-design/interfaces.schema.yaml", "backend-design/resource-details.schema.yaml",
               "agent-design/artifacts.schema.json", "agent-design/model-stream.schema.json",
               "backend-design/接口补充设计.md", "LLD-后端.md"]

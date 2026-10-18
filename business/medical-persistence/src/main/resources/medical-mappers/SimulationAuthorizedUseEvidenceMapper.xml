@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.medical.persistence.mapper.SimulationAuthorizedUseEvidenceMapper">
+<select id="state" resultType="java.lang.String" useCache="false" flushCache="true">
+ SELECT JSON_OBJECT('tenant_id',s.tenant_id,'source_version',s.source_version,'rights_revision',s.rights_revision,'last_decision_id',s.last_decision_id,'revision',CAST(s.revision AS CHAR),'schema_version',s.schema_version,'schema_manifest_sha256',s.schema_manifest_sha256,'classification',s.classification,'updated_at',DATE_FORMAT(s.updated_at,'%Y-%m-%dT%H:%i:%s.%fZ')) FROM source_rights_state s WHERE s.source_version=#{sourceVersion}
+</select>
+<select id="decision" resultType="java.lang.String" useCache="false" flushCache="true">
+ SELECT JSON_OBJECT('tenant_id',d.tenant_id,'source_version',d.source_version,'decision_id',d.decision_id,'operation_id',d.operation_id,'from_rights_revision',d.from_rights_revision,'to_rights_revision',d.to_rights_revision,'decision',d.decision,'rights_status',d.rights_status,'expected_revision',CAST(d.expected_revision AS CHAR),'resulting_revision',CAST(d.resulting_revision AS CHAR),'reason',d.reason,'request_manifest',d.request_manifest,'reviewed_manifest',d.reviewed_manifest,'evidence_proof',d.evidence_proof,'receipt_ref',d.receipt_ref,'reviewed_manifest_sha256',d.reviewed_manifest_sha256,'schema_version',d.schema_version,'schema_manifest_sha256',d.schema_manifest_sha256,'created_by',d.created_by,'created_at',DATE_FORMAT(d.created_at,'%Y-%m-%dT%H:%i:%s.%fZ'),'classification',d.classification) FROM source_rights_decision d WHERE d.source_version=#{sourceVersion} AND d.decision_id=#{decisionId}
+</select>
+<select id="operation" resultType="java.lang.String" useCache="false" flushCache="true">
+ SELECT JSON_OBJECT('tenant_id',o.tenant_id,'operation_id',o.operation_id,'subject_id',o.subject_id,'operation_name',o.operation_name,'request_sha256',o.request_sha256,'state',o.state,'http_status',o.http_status,'response_ref',o.response_ref,'target_id',o.target_id,'error_code',o.error_code,'schema_version',o.schema_version,'schema_manifest_sha256',o.schema_manifest_sha256,'created_by',o.created_by,'created_at',DATE_FORMAT(o.created_at,'%Y-%m-%dT%H:%i:%s.%fZ'),'classification',o.classification) FROM operation_record o WHERE o.operation_id=#{operationId}
+</select>
+<select id="audits" resultType="java.lang.String" useCache="false" flushCache="true">
+ SELECT JSON_OBJECT('audit_id',a.audit_id,'tenant_id',a.tenant_id,'project_id',a.project_id,'subject_id',a.subject_id,'action',a.action,'resource_ref',a.resource_ref,'result',a.result,'reason_code',a.reason_code,'request_id',a.request_id,'trace_id',a.trace_id,'schema_version',a.schema_version,'schema_manifest_sha256',a.schema_manifest_sha256,'created_by',a.created_by,'classification',a.classification) FROM audit_event a WHERE a.action='source.rights_decided' AND a.request_id=#{requestId}
+</select>
+<select id="outbox" resultType="java.lang.String" useCache="false" flushCache="true">
+ SELECT JSON_OBJECT('event_id',e.event_id,'tenant_id',e.tenant_id,'aggregate_id',e.aggregate_id,'aggregate_revision',CAST(e.aggregate_revision AS CHAR),'event_type',e.event_type,'payload',e.payload) FROM outbox_event e WHERE e.event_type='source.rights_decided' AND e.aggregate_id=#{sourceVersion} AND e.aggregate_revision=#{revision}
+</select>
+</mapper>

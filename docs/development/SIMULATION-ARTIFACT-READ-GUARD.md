@@ -1,0 +1,11 @@
+# SIMULATION settled artifact reads
+
+062's MODEL_RESULT and SIMULATION_PROVENANCE artifacts bound to EVALUATION require an additional current-read guard inside ArtifactRegistry. Other artifact behavior and the frozen generic dependency schema are unchanged. The old four-argument registry constructor cannot authorize these new reads; production resolves the guard lazily to avoid the registry/context/reference/version-authority bean cycle.
+
+The only enabled purpose/action is SIMULATION_EVALUATION + evaluation.read. EVALUATION_RESULTS, configuration authoring, export and other purposes fail closed, without inferring or substituting a purpose. This check grants no write or production execution permission. Ordinary domain/artifact authorization, immutable object registration, schema validation, complete lineage, and downstream byte-read/receipt authorization remain mandatory.
+
+The guard discovers membership from the actual completed simulation_quota_settlement and original invocation/provenance/authority/fact rows, never caller-provided invocation or candidate references. Both result hashes, canonical request/receipt, evaluation definition and candidate snapshot, context contents, and artifact schema/binding are checked. The complete frozen candidate/configuration graph is compared with current graph hashes and edges, current configuration states, permissions, and classifications. Complete actual source closure is authorized through the existing source dependency authority, including both original fixture/input sources. The generic source-only dependency format is not widened to configuration nodes.
+
+Retention is independent of execution leases. Reads require the original active retention policy, unexpired matching deadline, size bound, and the original approver's current matching grant revision. Expired execution lease and completed evaluation status alone do not prevent a historical read. No retention deletion or longer-lived retention policy is introduced. Current viewer domain/artifact/source/configuration grants are checked separately; the viewer need not possess the original approver's retention-write permission.
+
+Verification: SimulationArtifactReadGuardTest and SimulationArtifactReadMapperTest are isolated unit/SQL-parser tests; no database or external runtime required.

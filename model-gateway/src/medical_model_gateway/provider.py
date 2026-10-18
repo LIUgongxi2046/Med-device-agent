@@ -1,6 +1,6 @@
 import asyncio
 from collections.abc import AsyncIterator
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 import json
 import logging
 from pathlib import Path
@@ -20,6 +20,7 @@ from medical_contracts.model_stream import (
 )
 
 from .credentials import read_key
+from .raw_response import ProviderResponseCapture, CapturingTransport, CapturedResponse, CaptureError
 from .protocol import ExactInput, ProviderSettings
 
 
@@ -34,6 +35,7 @@ class ProviderCompletion:
     blocks: list[Block]
     usage: Usage | None
     reason: FinishReason
+    raw_response: CapturedResponse | None = field(default=None, kw_only=True)
 
 
 @dataclass(repr=False)
@@ -201,11 +203,15 @@ class DeepSeekProvider:
     def __init__(self, key_path: Path):
         self._key_path = key_path
 
-    def client(self) -> AsyncOpenAI:
+    def client(self, capture: ProviderResponseCapture | None = None) -> AsyncOpenAI:
+        if capture is not None:
+            capture.require_durable_guard()
         key = read_key(self._key_path)
         for name in ("openai", "openai._base_client", "httpx2", "httpcore2"):
             logging.getLogger(name).setLevel(logging.CRITICAL + 1)
-        transport = httpx2.AsyncClient(trust_env=False, follow_redirects=False,
+        raw_transport = None if capture is None else CapturingTransport(
+            httpx2.AsyncHTTPTransport(trust_env=False, retries=0), capture)
+        transport = httpx2.AsyncClient(trust_env=False, follow_redirects=False, transport=raw_transport,
                                       timeout=httpx2.Timeout(60, connect=5, write=60, pool=5))
         return AsyncOpenAI(api_key=key.get_secret_value(), base_url=self.BASE_URL,
                            max_retries=0, http_client=transport)
@@ -222,21 +228,34 @@ class DeepSeekProvider:
             return models
 
     async def stream(self, settings: ProviderSettings, parameters: RequestParameters,
-                     exact_input: ExactInput, receipt_id: str) -> AsyncIterator[StreamPayload | ProviderCompletion]:
+                     exact_input: ExactInput, receipt_id: str, *,
+                     capture: ProviderResponseCapture | None = None) -> AsyncIterator[StreamPayload | ProviderCompletion]:
         settings = ProviderSettings.model_validate(settings.model_dump(mode="python"))
         parameters = RequestParameters.model_validate(parameters.model_dump(mode="python"))
         exact_input = ExactInput.model_validate(exact_input.model_dump(mode="python"))
         options = settings.request_options(parameters, exact_input)
         IDENTITY.validate_python(receipt_id)
         state = _Response(receipt_id, settings, exact_input)
+        if capture is not None:
+            capture.require_receipt(receipt_id)
         # 调用方必须已经提交一次发送准入；本组件不提供浏览器或专业Worker入口。
-        async with asyncio.timeout(settings.deadline_seconds), self.client() as client:
+        async with asyncio.timeout(settings.deadline_seconds), (self.client(capture) if capture is not None else self.client()) as client:
             response = await client.chat.completions.create(**options)
             async with response:
                 async for chunk in response:
-                    for event in state.consume(chunk):
+                    if capture is not None and any((choice.delta.model_extra or {}).get('reasoning_content') for choice in chunk.choices):
+                        capture.reject_reasoning_content()
+                    events = state.consume(chunk)
+                    if capture is not None and state.finish_reason is not None:
+                        capture.allow_terminal_drain(state.finish_reason, state.provider_request_id, state.response_model)
+                    for event in events:
                         yield event
             events, completion = state.complete()
+            if capture is not None:
+                actual = capture.result()
+                if not actual.capture_complete:
+                    raise CaptureError("PROVIDER_RAW_RESPONSE_INCOMPLETE")
+                completion = replace(completion, raw_response=actual)
             for event in events:
                 yield event
             # C07保存并重读ModelResult后才能向宿主发送finish。

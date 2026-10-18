@@ -1,5 +1,6 @@
 <template>
   <section aria-label="结构化模板定义">
+    <el-alert v-if="errors.open" :title="errors.open" type="error" :closable="false" role="alert" />
     <el-button :disabled="disabled" @click="open">编辑{{ labels[kind] }}定义</el-button>
     <el-dialog v-model="visible" :title="labels[kind] + '定义编辑'" width="90%" :close-on-click-modal="false" destroy-on-close @closed="clear">
       <p>当前修改保存在模板编辑页面。全部模板保存后由服务器核查版本、依据、许可和关系。</p>
@@ -9,6 +10,7 @@
         <el-table-column label="操作" width="130"><template #default="{ $index }"><el-button @click="edit($index)">编辑本项定义</el-button></template></el-table-column>
       </el-table>
       <el-button :disabled="editing" @click="create">新增{{ labels[kind] }}定义</el-button>
+      <p v-if="errors.schema" role="alert">{{ errors.schema }}</p>
       <el-form v-if="editing" label-position="top" @submit.prevent="confirmItem" data-template-definition-form>
         <el-form-item v-for="field in fields" :key="field.key" :label="field.label" :error="errors[field.key]">
           <el-checkbox v-if="field.nullable" v-model="nulls[field.key]">明确设置为空值</el-checkbox>
@@ -21,7 +23,6 @@
           <el-input v-else v-model="texts[field.key]" :aria-label="field.label" :disabled="nulls[field.key]" :type="field.type === 'json' ? 'textarea' : 'text'" :autosize="field.type === 'json' ? { minRows: 3, maxRows: 14 } : undefined" />
           <p v-if="field.description">{{ field.description }}</p>
         </el-form-item>
-        <p v-if="errors.schema" role="alert">{{ errors.schema }}</p>
         <el-button native-type="submit" type="primary">确认当前定义</el-button>
         <el-button @click="cancelItem">放弃当前定义编辑</el-button>
         <template v-if="editingIndex !== null">
@@ -38,7 +39,8 @@
 import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import schema from '../../../../business/medical-persistence/src/main/resources/templates.schema.json'
 import { fail, schemaIssues, validate } from '@/api/medical/protocol'
-import { projectJsonIssue, readBoundedJson } from '@/api/medical/project-json'
+import { readBoundedJson } from '@/api/medical/project-json'
+import { draftJsonIssue, templateDefinitionInputIssue } from './template-collection-input'
 import type { JsonObject } from '@/api/medical/template-approval'
 
 type DefinitionKind = 'Node' | 'Field' | 'Repeat' | 'Attachment' | 'CrossDocumentRule'
@@ -114,7 +116,12 @@ function clear(): void { cancelItem(); visible.value = false; items.value = []; 
 function open(): void {
   if (props.disabled || document.hidden) return
   clear(); baseline = props.value
-  items.value = checked(readBoundedJson(props.value.trim().length === 0 ? '[]' : props.value)); visible.value = true
+  const text = props.value.trim().length === 0 ? '[]' : props.value
+  const syntax = draftJsonIssue(text)
+  if (syntax) { errors.open = syntax; return }
+  const value = readBoundedJson(text), issue = templateDefinitionInputIssue(value, props.kind, identities[props.kind])
+  if (issue) { errors.open = issue; return }
+  items.value = checked(value); visible.value = true
 }
 function edit(index: number): void {
   const value = items.value[index]
@@ -137,7 +144,7 @@ function confirmItem(): void {
     const text = texts[field.key] ?? ''
     if (nulls[field.key]) { value[field.key] = null; continue }
     if (field.type === 'json' || field.type === 'boolean' || field.type === 'integer') {
-      const issue = projectJsonIssue(text)
+      const issue = draftJsonIssue(text)
       if (issue) { errors[field.key] = issue; continue }
       value[field.key] = readBoundedJson(text) as JsonObject[string]
     } else value[field.key] = text
@@ -151,6 +158,8 @@ function confirmItem(): void {
   if (issues.length) { errors.schema = '当前定义没有通过全部字段校验'; return }
   const next = [...items.value]
   if (editingIndex.value === null) next.push(value); else next[editingIndex.value] = value
+  const issue = templateDefinitionInputIssue(next, props.kind, identities[props.kind])
+  if (issue) { errors.schema = issue; return }
   items.value = checked(next); cancelItem()
 }
 function remove(): void {
@@ -159,6 +168,8 @@ function remove(): void {
 }
 function apply(): void {
   if (props.disabled || editing.value || baseline !== props.value || document.hidden) fail('ACTION_STALE', '原模板内容或编辑上下文已经变化')
+  const issue = templateDefinitionInputIssue(items.value, props.kind, identities[props.kind])
+  if (issue) { errors.schema = issue; return }
   const value = JSON.stringify(checked(items.value), null, 2); clear(); emit('changed', value)
 }
 watch(() => [props.value, props.disabled, props.kind], clear, { flush: 'sync' })

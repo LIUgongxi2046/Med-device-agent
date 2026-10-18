@@ -1,0 +1,200 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.medical.persistence.mapper.SimulationFixtureMapper">
+  <resultMap id="registration" type="com.ruoyi.medical.persistence.SimulationInvocationSources$Registration">
+    <constructor>
+      <arg column="tenant_id" javaType="java.lang.String"/><arg column="project_id" javaType="java.lang.String"/>
+      <arg column="case_id" javaType="java.lang.String"/><arg column="model_config_revision" javaType="java.lang.String"/>
+      <arg column="case_source_version" javaType="java.lang.String"/><arg column="case_rights_revision" javaType="java.lang.String"/>
+      <arg column="input_source_version" javaType="java.lang.String"/><arg column="input_rights_revision" javaType="java.lang.String"/>
+      <arg column="case_sha256" javaType="java.lang.String"/><arg column="input_sha256" javaType="java.lang.String"/>
+      <arg column="settings_sha256" javaType="java.lang.String"/><arg column="parameters_sha256" javaType="java.lang.String"/>
+      <arg column="case_receipt_id" javaType="java.lang.String"/><arg column="schema_version" javaType="java.lang.String"/>
+      <arg column="schema_manifest_sha256" javaType="java.lang.String"/><arg column="created_by" javaType="java.lang.String"/>
+      <arg column="created_at" javaType="java.time.LocalDateTime"/><arg column="classification" javaType="java.lang.String"/>
+    </constructor>
+  </resultMap>
+  <resultMap id="original" type="com.ruoyi.medical.persistence.SimulationInvocationSources$Original">
+    <constructor>
+      <arg column="tenant_id" javaType="java.lang.String"/><arg column="source_version" javaType="java.lang.String"/>
+      <arg column="original_sha256" javaType="java.lang.String"/><arg column="object_key" javaType="java.lang.String"/>
+      <arg column="object_version" javaType="java.lang.String"/><arg column="size_bytes" javaType="java.math.BigInteger"/>
+      <arg column="media_type" javaType="java.lang.String"/>
+    </constructor>
+  </resultMap>
+  <select id="registration" resultMap="registration" useCache="false" flushCache="true">
+    SELECT tenant_id,project_id,case_id,model_config_revision,case_source_version,case_rights_revision,
+      input_source_version,input_rights_revision,case_sha256,input_sha256,settings_sha256,parameters_sha256,
+      case_receipt_id,schema_version,schema_manifest_sha256,created_by,created_at,classification
+    FROM simulation_fixture_registration WHERE case_id=#{caseId} AND model_config_revision=#{configRevision}
+      AND project_id &lt;=&gt; #{projectId}
+  </select>
+  <select id="original" resultMap="original" useCache="false" flushCache="true">
+    SELECT tenant_id,source_version,original_sha256,object_key,object_version,size_bytes,media_type
+    FROM source_version WHERE source_version=#{sourceVersion}
+  </select>
+  <resultMap id="context" type="com.ruoyi.medical.persistence.SimulationInvocationSources$Context">
+    <constructor>
+      <arg column="tenant_id" javaType="java.lang.String"/><arg column="project_id" javaType="java.lang.String"/>
+      <arg column="context_manifest_id" javaType="java.lang.String"/><arg column="exact_input_ref" javaType="java.lang.String"/>
+      <arg column="dependency_access_set_id" javaType="java.lang.String"/><arg column="content_sha256" javaType="java.lang.String"/>
+      <arg column="registry_sha256" javaType="java.lang.String"/><arg column="execution_mode" javaType="java.lang.String"/>
+      <arg column="source_manifest" javaType="java.lang.String"/><arg column="prompt_revision" javaType="java.lang.String"/>
+      <arg column="schema_version" javaType="java.lang.String"/><arg column="schema_manifest_sha256" javaType="java.lang.String"/>
+      <arg column="created_by" javaType="java.lang.String"/><arg column="created_at" javaType="java.time.LocalDateTime"/>
+      <arg column="classification" javaType="java.lang.String"/>
+    </constructor>
+  </resultMap>
+  <select id="context" resultMap="context" useCache="false" flushCache="true">
+    SELECT c.tenant_id,c.project_id,c.context_manifest_id,c.exact_input_ref,c.dependency_access_set_id,c.content_sha256,
+      v.content_sha256 AS registry_sha256,c.execution_mode,c.source_manifest,c.prompt_revision,c.schema_version,
+      c.schema_manifest_sha256,c.created_by,c.created_at,c.classification FROM context_manifest c
+    JOIN version_registry v ON v.tenant_id=c.tenant_id AND v.version_id=c.context_manifest_id
+      AND v.owner_project_id &lt;=&gt; c.project_id
+    WHERE c.context_manifest_id=#{contextId} AND c.tokenizer_revision IS NULL AND c.token_count IS NULL
+  </select>
+  <insert id="insertRegistration">
+    INSERT INTO simulation_fixture_registration(project_id,case_id,model_config_revision,case_source_version,
+      case_rights_revision,input_source_version,input_rights_revision,case_sha256,input_sha256,settings_sha256,
+      parameters_sha256,case_receipt_id,schema_version,schema_manifest_sha256,created_by,created_at,classification)
+    VALUES(#{row.projectId},#{row.caseId},#{row.configRevision},#{row.caseSourceVersion},
+      #{row.caseRightsRevision},#{row.inputSourceVersion},#{row.inputRightsRevision},#{row.caseSha256},#{row.inputSha256},
+      #{row.settingsSha256},#{row.parametersSha256},#{row.caseReceiptId},#{row.schemaVersion},#{row.manifest},
+      #{row.createdBy},#{row.createdAt},#{row.classification})
+  </insert>
+  <insert id="insertContextVersion">
+    INSERT INTO version_registry(version_id,owner_project_id,entity_kind,content_sha256)
+    VALUES(#{versionId},#{projectId},#{kind},#{hash})
+  </insert>
+  <insert id="insertContextAccessSet">
+    INSERT INTO dependency_access_set(project_id,access_set_id,manifest_sha256,content_sha256,created_by,created_at,classification)
+    VALUES(#{projectId},#{accessId},#{hash},#{hash},#{userId},#{now},#{classification})
+  </insert>
+  <insert id="insertContextDependencyManifest">
+    INSERT INTO dependency_access_manifest(project_id,access_set_id,manifest_json,manifest_sha256,content_sha256,member_count,
+      schema_version,schema_manifest_sha256,created_by,created_at,classification)
+    VALUES(#{projectId},#{accessId},#{dependencyJson},#{hash},#{hash},#{memberCount},'1.0.0',#{dependencySchema},#{userId},#{now},#{classification})
+  </insert>
+  <insert id="insertContextDependencyMember">
+    INSERT INTO dependency_access_member(access_set_id,upstream_version_id,rights_revision,created_by,created_at,classification)
+    VALUES(#{accessId},#{member.upstreamVersionId},#{member.rightsRevision},#{userId},#{now},#{classification})
+  </insert>
+  <insert id="insertContextLineage">
+    INSERT INTO lineage_edge(consumer_version_id,upstream_version_id,relation_kind,actor_id,decision_ref,created_at)
+    VALUES(#{consumer},#{upstream},#{relationKind},#{userId},NULL,#{now})
+  </insert>
+  <insert id="insertSimulationContext">
+    INSERT INTO context_manifest(project_id,context_manifest_id,exact_input_ref,source_manifest,prompt_revision,
+      tokenizer_revision,token_count,dependency_access_set_id,content_sha256,schema_version,schema_manifest_sha256,
+      created_by,created_at,classification,execution_mode)
+    VALUES(#{row.projectId},#{row.contextId},#{row.exactInputRef},#{row.sourceManifest},#{row.promptRevision},NULL,NULL,
+      #{row.accessSetId},#{row.contentHash},#{row.schemaVersion},#{row.manifest},#{row.createdBy},#{row.createdAt},#{row.classification},'SIMULATION')
+  </insert>
+  <insert id="insertSimulationContextGraph">
+    INSERT INTO simulation_context_dependency_manifest(project_id,context_manifest_id,candidate_id,prompt_revision,manifest_json,
+      content_sha256,schema_version,schema_manifest_sha256,created_by,created_at,classification)
+    VALUES(#{projectId},#{contextId},#{candidateId},#{promptRevision},#{graphJson},#{graphHash},'1.0.0',#{graphSchema},#{userId},#{now},#{classification})
+  </insert>
+  <resultMap id="contextGraph" type="com.ruoyi.medical.persistence.SimulationContextDependencies$Stored">
+    <constructor>
+      <arg column="tenant_id" javaType="java.lang.String"/><arg column="project_id" javaType="java.lang.String"/>
+      <arg column="context_manifest_id" javaType="java.lang.String"/><arg column="candidate_id" javaType="java.lang.String"/>
+      <arg column="prompt_revision" javaType="java.lang.String"/><arg column="manifest_json" javaType="java.lang.String"/>
+      <arg column="content_sha256" javaType="java.lang.String"/><arg column="schema_version" javaType="java.lang.String"/>
+      <arg column="schema_manifest_sha256" javaType="java.lang.String"/>
+    </constructor>
+  </resultMap>
+  <select id="contextGraph" resultMap="contextGraph" useCache="false" flushCache="true">
+    SELECT tenant_id,project_id,context_manifest_id,candidate_id,prompt_revision,manifest_json,content_sha256,schema_version,
+      schema_manifest_sha256 FROM simulation_context_dependency_manifest WHERE context_manifest_id=#{contextId}
+  </select>
+  <resultMap id="contextClassification" type="com.ruoyi.medical.persistence.SimulationContextDependencies$Classification">
+    <constructor><arg column="version_id" javaType="java.lang.String"/><arg column="classification" javaType="java.lang.String"/></constructor>
+  </resultMap>
+  <select id="contextConfigurationClassifications" resultMap="contextClassification" useCache="false" flushCache="true">
+    SELECT capability_version AS version_id,classification FROM capability_version
+      WHERE capability_version IN <foreach collection="versionIds" item="id" open="(" close=")" separator=",">#{id}</foreach>
+    UNION ALL
+    SELECT model_config_revision AS version_id,classification FROM model_config_revision
+      WHERE model_config_revision IN <foreach collection="versionIds" item="id" open="(" close=")" separator=",">#{id}</foreach>
+    UNION ALL
+    SELECT agent_version_id AS version_id,classification FROM agent_version
+      WHERE agent_version_id IN <foreach collection="versionIds" item="id" open="(" close=")" separator=",">#{id}</foreach>
+  </select>
+  <resultMap id="settledArtifact" type="com.ruoyi.medical.persistence.SimulationArtifactReadGuard$Settled">
+    <constructor>
+      <arg column="tenant_id" javaType="java.lang.String"/>
+      <arg column="project_id" javaType="java.lang.String"/>
+      <arg column="invocation_id" javaType="java.lang.String"/>
+      <arg column="context_id" javaType="java.lang.String"/>
+      <arg column="run_id" javaType="java.lang.String"/>
+      <arg column="step_id" javaType="java.lang.String"/>
+      <arg column="action_id" javaType="java.lang.String"/>
+      <arg column="config_revision" javaType="java.lang.String"/>
+      <arg column="role_version" javaType="java.lang.String"/>
+      <arg column="evaluation_id" javaType="java.lang.String"/>
+      <arg column="authority_id" javaType="java.lang.String"/>
+      <arg column="result_artifact_id" javaType="java.lang.String"/>
+      <arg column="result_sha256" javaType="java.lang.String"/>
+      <arg column="provenance_artifact_id" javaType="java.lang.String"/>
+      <arg column="provenance_sha256" javaType="java.lang.String"/>
+      <arg column="request_json" javaType="java.lang.String"/>
+      <arg column="binding_sha256" javaType="java.lang.String"/>
+      <arg column="proof_sha256" javaType="java.lang.String"/>
+      <arg column="payload" javaType="java.lang.String"/>
+      <arg column="payload_sha256" javaType="java.lang.String"/>
+      <arg column="classification" javaType="java.lang.String"/>
+    </constructor>
+  </resultMap>
+  <!-- Actual 062 settlement membership, never caller-supplied invocation/candidate references. -->
+  <select id="settledArtifact" resultMap="settledArtifact" useCache="false" flushCache="true">
+    SELECT s.tenant_id,s.project_id,s.invocation_id,i.context_manifest_id AS context_id,i.run_id,i.step_id,i.action_id,
+      i.config_revision,rs.role_version,a.evaluation_id,a.authority_id,s.result_artifact_id,s.result_sha256,
+      s.provenance_artifact_id,s.provenance_sha256,
+      JSON_OBJECT('schema_version','1.0.0','authority_proof',a.proof,'binding',p.binding,'settings',p.settings,
+        'exact_input',p.exact_input,'request_parameters',p.request_parameters,'simulation_case',p.simulation_case) AS request_json,
+      p.binding_sha256,a.proof_sha256,f.payload,f.payload_sha256,s.classification
+    FROM simulation_quota_settlement s
+    JOIN invocation i ON i.tenant_id=s.tenant_id AND i.project_id &lt;=&gt; s.project_id AND i.invocation_id=s.invocation_id
+      AND i.execution_mode='SIMULATION' AND i.status=s.execution_status
+      AND i.result_artifact_id=s.result_artifact_id AND i.result_sha256=s.result_sha256
+    JOIN simulation_invocation_provenance p ON p.tenant_id=i.tenant_id AND p.project_id &lt;=&gt; i.project_id
+      AND p.invocation_id=i.invocation_id AND p.execution_mode='SIMULATION'
+    JOIN simulation_execution_authority a ON a.tenant_id=p.tenant_id AND a.project_id &lt;=&gt; p.project_id
+      AND a.authority_id=p.authority_id AND a.run_id=i.run_id AND a.step_id=i.step_id AND a.action_id=i.action_id
+    JOIN run_step rs ON rs.tenant_id=i.tenant_id AND rs.project_id &lt;=&gt; i.project_id AND rs.run_id=i.run_id AND rs.step_id=i.step_id
+    JOIN simulation_invocation_fact f ON f.tenant_id=s.tenant_id AND f.project_id &lt;=&gt; s.project_id
+      AND f.invocation_id=s.invocation_id AND f.fact_id=s.fact_id AND f.kind='LATE_RESULT'
+    JOIN simulation_result_persistence w ON w.tenant_id=s.tenant_id AND w.project_id &lt;=&gt; s.project_id
+      AND w.invocation_id=s.invocation_id AND w.fact_id=f.fact_id AND w.payload_sha256=f.payload_sha256
+      AND w.binding_sha256=p.binding_sha256 AND w.status='COMPLETED'
+    WHERE (s.result_artifact_id=#{artifactId} OR s.provenance_artifact_id=#{artifactId})
+      AND s.execution_mode='SIMULATION' AND s.production_eligible=FALSE
+      AND s.schema_version='1.0.0' AND s.schema_manifest_sha256=#{schemaHash}
+      AND p.schema_version='1.0.0' AND p.schema_manifest_sha256=#{schemaHash}
+      AND a.schema_version='1.0.0' AND a.schema_manifest_sha256=#{schemaHash}
+      AND f.schema_version='1.0.0' AND f.schema_manifest_sha256=#{schemaHash}
+      AND w.schema_version='1.0.0' AND w.schema_manifest_sha256=#{schemaHash}
+  </select>
+  <resultMap id="artifactRetention" type="com.ruoyi.medical.persistence.SimulationArtifactReadGuard$Retention">
+    <constructor>
+      <arg column="tenant_id" javaType="java.lang.String"/><arg column="project_id" javaType="java.lang.String"/>
+      <arg column="policy_id" javaType="java.lang.String"/><arg column="evaluation_id" javaType="java.lang.String"/>
+      <arg column="approval_grant_id" javaType="java.lang.String"/><arg column="approval_grant_revision" javaType="java.math.BigInteger"/>
+      <arg column="created_by" javaType="java.lang.String"/><arg column="maximum_record_bytes" javaType="java.math.BigInteger"/>
+      <arg column="retain_until" javaType="java.time.LocalDateTime"/>
+    </constructor>
+  </resultMap>
+  <select id="artifactRetention" resultMap="artifactRetention" useCache="false" flushCache="true">
+    SELECT r.tenant_id,r.project_id,r.policy_id,r.evaluation_id,r.approval_grant_id,r.approval_grant_revision,
+      r.created_by,r.maximum_record_bytes,r.retain_until
+    FROM simulation_retention_policy r
+    JOIN simulation_execution_authority a ON a.tenant_id=r.tenant_id AND a.project_id &lt;=&gt; r.project_id
+      AND a.evaluation_id=r.evaluation_id AND a.retention_policy_id=r.policy_id AND a.authority_id=#{authorityId}
+    JOIN simulation_result_persistence w ON w.tenant_id=r.tenant_id AND w.project_id &lt;=&gt; r.project_id
+      AND w.retention_policy_id=r.policy_id AND w.invocation_id=#{invocationId} AND w.retention_deadline=r.retain_until
+    WHERE r.policy_id=#{policyId} AND r.status='ACTIVE' AND r.revision>0
+      AND r.schema_version='1.0.0' AND r.schema_manifest_sha256=#{schemaHash}
+      AND r.retain_until>UTC_TIMESTAMP(6)
+  </select>
+</mapper>

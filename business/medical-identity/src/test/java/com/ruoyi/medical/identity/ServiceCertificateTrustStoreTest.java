@@ -23,7 +23,7 @@ public final class ServiceCertificateTrustStoreTest {
         Path root = Path.of(System.getProperty("medical.projectRoot")).toRealPath();
         Path assets = root.resolve(".implementation-work/service-certificates/" + UUID.randomUUID());
         Files.createDirectories(assets.getParent());
-        var prepare = new ProcessBuilder(root.resolve(".implementation-work/document-venv/bin/python").toString(),
+        var prepare = new ProcessBuilder(System.getProperty("medical.test.python", root.resolve(".implementation-work/document-venv/bin/python").toString()),
             root.resolve("scripts/prepare_service_certificates.py").toString(), "--output", assets.toString())
             .directory(root.toFile()).redirectErrorStream(true)
             .redirectOutput(assets.resolveSibling(assets.getFileName() + ".prepare.log").toFile()).start();

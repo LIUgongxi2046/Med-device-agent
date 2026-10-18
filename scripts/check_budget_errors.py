@@ -26,7 +26,7 @@ def main():
     for path in ('scripts/check_budget_errors.py', 'business/pom.xml', 'business/medical-identity/pom.xml',
                  'business/medical-identity/src/main/java/com/ruoyi/medical/identity/IdentityErrorResponseWriter.java',
                  'business/medical-identity/src/test/java/com/ruoyi/medical/identity/OidcSecurityTest.java',
-                 'backend-design/interfaces.schema.yaml', 'contracts/catalogue.json'):
+                 'backend-design/interfaces.schema.yaml', 'contracts/catalogue.json', 'contracts/extensions/evaluation-results.catalogue.json', 'business/medical-persistence/src/main/resources/evaluation-results.schema.json'):
         command.extend(['--input', str(ROOT / path)])
     subprocess.run([*command, '--', str((toolchains / 'apache-maven-3.9.16/bin/mvn').resolve(strict=True)),
                     '--batch-mode', '--no-transfer-progress', '-Dmaven.repo.local=' + str(ROOT / '.implementation-work/maven-repository'),

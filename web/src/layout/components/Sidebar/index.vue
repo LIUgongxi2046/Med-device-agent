@@ -13,18 +13,20 @@
         mode="vertical"
         :class="sideTheme"
       >
-        <sidebar-item
-          v-for="(route, index) in sidebarRouters"
-          :key="route.path + index"
-          :item="route"
-          :base-path="route.path"
-        />
+        <template v-if="userStore.medicalMode">
+          <el-menu-item-group v-for="group in medicalGroups" :key="group.title">
+            <template #title><span v-if="!isCollapse">{{ group.title }}</span></template>
+            <sidebar-item v-for="item in group.routes" :key="item.path" :item="item" :base-path="item.path" />
+          </el-menu-item-group>
+        </template>
+        <sidebar-item v-else v-for="(item, index) in sidebarRouters" :key="item.path + index" :item="item" :base-path="item.path" />
       </el-menu>
     </el-scrollbar>
   </div>
 </template>
 
 <script setup>
+import { medicalNavigationGroups } from '@/components/Medical/navigation'
 import Logo from './Logo'
 import SidebarItem from './SidebarItem'
 import variables from '@/assets/styles/variables.module.scss'
@@ -34,6 +36,8 @@ import usePermissionStore from '@/store/modules/permission'
 import useUserStore from '@/store/modules/user'
 import tokens from '../../../../../ui-delivery/tokens.json'
 
+const userStore = useUserStore()
+const medicalGroups = computed(() => medicalNavigationGroups(permissionStore.sidebarRouters, permissionStore.frameworkRoutes))
 const route = useRoute()
 const appStore = useAppStore()
 const settingsStore = useSettingsStore()

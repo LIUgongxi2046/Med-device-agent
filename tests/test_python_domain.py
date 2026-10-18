@@ -360,7 +360,7 @@ class PythonDomainChecks(unittest.TestCase):
         bindings = self.interface_bindings()
         original = self.catalogue.schemas["interfaces"]["$defs"]
         self.assertEqual(set(bindings.definitions), set(original))
-        self.assertEqual(len(bindings.definitions), 102)
+        self.assertEqual(len(bindings.definitions), 104)
         refs = {self.catalogue.schema_ref("interfaces", name): value for name, value in bindings.definitions.items()}
         refs.update({self.catalogue.schema_ref("dataset", name): value for name, value in self.dataset_bindings().definitions.items()})
         for name, value in self.resource_bindings().common_definitions.items():
@@ -380,7 +380,7 @@ class PythonDomainChecks(unittest.TestCase):
                 objects += 1
                 with self.subTest(definition=name), self.assertRaises(SchemaError):
                     bindings.bind(self.dataset, name)
-        self.assertEqual(objects, 93)
+        self.assertEqual(objects, 95)
 
     def test_interface_envelope_reads_actual_registered_data_independently(self):
         bindings = self.interface_bindings()

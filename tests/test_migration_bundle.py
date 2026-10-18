@@ -2,8 +2,10 @@ from collections import Counter
 import hashlib
 import json
 import os
+import re
 from pathlib import Path
 import subprocess
+import sys
 import unittest
 from xml.etree import ElementTree
 
@@ -13,8 +15,55 @@ import sqlparse
 
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "scripts"))
+from run_migration import resolve_java
+
 RESOURCES = ROOT / "business/medical-data/src/main/resources"
 NAMESPACE = {"lb": "http://www.liquibase.org/xml/ns/dbchangelog"}
+
+
+def normalize_liquibase_comments(sql):
+    # Only complete known Liquibase metadata lines qualify; executable SQL is unchanged.
+    directive = r"(?:liquibase formatted sql|changeset [A-Za-z0-9_.:-]+ dbms:mysql runInTransaction:false failOnError:true)"
+    return re.sub(r"(?m)^--(?=" + directive + r"\r?$)", "-- ", sql)
+
+
+def sqlglot_migration_source(path):
+    # MySQL requires whitespace after --. Never rewrite historical migration bytes.
+    return normalize_liquibase_comments(path.read_text(encoding="utf-8"))
+
+
+def parse_068_native_statements(path):
+    # JSQLParser 5.2 times out on 068's unchanged compound DROP CHECK/ADD CHECK ALTER.
+    # SQLGlot parses EVERY original statement/constraint; existing bundle checks still apply.
+    if path.name != "068-document-technical-check.sql":
+        raise ValueError("068_COMPATIBILITY_SCOPE_ONLY")
+    statements = sqlglot.parse(sqlglot_migration_source(path), read="mysql")
+    if len(statements) != 3 or not isinstance(statements[0], exp.Alter) or not all(
+            isinstance(statement, exp.Create) and statement.kind == "TABLE" for statement in statements[1:]):
+        raise ValueError("068_COMPLETE_STATEMENT_SHAPE_REQUIRED")
+    return statements
+
+
+class MigrationCommentNormalizationTests(unittest.TestCase):
+    def test_only_complete_liquibase_metadata_comment_lines_are_normalized(self):
+        header = "--liquibase formatted sql"
+        change = "--changeset medical-agent:1.0.0-315-annotation-anchor dbms:mysql runInTransaction:false failOnError:true"
+        sql = header + "\n" + change + "\nCREATE TABLE example (id INT);\n"
+        self.assertEqual("-- " + header[2:] + "\n-- " + change[2:] + "\nCREATE TABLE example (id INT);\n",
+                         normalize_liquibase_comments(sql))
+
+    def test_inline_sql_literals_and_nonmetadata_comments_are_unchanged(self):
+        sql = ("SELECT '--liquibase formatted sql'; --changeset x\n"
+               "-- ordinary SQL comment\n--not_metadata\n"
+               "--liquibase formatted sql; SELECT 1;\n"
+               "--changeset unexpected syntax\n"
+               "SELECT 1; --liquibase formatted sql\n")
+        self.assertEqual(sql, normalize_liquibase_comments(sql))
+
+    def test_crlf_comments_preserve_line_endings(self):
+        self.assertEqual("-- liquibase formatted sql\r\nSELECT 1;\r\n",
+                         normalize_liquibase_comments("--liquibase formatted sql\r\nSELECT 1;\r\n"))
 
 
 def framework_index_signature(schema):
@@ -55,6 +104,7 @@ class MigrationBundleChecks(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
+        cls.java = resolve_java(ROOT)
         cls.manifest = json.loads((RESOURCES / "db/migration/coverage.json").read_bytes())
         cls.changelog = ElementTree.parse(RESOURCES / "db/changelog/master.xml")
         cls.statements = []
@@ -66,7 +116,7 @@ class MigrationBundleChecks(unittest.TestCase):
             path = entry.attrib["path"]
             actual = ROOT / path if path == "data-design/core.sql" else RESOURCES / path
             cls.paths.append(actual)
-            cls.statements.extend(sqlglot.parse(actual.read_text(encoding="utf-8"), read="mysql"))
+            cls.statements.extend(sqlglot.parse(sqlglot_migration_source(actual), read="mysql"))
         for entry in cls.changelog.findall("lb:include", NAMESPACE):
             actual = RESOURCES / entry.attrib["file"]
             cls.paths.append(actual)
@@ -87,11 +137,10 @@ class MigrationBundleChecks(unittest.TestCase):
                                  repository / "commons-io/commons-io/2.22.0/commons-io-2.22.0.jar",
                                  repository / "com/opencsv/opencsv/5.9/opencsv-5.9.jar",
                                  repository / "org/yaml/snakeyaml/2.4/snakeyaml-2.4.jar"]
-                    java = ROOT / ".implementation-work/toolchains/jdk-17.0.20.1+1/Contents/Home/bin/java"
-                    result = subprocess.run([str(java), "-Dfile.encoding=UTF-8", "-Djava.io.tmpdir=" + str(ROOT / ".implementation-work/java-temp"),
+                    result = subprocess.run([str(cls.java), "-Dfile.encoding=UTF-8", "-Djava.io.tmpdir=" + str(ROOT / ".implementation-work/java-temp"),
                                              "--class-path", os.pathsep.join(str(path.resolve(strict=True)) for path in libraries),
                                              str(ROOT / "tests/InspectXmlMigrations.java"), str(actual), *(["LIQUIBASE"] if structured else [])],
-                                            stdout=subprocess.PIPE, text=True, check=True)
+                                            stdout=subprocess.PIPE, text=True, check=True, timeout=60)
                     definitions = json.loads(result.stdout)
                     cls.native_xml.extend(definitions)
                     for definition in definitions:
@@ -108,17 +157,21 @@ class MigrationBundleChecks(unittest.TestCase):
                                 cls.statements.append(exp.Alter(this=projected.this.this, actions=projected.this.expressions))
                             else:
                                 raise ValueError("ALTER_DEFINITION_REQUIRED")
+            elif actual.name == "068-document-technical-check.sql":
+                cls.statements.extend(parse_068_native_statements(actual))
+            elif actual.name == "076-formal-model-invocation.sql":
+                from migration_076_compat import parse_076_native_statements
+                cls.statements.extend(parse_076_native_statements(actual))
             elif entry.attrib["file"] in cls.manifest["native_alter_migrations"] + cls.manifest["native_sql_migrations"]:
                 repository = ROOT / ".implementation-work/maven-repository"
                 libraries = [repository / "com/github/jsqlparser/jsqlparser/5.2/jsqlparser-5.2.jar",
                              repository / "com/fasterxml/jackson/core/jackson-databind/2.21.4/jackson-databind-2.21.4.jar",
                              repository / "com/fasterxml/jackson/core/jackson-core/2.21.4/jackson-core-2.21.4.jar",
                              repository / "com/fasterxml/jackson/core/jackson-annotations/2.21/jackson-annotations-2.21.jar"]
-                java = ROOT / ".implementation-work/toolchains/jdk-17.0.20.1+1/Contents/Home/bin/java"
-                result = subprocess.run([str(java), "-Djava.io.tmpdir=" + str(ROOT / ".implementation-work/java-temp"),
+                result = subprocess.run([str(cls.java), "-Djava.io.tmpdir=" + str(ROOT / ".implementation-work/java-temp"),
                                          "--class-path", os.pathsep.join(str(path.resolve(strict=True)) for path in libraries),
                                          str(ROOT / "tests/InspectAlterMigrations.java"), str(actual)],
-                                        capture_output=True, text=True, check=True)
+                                        capture_output=True, text=True, check=True, timeout=60)
                 alterations = json.loads(result.stdout)
                 cls.native_alters.extend({**item, "migration": entry.attrib["file"]} for item in alterations if "operation" in item)
                 for alteration in alterations:
@@ -141,7 +194,7 @@ class MigrationBundleChecks(unittest.TestCase):
                         else:
                             raise ValueError("ALTER_DEFINITION_REQUIRED")
             else:
-                cls.statements.extend(sqlglot.parse(actual.read_text(encoding="utf-8"), read="mysql"))
+                cls.statements.extend(sqlglot.parse(sqlglot_migration_source(actual), read="mysql"))
         cls.table_definitions = [statement for statement in cls.statements if isinstance(statement, exp.Create) and statement.kind == "TABLE"]
         cls.tables = {
             statement.this.this.name: statement
@@ -197,11 +250,11 @@ class MigrationBundleChecks(unittest.TestCase):
                      repository / "com/fasterxml/jackson/core/jackson-databind/2.21.4/jackson-databind-2.21.4.jar",
                      repository / "com/fasterxml/jackson/core/jackson-core/2.21.4/jackson-core-2.21.4.jar",
                      repository / "com/fasterxml/jackson/core/jackson-annotations/2.21/jackson-annotations-2.21.jar"]
-        result = subprocess.run([str(ROOT / ".implementation-work/toolchains/jdk-17.0.20.1+1/Contents/Home/bin/java"),
+        result = subprocess.run([str(self.java),
             "-Dfile.encoding=UTF-8", "-Djava.io.tmpdir=" + str(ROOT / ".implementation-work/java-temp"),
             "--class-path", os.pathsep.join(str(path.resolve(strict=True)) for path in libraries),
             str(ROOT / "tests/InspectFrameworkTables.java")], input=json.dumps(sources, ensure_ascii=False),
-            capture_output=True, text=True, check=True)
+            capture_output=True, text=True, check=True, timeout=60)
         original = {}
         original_indexes = {}
         for statement in json.loads(result.stdout):
@@ -444,7 +497,50 @@ class MigrationBundleChecks(unittest.TestCase):
     def test_primary_and_foreign_keys_preserve_enterprise_identity(self):
         self.assertEqual(len(self.table_definitions), len(self.tables))
         business = [name for group in self.manifest["required_tables"].values() for name in group]
-        self.assertEqual(len(business), 178)
+        # 054 adds one definition table, 055 adds two rule workflow tables,
+        # and 056 adds three evaluation tables. 057 only alters existing tables.
+        # 058 adds exactly one immutable annotation-decision history table.
+        # 059 adds three independent anchor lifecycle tables, preserving original identities.
+        additions = {
+            'formal_agent_publication': {'formal_agent_acceptance', 'formal_agent_publication_intent', 'formal_agent_publication_attempt', 'formal_agent_publication_registration', 'formal_agent_publication_disable'},
+            'formal_evaluation_context': {'formal_evaluation_context_version', 'formal_evaluation_context_decision', 'formal_evaluation_context_state', 'formal_evaluation_execution_context'},
+            'model_enablement_preparation': {'model_enablement_policy_preparation'},
+            'formal_evaluation_runtime': {'professional_runtime_observation', 'formal_evaluation_cell', 'formal_evaluation_execution', 'formal_evaluation_node_result', 'formal_evaluation_node', 'professional_runtime_session'},
+            'formal_agent_candidate': {'formal_agent_candidate_binding'},
+            'formal_evaluation_policy': {'formal_evaluation_policy_input'},
+            'model_verification_input': {'model_verification_input_preparation'},
+            'expert_qualification': {'expert_qualification', 'expert_score_binding', 'expert_qualification_record', 'expert_qualification_state', 'expert_score_authority_witness'},
+            'persistent_run_runtime': {'step_runtime_attempt', 'runtime_object_intent', 'runtime_governance_manifest', 'run_runtime_intent', 'runtime_registered_object', 'runtime_governance_edge', 'runtime_governance_member', 'runtime_object_attempt', 'runtime_object_state', 'runtime_node_definition', 'run_runtime_receipt'},
+            'formal_model_invocation': {'formal_invocation_object_attempt', 'formal_invocation_binding', 'formal_invocation_object_state', 'formal_model_verification_job', 'formal_invocation_registered_object', 'formal_invocation_cancellation', 'formal_invocation_object_intent', 'formal_invocation_accounting', 'formal_invocation_uncertainty', 'formal_invocation_attempt', 'formal_model_manifest'},
+            'model_eligibility_connection': {'runtime_connection_start', 'model_eligibility', 'runtime_connection_intent', 'runtime_connection_completed'},
+            'agent_execution_policy': {'agent_execution_policy_version', 'agent_execution_policy_component', 'agent_execution_policy_state', 'agent_execution_policy_decision'},
+            'formal_evaluation_input': {'formal_evaluation_input_registration'},
+            'formal_capability_cancellation': {'formal_capability_cancellation'},
+            "agent_publication_authoring": {"agent_publication_record", "evaluation_acceptance_policy_decision"},
+            "runtime_retention": {"runtime_retention_policy", "runtime_retention_state", "runtime_retention_retirement", "runtime_retention_cancellation"},
+            "document_comparison": {"document_comparison_intent", "document_comparison_registration", "document_comparison_attempt"},
+            "gru_record_export": {"gru_record_export_intent", "gru_record_export", "gru_record_export_attempt"},
+            "document_technical_check_recovery": {"document_technical_check_intent", "document_technical_check_attempt"},
+            "document_technical_check": {"document_technical_check_manifest", "document_technical_check"},
+            "document_return_for_revision": {"document_revision_return", "document_revision_return_assignment"},
+            "gru_records": {"gru_conversation_context", "gru_message_record"},
+            "simulation_evaluation_preparation": {"simulation_evaluation_preparation"},
+            "simulation_input_artifact": {"simulation_fixture_input_artifact", "simulation_input_artifact_operation"},
+            "simulation_rule_binding": {"simulation_rule_binding", "simulation_rule_approval_binding"},
+            "simulation_result_settlement": {"simulation_result_persistence", "simulation_quota_settlement"},
+            "simulation_evaluation_job": {"simulation_scope_manifest", "simulation_evaluation_job", "simulation_context_dependency_manifest"},
+            "simulation_ledger": {"simulation_quota_account", "simulation_execution_authority", "simulation_invocation_provenance", "simulation_quota_reservation", "simulation_invocation_fact", "simulation_fixture_registration", "simulation_retention_policy"},
+            "annotation_anchors": {"annotation_anchor", "annotation_effective_anchor", "annotation_transition"},
+            "annotation_decisions": {"annotation_decision"},
+            "model_configuration": {"model_configuration_definition"},
+            "rule_workflow": {"rule_definition", "rule_approval_decision"},
+            "evaluation_results": {"evaluation_definition", "evaluation_score_observation", "evaluation_result"},
+        }
+        for group, expected in additions.items():
+            self.assertSetEqual(set(self.manifest["required_tables"][group]), expected)
+        self.assertEqual(len(business), 178 + sum(len(tables) for tables in additions.values()))
+        self.assertEqual(281, len(business))
+        self.assertEqual(318, len(self.tables))
         for name in business:
             table = self.tables[name]
             with self.subTest(table=name):
@@ -578,6 +674,46 @@ class MigrationBundleChecks(unittest.TestCase):
             expected = {"created_by", "created_at", "classification"}
             if any(column.kind.this == exp.DataType.Type.JSON for column in columns.values()):
                 expected.update({"schema_version", "schema_manifest_sha256"})
+            # These two closed sidecars inherit only the named fields from their exact owner.
+            inherited = {
+                "professional_runtime_observation": ("professional_runtime_session", ("tenant_id", "session_id"), {"classification"}),
+                "formal_evaluation_policy_input": ("agent_publication_record", ("tenant_id", "record_id"), {"created_by", "created_at", "classification"}),
+            }
+            if name in inherited:
+                parent, identity, fields = inherited[name]
+                references = {(key.args["reference"].this.this.name, tuple(item.name for item in key.expressions),
+                               tuple(item.name for item in key.args["reference"].this.expressions))
+                              for key in table.find_all(exp.ForeignKey)}
+                self.assertIn((parent, identity, identity), references)
+                parent_table = self.tables[parent]
+                unique_keys = {tuple(item.name for item in key.expressions) for key in parent_table.find_all(exp.PrimaryKey)}
+                unique_keys.update(tuple(item.name for item in key.this.expressions) for key in parent_table.find_all(exp.UniqueColumnConstraint))
+                self.assertIn(identity, unique_keys)
+                parent_columns = {column.name: column for column in parent_table.this.expressions if isinstance(column, exp.ColumnDef)}
+                for field in fields | {"schema_version", "schema_manifest_sha256"}:
+                    self.assertIn(field, parent_columns)
+                    self.assertTrue(any(isinstance(c.kind, exp.NotNullColumnConstraint) for c in parent_columns[field].constraints))
+                for field in identity:
+                    self.assertTrue(any(isinstance(c.kind, exp.NotNullColumnConstraint) for c in columns[field].constraints))
+                source_root = ROOT / "business/medical-persistence/src/main/java/com/ruoyi/medical/persistence"
+                if name == "formal_evaluation_policy_input":
+                    source = (source_root / "EvaluationAcceptancePolicyService.java").read_text()
+                    for guard in ['var row=journal.read(a,id)', 'values.put("recordId",id)', 'snapshots.snapshot(values)',
+                                  'id.equals(stored.recordId())', 'a.context().tenant_id().equals(stored.tenantId())',
+                                  'row.contentSha256().equals(stored.contentSha256())', 'row.classification().equals(content.path("classification").asText())',
+                                  'journal.save(a,project,id,kind,resource,key,request,content,auth,classification,time)']:
+                        self.assertIn(guard, source)
+                    self.assertIn(("version_registry", ("tenant_id", "record_id", "content_sha256"),
+                                   ("tenant_id", "version_id", "content_sha256")), references)
+                else:
+                    source = (source_root / "ProfessionalRuntimeObservations.java").read_text()
+                    for guard in ['FROM professional_runtime_session WHERE tenant_id=? AND session_id=? AND run_id=? AND step_id=?',
+                                  'AND lease_generation=? AND service_uri=? AND certificate_sha256=? AND trust_revision=?',
+                                  'FROM professional_runtime_observation WHERE tenant_id=? AND session_id=? AND kind=? AND observation_sha256=?',
+                                  'INSERT INTO professional_runtime_observation (tenant_id,session_id,observation_id,kind,canonical_observation,observation_sha256,created_by,created_at)']:
+                        self.assertIn(guard, source)
+                    self.assertLess(source.index('FROM professional_runtime_session'), source.index('INSERT INTO professional_runtime_observation'))
+                expected -= fields
             with self.subTest(table=name):
                 self.assertLessEqual(expected, set(columns))
                 for field in expected:

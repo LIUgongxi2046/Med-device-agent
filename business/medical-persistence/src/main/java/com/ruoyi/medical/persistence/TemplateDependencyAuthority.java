@@ -4,6 +4,7 @@ import com.ruoyi.medical.contracts.ErrorCode;
 import com.ruoyi.medical.persistence.mapper.ArtifactRegistryMapper;
 import com.ruoyi.medical.persistence.mapper.SourceReadMapper;
 import com.ruoyi.medical.persistence.mapper.TemplateMapper;
+import com.ruoyi.medical.persistence.mapper.RuleVersionMapper;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -24,12 +25,13 @@ public final class TemplateDependencyAuthority {
     private final SourceReadMapper sources;
     private final ArtifactRegistryMapper artifacts;
     private final TemplateMapper templates;
+    private final RuleVersionMapper rules;
     private final TemplateDependencyPolicy policy;
 
     public TemplateDependencyAuthority(DependencyLineage lineage, VersionResourceAuthority versions, SourceReadAuthority sourceAuthority,
-            SourceReadMapper sources, ArtifactRegistryMapper artifacts, TemplateMapper templates, TemplateDependencyPolicy policy) {
+            SourceReadMapper sources, ArtifactRegistryMapper artifacts, TemplateMapper templates, RuleVersionMapper rules, TemplateDependencyPolicy policy) {
         this.lineage = lineage; this.versions = versions; this.sourceAuthority = sourceAuthority; this.sources = sources;
-        this.artifacts = artifacts; this.templates = templates; this.policy = policy;
+        this.artifacts = artifacts; this.templates = templates; this.rules = rules; this.policy = policy;
     }
 
     List<DependencySourceAuthority.VerifiedDependencies> require(EnterpriseAccess.Admission admission, TemplateProtocol.Validated request) throws IOException {
@@ -41,6 +43,13 @@ public final class TemplateDependencyAuthority {
         content.format_profile().font_artifacts().forEach(ref -> roles.put(ref.version_id(), "FONT"));
         if (roles.putIfAbsent(content.format_profile().format_revision().version_id(), "FORMAT") != null) mismatch();
         return requireReferences(admission, request.dependency_refs(), roles, ruleIds(content), request.request().base_version(), null, purpose);
+    }
+
+    List<DependencySourceAuthority.VerifiedDependencies> requireRule(EnterpriseAccess.Admission admission,
+            RuleVersionProtocol.Validated rule) throws IOException {
+        var base = rule.request().base_version();
+        return requireReferences(admission, rule.dependency_refs(), Map.of(),
+                base == null ? java.util.Set.of() : java.util.Set.of(base.version_id()), null, null, PURPOSE);
     }
 
     List<DependencySourceAuthority.VerifiedDependencies> requireProfile(EnterpriseAccess.Admission admission,
@@ -96,8 +105,11 @@ public final class TemplateDependencyAuthority {
                             || !graph.reachableFrom(version.version().id()).contains(source.source().sourceVersion())) mismatch();
                 }
                 if (version.domain() == VersionResourceProtocol.Domain.RULE_VERSION) {
-                    var values = values(admission); values.put("upstreamId", version.version().id());
+                    var values = values(admission); values.put("upstreamId", version.version().id()); values.put("ruleId", version.version().id());
+                    if (!rules.simulationBinding(values).isEmpty()) mismatch();
                     if (!templates.ruleState(values).equals(List.of("APPROVED"))) notReady();
+                    // 新流程生成的版本必须具有当前人工决定和其事务回执；旧版本保留原核查边界。
+                    if (!rules.approvedWorkflow(values).equals(List.of(version.version().id()))) notReady();
                 }
                 if (version.artifactRegistration() != null) for (var member : version.artifactRegistration().manifest().members()) {
                     var rights = single(sources.rights(member.rightsRevision()));

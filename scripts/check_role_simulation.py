@@ -20,7 +20,7 @@ def main():
         raise ValueError("执行身份必须使用单一目录名称")
     output = ROOT / ".implementation-work" / ("IC-04-ROLE-SIMULATION-" + args.execution)
     inputs = ["scripts/check_role_simulation.py", "business/pom.xml", "business/ruoyi-admin/pom.xml", "business/medical-persistence/pom.xml",
-        "PRD.md", "LLD-后端.md", "LLD-前端.md", "backend-design/接口补充设计.md", "contracts/catalogue.json",
+        "PRD.md", "LLD-后端.md", "LLD-前端.md", "backend-design/接口补充设计.md", "contracts/catalogue.json", "contracts/extensions/evaluation-results.catalogue.json", "business/medical-persistence/src/main/resources/evaluation-results.schema.json",
         ".implementation-work/runtime/service-identity.json"]
     for directory in ("business/medical-contracts/src", "business/medical-data/src", "business/medical-identity/src",
             "business/medical-persistence/src", "business/ruoyi-admin/src", "business/ruoyi-framework/src", "business/ruoyi-system/src", "business/ruoyi-common/src"):

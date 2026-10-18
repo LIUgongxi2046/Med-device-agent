@@ -1,6 +1,12 @@
 <template>
-  <section aria-label="固定上传处理结果">
-    <h2>固定上传处理结果</h2>
+  <section class="upload-result" aria-label="固定上传处理结果">
+    <h2>固定处理结果</h2>
+    <div v-if="value.completion?.result_status" class="completion-outcome" role="status">
+      <strong>{{ resultLabels[value.completion.result_status] }}</strong>
+      <p v-if="value.completion.result_status === 'DUPLICATE'">服务端返回既有固定版本，请核对下方来源。不会把相同内容显示为新资料。</p>
+      <p v-else-if="value.completion.result_status === 'REGISTERED'">来源已登记。解析、索引和人工核准请分别查看下方处理版本。</p>
+      <p v-else>完成处理失败，请核查原操作结果与失败原因。</p>
+    </div>
     <p>上传编号：{{ value.upload_id }}；修订：{{ value.upload_revision }}</p>
     <p>服务器接收：{{ value.received_size }} 字节；{{ uploadStatusLabels[value.upload_status] }}；{{ transferStatusLabels[value.transfer_state] }}</p>
     <section v-if="value.completion" aria-label="原上传完成操作">
@@ -18,18 +24,26 @@
       <p>原件摘要：{{ value.source.original_sha256 }}</p>
       <p>当前权利版本：{{ value.source.current_rights.version_id }}；状态：{{ rightsLabels[value.source.rights_status] }}</p>
       <p>当前权利摘要：{{ value.source.current_rights.content_sha256 }}；生命周期：{{ lifecycleLabels[value.source.lifecycle] }}</p>
-      <el-table :data="value.source.reviews" :row-key="reviewIdentity" aria-label="逐解析版本处理及核准结果">
-        <el-table-column prop="parse_version" label="固定解析版本" />
-        <el-table-column label="解析状态"><template #default="scope">{{ parseLabels[scope.row.parse_status as keyof typeof parseLabels] }}</template></el-table-column>
-        <el-table-column label="固定索引版本"><template #default="scope">{{ scope.row.index_version ?? '尚未建立' }}</template></el-table-column>
-        <el-table-column label="索引结果"><template #default="scope">{{ scope.row.index_mode ?? '尚未指定' }} · {{ scope.row.index_status ?? '尚未取得' }}；预期 {{ scope.row.expected_count ?? '尚未取得' }}；已核验 {{ scope.row.verified_count ?? '尚未取得' }}</template></el-table-column>
-        <el-table-column label="人工核准"><template #default="scope">{{ approvalLabels[scope.row.approval_status as keyof typeof approvalLabels] }}；{{ scope.row.approval_revision ?? '尚未建立核准版本' }}；门槛修订 {{ scope.row.gate_revision }}</template></el-table-column>
-        <el-table-column label="固定核准依据"><template #default="scope">
-          <p>当前决定：{{ scope.row.current_decision ?? '尚未决定' }}；时间：{{ scope.row.decided_at ?? '尚未决定' }}</p>
-          <p>审查摘要：{{ scope.row.review_manifest_sha256 }}</p>
-          <details><summary>读取完整审查清单</summary><pre>{{ JSON.stringify(scope.row.review_manifest, null, 2) }}</pre></details>
-        </template></el-table-column>
-      </el-table>
+      <div class="review-results" aria-label="逐解析版本处理及核准结果">
+        <p v-if="value.source.reviews.length === 0">当前来源尚无处理版本。</p>
+        <article v-for="review in value.source.reviews" :key="reviewIdentity(review)" class="review-result">
+          <h4>解析版本 {{ review.parse_version }}</h4>
+          <div class="processing-statuses">
+            <div><span>解析</span><strong>{{ parseLabels[review.parse_status] }}</strong></div>
+            <div><span>索引</span><strong>{{ review.index_status ?? '尚未取得' }}</strong></div>
+            <div><span>人工核准</span><strong>{{ approvalLabels[review.approval_status] }}</strong></div>
+          </div>
+          <p>固定索引版本：{{ review.index_version ?? '尚未建立' }}</p>
+          <p>预期数量：{{ review.expected_count ?? '尚未取得' }}；已核验数量：{{ review.verified_count ?? '尚未取得' }}</p>
+          <details><summary>固定版本与核准依据</summary>
+            <p>索引模式：{{ review.index_mode ?? '尚未指定' }}</p>
+            <p>核准版本：{{ review.approval_revision ?? '尚未建立核准版本' }}；门槛修订：{{ review.gate_revision }}</p>
+            <p>当前决定：{{ review.current_decision ?? '尚未决定' }}；时间：{{ review.decided_at ?? '尚未决定' }}</p>
+            <p>审查摘要：{{ review.review_manifest_sha256 }}</p>
+            <details><summary>读取完整审查清单</summary><pre>{{ JSON.stringify(review.review_manifest, null, 2) }}</pre></details>
+          </details>
+        </article>
+      </div>
     </section>
     <section v-if="value.attempt" aria-label="独立解析处理尝试">
       <h3>独立解析处理尝试</h3>
@@ -56,3 +70,24 @@ const parseLabels = { QUEUED: '等待解析', PROCESSING: '正在解析', COMPLE
 const approvalLabels = { PENDING: '待核准', APPROVED: '已核准', DISABLED: '已停用' }
 const attemptLabels = { QUEUED: '等待执行', RUNNING: '正在执行', SUCCEEDED: '执行完成', FAILED: '执行失败', CANCELLED: '已取消' }
 </script>
+
+<style scoped>
+.upload-result { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--el-border-color-light); overflow-wrap: anywhere; }
+h2 { font-size: 18px; margin: 0 0 16px; }
+h3 { font-size: 15px; margin-top: 24px; }
+p { font-size: 13px; line-height: 1.7; }
+a { color: var(--el-color-primary); }
+.completion-outcome { padding: 16px; border: 1px solid var(--el-border-color); border-radius: 8px; background: var(--el-fill-color-extra-light); }
+.completion-outcome p { margin-bottom: 0; }
+.review-results { display: grid; gap: 12px; }
+.review-result { padding: 16px; border: 1px solid var(--el-border-color-light); border-radius: 8px; }
+h4 { font-size: 13px; margin: 0 0 14px; font-weight: 500; }
+.processing-statuses { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.processing-statuses > div { display: grid; gap: 8px; }
+.processing-statuses span { color: var(--el-text-color-secondary); font-size: 12px; }
+.processing-statuses strong { font-weight: 500; font-size: 14px; }
+summary { cursor: pointer; font-size: 13px; line-height: 1.7; }
+details { margin-top: 12px; }
+pre { max-height: 320px; overflow: auto; padding: 12px; background: var(--el-fill-color-light); white-space: pre-wrap; overflow-wrap: anywhere; }
+@container (max-width: 480px) { .processing-statuses { grid-template-columns: minmax(0, 1fr); } }
+</style>

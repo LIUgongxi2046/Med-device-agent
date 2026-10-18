@@ -41,7 +41,11 @@ public final class RuleExpression {
         var declaredInputs = new HashSet<>(input.input_keys());
         if (declaredInputs.size() != input.input_keys().size()) invalid();
         var declaredConstants = new HashSet<String>();
-        for (var constant : input.constants()) if (!declaredConstants.add(constant.key())) invalid();
+        var constantValues = new HashMap<String,com.fasterxml.jackson.databind.JsonNode>();
+        for (var constant : input.constants()) {
+            if (!declaredConstants.add(constant.key())) invalid();
+            constantValues.put(constant.key(), constant.value());
+        }
         var expression = (SpelExpression) parser.parseExpression(input.expression());
         var inputs = new HashSet<String>(); var constants = new HashSet<String>();
         var nodes = new ArrayDeque<Visit>(); nodes.add(new Visit(expression.getAST(), 1)); int visited = 0;
@@ -63,10 +67,24 @@ public final class RuleExpression {
             }
             if (!OPERATORS.contains(node.getClass()) && !(node instanceof BooleanLiteral)
                     && !(node instanceof StringLiteral) && !(node instanceof NullLiteral)) invalid();
+            // 核查完整AST中的每个布尔运算，即使它位于比较操作数内部。
+            if (node instanceof OpAnd || node instanceof OpOr || node instanceof OperatorNot)
+                for (int index = 0; index < node.getChildCount(); index++) requireBoolean(node.getChild(index), constantValues);
             for (int index = 0; index < node.getChildCount(); index++) nodes.addLast(new Visit(node.getChild(index), visit.depth() + 1));
         }
         if (!inputs.equals(declaredInputs) || !constants.equals(declaredConstants)) invalid();
+        requireBoolean(expression.getAST(), constantValues);
         return new Compiled(input, expression);
+    }
+
+    private static void requireBoolean(SpelNode node, java.util.Map<String,com.fasterxml.jackson.databind.JsonNode> constants) {
+        if (!OPERATORS.contains(node.getClass()) && !(node instanceof BooleanLiteral) && !(node instanceof CompoundExpression)) invalid();
+        if (node instanceof CompoundExpression && node.getChildCount() == 2
+                && node.getChild(0) instanceof VariableReference variable && variable.toStringAST().equals("#constants")
+                && node.getChild(1) instanceof Indexer index && index.getChildCount() == 1 && index.getChild(0) instanceof StringLiteral key) {
+            var value = constants.get((String) key.getLiteralValue().getValue());
+            if (value == null || !value.isBoolean()) invalid();
+        }
     }
 
     TemplateApplicabilityProtocol.Result evaluate(Compiled compiled, List<ProjectProtocol.Attribute> attributes) {

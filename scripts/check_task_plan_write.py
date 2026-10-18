@@ -38,7 +38,7 @@ def main():
     if Path(args.execution).name != args.execution or args.execution in (".", ".."):
         raise ValueError("执行身份必须使用单一目录名称")
     output = ROOT / ".implementation-work" / ("IC-12-PLAN-WRITE-" + args.execution)
-    inputs = {ROOT / "scripts/check_task_plan_write.py", ROOT / "business/pom.xml", ROOT / "contracts/catalogue.json",
+    inputs = {ROOT / "scripts/check_task_plan_write.py", ROOT / "business/pom.xml", ROOT / "contracts/catalogue.json", ROOT / "contracts/extensions/evaluation-results.catalogue.json", ROOT / "business/medical-persistence/src/main/resources/evaluation-results.schema.json",
         ROOT / "business/medical-data/src/main/resources/db/migration/coverage.json",
         ROOT / "docs/development/IMP-12.md", ROOT / "docs/development/IMP-29.md"}
     if args.body_only:

@@ -1,0 +1,539 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:gru-record-export:1.0.0",
+  "$defs": {
+    "Id": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "Hash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "Revision": {
+      "type": "string",
+      "pattern": "^[1-9][0-9]{0,19}$"
+    },
+    "CurrentContext": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tenant_id",
+        "context_revision",
+        "auth_epoch",
+        "governance_epoch"
+      ],
+      "properties": {
+        "tenant_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "context_revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "auth_epoch": {
+          "$ref": "#/$defs/Revision"
+        },
+        "governance_epoch": {
+          "$ref": "#/$defs/Revision"
+        }
+      }
+    },
+    "ManifestItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "message_id",
+        "sequence",
+        "content_sha256"
+      ],
+      "properties": {
+        "message_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "sequence": {
+          "$ref": "#/$defs/Revision"
+        },
+        "content_sha256": {
+          "$ref": "#/$defs/Hash"
+        }
+      }
+    },
+    "Basis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "tenant_id",
+        "project_id",
+        "conversation_id",
+        "owner_id",
+        "conversation_revision",
+        "document_id",
+        "document_revision",
+        "body_sha256",
+        "scope_snapshot_id",
+        "scope_sha256",
+        "mode",
+        "execution_state",
+        "message_count",
+        "message_manifest",
+        "message_manifest_sha256",
+        "complete",
+        "next_cursor",
+        "current_context"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "tenant_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "project_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "conversation_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "owner_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "conversation_revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "document_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "document_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "body_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "scope_snapshot_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "scope_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "mode": {
+          "const": "RECORD_ONLY"
+        },
+        "execution_state": {
+          "const": "NOT_EXECUTED"
+        },
+        "message_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 500
+        },
+        "message_manifest": {
+          "type": "array",
+          "maxItems": 500,
+          "items": {
+            "$ref": "#/$defs/ManifestItem"
+          }
+        },
+        "message_manifest_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "complete": {
+          "const": true
+        },
+        "next_cursor": {
+          "type": "null"
+        },
+        "current_context": {
+          "$ref": "#/$defs/CurrentContext"
+        }
+      }
+    },
+    "Request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "basis",
+        "reason",
+        "purpose",
+        "format"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "basis": {
+          "$ref": "#/$defs/Basis"
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "purpose": {
+          "const": "GRU_RECORD_EXPORT"
+        },
+        "format": {
+          "const": "JSON"
+        }
+      }
+    },
+    "ExportMessage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "message_id",
+        "sequence",
+        "text",
+        "intent",
+        "execution_state",
+        "created_at",
+        "content_sha256"
+      ],
+      "properties": {
+        "message_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "sequence": {
+          "$ref": "#/$defs/Revision"
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 16384,
+          "pattern": "\\S"
+        },
+        "intent": {
+          "enum": [
+            "QUERY",
+            "RETRIEVE",
+            "CHECK",
+            "PROPOSE_EDIT"
+          ]
+        },
+        "execution_state": {
+          "const": "NOT_EXECUTED"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "content_sha256": {
+          "$ref": "#/$defs/Hash"
+        }
+      }
+    },
+    "Document": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "tenant_id",
+        "project_id",
+        "conversation_id",
+        "owner_id",
+        "conversation_revision",
+        "document_id",
+        "document_revision",
+        "body_sha256",
+        "scope_snapshot_id",
+        "scope_sha256",
+        "mode",
+        "execution_state",
+        "message_count",
+        "message_manifest",
+        "message_manifest_sha256",
+        "complete",
+        "next_cursor",
+        "purpose",
+        "format",
+        "messages"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "tenant_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "project_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "conversation_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "owner_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "conversation_revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "document_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "document_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "body_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "scope_snapshot_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "scope_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "mode": {
+          "const": "RECORD_ONLY"
+        },
+        "execution_state": {
+          "const": "NOT_EXECUTED"
+        },
+        "message_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 500
+        },
+        "message_manifest": {
+          "type": "array",
+          "maxItems": 500,
+          "items": {
+            "$ref": "#/$defs/ManifestItem"
+          }
+        },
+        "message_manifest_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "complete": {
+          "const": true
+        },
+        "next_cursor": {
+          "type": "null"
+        },
+        "purpose": {
+          "const": "GRU_RECORD_EXPORT"
+        },
+        "format": {
+          "const": "JSON"
+        },
+        "messages": {
+          "type": "array",
+          "maxItems": 500,
+          "items": {
+            "$ref": "#/$defs/ExportMessage"
+          }
+        }
+      }
+    },
+    "Receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "export_id",
+        "operation_id",
+        "conversation_id",
+        "conversation_revision",
+        "document_id",
+        "document_revision",
+        "message_manifest_sha256",
+        "request_body_sha256",
+        "artifact_id",
+        "content_sha256",
+        "size_bytes",
+        "media_type",
+        "format",
+        "mode",
+        "execution_state",
+        "created_at"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "export_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "operation_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "conversation_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "conversation_revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "document_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "document_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "message_manifest_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "request_body_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "artifact_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "content_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "size_bytes": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]{0,7}$"
+        },
+        "media_type": {
+          "const": "application/json"
+        },
+        "format": {
+          "const": "JSON"
+        },
+        "mode": {
+          "const": "RECORD_ONLY"
+        },
+        "execution_state": {
+          "const": "NOT_EXECUTED"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "View": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "receipt",
+        "status",
+        "current_context"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "receipt": {
+          "$ref": "#/$defs/Receipt"
+        },
+        "status": {
+          "const": "AVAILABLE"
+        },
+        "current_context": {
+          "$ref": "#/$defs/CurrentContext"
+        }
+      }
+    },
+    "Recovery": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "conversation_id",
+        "idempotency_key",
+        "status",
+        "request_body_sha256",
+        "receipt",
+        "current_context"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "conversation_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "idempotency_key": {
+          "type": "string",
+          "pattern": "^[!-~]{16,128}$"
+        },
+        "status": {
+          "enum": [
+            "NOT_FOUND",
+            "PROCESSING",
+            "COMPLETED"
+          ]
+        },
+        "request_body_sha256": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Hash"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "receipt": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Receipt"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "current_context": {
+          "$ref": "#/$defs/CurrentContext"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "NOT_FOUND"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "request_body_sha256": {
+                "type": "null"
+              },
+              "receipt": {
+                "type": "null"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "request_body_sha256": {
+                "$ref": "#/$defs/Hash"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "COMPLETED"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "receipt": {
+                "$ref": "#/$defs/Receipt"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "receipt": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

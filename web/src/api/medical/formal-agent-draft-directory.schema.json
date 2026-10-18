@@ -1,0 +1,2489 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:formal-agent-draft-directory:1.0.0",
+  "$defs": {
+    "Id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "Hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "Project": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Id"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "Context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tenant_id",
+        "context_revision",
+        "auth_epoch",
+        "governance_epoch"
+      ],
+      "properties": {
+        "tenant_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "context_revision": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]*$"
+        },
+        "auth_epoch": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]*$"
+        },
+        "governance_epoch": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]*$"
+        }
+      }
+    },
+    "Availability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "current_context",
+        "features",
+        "maximum_page_size"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "current_context": {
+          "$ref": "#/$defs/Context"
+        },
+        "features": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "formal_agent_authoring"
+          ],
+          "properties": {
+            "formal_agent_authoring": {
+              "type": "boolean"
+            }
+          }
+        },
+        "maximum_page_size": {
+          "const": 20
+        }
+      }
+    },
+    "Query": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "project_id",
+        "kind",
+        "limit",
+        "cursor"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "project_id": {
+          "$ref": "#/$defs/Project"
+        },
+        "kind": {
+          "enum": [
+            "AGENT",
+            "TOOL",
+            "SKILL"
+          ]
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20
+        },
+        "cursor": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "Summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_id",
+        "version_id",
+        "config_id",
+        "project_id",
+        "kind",
+        "name",
+        "created_by",
+        "created_at",
+        "content_sha256",
+        "status",
+        "production_eligible"
+      ],
+      "properties": {
+        "record_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "version_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "config_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "project_id": {
+          "$ref": "#/$defs/Project"
+        },
+        "kind": {
+          "enum": [
+            "AGENT",
+            "TOOL",
+            "SKILL"
+          ]
+        },
+        "name": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 200
+        },
+        "created_by": {
+          "$ref": "#/$defs/Id"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "content_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "status": {
+          "enum": [
+            "DRAFT",
+            "VALIDATING",
+            "EVALUATING",
+            "REVIEW_PENDING",
+            "PUBLISHED",
+            "DISABLED"
+          ]
+        },
+        "production_eligible": {
+          "const": false
+        }
+      }
+    },
+    "Page": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "items",
+        "next_cursor"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "items": {
+          "type": "array",
+          "maxItems": 20,
+          "items": {
+            "$ref": "#/$defs/Summary"
+          }
+        },
+        "next_cursor": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "RuntimeView": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_id",
+        "resource_id",
+        "kind",
+        "content_sha256",
+        "status",
+        "production_eligible",
+        "content"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "record_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "resource_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "kind": {
+          "const": "AUTHOR"
+        },
+        "content_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "status": {
+          "const": "DRAFT"
+        },
+        "production_eligible": {
+          "const": false
+        },
+        "content": {
+          "$ref": "#/$defs/RuntimeFormalCapabilityFixed"
+        }
+      }
+    },
+    "RuntimeId": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "RuntimeHash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "RuntimeName": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[A-Za-z][A-Za-z0-9_.-]*$"
+    },
+    "RuntimeText": {
+      "type": "string",
+      "minLength": 1
+    },
+    "RuntimeCount": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]{0,19})$"
+    },
+    "RuntimePositiveCount": {
+      "type": "string",
+      "pattern": "^[1-9][0-9]{0,19}$"
+    },
+    "RuntimeSeconds": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 2147483647
+    },
+    "RuntimeIds": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/RuntimeId"
+      }
+    },
+    "RuntimeNames": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/RuntimeName"
+      }
+    },
+    "RuntimeVersionRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version_id",
+        "content_sha256"
+      ],
+      "properties": {
+        "version_id": {
+          "$ref": "#/$defs/RuntimeId"
+        },
+        "content_sha256": {
+          "$ref": "#/$defs/RuntimeHash"
+        }
+      }
+    },
+    "RuntimeVersions": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/RuntimeVersionRef"
+      }
+    },
+    "RuntimePublishedSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_ref",
+        "schema_sha256"
+      ],
+      "properties": {
+        "schema_ref": {
+          "type": "string",
+          "format": "uri",
+          "minLength": 1
+        },
+        "schema_sha256": {
+          "$ref": "#/$defs/RuntimeHash"
+        }
+      }
+    },
+    "RuntimeArtifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact_id",
+        "sha256",
+        "size_bytes",
+        "media_type"
+      ],
+      "properties": {
+        "artifact_id": {
+          "$ref": "#/$defs/RuntimeId"
+        },
+        "sha256": {
+          "$ref": "#/$defs/RuntimeHash"
+        },
+        "size_bytes": {
+          "$ref": "#/$defs/RuntimePositiveCount"
+        },
+        "media_type": {
+          "$ref": "#/$defs/RuntimeText"
+        }
+      }
+    },
+    "RuntimeSchemaBoundArtifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact",
+        "schema"
+      ],
+      "properties": {
+        "artifact": {
+          "$ref": "#/$defs/RuntimeArtifact"
+        },
+        "schema": {
+          "$ref": "#/$defs/RuntimePublishedSchema"
+        }
+      }
+    },
+    "RuntimeSchemaBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "consumer_version_id",
+        "direction",
+        "schema"
+      ],
+      "properties": {
+        "consumer_version_id": {
+          "$ref": "#/$defs/RuntimeId"
+        },
+        "direction": {
+          "enum": [
+            "INPUT",
+            "OUTPUT",
+            "PERSISTED",
+            "EVENT",
+            "BODY"
+          ]
+        },
+        "schema": {
+          "$ref": "#/$defs/RuntimePublishedSchema"
+        }
+      }
+    },
+    "RuntimeHumanCheckpoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "checkpoint_id",
+        "policy_revision",
+        "operation_id",
+        "required_action",
+        "trigger_schema",
+        "decision_schema",
+        "role_version_ids"
+      ],
+      "properties": {
+        "checkpoint_id": {
+          "$ref": "#/$defs/RuntimeName"
+        },
+        "policy_revision": {
+          "$ref": "#/$defs/RuntimeVersionRef"
+        },
+        "operation_id": {
+          "$ref": "#/$defs/RuntimeName"
+        },
+        "required_action": {
+          "$ref": "#/$defs/RuntimeName"
+        },
+        "trigger_schema": {
+          "$ref": "#/$defs/RuntimePublishedSchema"
+        },
+        "decision_schema": {
+          "$ref": "#/$defs/RuntimePublishedSchema"
+        },
+        "role_version_ids": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/RuntimeIds"
+            },
+            {
+              "minItems": 1
+            }
+          ]
+        }
+      }
+    },
+    "RuntimeLimits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "activity_start_to_close_seconds",
+        "heartbeat_interval_seconds",
+        "heartbeat_timeout_seconds",
+        "sdk_initialize_timeout_seconds",
+        "sdk_request_timeout_seconds",
+        "model_request_timeout_seconds",
+        "paid_request_extra_retries",
+        "model_spawned_subagents",
+        "max_wall_time_seconds",
+        "max_model_requests",
+        "max_tool_calls",
+        "max_research_questions",
+        "max_research_rounds",
+        "max_revision_rounds",
+        "max_parallel_steps",
+        "max_input_tokens",
+        "max_output_tokens",
+        "max_total_tokens",
+        "max_cost_amount",
+        "currency",
+        "max_consecutive_no_progress",
+        "max_repeated_failure_signature"
+      ],
+      "properties": {
+        "activity_start_to_close_seconds": {
+          "$ref": "#/$defs/RuntimeSeconds"
+        },
+        "heartbeat_interval_seconds": {
+          "$ref": "#/$defs/RuntimeSeconds"
+        },
+        "heartbeat_timeout_seconds": {
+          "$ref": "#/$defs/RuntimeSeconds"
+        },
+        "sdk_initialize_timeout_seconds": {
+          "$ref": "#/$defs/RuntimeSeconds"
+        },
+        "sdk_request_timeout_seconds": {
+          "$ref": "#/$defs/RuntimeSeconds"
+        },
+        "model_request_timeout_seconds": {
+          "$ref": "#/$defs/RuntimeSeconds"
+        },
+        "paid_request_extra_retries": {
+          "const": 0
+        },
+        "model_spawned_subagents": {
+          "const": 0
+        },
+        "max_wall_time_seconds": {
+          "$ref": "#/$defs/RuntimeSeconds"
+        },
+        "max_model_requests": {
+          "$ref": "#/$defs/RuntimeCount"
+        },
+        "max_tool_calls": {
+          "$ref": "#/$defs/RuntimeCount"
+        },
+        "max_research_questions": {
+          "$ref": "#/$defs/RuntimeCount"
+        },
+        "max_research_rounds": {
+          "$ref": "#/$defs/RuntimeCount"
+        },
+        "max_revision_rounds": {
+          "$ref": "#/$defs/RuntimeCount"
+        },
+        "max_parallel_steps": {
+          "$ref": "#/$defs/RuntimePositiveCount"
+        },
+        "max_input_tokens": {
+          "$ref": "#/$defs/RuntimeCount"
+        },
+        "max_output_tokens": {
+          "$ref": "#/$defs/RuntimeCount"
+        },
+        "max_total_tokens": {
+          "$ref": "#/$defs/RuntimeCount"
+        },
+        "max_cost_amount": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]{0,15})(\\.[0-9]{1,8})?$"
+        },
+        "currency": {
+          "type": "string",
+          "pattern": "^[A-Z]{3}$"
+        },
+        "max_consecutive_no_progress": {
+          "$ref": "#/$defs/RuntimePositiveCount"
+        },
+        "max_repeated_failure_signature": {
+          "$ref": "#/$defs/RuntimePositiveCount"
+        }
+      }
+    },
+    "RuntimePlatform": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "operating_system",
+        "architecture",
+        "python_abi"
+      ],
+      "properties": {
+        "operating_system": {
+          "$ref": "#/$defs/RuntimeText"
+        },
+        "architecture": {
+          "$ref": "#/$defs/RuntimeText"
+        },
+        "python_abi": {
+          "$ref": "#/$defs/RuntimeText"
+        }
+      }
+    },
+    "RuntimeSoftware": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "version",
+        "artifact"
+      ],
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/RuntimeName"
+        },
+        "version": {
+          "$ref": "#/$defs/RuntimeText"
+        },
+        "artifact": {
+          "$ref": "#/$defs/RuntimeArtifact"
+        }
+      }
+    },
+    "RuntimePlugin": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "plugin_id",
+        "version",
+        "artifact",
+        "dependency_ids"
+      ],
+      "properties": {
+        "plugin_id": {
+          "$ref": "#/$defs/RuntimeName"
+        },
+        "version": {
+          "$ref": "#/$defs/RuntimeText"
+        },
+        "artifact": {
+          "$ref": "#/$defs/RuntimeArtifact"
+        },
+        "dependency_ids": {
+          "$ref": "#/$defs/RuntimeNames"
+        }
+      }
+    },
+    "RuntimeValidator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rule_id",
+        "version",
+        "implementation"
+      ],
+      "properties": {
+        "rule_id": {
+          "enum": [
+            "AS-01",
+            "AS-02",
+            "AS-03",
+            "AS-04",
+            "AS-05",
+            "AS-06",
+            "AS-07",
+            "AS-08",
+            "AS-09",
+            "AS-10",
+            "AS-11",
+            "AS-12",
+            "AS-13",
+            "AS-14",
+            "AS-15"
+          ]
+        },
+        "version": {
+          "$ref": "#/$defs/RuntimeVersionRef"
+        },
+        "implementation": {
+          "$ref": "#/$defs/RuntimeArtifact"
+        }
+      }
+    },
+    "RuntimeEventAdapter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "component",
+        "version",
+        "implementation",
+        "input_schema",
+        "output_schema"
+      ],
+      "properties": {
+        "component": {
+          "enum": [
+            "C07",
+            "C12"
+          ]
+        },
+        "version": {
+          "$ref": "#/$defs/RuntimeVersionRef"
+        },
+        "implementation": {
+          "$ref": "#/$defs/RuntimeArtifact"
+        },
+        "input_schema": {
+          "$ref": "#/$defs/RuntimePublishedSchema"
+        },
+        "output_schema": {
+          "$ref": "#/$defs/RuntimePublishedSchema"
+        }
+      }
+    },
+    "RuntimeRuntimeManifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_repository",
+        "source_commit",
+        "source_version",
+        "harness_distribution",
+        "python_runtime",
+        "platform",
+        "plugins",
+        "profile",
+        "sdk_configuration",
+        "session_format",
+        "artifact_schema",
+        "model_stream_schema",
+        "body_schema",
+        "validators",
+        "event_adapters"
+      ],
+      "properties": {
+        "source_repository": {
+          "type": "string",
+          "format": "uri"
+        },
+        "source_commit": {
+          "type": "string",
+          "pattern": "^([0-9a-f]{40}|[0-9a-f]{64})$"
+        },
+        "source_version": {
+          "$ref": "#/$defs/RuntimeText"
+        },
+        "harness_distribution": {
+          "$ref": "#/$defs/RuntimeSoftware"
+        },
+        "python_runtime": {
+          "$ref": "#/$defs/RuntimeSoftware"
+        },
+        "platform": {
+          "$ref": "#/$defs/RuntimePlatform"
+        },
+        "plugins": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/RuntimePlugin"
+          }
+        },
+        "profile": {
+          "$ref": "#/$defs/RuntimeSchemaBoundArtifact"
+        },
+        "sdk_configuration": {
+          "$ref": "#/$defs/RuntimeSchemaBoundArtifact"
+        },
+        "session_format": {
+          "$ref": "#/$defs/RuntimePublishedSchema"
+        },
+        "artifact_schema": {
+          "$ref": "#/$defs/RuntimePublishedSchema"
+        },
+        "model_stream_schema": {
+          "$ref": "#/$defs/RuntimePublishedSchema"
+        },
+        "body_schema": {
+          "$ref": "#/$defs/RuntimePublishedSchema"
+        },
+        "validators": {
+          "type": "array",
+          "minItems": 15,
+          "maxItems": 15,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/RuntimeValidator"
+          }
+        },
+        "event_adapters": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/RuntimeEventAdapter"
+          }
+        }
+      }
+    },
+    "RuntimeReleaseScope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tenant_id",
+        "project_mode",
+        "project_ids",
+        "audience_mode",
+        "member_ids",
+        "role_ids",
+        "source_scope_policy",
+        "allowed_classifications"
+      ],
+      "properties": {
+        "tenant_id": {
+          "$ref": "#/$defs/RuntimeId"
+        },
+        "project_mode": {
+          "enum": [
+            "ENTERPRISE",
+            "PROJECTS"
+          ]
+        },
+        "project_ids": {
+          "$ref": "#/$defs/RuntimeIds"
+        },
+        "audience_mode": {
+          "enum": [
+            "MEMBERS",
+            "ROLES",
+            "MEMBERS_OR_ROLES"
+          ]
+        },
+        "member_ids": {
+          "$ref": "#/$defs/RuntimeIds"
+        },
+        "role_ids": {
+          "$ref": "#/$defs/RuntimeIds"
+        },
+        "source_scope_policy": {
+          "$ref": "#/$defs/RuntimeVersionRef"
+        },
+        "allowed_classifications": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/RuntimeNames"
+            },
+            {
+              "minItems": 1
+            }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "project_mode": {
+                "const": "ENTERPRISE"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "project_ids": {
+                "maxItems": 0
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "project_ids": {
+                "minItems": 1
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "audience_mode": {
+                "const": "MEMBERS"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "member_ids": {
+                "minItems": 1
+              },
+              "role_ids": {
+                "maxItems": 0
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "audience_mode": {
+                "const": "ROLES"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "member_ids": {
+                "maxItems": 0
+              },
+              "role_ids": {
+                "minItems": 1
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "audience_mode": {
+                "const": "MEMBERS_OR_ROLES"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "member_ids": {
+                "minItems": 1
+              },
+              "role_ids": {
+                "minItems": 1
+              }
+            }
+          }
+        }
+      ]
+    },
+    "RuntimeAgentReleaseManifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "tenant_id",
+        "agent_version_id",
+        "agent_version_sha256",
+        "release_id",
+        "role_versions",
+        "skill_versions",
+        "tool_versions",
+        "prompt_revisions",
+        "input_output_schema_refs",
+        "template_versions",
+        "rule_versions",
+        "retrieval_profiles",
+        "model_config_revisions",
+        "limits",
+        "human_checkpoints",
+        "runtime_manifest",
+        "evaluation_id",
+        "evaluation_sha256",
+        "release_scope"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "tenant_id": {
+          "$ref": "#/$defs/RuntimeId"
+        },
+        "agent_version_id": {
+          "$ref": "#/$defs/RuntimeId"
+        },
+        "agent_version_sha256": {
+          "$ref": "#/$defs/RuntimeHash"
+        },
+        "release_id": {
+          "$ref": "#/$defs/RuntimeId"
+        },
+        "role_versions": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/RuntimeVersions"
+            },
+            {
+              "minItems": 1
+            }
+          ]
+        },
+        "skill_versions": {
+          "$ref": "#/$defs/RuntimeVersions"
+        },
+        "tool_versions": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/RuntimeVersions"
+            },
+            {
+              "minItems": 1
+            }
+          ]
+        },
+        "prompt_revisions": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/RuntimeVersions"
+            },
+            {
+              "minItems": 1
+            }
+          ]
+        },
+        "input_output_schema_refs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/RuntimeSchemaBinding"
+          }
+        },
+        "template_versions": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/RuntimeVersions"
+            },
+            {
+              "minItems": 1
+            }
+          ]
+        },
+        "rule_versions": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/RuntimeVersions"
+            },
+            {
+              "minItems": 1
+            }
+          ]
+        },
+        "retrieval_profiles": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/RuntimeVersions"
+            },
+            {
+              "minItems": 1
+            }
+          ]
+        },
+        "model_config_revisions": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/RuntimeVersions"
+            },
+            {
+              "minItems": 1
+            }
+          ]
+        },
+        "limits": {
+          "$ref": "#/$defs/RuntimeLimits"
+        },
+        "human_checkpoints": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/RuntimeHumanCheckpoint"
+          }
+        },
+        "runtime_manifest": {
+          "$ref": "#/$defs/RuntimeRuntimeManifest"
+        },
+        "evaluation_id": {
+          "$ref": "#/$defs/RuntimeId"
+        },
+        "evaluation_sha256": {
+          "$ref": "#/$defs/RuntimeHash"
+        },
+        "release_scope": {
+          "$ref": "#/$defs/RuntimeReleaseScope"
+        }
+      }
+    },
+    "RuntimeReason": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2000
+    },
+    "RuntimeRevision": {
+      "type": "string",
+      "pattern": "^[1-9][0-9]{0,19}$"
+    },
+    "RuntimeDefinition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "role_versions",
+        "skill_versions",
+        "tool_versions",
+        "prompt_revisions",
+        "input_output_schema_refs",
+        "template_versions",
+        "rule_versions",
+        "retrieval_profiles",
+        "model_config_revisions",
+        "limits",
+        "human_checkpoints",
+        "runtime_manifest",
+        "release_scope"
+      ],
+      "properties": {
+        "role_versions": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/RuntimeVersions"
+            },
+            {
+              "minItems": 1
+            }
+          ]
+        },
+        "skill_versions": {
+          "$ref": "#/$defs/RuntimeVersions"
+        },
+        "tool_versions": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/RuntimeVersions"
+            },
+            {
+              "minItems": 1
+            }
+          ]
+        },
+        "prompt_revisions": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/RuntimeVersions"
+            },
+            {
+              "minItems": 1
+            }
+          ]
+        },
+        "input_output_schema_refs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/RuntimeSchemaBinding"
+          }
+        },
+        "template_versions": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/RuntimeVersions"
+            },
+            {
+              "minItems": 1
+            }
+          ]
+        },
+        "rule_versions": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/RuntimeVersions"
+            },
+            {
+              "minItems": 1
+            }
+          ]
+        },
+        "retrieval_profiles": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/RuntimeVersions"
+            },
+            {
+              "minItems": 1
+            }
+          ]
+        },
+        "model_config_revisions": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/RuntimeVersions"
+            },
+            {
+              "minItems": 1
+            }
+          ]
+        },
+        "limits": {
+          "$ref": "#/$defs/RuntimeLimits"
+        },
+        "human_checkpoints": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/RuntimeHumanCheckpoint"
+          }
+        },
+        "runtime_manifest": {
+          "$ref": "#/$defs/RuntimeRuntimeManifest"
+        },
+        "release_scope": {
+          "$ref": "#/$defs/RuntimeReleaseScope"
+        }
+      }
+    },
+    "RuntimeAuthor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "project_id",
+        "name",
+        "definition",
+        "reason"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "project_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RuntimeId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "definition": {
+          "$ref": "#/$defs/RuntimeDefinition"
+        },
+        "reason": {
+          "$ref": "#/$defs/RuntimeReason"
+        }
+      }
+    },
+    "RuntimePublish": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "agent_version_id",
+        "expected_revision",
+        "acceptance_id",
+        "acceptance_sha256",
+        "reason"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "agent_version_id": {
+          "$ref": "#/$defs/RuntimeId"
+        },
+        "expected_revision": {
+          "$ref": "#/$defs/RuntimeRevision"
+        },
+        "acceptance_id": {
+          "$ref": "#/$defs/RuntimeId"
+        },
+        "acceptance_sha256": {
+          "$ref": "#/$defs/RuntimeHash"
+        },
+        "reason": {
+          "$ref": "#/$defs/RuntimeReason"
+        }
+      }
+    },
+    "RuntimeQualification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "project_id",
+        "expert_id",
+        "candidate_version_id",
+        "dimensions",
+        "evidence_sources",
+        "valid_from",
+        "valid_until",
+        "decision",
+        "reason"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "project_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RuntimeId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "expert_id": {
+          "$ref": "#/$defs/RuntimeId"
+        },
+        "candidate_version_id": {
+          "$ref": "#/$defs/RuntimeId"
+        },
+        "dimensions": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 12,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^EVAL-(0[1-9]|1[0-2])$"
+          }
+        },
+        "evidence_sources": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 20,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/RuntimeVersionRef"
+          }
+        },
+        "valid_from": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "valid_until": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "decision": {
+          "enum": [
+            "APPROVE",
+            "REJECT"
+          ]
+        },
+        "reason": {
+          "$ref": "#/$defs/RuntimeReason"
+        }
+      }
+    },
+    "RuntimeAcceptance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "evaluation_id",
+        "definition_sha256",
+        "result_sha256",
+        "policy_id",
+        "policy_sha256",
+        "candidate_version_id",
+        "decision",
+        "qualification_ids",
+        "execution_evidence",
+        "reason"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "evaluation_id": {
+          "$ref": "#/$defs/RuntimeId"
+        },
+        "definition_sha256": {
+          "$ref": "#/$defs/RuntimeHash"
+        },
+        "result_sha256": {
+          "$ref": "#/$defs/RuntimeHash"
+        },
+        "policy_id": {
+          "$ref": "#/$defs/RuntimeId"
+        },
+        "policy_sha256": {
+          "$ref": "#/$defs/RuntimeHash"
+        },
+        "candidate_version_id": {
+          "$ref": "#/$defs/RuntimeId"
+        },
+        "decision": {
+          "enum": [
+            "ACCEPT",
+            "REJECT"
+          ]
+        },
+        "qualification_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "maxItems": 100,
+          "items": {
+            "$ref": "#/$defs/RuntimeId"
+          }
+        },
+        "execution_evidence": {
+          "type": "array",
+          "maxItems": 10000,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "sample_id",
+              "repeat_index",
+              "run_id",
+              "step_id",
+              "result_artifact"
+            ],
+            "properties": {
+              "sample_id": {
+                "$ref": "#/$defs/RuntimeId"
+              },
+              "repeat_index": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 99
+              },
+              "run_id": {
+                "$ref": "#/$defs/RuntimeId"
+              },
+              "step_id": {
+                "$ref": "#/$defs/RuntimeId"
+              },
+              "result_artifact": {
+                "$ref": "#/$defs/RuntimeVersionRef"
+              }
+            }
+          }
+        },
+        "reason": {
+          "$ref": "#/$defs/RuntimeReason"
+        }
+      }
+    },
+    "RuntimeReceipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "operation_id",
+        "resource_id",
+        "kind",
+        "content_sha256",
+        "request_body_sha256"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "operation_id": {
+          "$ref": "#/$defs/RuntimeId"
+        },
+        "resource_id": {
+          "$ref": "#/$defs/RuntimeId"
+        },
+        "kind": {
+          "enum": [
+            "AUTHOR",
+            "POLICY",
+            "QUALIFICATION",
+            "ACCEPTANCE",
+            "PUBLICATION",
+            "POLICY_DRAFT",
+            "EXECUTION_POLICY",
+            "EXECUTION_POLICY_DRAFT",
+            "EXECUTION_POLICY_AUTHOR",
+            "EXECUTION_POLICY_DECISION",
+            "FORMAL_CAPABILITY_AUTHOR"
+          ]
+        },
+        "content_sha256": {
+          "$ref": "#/$defs/RuntimeHash"
+        },
+        "request_body_sha256": {
+          "$ref": "#/$defs/RuntimeHash"
+        }
+      }
+    },
+    "RuntimeDecimal": {
+      "type": "string",
+      "pattern": "^(0|1)(\\.[0-9]{1,60})?$"
+    },
+    "RuntimeDimension": {
+      "enum": [
+        "EVAL-01",
+        "EVAL-02",
+        "EVAL-03",
+        "EVAL-04",
+        "EVAL-05",
+        "EVAL-06",
+        "EVAL-07",
+        "EVAL-08",
+        "EVAL-09",
+        "EVAL-10",
+        "EVAL-11",
+        "EVAL-12"
+      ]
+    },
+    "RuntimePolicyRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dimension",
+        "method",
+        "direction",
+        "threshold",
+        "repeat_count",
+        "minimum_families"
+      ],
+      "properties": {
+        "dimension": {
+          "$ref": "#/$defs/RuntimeDimension"
+        },
+        "method": {
+          "enum": [
+            "DETERMINISTIC_ALL_REQUIRED_RUNS",
+            "SOURCE_FAMILY_HOEFFDING_V1"
+          ]
+        },
+        "direction": {
+          "enum": [
+            "MIN",
+            "MAX"
+          ]
+        },
+        "threshold": {
+          "$ref": "#/$defs/RuntimeDecimal"
+        },
+        "repeat_count": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "minimum_families": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        }
+      }
+    },
+    "RuntimePolicyAuthor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "project_id",
+        "rule_revision",
+        "dataset",
+        "sample_manifest_artifact",
+        "candidate_refs",
+        "runtime_manifest_sha256",
+        "scope_sha256",
+        "familywise_confidence",
+        "sampling_design_evidence",
+        "dimensions",
+        "reason"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "project_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RuntimeId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "rule_revision": {
+          "$ref": "#/$defs/RuntimeBasis"
+        },
+        "dataset": {
+          "$ref": "#/$defs/RuntimeBasis"
+        },
+        "sample_manifest_artifact": {
+          "$ref": "#/$defs/RuntimeBasis"
+        },
+        "candidate_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/RuntimeBasis"
+          },
+          "minItems": 1,
+          "maxItems": 10,
+          "uniqueItems": true
+        },
+        "runtime_manifest_sha256": {
+          "$ref": "#/$defs/RuntimeHash"
+        },
+        "scope_sha256": {
+          "$ref": "#/$defs/RuntimeHash"
+        },
+        "familywise_confidence": {
+          "$ref": "#/$defs/RuntimeDecimal"
+        },
+        "sampling_design_evidence": {
+          "$ref": "#/$defs/RuntimeBasis"
+        },
+        "dimensions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/RuntimePolicyRule"
+          },
+          "minItems": 1,
+          "maxItems": 12,
+          "uniqueItems": true
+        },
+        "reason": {
+          "$ref": "#/$defs/RuntimeReason"
+        }
+      }
+    },
+    "RuntimePolicyDecision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "draft_id",
+        "draft_sha256",
+        "decision",
+        "reason"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "draft_id": {
+          "$ref": "#/$defs/RuntimeId"
+        },
+        "draft_sha256": {
+          "$ref": "#/$defs/RuntimeHash"
+        },
+        "decision": {
+          "enum": [
+            "APPROVE",
+            "REJECT"
+          ]
+        },
+        "reason": {
+          "$ref": "#/$defs/RuntimeReason"
+        }
+      }
+    },
+    "RuntimeBasis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version_id",
+        "content_sha256"
+      ],
+      "properties": {
+        "version_id": {
+          "$ref": "#/$defs/RuntimeId"
+        },
+        "content_sha256": {
+          "$ref": "#/$defs/RuntimeHash"
+        }
+      }
+    },
+    "RuntimeCapability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "project_id",
+        "kind",
+        "source_artifact",
+        "input_schema_ref",
+        "output_schema_ref",
+        "tool_scope",
+        "execution_mode"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "project_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RuntimeId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "kind": {
+          "enum": [
+            "ROLE",
+            "PROMPT"
+          ]
+        },
+        "source_artifact": {
+          "$ref": "#/$defs/RuntimeVersionRef"
+        },
+        "input_schema_ref": {
+          "$ref": "#/$defs/RuntimePublishedSchema"
+        },
+        "output_schema_ref": {
+          "$ref": "#/$defs/RuntimePublishedSchema"
+        },
+        "tool_scope": {
+          "type": "array",
+          "maxItems": 0
+        },
+        "execution_mode": {
+          "const": "SIMULATION"
+        }
+      }
+    },
+    "RuntimeAgent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "project_id",
+        "name",
+        "role_version",
+        "prompt_revision",
+        "model_config_revision",
+        "limits",
+        "execution_mode"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "project_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RuntimeId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "role_version": {
+          "$ref": "#/$defs/RuntimeVersionRef"
+        },
+        "prompt_revision": {
+          "$ref": "#/$defs/RuntimeVersionRef"
+        },
+        "model_config_revision": {
+          "$ref": "#/$defs/RuntimeVersionRef"
+        },
+        "limits": {
+          "$ref": "#/$defs/RuntimeLimits"
+        },
+        "execution_mode": {
+          "const": "SIMULATION"
+        }
+      }
+    },
+    "RuntimeContext": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tenant_id",
+        "context_revision",
+        "auth_epoch",
+        "governance_epoch"
+      ],
+      "properties": {
+        "tenant_id": {
+          "$ref": "#/$defs/RuntimeId"
+        },
+        "context_revision": {
+          "$ref": "#/$defs/RuntimeRevision"
+        },
+        "auth_epoch": {
+          "$ref": "#/$defs/RuntimeRevision"
+        },
+        "governance_epoch": {
+          "$ref": "#/$defs/RuntimeRevision"
+        }
+      }
+    },
+    "RuntimeDependencyManifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "manifest_kind",
+        "dependencies"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "manifest_kind": {
+          "const": "SIMULATION_CANDIDATE_DEPENDENCIES"
+        },
+        "dependencies": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 1024,
+          "uniqueItems": true,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "version_id",
+              "content_sha256"
+            ],
+            "properties": {
+              "version_id": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+              },
+              "content_sha256": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              }
+            }
+          }
+        }
+      }
+    },
+    "RuntimeFixedCapability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "tenant_id",
+        "config_id",
+        "version_id",
+        "request",
+        "created_by",
+        "created_at"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "tenant_id": {
+          "$ref": "#/$defs/RuntimeId"
+        },
+        "config_id": {
+          "$ref": "#/$defs/RuntimeId"
+        },
+        "version_id": {
+          "$ref": "#/$defs/RuntimeId"
+        },
+        "request": {
+          "$ref": "#/$defs/RuntimeCapability"
+        },
+        "created_by": {
+          "$ref": "#/$defs/RuntimeId"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "RuntimeCapabilityView": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "definition",
+        "content_sha256",
+        "status",
+        "revision",
+        "production_eligible"
+      ],
+      "properties": {
+        "definition": {
+          "$ref": "#/$defs/RuntimeFixedCapability"
+        },
+        "content_sha256": {
+          "$ref": "#/$defs/RuntimeHash"
+        },
+        "status": {
+          "const": "DRAFT"
+        },
+        "revision": {
+          "const": "1"
+        },
+        "production_eligible": {
+          "const": false
+        }
+      }
+    },
+    "RuntimeFixedAgent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "tenant_id",
+        "config_id",
+        "version_id",
+        "request",
+        "created_by",
+        "created_at",
+        "dependency_manifest"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "tenant_id": {
+          "$ref": "#/$defs/RuntimeId"
+        },
+        "config_id": {
+          "$ref": "#/$defs/RuntimeId"
+        },
+        "version_id": {
+          "$ref": "#/$defs/RuntimeId"
+        },
+        "request": {
+          "$ref": "#/$defs/RuntimeAgent"
+        },
+        "created_by": {
+          "$ref": "#/$defs/RuntimeId"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "dependency_manifest": {
+          "$ref": "#/$defs/RuntimeDependencyManifest"
+        }
+      }
+    },
+    "RuntimeAgentView": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "definition",
+        "content_sha256",
+        "status",
+        "revision",
+        "production_eligible"
+      ],
+      "properties": {
+        "definition": {
+          "$ref": "#/$defs/RuntimeFixedAgent"
+        },
+        "content_sha256": {
+          "$ref": "#/$defs/RuntimeHash"
+        },
+        "status": {
+          "const": "DRAFT"
+        },
+        "revision": {
+          "const": "1"
+        },
+        "production_eligible": {
+          "const": false
+        }
+      }
+    },
+    "RuntimeReceiptEnvelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "request_id",
+        "resource_revision",
+        "data"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "request_id": {
+          "$ref": "#/$defs/RuntimeId"
+        },
+        "resource_revision": {
+          "const": "1"
+        },
+        "data": {
+          "$ref": "#/$defs/RuntimeReceipt"
+        }
+      }
+    },
+    "RuntimeAgentViewEnvelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "request_id",
+        "resource_revision",
+        "data"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "request_id": {
+          "$ref": "#/$defs/RuntimeId"
+        },
+        "resource_revision": {
+          "const": "1"
+        },
+        "data": {
+          "$ref": "#/$defs/RuntimeAgentView"
+        }
+      }
+    },
+    "RuntimeCapabilityViewEnvelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "request_id",
+        "resource_revision",
+        "data"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "request_id": {
+          "$ref": "#/$defs/RuntimeId"
+        },
+        "resource_revision": {
+          "const": "1"
+        },
+        "data": {
+          "$ref": "#/$defs/RuntimeCapabilityView"
+        }
+      }
+    },
+    "RuntimeFormalCapability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "project_id",
+        "kind",
+        "source_artifact",
+        "input_schema_ref",
+        "output_schema_ref",
+        "tool_scope",
+        "execution_mode",
+        "reason"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "project_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RuntimeId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "kind": {
+          "enum": [
+            "TOOL",
+            "SKILL"
+          ]
+        },
+        "source_artifact": {
+          "$ref": "#/$defs/RuntimeVersionRef"
+        },
+        "input_schema_ref": {
+          "$ref": "#/$defs/RuntimePublishedSchema"
+        },
+        "output_schema_ref": {
+          "$ref": "#/$defs/RuntimePublishedSchema"
+        },
+        "tool_scope": {
+          "$ref": "#/$defs/RuntimeRuntimeRoleScope"
+        },
+        "execution_mode": {
+          "const": "PRODUCTION"
+        },
+        "reason": {
+          "$ref": "#/$defs/RuntimeReason"
+        }
+      }
+    },
+    "RuntimePolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "policy_id",
+        "tenant_id",
+        "project_id",
+        "rule_revision",
+        "dataset",
+        "sample_manifest_artifact",
+        "candidate_refs",
+        "runtime_manifest_sha256",
+        "scope_sha256",
+        "familywise_confidence",
+        "sampling_design_evidence",
+        "created_at",
+        "approved_at",
+        "dimensions"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "policy_id": {
+          "$ref": "#/$defs/RuntimeId"
+        },
+        "tenant_id": {
+          "$ref": "#/$defs/RuntimeId"
+        },
+        "project_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RuntimeId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "rule_revision": {
+          "$ref": "#/$defs/RuntimeBasis"
+        },
+        "dataset": {
+          "$ref": "#/$defs/RuntimeBasis"
+        },
+        "sample_manifest_artifact": {
+          "$ref": "#/$defs/RuntimeBasis"
+        },
+        "candidate_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/RuntimeBasis"
+          },
+          "minItems": 1,
+          "maxItems": 10,
+          "uniqueItems": true
+        },
+        "runtime_manifest_sha256": {
+          "$ref": "#/$defs/RuntimeHash"
+        },
+        "scope_sha256": {
+          "$ref": "#/$defs/RuntimeHash"
+        },
+        "familywise_confidence": {
+          "$ref": "#/$defs/RuntimeDecimal"
+        },
+        "sampling_design_evidence": {
+          "$ref": "#/$defs/RuntimeBasis"
+        },
+        "created_at": {
+          "$ref": "#/$defs/RuntimeTime"
+        },
+        "approved_at": {
+          "$ref": "#/$defs/RuntimeTime"
+        },
+        "dimensions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/RuntimePolicyRule"
+          },
+          "minItems": 1,
+          "maxItems": 12,
+          "uniqueItems": true
+        }
+      }
+    },
+    "RuntimeTime": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "Z$"
+    },
+    "RuntimeFormalCapabilityFixed": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "tenant_id",
+        "config_id",
+        "version_id",
+        "created_by",
+        "created_at",
+        "request"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "tenant_id": {
+          "$ref": "#/$defs/RuntimeId"
+        },
+        "config_id": {
+          "$ref": "#/$defs/RuntimeId"
+        },
+        "version_id": {
+          "$ref": "#/$defs/RuntimeId"
+        },
+        "created_by": {
+          "$ref": "#/$defs/RuntimeId"
+        },
+        "created_at": {
+          "$ref": "#/$defs/RuntimeTime"
+        },
+        "request": {
+          "$ref": "#/$defs/RuntimeFormalCapability"
+        }
+      }
+    },
+    "RuntimePolicyDraftContent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "status",
+        "policy_draft_id",
+        "specification"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "status": {
+          "const": "DRAFT"
+        },
+        "policy_draft_id": {
+          "$ref": "#/$defs/RuntimeId"
+        },
+        "specification": {
+          "$ref": "#/$defs/RuntimePolicyAuthor"
+        }
+      }
+    },
+    "RuntimePolicyDecisionContent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "status",
+        "draft_id",
+        "draft_sha256",
+        "policy"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "status": {
+          "enum": [
+            "APPROVE",
+            "REJECT"
+          ]
+        },
+        "draft_id": {
+          "$ref": "#/$defs/RuntimeId"
+        },
+        "draft_sha256": {
+          "$ref": "#/$defs/RuntimeHash"
+        },
+        "policy": {
+          "$ref": "#/$defs/RuntimePolicy"
+        }
+      }
+    },
+    "RuntimeRecordView": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_id",
+        "resource_id",
+        "kind",
+        "content_sha256",
+        "status",
+        "production_eligible",
+        "content"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "record_id": {
+          "$ref": "#/$defs/RuntimeId"
+        },
+        "resource_id": {
+          "$ref": "#/$defs/RuntimeId"
+        },
+        "kind": {
+          "enum": [
+            "FORMAL_CAPABILITY_AUTHOR",
+            "POLICY_DRAFT",
+            "POLICY"
+          ]
+        },
+        "content_sha256": {
+          "$ref": "#/$defs/RuntimeHash"
+        },
+        "status": {
+          "enum": [
+            "DRAFT",
+            "APPROVE",
+            "REJECT"
+          ]
+        },
+        "production_eligible": {
+          "const": false
+        },
+        "content": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/RuntimeFormalCapabilityFixed"
+            },
+            {
+              "$ref": "#/$defs/RuntimePolicyDraftContent"
+            },
+            {
+              "$ref": "#/$defs/RuntimePolicyDecisionContent"
+            }
+          ]
+        }
+      }
+    },
+    "RuntimeCursor": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "RuntimeQuery": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "kind",
+        "cursor"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "kind": {
+          "enum": [
+            "FORMAL_CAPABILITY_AUTHOR",
+            "POLICY_DRAFT",
+            "POLICY"
+          ]
+        },
+        "cursor": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RuntimeCursor"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "RuntimeList": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "items",
+        "next_cursor"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "items": {
+          "type": "array",
+          "maxItems": 50,
+          "items": {
+            "$ref": "#/$defs/RuntimeRecordView"
+          }
+        },
+        "next_cursor": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RuntimeCursor"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "RuntimeRuntimeNullableId": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/RuntimeId"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "RuntimeRuntimeAction": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_.-]{0,63}$"
+    },
+    "RuntimeRuntimeScope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tenant_id",
+        "project_id",
+        "resource_kind",
+        "resource_id"
+      ],
+      "properties": {
+        "tenant_id": {
+          "$ref": "#/$defs/RuntimeId"
+        },
+        "project_id": {
+          "$ref": "#/$defs/RuntimeRuntimeNullableId"
+        },
+        "resource_kind": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9_]{0,63}$"
+        },
+        "resource_id": {
+          "$ref": "#/$defs/RuntimeId"
+        }
+      }
+    },
+    "RuntimeRuntimePermission": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scope",
+        "action",
+        "purpose"
+      ],
+      "properties": {
+        "scope": {
+          "$ref": "#/$defs/RuntimeRuntimeScope"
+        },
+        "action": {
+          "$ref": "#/$defs/RuntimeRuntimeAction"
+        },
+        "purpose": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9_]{0,63}$"
+        }
+      }
+    },
+    "RuntimeRuntimeRoleScope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "permissions"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "permissions": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/RuntimeRuntimePermission"
+          },
+          "maxItems": 128
+        }
+      }
+    },
+    "RuntimeCapabilityQuery": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "kind",
+        "cursor"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "kind": {
+          "const": "FORMAL_CAPABILITY_AUTHOR"
+        },
+        "cursor": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RuntimeCursor"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.medical.persistence.mapper.ConfigurationAuthoringMapper">
+  <resultMap id="stored" type="com.ruoyi.medical.persistence.ConfigurationAuthoringProtocol$Stored"><constructor>
+    <arg column="tenant_id" javaType="java.lang.String"/>
+    <arg column="project_id" javaType="java.lang.String"/>
+    <arg column="config_id" javaType="java.lang.String"/>
+    <arg column="version_id" javaType="java.lang.String"/>
+    <arg column="kind" javaType="java.lang.String"/>
+    <arg column="name" javaType="java.lang.String"/>
+    <arg column="projection" javaType="java.lang.String"/>
+    <arg column="content_sha256" javaType="java.lang.String"/>
+    <arg column="registry_hash" javaType="java.lang.String"/>
+    <arg column="status" javaType="java.lang.String"/>
+    <arg column="head_status" javaType="java.lang.String"/>
+    <arg column="current_version" javaType="java.lang.String"/>
+    <arg column="schema_version" javaType="java.lang.String"/>
+    <arg column="schema_manifest_sha256" javaType="java.lang.String"/>
+    <arg column="created_by" javaType="java.lang.String"/>
+    <arg column="created_at" javaType="java.time.LocalDateTime"/>
+    <arg column="classification" javaType="java.lang.String"/>
+  </constructor></resultMap>
+  <resultMap id="parent" type="com.ruoyi.medical.persistence.ConfigurationAuthoringProtocol$Parent"><constructor>
+    <arg column="version_id" javaType="java.lang.String"/><arg column="relation_kind" javaType="java.lang.String"/><arg column="content_sha256" javaType="java.lang.String"/>
+  </constructor></resultMap>
+  <select id="stored" resultMap="stored" useCache="false" flushCache="true">
+    SELECT v.tenant_id,v.project_id,h.config_id,
+    <choose><when test="agent">v.agent_version_id AS version_id,'AGENT' AS kind,v.name,
+      JSON_OBJECT('dependency_manifest',v.dependency_manifest,'limits',v.limits) AS projection
+    </when><otherwise>v.capability_version AS version_id,v.kind,NULL AS name,
+      JSON_OBJECT('input_schema_ref',v.input_schema_ref,'output_schema_ref',v.output_schema_ref,'tool_scope',v.tool_scope,'artifact_digest',v.artifact_digest) AS projection
+    </otherwise></choose>,
+    v.content_sha256,r.content_sha256 AS registry_hash,v.status,h.status AS head_status,h.current_version,
+    v.schema_version,v.schema_manifest_sha256,v.created_by,v.created_at,v.classification
+    FROM <choose><when test="agent">agent_version</when><otherwise>capability_version</otherwise></choose> v
+    JOIN configuration_head h ON h.tenant_id=v.tenant_id AND h.config_id=
+      <choose><when test="agent">v.agent_id</when><otherwise>v.config_id</otherwise></choose>
+      AND h.kind=v.configuration_kind AND h.project_id &lt;=&gt; v.project_id
+    JOIN version_registry r ON r.tenant_id=v.tenant_id AND r.version_id=
+      <choose><when test="agent">v.agent_version_id</when><otherwise>v.capability_version</otherwise></choose>
+      AND r.entity_kind=#{entityKind} AND r.owner_project_id &lt;=&gt; v.project_id
+    WHERE <choose><when test="agent">v.agent_version_id</when><otherwise>v.capability_version</otherwise></choose>=#{versionId}
+      AND v.revision=1 AND h.revision=1
+      <if test="agent">AND v.evaluation_id IS NULL AND h.name=v.name</if>
+    FOR UPDATE
+  </select>
+  <select id="parents" resultMap="parent" useCache="false" flushCache="true">
+    SELECT e.upstream_version_id AS version_id,e.relation_kind,r.content_sha256
+    FROM lineage_edge e JOIN version_registry r ON r.tenant_id=e.tenant_id AND r.version_id=e.upstream_version_id
+    WHERE e.consumer_version_id=#{versionId} ORDER BY e.relation_kind,e.upstream_version_id
+  </select>
+  <insert id="insertHead">
+    INSERT INTO configuration_head(project_id,config_id,kind,name,current_version,status,created_by,created_at,classification,revision,updated_at)
+    VALUES(#{projectId},#{configId},#{headKind},#{name},NULL,'DRAFT',#{userId},#{now},#{classification},1,#{now})
+  </insert>
+  <insert id="insertVersion">
+    INSERT INTO version_registry(version_id,owner_project_id,entity_kind,content_sha256)
+    VALUES(#{versionId},#{projectId},#{entityKind},#{contentHash})
+  </insert>
+  <insert id="insertCapability">
+    INSERT INTO capability_version(project_id,capability_version,config_id,configuration_kind,kind,input_schema_ref,output_schema_ref,tool_scope,
+      artifact_digest,content_sha256,status,schema_version,schema_manifest_sha256,created_by,created_at,classification,revision,updated_at)
+    VALUES(#{projectId},#{versionId},#{configId},'CAPABILITY',#{kind},#{inputSchema},#{outputSchema},#{toolScope},
+      #{artifactDigest},#{contentHash},'DRAFT','1.0.0',#{manifest},#{userId},#{now},#{classification},1,#{now})
+  </insert>
+  <insert id="insertAgent">
+    INSERT INTO agent_version(project_id,agent_version_id,agent_id,configuration_kind,name,status,dependency_manifest,limits,evaluation_id,
+      content_sha256,schema_version,schema_manifest_sha256,created_by,created_at,classification,revision,updated_at)
+    VALUES(#{projectId},#{versionId},#{configId},'AGENT',#{name},'DRAFT',#{dependencyManifest},#{limits},NULL,
+      #{contentHash},'1.0.0',#{manifest},#{userId},#{now},#{classification},1,#{now})
+  </insert>
+  <insert id="insertLineage">
+    INSERT INTO lineage_edge(consumer_version_id,upstream_version_id,relation_kind,actor_id,decision_ref,created_at)
+    VALUES(#{versionId},#{upstreamId},#{relation},#{userId},NULL,#{now})
+  </insert>
+  <update id="initializeHead">
+    UPDATE configuration_head SET current_version=#{versionId} WHERE config_id=#{configId} AND kind=#{headKind}
+      AND current_version IS NULL AND status='DRAFT' AND revision=1
+  </update>
+  <select id="currentOperation" resultMap="com.ruoyi.medical.persistence.mapper.TenantSelectionMapper.operation" useCache="false" flushCache="true">
+    SELECT operation_id,request_sha256,state,http_status,response_ref,target_id,schema_version,schema_manifest_sha256
+    FROM operation_record o WHERE subject_id=#{userId} AND operation_name=#{operationName} AND idempotency_key=#{key}
+  </select>
+  <insert id="saveOperation">
+    INSERT INTO operation_record(operation_id,subject_id,operation_name,idempotency_key,request_sha256,state,http_status,response_ref,
+      target_id,error_code,schema_version,schema_manifest_sha256,created_by,created_at,classification,revision,updated_at)
+    VALUES(#{operationId},#{userId},#{operationName},#{key},#{requestHash},'COMPLETED',201,#{response},#{versionId},NULL,
+      '1.0.0',#{manifest},#{userId},#{now},#{classification},1,#{now})
+  </insert>
+  <update id="advanceGovernance">
+    UPDATE tenant SET governance_epoch=governance_epoch+1 WHERE governance_epoch=#{governanceEpoch} AND auth_epoch=#{authEpoch}
+  </update>
+  <select id="audit" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT resource_ref FROM audit_event a WHERE audit_id=#{auditId} AND subject_id=#{userId}
+      AND project_id &lt;=&gt; #{projectId} AND action='configuration.draft_created' AND result='SUCCESS' AND reason_code IS NULL
+      AND request_id=#{requestId} AND trace_id=#{requestId} AND schema_version='1.0.0'
+      AND schema_manifest_sha256=#{manifest} AND created_by=#{userId} AND classification=#{classification}
+  </select>
+  <select id="event" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT payload FROM outbox_event e WHERE event_id=#{eventId} AND aggregate_id=#{configId}
+      AND aggregate_revision=#{resulting} AND event_type='configuration.draft_created'
+  </select>
+</mapper>

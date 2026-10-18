@@ -1,47 +1,34 @@
 <template>
   <main class="medical-page source-governance">
-    <h1>资料版本与人工核准</h1>
     <session-panel />
     <p v-if="loading" role="status">正在读取固定资料版本</p>
     <template v-if="view">
-      <el-descriptions :column="2" border>
-        <el-descriptions-item label="标题">{{ view.title }}</el-descriptions-item>
-        <el-descriptions-item label="归属">{{ view.ownership }}</el-descriptions-item>
-        <el-descriptions-item label="来源版本">{{ view.source_version }}</el-descriptions-item>
-        <el-descriptions-item label="项目">{{ view.owner_project_id ?? '企业资料' }}</el-descriptions-item>
-        <el-descriptions-item label="媒体类型">{{ view.media_type }}</el-descriptions-item>
-        <el-descriptions-item label="字节数">{{ view.size_bytes }}</el-descriptions-item>
-        <el-descriptions-item label="原件摘要">{{ view.original_sha256 }}</el-descriptions-item>
-        <el-descriptions-item label="权利状态">{{ view.rights_status }} / {{ view.rights_purpose }}</el-descriptions-item>
-        <el-descriptions-item label="生命周期">{{ lifecycleStatusLabels[view.lifecycle_state] }}</el-descriptions-item>
-        <el-descriptions-item label="生命周期修订">{{ view.lifecycle_revision }}</el-descriptions-item>
-        <el-descriptions-item v-if="view.deletion_id" label="清理作业">{{ view.deletion_id }}</el-descriptions-item>
-        <el-descriptions-item v-if="view.deletion_status" label="清理状态">{{ view.deletion_status }}</el-descriptions-item>
-      </el-descriptions>
-
-      <section class="version-panel">
-        <h2>资料版本记录</h2>
-        <el-table :data="view.versions" row-key="source_version">
-          <el-table-column prop="version_no" label="版本编号" width="110" />
-          <el-table-column prop="publisher_version" label="发布版本" min-width="150">
-            <template #default="scope">{{ scope.row.publisher_version ?? '未提供' }}</template>
-          </el-table-column>
-          <el-table-column prop="created_at" label="建立时间" min-width="210" />
-          <el-table-column prop="lifecycle" label="生命周期" width="130">
-            <template #default="scope">{{ lifecycleStatusLabel(scope.row.lifecycle) }}</template>
-          </el-table-column>
-          <el-table-column prop="original_sha256" label="原件摘要" min-width="260" />
-          <el-table-column label="操作" width="120">
-            <template #default="scope">
-              <el-tag v-if="scope.row.selected">当前查看</el-tag>
-              <router-link v-else :to="'/library/versions/' + scope.row.source_version">查看</router-link>
-            </template>
-          </el-table-column>
-        </el-table>
-      </section>
-
+      <header class="reader-header">
+        <div class="reader-heading">
+          <div><p class="reader-eyebrow">固定来源 · 资料阅读</p><h1>{{ view.title }}</h1></div>
+          <router-link to="/library" class="reader-back">返回资料中心</router-link>
+        </div>
+        <p class="fixed-version">来源版本 <span>{{ view.source_version }}</span></p>
+        <div class="reader-statuses" aria-label="当前固定版本状态" aria-live="polite">
+          <span>资料核准 <el-tag :type="selected?.approval_status === 'APPROVED' ? 'success' : 'warning'">{{ selected?.approval_status === 'PENDING' ? '待核准' : stateLabel(selected?.approval_status) }}</el-tag></span>
+          <span>当前权利 <el-tag :type="view.rights_status === 'APPROVED' ? 'success' : 'warning'">{{ view.rights_status === 'PENDING' ? '待审查' : stateLabel(view.rights_status) }}</el-tag></span>
+          <span>上传 <strong>{{ selected?.upload_status === 'PENDING' ? '待上传' : stateLabel(selected?.upload_status) }}</strong></span>
+          <span>解析 <strong>{{ stateLabel(selected?.parse_status) }}</strong></span>
+          <span>索引 <strong>{{ stateLabel(selected?.index_status) }}</strong></span>
+          <span>生命周期 <strong>{{ lifecycleStatusLabels[view.lifecycle_state] }}</strong></span>
+        </div>
+      </header>
+      <div class="source-reader-workspace">
+        <div class="source-reader-main">
       <section class="content-panel">
-        <h2>原件与解析内容</h2>
+        <div class="reading-panel-heading"><h2>原件与解析内容</h2><span>固定版本阅读</span></div>
+        <label class="parse-selector">当前解析版本
+          <el-select :model-value="selected?.parse_version" :disabled="writing || view.reviews.length === 0" placeholder="暂无处理版本" @change="chooseReview">
+            <el-option v-for="review in view.reviews" :key="review.parse_version" :value="review.parse_version"
+              :label="review.parse_version + ' · ' + stateLabel(review.approval_status)" />
+          </el-select>
+        </label>
+        <p class="reader-hint">原件、解析和引用位置均绑定当前版本。读取原件后仍需人工判断其是否支持引用。</p>
         <el-tabs v-model="contentTab" @tab-change="clearContent">
           <el-tab-pane label="完整原件" name="PREVIEW">
             <source-original-reader v-if="user.medicalSession && contentTab === 'PREVIEW'" :session="user.medicalSession"
@@ -88,6 +75,36 @@
         </el-tabs>
       </section>
 
+        </div>
+        <aside class="source-inspector" aria-label="资料属性与引用关系">
+          <el-tabs v-model="inspectorTab" stretch>
+            <el-tab-pane label="资料属性" name="METADATA">
+      <el-descriptions :column="1" border>
+        <el-descriptions-item label="标题">{{ view.title }}</el-descriptions-item>
+        <el-descriptions-item label="归属">{{ view.ownership }}</el-descriptions-item>
+        <el-descriptions-item label="来源版本">{{ view.source_version }}</el-descriptions-item>
+        <el-descriptions-item label="项目">{{ view.owner_project_id ?? '未指定项目' }}</el-descriptions-item>
+        <el-descriptions-item label="媒体类型">{{ view.media_type }}</el-descriptions-item>
+        <el-descriptions-item label="字节数">{{ view.size_bytes }}</el-descriptions-item>
+        <el-descriptions-item label="原件摘要">{{ view.original_sha256 }}</el-descriptions-item>
+        <el-descriptions-item label="分类">{{ view.classification }}</el-descriptions-item>
+        <el-descriptions-item label="权利版本">{{ view.rights_revision }}</el-descriptions-item>
+        <el-descriptions-item label="权利状态">{{ view.rights_status }} / {{ view.rights_purpose }}</el-descriptions-item>
+        <el-descriptions-item label="生命周期">{{ lifecycleStatusLabels[view.lifecycle_state] }}</el-descriptions-item>
+        <el-descriptions-item label="生命周期修订">{{ view.lifecycle_revision }}</el-descriptions-item>
+        <el-descriptions-item v-if="view.deletion_id" label="清理作业">{{ view.deletion_id }}</el-descriptions-item>
+        <el-descriptions-item v-if="view.deletion_status" label="清理状态">{{ view.deletion_status }}</el-descriptions-item>
+      </el-descriptions>
+
+              <div class="inspector-links"><router-link :to="'/library/versions/' + view.source_version + '/rights'">查看权利审查</router-link></div>
+              <dl v-if="selected" class="selected-review-facts">
+                <dt>固定解析版本</dt><dd>{{ selected.parse_version }}</dd>
+                <dt>固定索引版本</dt><dd>{{ selected.index_version ?? '未提供' }}</dd>
+                <dt>已核验 / 预期数量</dt><dd>{{ selected.verified_count ?? '未提供' }} / {{ selected.expected_count ?? '未提供' }}</dd>
+                <dt>资料核准修订</dt><dd>{{ selected.approval_revision ?? '未提供' }}</dd>
+              </dl>
+            </el-tab-pane>
+            <el-tab-pane label="引用与影响" name="USAGES">
       <section v-if="mayReadUsages" class="usage-panel">
         <h2>资料引用与影响</h2>
         <div class="usage-filter">
@@ -96,25 +113,54 @@
           </el-select>
           <el-button :loading="usageLoading" :disabled="writing" @click="loadUsages(undefined, true)">查询引用</el-button>
         </div>
-        <el-table v-if="usagePage" :data="usagePage.items" row-key="usage_key" empty-text="当前范围没有引用关系">
-          <el-table-column prop="usage_kind" label="关系类型" min-width="150">
-            <template #default="scope">{{ usageLabel(scope.row.usage_kind) }}</template>
-          </el-table-column>
-          <el-table-column prop="title" label="使用对象" min-width="220">
-            <template #default="scope">{{ scope.row.title ?? '名称无权读取' }}</template>
-          </el-table-column>
-          <el-table-column prop="resource_id" label="对象编号" min-width="230" />
-          <el-table-column prop="project_id" label="项目编号" min-width="230" />
-          <el-table-column prop="status" label="关系状态" min-width="140" />
-          <el-table-column prop="impact_status" label="影响状态" min-width="130" />
-        </el-table>
+        <p v-if="!usagePage && !usageLoading" class="reader-hint">选择关系类型并查询，查看当前授权范围内的使用对象。</p>
+        <div v-if="usagePage" class="usage-results">
+          <el-empty v-if="usagePage.items.length === 0" :image-size="60" description="当前范围没有引用关系" />
+          <article v-for="item in usagePage.items" :key="item.usage_key" class="usage-card">
+            <span class="usage-kind">{{ usageLabel(item.usage_kind) }}</span>
+            <h3>{{ item.title ?? '名称无权读取' }}</h3>
+            <dl><dt>对象编号</dt><dd>{{ item.resource_id }}</dd><dt>项目编号</dt><dd>{{ item.project_id ?? '未提供' }}</dd>
+              <dt>关系状态</dt><dd>{{ item.status }}</dd><dt>影响状态</dt><dd>{{ item.impact_status }}</dd></dl>
+          </article>
+        </div>
         <p v-if="usagePage">共 {{ usagePage.total }} 项；治理水位 {{ usagePage.dataset_watermark }}</p>
         <div v-if="usagePage" class="content-navigation">
           <el-button :disabled="usageCursors.length < 2 || usageLoading" @click="previousUsages">上一页</el-button>
           <el-button :disabled="usagePage.next_after === null || usageLoading" @click="nextUsages">下一页</el-button>
         </div>
       </section>
+      <p v-else class="reader-hint">当前身份没有读取资料引用与影响的权限。</p>
 
+            </el-tab-pane>
+          </el-tabs>
+        </aside>
+      </div>
+      <details class="governance-disclosure">
+        <summary>资料版本记录 <span>查看历史固定版本</span></summary>
+      <section class="version-panel">
+        <h2>资料版本记录</h2>
+        <el-table :data="view.versions" row-key="source_version">
+          <el-table-column prop="version_no" label="版本编号" width="110" />
+          <el-table-column prop="publisher_version" label="发布版本" min-width="150">
+            <template #default="scope">{{ scope.row.publisher_version ?? '未提供' }}</template>
+          </el-table-column>
+          <el-table-column prop="created_at" label="建立时间" min-width="210" />
+          <el-table-column prop="lifecycle" label="生命周期" width="130">
+            <template #default="scope">{{ lifecycleStatusLabel(scope.row.lifecycle) }}</template>
+          </el-table-column>
+          <el-table-column prop="original_sha256" label="原件摘要" min-width="260" />
+          <el-table-column label="操作" width="120">
+            <template #default="scope">
+              <el-tag v-if="scope.row.selected">当前查看</el-tag>
+              <router-link v-else :to="'/library/versions/' + scope.row.source_version">查看</router-link>
+            </template>
+          </el-table-column>
+        </el-table>
+      </section>
+
+      </details>
+      <details class="governance-disclosure">
+        <summary>处理、核准与项目适用 <span>查看记录和人工决定</span></summary>
       <section class="lifecycle-panel">
         <h2>资料生命周期</h2>
         <el-form v-if="mayDecideLifecycle && lifecycleDecisions.length > 0" label-position="top" @submit.prevent="submitLifecycle">
@@ -198,7 +244,7 @@
         <el-table-column prop="approval_status" label="资料核准" width="130" />
         <el-table-column prop="gate_revision" label="治理修订" width="110" />
         <el-table-column label="完整数量" width="140">
-          <template #default="scope">{{ scope.row.verified_count ?? '0' }}/{{ scope.row.expected_count ?? '0' }}</template>
+          <template #default="scope">{{ scope.row.verified_count ?? '未提供' }}/{{ scope.row.expected_count ?? '未提供' }}</template>
         </el-table-column>
       </el-table>
 
@@ -253,6 +299,7 @@
       </section>
       <el-alert v-if="receipt" :title="'已保存' + labels[receipt.decision]" type="success" :closable="false"
         :description="'核准版本：' + receipt.approval_revision + '；治理修订：' + receipt.gate_revision" />
+      </details>
     </template>
   </main>
 </template>
@@ -282,7 +329,7 @@ const processingProjectId = ref(''); const processingConfigRevision = ref('')
 const processingStage = ref<SourceProcessingStage>('PARSE_AND_INDEX'); const processingReason = ref('')
 const processingAttested = ref(false); const processingReceipt = ref<SourceProcessingReceipt | null>(null)
 const processingErrors = reactive({ project: '', config: '', stage: '', reason: '', attested: '' })
-const contentTab = ref<'PARSED' | 'ORIGINAL' | 'PREVIEW'>('PARSED'); const contentLoading = ref(false)
+const contentTab = ref<'PARSED' | 'ORIGINAL' | 'PREVIEW'>('PREVIEW'); const contentLoading = ref(false)
 const parsedContent = ref<ParsedSourceContent | null>(null); const originalContent = ref<OriginalSourceContent | null>(null)
 const parsedExpanded = ref<string[]>([])
 const parsedPages = ref<(string | undefined)[]>([]); const originalStart = ref('0'); let contentController: AbortController | null = null
@@ -294,6 +341,7 @@ const lifecycleReceipt = ref<SourceLifecycleReceipt | null>(null)
 const lifecycleErrors = reactive({ decision: '', policy: '', reason: '', attested: '' })
 const deletionJob = ref<SourceDeletionJob | null>(null); const deletionLoading = ref(false)
 let deletionController: AbortController | null = null
+const inspectorTab = ref('METADATA')
 const originalPageBytes = 262144n
 const writing = computed(() => user.medicalWriting || loading.value)
 const sourceVersion = computed(() => typeof route.params.sourceVersion === 'string' ? route.params.sourceVersion : '')
@@ -340,6 +388,14 @@ const lifecycleDecisions = computed<SourceLifecycleDecision[]>(() => {
     ? ['RESTORE', 'PURGE'] : ['RESTORE']
   return []
 })
+const statusLabels: Record<string, string> = {
+  PENDING: '待处理', APPROVED: '已核准', DISABLED: '已停用', REVOKED: '已撤销',
+  UPLOADING: '上传中', RECEIVED: '已接收', QUEUED: '排队中', PROCESSING: '处理中',
+  COMPLETE: '解析完成', PARTIAL_FAILED: '部分失败', FAILED: '失败', READY: '已就绪',
+  BUILDING: '构建中', WITHDRAWN: '已撤回'
+}
+function stateLabel(value: string | null | undefined): string { return value == null ? '未提供' : statusLabels[value] ?? value }
+function chooseReview(version: string): void { selectReview(view.value?.reviews.find(item => item.parse_version === version) ?? null) }
 function usageLabel(value: SourceUsageKind): string { return usageLabels[value] }
 function lifecycleStatusLabel(value: SourceLifecycleStatus): string { return lifecycleStatusLabels[value] }
 const originalText = computed(() => {
@@ -352,6 +408,7 @@ const hasPreviousOriginal = computed(() => originalContent.value !== null && Big
 function clear(): void {
   generation += 1; controller?.abort(); controller = null; usageController?.abort(); usageController = null
   deletionController?.abort(); deletionController = null; clearContent()
+  contentTab.value = 'PREVIEW'; inspectorTab.value = 'METADATA'
   view.value = null; selected.value = null; receipt.value = null; usagePage.value = null; usageCursors.value = []; usageLoading.value = false
   loading.value = false; decision.value = ''; reason.value = ''; attested.value = false
   projectId.value = ''; projectProfile.value = null; projectLoading.value = false; applicability.value = ''
@@ -389,7 +446,7 @@ async function read(): Promise<void> {
       validate('urn:medical:templates:1.0.0#/$defs/Id', chunkId)
       const review = result.reviews.find(item => item.parse_version === parseVersion)
       if (!review) fail('SOURCE_MISSING', '检索命中的解析版本不可读取')
-      selected.value = review; fixed = { chunk_id: chunkId, locator_sha256: locatorSha256 }
+      contentTab.value = 'PARSED'; selected.value = review; fixed = { chunk_id: chunkId, locator_sha256: locatorSha256 }
     }
   } finally { if (current === generation && controller === reading) { loading.value = false; controller = null } }
   if (fixed !== null && current === generation && user.medicalSession === session && !document.hidden) await loadExact(fixed)
@@ -629,8 +686,51 @@ onBeforeUnmount(clear)
 </script>
 
 <style scoped>
-.source-governance h2 { margin-top: 28px; }
-.review-panel, .binding-panel, .content-panel, .processing-panel, .usage-panel, .lifecycle-panel, .version-panel { max-width: 900px; margin-top: 24px; }
+.source-governance { container-type: inline-size; }
+.reader-header { position: sticky; top: 0; z-index: 5; padding: 18px 20px; margin: 16px 0; background: var(--el-bg-color); border: 1px solid var(--el-border-color-light); border-radius: 12px; }
+.reader-heading { display: flex; justify-content: space-between; align-items: center; gap: 20px; }
+.reader-heading h1 { margin: 4px 0 12px; font-size: 24px; overflow-wrap: anywhere; }
+.reader-eyebrow { margin: 0; color: var(--el-text-color-secondary); font-size: 12px; }
+.reader-back { flex-shrink: 0; color: var(--el-color-primary); }
+.fixed-version { margin: 0 0 14px; font-size: 12px; color: var(--el-text-color-secondary); overflow-wrap: anywhere; }
+.fixed-version span { color: var(--el-text-color-regular); }
+.reader-statuses { display: flex; flex-wrap: wrap; gap: 12px 20px; font-size: 12px; }
+.reader-statuses > span { display: inline-flex; align-items: center; gap: 8px; }
+.reader-statuses strong { font-weight: 500; }
+.source-reader-workspace { display: grid; grid-template-columns: minmax(0, 1fr) 300px; align-items: start; gap: 20px; }
+.source-reader-main, .source-inspector { min-width: 0; border: 1px solid var(--el-border-color-light); border-radius: 12px; background: var(--el-bg-color); }
+.source-reader-main { padding: 20px; }
+.source-inspector { padding: 12px 16px; max-height: calc(100vh - 200px); overflow: auto; }
+.source-governance h2 { margin: 0 0 16px; font-size: 17px; }
+.reading-panel-heading { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.reading-panel-heading > span, .reader-hint { color: var(--el-text-color-secondary); font-size: 13px; line-height: 1.7; }
+.parse-selector { display: grid; gap: 8px; font-size: 13px; }
+.parse-selector .el-select { width: 100%; }
+.source-inspector :deep(.el-descriptions__table) { table-layout: fixed; }
+.source-inspector :deep(.el-descriptions__cell) { overflow-wrap: anywhere; }
+.source-inspector :deep(.el-descriptions__label) { width: 85px; }
+.usage-results { display: grid; gap: 12px; }
+.usage-card { border: 1px solid var(--el-border-color-light); border-radius: 8px; padding: 12px; overflow-wrap: anywhere; }
+.usage-kind { color: var(--el-text-color-secondary); font-size: 12px; }
+.usage-card h3 { font-size: 14px; line-height: 1.6; margin: 6px 0; }
+.usage-card dl { font-size: 12px; margin-bottom: 0; }
+.usage-card dt { color: var(--el-text-color-secondary); margin-top: 8px; }
+.usage-card dd { margin: 4px 0 0; }
+.usage-panel > p { font-size: 12px; overflow-wrap: anywhere; }
+.selected-review-facts { font-size: 12px; }
+.selected-review-facts dt { color: var(--el-text-color-secondary); margin-top: 14px; }
+.selected-review-facts dd { margin: 6px 0 0; overflow-wrap: anywhere; }
+.inspector-links { margin-top: 16px; }
+.inspector-links a { color: var(--el-color-primary); }
+.governance-disclosure { border: 1px solid var(--el-border-color-light); border-radius: 10px; margin-top: 20px; padding: 18px 20px; }
+.governance-disclosure summary { cursor: pointer; font-weight: 600; }
+.governance-disclosure summary span { font-size: 12px; font-weight: 400; color: var(--el-text-color-secondary); margin-left: 12px; }
+.governance-disclosure[open] summary { margin-bottom: 20px; }
+@container (max-width: 900px) { .source-reader-workspace { grid-template-columns: minmax(0, 1fr); } .source-inspector { max-height: none; } }
+@container (max-width: 620px) { .reader-header { position: static; padding: 14px; } .reader-heading { align-items: flex-start; } .reader-heading h1 { font-size: 20px; } .source-reader-main, .source-inspector, .governance-disclosure { padding: 12px; } .governance-disclosure summary span { display: block; margin: 8px 0 0; } }
+
+.review-panel, .binding-panel, .processing-panel, .lifecycle-panel, .version-panel { margin-top: 24px; }
+.content-panel, .usage-panel { min-width: 0; }
 .review-panel .el-select { width: 100%; }
 .binding-panel .el-select, .processing-panel .el-select, .lifecycle-panel .el-select { width: 100%; }
 .binding-panel form, .processing-panel form, .lifecycle-panel form { margin-top: 16px; }
@@ -639,7 +739,7 @@ onBeforeUnmount(clear)
 pre { max-height: 320px; overflow: auto; padding: 12px; background: var(--el-fill-color-light); white-space: pre-wrap; overflow-wrap: anywhere; }
 .content-list, .content-summary { margin-top: 16px; }
 .content-navigation { display: flex; gap: 12px; margin-top: 16px; }
-.usage-filter { display: flex; gap: 12px; margin-bottom: 16px; }
+.usage-filter { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; }
 .usage-filter .el-select { width: 260px; }
 .form-error { color: var(--el-color-danger); }
 .review-panel .el-button, .processing-panel .el-button, .lifecycle-panel .el-button { margin-top: 16px; }

@@ -1,0 +1,72 @@
+openapi: 3.1.0
+info:
+  title: 固定文稿标注人工处置扩展
+  version: 1.0.0
+  description: >-
+    IMP-23 RV-06 的独立 RESOLVE/REOPEN 子集扩展，仅操作已有 annotation。
+    不替换已发布 RV-06 设计中的原始契约；REANCHOR、问题处理、总稿确认、签发及任务迁移不在此扩展中。
+jsonSchemaDialect: https://json-schema.org/draft/2020-12/schema
+security: [{Session: []}]
+components:
+  securitySchemes:
+    Session: {type: apiKey, in: cookie, name: SESSION}
+  parameters:
+    Id: &id {name: id, in: path, required: true, schema: {$ref: '../business/medical-persistence/src/main/resources/annotation-decisions.schema.json#/$defs/Id'}}
+    Version: &version {name: X-Schema-Version, in: header, required: true, schema: {const: 1.0.0}}
+    Context: &context {name: X-Context-Revision, in: header, required: true, schema: {$ref: '../business/medical-persistence/src/main/resources/annotation-decisions.schema.json#/$defs/Revision'}}
+    Idempotency: &idem {name: Idempotency-Key, in: header, required: true, schema: {type: string, minLength: 16, maxLength: 128, pattern: '^[\x21-\x7e]+$'}}
+    CSRF: &csrf {name: X-CSRF-Token, in: header, required: true, schema: {type: string, minLength: 1}}
+  responses:
+    Error: &error
+      description: 当前身份、许可、来源、上下文、版本、容量或内容核验拒绝；错误不包含原文、SQL 或对象路径。
+      content: {application/json: {schema: {$ref: './interfaces.schema.yaml#/$defs/Error'}}}
+paths:
+  /api/annotation-threads/{id}/decisions:
+    get:
+      operationId: listAnnotationDecisionsV1
+      description: >-
+        annotation.read 的 DOCUMENT 范围、DOCUMENT_REVIEW 用途许可及原文稿全部来源读取许可。
+        核验完整固定正文和真实 Selection 对象及其登记、绑定、摘要、原锚点；当前来源和时间有效性返回前重查。
+        输出最多100条完整不可变决定历史，不分页或截断，超过容量返回 CONTEXT_LIMIT。
+        revision 是当前标注 CAS 身份；items 内保留每次人工理由、作者、时间、前后状态和标注修订。
+        location_status 明确 CURRENT_VERSION 或 ORIGINAL_VERSION，不把旧锚点移动到新正文。
+      parameters: [*id, *version, *context]
+      responses:
+        '200':
+          description: Envelope.resource_revision 为当前 annotation.revision；Listing.complete 恒为 true。
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - {$ref: './interfaces.schema.yaml#/$defs/Envelope'}
+                  - properties:
+                      data: {$ref: '../business/medical-persistence/src/main/resources/annotation-decisions.schema.json#/$defs/Listing'}
+        default: *error
+    post:
+      operationId: appendAnnotationDecisionV1
+      description: >-
+        review.decide 的真实 DOCUMENT 资源范围、DOCUMENT_REVIEW 用途授权（含有效企业/项目继承），不能使用 annotation.write 代替。
+        仅 ACTIVE 项目中当前未签发固定正文的 OPEN→RESOLVED 或 RESOLVED→OPEN。
+        document_revision 是固定正文UUID，expected_revision 是标注数字CAS，expected_document_revision 是文稿头数字CAS。
+        两个CAS、issue_watermark均增加1；evidence_watermark保持不变。所有当前有效总稿CONFIRM记录追加失效记录，不产生新的确认。
+        reason 最多16000 Unicode code points，保持确切文字空白，拒绝空白、畸形Unicode及非法控制字符。
+        请求流最多65536字节。同一标注最多100条决定，拒绝超限而不截断。
+        完整固定正文和真实Selection通过现有生产读取链核验，最终事务重查其身份、来源、授权时间边界。
+        历史、两个CAS、水位、失效、原幂等回执、审计和Outbox原子提交；审计/Outbox不含理由或原文。
+        同键同请求在重新核验当前权限和内容后返回原201回执（包括原状态/修订），允许后续回复或相反决定已经发生。
+        不同请求摘要返回IDEMPOTENCY_CONFLICT。未知结果必须原键原请求重试。
+      parameters: [*id, *version, *context, *idem, *csrf]
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: '../business/medical-persistence/src/main/resources/annotation-decisions.schema.json#/$defs/Create'}}}
+      responses:
+        '201':
+          description: 固定原回执；重放仍为 201，并返回原 request_id、operation_id、decision_id、时间、理由和修订。
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - {$ref: './interfaces.schema.yaml#/$defs/Envelope'}
+                  - properties:
+                      data: {$ref: '../business/medical-persistence/src/main/resources/annotation-decisions.schema.json#/$defs/Receipt'}
+        default: *error

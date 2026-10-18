@@ -1,0 +1,436 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:simulation-rule-version-workflow:1.0.0",
+  "$ref": "#/$defs/VersionInput",
+  "$defs": {
+    "Id": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "Hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "Revision": {
+      "type": "string",
+      "pattern": "^[1-9][0-9]{0,19}$"
+    },
+    "Basis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version_id",
+        "content_sha256"
+      ],
+      "properties": {
+        "version_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "content_sha256": {
+          "$ref": "#/$defs/Hash"
+        }
+      }
+    },
+    "Baseline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "rule_version",
+        "content_sha256",
+        "definition_manifest_sha256",
+        "dependency_refs",
+        "dependency_authorizations_sha256",
+        "dependency_use",
+        "production_eligible",
+        "binding_sha256"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "rule_version": {
+          "$ref": "#/$defs/Id"
+        },
+        "content_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "definition_manifest_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "dependency_refs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/Basis"
+          }
+        },
+        "dependency_authorizations_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "dependency_use": {
+          "const": "SIMULATION_EVALUATION"
+        },
+        "production_eligible": {
+          "const": false
+        },
+        "binding_sha256": {
+          "$ref": "#/$defs/Hash"
+        }
+      }
+    },
+    "StoredRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tenant_id",
+        "rule_version",
+        "status",
+        "revision",
+        "content",
+        "content_sha256",
+        "base_version",
+        "reason",
+        "authority_grant_id",
+        "authority_revision",
+        "created_by",
+        "created_at",
+        "dependency_refs",
+        "dependency_use",
+        "production_eligible",
+        "binding_sha256"
+      ],
+      "properties": {
+        "tenant_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "rule_version": {
+          "$ref": "#/$defs/Id"
+        },
+        "status": {
+          "enum": [
+            "DRAFT",
+            "APPROVED",
+            "RETURNED",
+            "DISABLED"
+          ]
+        },
+        "revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "content": {
+          "type": "object"
+        },
+        "content_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "base_version": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/Basis"
+            }
+          ]
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+        },
+        "authority_grant_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "authority_revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "created_by": {
+          "$ref": "#/$defs/Id"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "(?:Z|[+]00:00)$"
+        },
+        "dependency_refs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/Basis"
+          }
+        },
+        "dependency_use": {
+          "const": "SIMULATION_EVALUATION"
+        },
+        "production_eligible": {
+          "const": false
+        },
+        "binding_sha256": {
+          "$ref": "#/$defs/Hash"
+        }
+      }
+    },
+    "Preview": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "rule",
+        "baseline_manifest",
+        "allowed_actions"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "rule": {
+          "$ref": "#/$defs/StoredRule"
+        },
+        "baseline_manifest": {
+          "$ref": "#/$defs/Baseline"
+        },
+        "allowed_actions": {
+          "enum": [
+            [],
+            [
+              "rule.approve"
+            ]
+          ]
+        }
+      }
+    },
+    "Decide": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "target_revision",
+        "expected_revision",
+        "decision",
+        "reason",
+        "baseline_manifest"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "target_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "expected_revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "decision": {
+          "enum": [
+            "APPROVE",
+            "RETURN",
+            "DISABLE"
+          ]
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+        },
+        "baseline_manifest": {
+          "$ref": "#/$defs/Baseline"
+        }
+      }
+    },
+    "Context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tenant_id",
+        "context_revision",
+        "auth_epoch",
+        "governance_epoch"
+      ],
+      "properties": {
+        "tenant_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "context_revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "auth_epoch": {
+          "$ref": "#/$defs/Revision"
+        },
+        "governance_epoch": {
+          "$ref": "#/$defs/Revision"
+        }
+      }
+    },
+    "Receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "operation_id",
+        "decision_id",
+        "rule_version",
+        "decision",
+        "status",
+        "revision",
+        "content_sha256",
+        "actor_id",
+        "decided_at",
+        "current_context",
+        "allowed_actions",
+        "dependency_use",
+        "production_eligible",
+        "binding_sha256"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "operation_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "decision_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "rule_version": {
+          "$ref": "#/$defs/Id"
+        },
+        "decision": {
+          "enum": [
+            "APPROVE",
+            "RETURN",
+            "DISABLE"
+          ]
+        },
+        "status": {
+          "enum": [
+            "APPROVED",
+            "RETURNED",
+            "DISABLED"
+          ]
+        },
+        "revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "content_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "decided_at": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "(?:Z|[+]00:00)$"
+        },
+        "current_context": {
+          "$ref": "#/$defs/Context"
+        },
+        "allowed_actions": {
+          "const": []
+        },
+        "dependency_use": {
+          "const": "SIMULATION_EVALUATION"
+        },
+        "production_eligible": {
+          "const": false
+        },
+        "binding_sha256": {
+          "$ref": "#/$defs/Hash"
+        }
+      }
+    },
+    "VersionInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "base_version",
+        "content_schema_ref",
+        "content",
+        "reason",
+        "dependency_use",
+        "production_eligible"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "base_version": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/Basis"
+            }
+          ]
+        },
+        "content_schema_ref": {
+          "const": "urn:medical:rule-expressions:1.0.0#/$defs/Content"
+        },
+        "content": {
+          "type": "object"
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+        },
+        "dependency_use": {
+          "const": "SIMULATION_EVALUATION"
+        },
+        "production_eligible": {
+          "const": false
+        }
+      }
+    },
+    "Created": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "operation_id",
+        "rule",
+        "allowed_actions"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "operation_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "rule": {
+          "$ref": "#/$defs/StoredRule"
+        },
+        "allowed_actions": {
+          "const": []
+        }
+      }
+    },
+    "Read": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "rule",
+        "allowed_actions"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "rule": {
+          "$ref": "#/$defs/StoredRule"
+        },
+        "allowed_actions": {
+          "const": []
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,328 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:simulation-authorized-use-evidence:1.0.0",
+  "$defs": {
+    "Basis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version_id",
+        "content_sha256"
+      ],
+      "properties": {
+        "version_id": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^[0-9a-f-]{36}$"
+        },
+        "content_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "Dimension": {
+      "enum": [
+        "EVAL-01",
+        "EVAL-02",
+        "EVAL-03",
+        "EVAL-04",
+        "EVAL-05",
+        "EVAL-06",
+        "EVAL-07",
+        "EVAL-08",
+        "EVAL-09",
+        "EVAL-10",
+        "EVAL-11",
+        "EVAL-12"
+      ]
+    },
+    "Sample": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sample_id",
+        "source_family",
+        "split",
+        "document_type",
+        "evidence_class",
+        "input_ref",
+        "expected_ref",
+        "expectations"
+      ],
+      "properties": {
+        "sample_id": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^[0-9a-f-]{36}$"
+        },
+        "source_family": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^[0-9a-f-]{36}$"
+        },
+        "split": {
+          "enum": [
+            "DEVELOPMENT",
+            "TUNING",
+            "ACCEPTANCE"
+          ]
+        },
+        "document_type": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "evidence_class": {
+          "enum": [
+            "REAL",
+            "SIMULATION"
+          ]
+        },
+        "input_ref": {
+          "$ref": "#/$defs/Basis"
+        },
+        "expected_ref": {
+          "$ref": "#/$defs/Basis"
+        },
+        "expectations": {
+          "type": "array",
+          "minItems": 0,
+          "maxItems": 12,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/Expectation"
+          }
+        }
+      }
+    },
+    "Expectation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dimension",
+        "applicable_item_ids",
+        "control_item_ids"
+      ],
+      "properties": {
+        "dimension": {
+          "$ref": "#/$defs/Dimension"
+        },
+        "applicable_item_ids": {
+          "type": "array",
+          "minItems": 0,
+          "maxItems": 1000,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          }
+        },
+        "control_item_ids": {
+          "type": "array",
+          "minItems": 0,
+          "maxItems": 1000,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          }
+        }
+      }
+    },
+    "Specification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "dataset",
+        "sample_manifest_artifact",
+        "samples"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "dataset": {
+          "$ref": "#/$defs/Basis"
+        },
+        "sample_manifest_artifact": {
+          "$ref": "#/$defs/Basis"
+        },
+        "samples": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1024,
+          "items": {
+            "$ref": "#/$defs/Sample"
+          }
+        }
+      }
+    },
+    "Coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source",
+        "rights",
+        "object_ref_sha256",
+        "approval"
+      ],
+      "properties": {
+        "source": {
+          "$ref": "#/$defs/Basis"
+        },
+        "rights": {
+          "$ref": "#/$defs/Basis"
+        },
+        "object_ref_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "approval": {
+          "$ref": "#/$defs/Approval"
+        }
+      }
+    },
+    "Document": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "tenant_id",
+        "project_id",
+        "purpose",
+        "production_eligible",
+        "specification",
+        "covered_versions",
+        "sources"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "tenant_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "project_id": {
+          "type": "null"
+        },
+        "purpose": {
+          "const": "SIMULATION_EVALUATION"
+        },
+        "production_eligible": {
+          "const": false
+        },
+        "specification": {
+          "$ref": "#/$defs/Specification"
+        },
+        "covered_versions": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1024,
+          "items": {
+            "$ref": "#/$defs/Basis"
+          }
+        },
+        "sources": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1024,
+          "items": {
+            "$ref": "#/$defs/Coverage"
+          }
+        }
+      }
+    },
+    "Evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact",
+        "artifact_kind",
+        "classification",
+        "media_type",
+        "size_bytes",
+        "schema_ref",
+        "schema_document_sha256"
+      ],
+      "properties": {
+        "artifact": {
+          "$ref": "#/$defs/Basis"
+        },
+        "artifact_kind": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "classification": {
+          "$ref": "#/$defs/Classification"
+        },
+        "media_type": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "size_bytes": {
+          "$ref": "#/$defs/Revision"
+        },
+        "schema_ref": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2048
+        },
+        "schema_document_sha256": {
+          "$ref": "#/$defs/Hash"
+        }
+      }
+    },
+    "Classification": {
+      "enum": [
+        "PUBLIC",
+        "INTERNAL",
+        "RESTRICTED",
+        "PERSONAL_HEALTH"
+      ]
+    },
+    "Revision": {
+      "type": "string",
+      "pattern": "^[1-9][0-9]{0,19}$"
+    },
+    "Hash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "Id": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "Approval": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rights",
+        "decision_id",
+        "witness_sha256",
+        "evidence_count"
+      ],
+      "properties": {
+        "rights": {
+          "$ref": "#/$defs/Basis"
+        },
+        "decision_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "witness_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "evidence_count": {
+          "$ref": "#/$defs/Revision"
+        }
+      }
+    }
+  }
+}

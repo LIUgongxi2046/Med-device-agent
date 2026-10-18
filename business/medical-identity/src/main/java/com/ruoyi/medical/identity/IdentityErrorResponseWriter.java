@@ -46,6 +46,8 @@ public final class IdentityErrorResponseWriter {
             case REVISION_LIMIT -> "当前版本无法继续增加";
             case SCHEMA_UNSUPPORTED -> "请求的 Schema 版本不受支持";
             case SCHEMA_INVALID -> "请求或响应不符合指定 Schema";
+            case SELECTION_INVALID -> "所选内容范围无效，请重新选择";
+            case SELECTION_STALE -> "所选内容或文档版本已经变化，请重新选择";
             case SOURCE_NOT_READY -> "资料处理或人工核准尚未完成";
             case RIGHTS_PENDING -> "当前资料权利尚待审查";
             case PLAN_STALE -> "当前任务或计划版本已经变化";

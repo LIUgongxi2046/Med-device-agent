@@ -21,7 +21,7 @@ def main():
     toolchains = ROOT / ".implementation-work/toolchains"
     java = (toolchains / "jdk-17.0.20.1+1/Contents/Home").resolve(strict=True)
     maven = (toolchains / "apache-maven-3.9.16/bin/mvn").resolve(strict=True)
-    inputs = [ROOT / "scripts/check_task_plan_compile.py", ROOT / "business/pom.xml", ROOT / "contracts/catalogue.json",
+    inputs = [ROOT / "scripts/check_task_plan_compile.py", ROOT / "business/pom.xml", ROOT / "contracts/catalogue.json", ROOT / "contracts/extensions/evaluation-results.catalogue.json", ROOT / "business/medical-persistence/src/main/resources/evaluation-results.schema.json",
               ROOT / "LLD-后端.md", ROOT / "LLD-数据.md", ROOT / "backend-design/接口补充设计.md"]
     for module in ("medical-contracts", "medical-data", "ruoyi-common", "ruoyi-system", "ruoyi-framework", "medical-identity", "medical-persistence"):
         inputs.append(ROOT / "business" / module / "pom.xml")

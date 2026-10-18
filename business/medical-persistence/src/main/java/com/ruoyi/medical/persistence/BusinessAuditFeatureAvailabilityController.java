@@ -1,0 +1,9 @@
+package com.ruoyi.medical.persistence;
+import com.fasterxml.jackson.databind.JsonNode;import com.ruoyi.medical.contracts.*;import com.ruoyi.medical.identity.*;import jakarta.servlet.http.*;import org.springframework.security.core.Authentication;import org.springframework.web.bind.annotation.*;
+@RestController public final class BusinessAuditFeatureAvailabilityController{
+ private final ApplicationSessionIdentity identities;private final BusinessAuditFeatureAvailability availability;private final PermissionSchema json;
+ public BusinessAuditFeatureAvailabilityController(ApplicationSessionIdentity identities,BusinessAuditFeatureAvailability availability,PermissionSchema json){this.identities=identities;this.availability=availability;this.json=json;}
+ @GetMapping("/api/business-audit-feature-availability")public JsonNode read(HttpServletRequest request,HttpServletResponse response,Authentication authentication){String context=BusinessAuditController.headers(request,response);if(request.getQueryString()!=null)throw new SchemaRejection(ErrorCode.SCHEMA_INVALID);var data=availability.read(identities.requireCurrent(request,authentication),context);String id=java.util.UUID.randomUUID().toString();response.setHeader("X-Request-Id",id);response.setHeader("X-Resource-Revision",context);return json.tree(new InterfaceProtocol.Envelope("1.0.0",id,context,data));}
+ @ExceptionHandler(SchemaRejection.class)void invalid(SchemaRejection e,HttpServletResponse response)throws java.io.IOException{new IdentityErrorResponseWriter().write(response,422,e.code());}
+ @ExceptionHandler(TenantAccessException.class)void denied(TenantAccessException e,HttpServletResponse response)throws java.io.IOException{new IdentityErrorResponseWriter().write(response,SimulationRuleVersionController.errorStatus(e.code()),e.code());}
+}

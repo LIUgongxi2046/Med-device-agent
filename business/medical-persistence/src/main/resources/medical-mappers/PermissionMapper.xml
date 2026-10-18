@@ -74,7 +74,7 @@
             <when test="kind == 'TASK'">SELECT task_id AS id,project_id FROM task_head r WHERE task_id=#{resourceId}</when>
             <when test="kind == 'DOCUMENT'">SELECT document_id AS id,project_id FROM document_head r WHERE document_id=#{resourceId}</when>
             <when test="kind == 'ARTIFACT'">SELECT artifact_id AS id,project_id FROM artifact r WHERE artifact_id=#{resourceId}</when>
-            <when test="kind == 'CONFIGURATION'">SELECT config_id AS id,project_id FROM configuration_head r WHERE config_id=#{resourceId}</when>
+            <when test="kind == 'CONFIGURATION'">SELECT config_id AS id,project_id FROM configuration_head r WHERE config_id=#{resourceId} UNION ALL SELECT policy_id AS id,project_id FROM agent_execution_policy_version WHERE policy_id=#{resourceId}</when>
             <when test="kind == 'TEMPLATE'">SELECT template_version AS id,NULL AS project_id FROM template_version r WHERE template_version=#{resourceId}</when>
             <when test="kind == 'RULE'">SELECT rule_version AS id,NULL AS project_id FROM rule_version r WHERE rule_version=#{resourceId}</when>
             <when test="kind == 'BUDGET'">SELECT budget_id AS id,project_id FROM budget_account r WHERE budget_id=#{resourceId}</when>

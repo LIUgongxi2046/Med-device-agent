@@ -1,0 +1,1 @@
+{"extends":"./tsconfig.medical.json","include":["src/api/medical/execution-polic*.ts","src/api/medical/use-execution-policy-page.ts","src/views/medical/execution-policy*.vue","src/medical.d.ts","node_modules/vue-cropper/shims-vue.d.ts"]}

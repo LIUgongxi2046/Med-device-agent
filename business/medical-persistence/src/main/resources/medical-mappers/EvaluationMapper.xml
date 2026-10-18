@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.medical.persistence.mapper.EvaluationMapper">
+  <resultMap id="stored" type="com.ruoyi.medical.persistence.EvaluationProtocol$Stored"><constructor>
+    <arg column="tenant_id" javaType="java.lang.String"/><arg column="project_id" javaType="java.lang.String"/>
+    <arg column="evaluation_id" javaType="java.lang.String"/><arg column="definition_json" javaType="java.lang.String"/>
+    <arg column="content_sha256" javaType="java.lang.String"/><arg column="registry_hash" javaType="java.lang.String"/>
+    <arg column="projection" javaType="java.lang.String"/><arg column="status" javaType="java.lang.String"/>
+    <arg column="revision" javaType="java.math.BigInteger"/><arg column="result_json" javaType="java.lang.String"/>
+    <arg column="result_sha256" javaType="java.lang.String"/><arg column="schema_version" javaType="java.lang.String"/>
+    <arg column="schema_manifest_sha256" javaType="java.lang.String"/><arg column="created_by" javaType="java.lang.String"/>
+    <arg column="created_at" javaType="java.time.LocalDateTime"/><arg column="classification" javaType="java.lang.String"/>
+  </constructor></resultMap>
+  <resultMap id="score" type="com.ruoyi.medical.persistence.EvaluationProtocol$StoredScore"><constructor>
+    <arg column="score_id" javaType="java.lang.String"/><arg column="evaluation_id" javaType="java.lang.String"/>
+    <arg column="score_json" javaType="java.lang.String"/><arg column="content_sha256" javaType="java.lang.String"/>
+    <arg column="projection" javaType="java.lang.String"/><arg column="schema_version" javaType="java.lang.String"/>
+    <arg column="schema_manifest_sha256" javaType="java.lang.String"/><arg column="created_by" javaType="java.lang.String"/>
+    <arg column="created_at" javaType="java.time.LocalDateTime"/><arg column="classification" javaType="java.lang.String"/>
+  </constructor></resultMap>
+  <resultMap id="candidate" type="com.ruoyi.medical.persistence.EvaluationProtocol$AgentRow"><constructor>
+    <arg column="tenant_id" javaType="java.lang.String"/><arg column="project_id" javaType="java.lang.String"/>
+    <arg column="agent_version_id" javaType="java.lang.String"/><arg column="content_sha256" javaType="java.lang.String"/>
+    <arg column="registry_hash" javaType="java.lang.String"/><arg column="agent_id" javaType="java.lang.String"/>
+    <arg column="created_by" javaType="java.lang.String"/><arg column="dependency_manifest" javaType="java.lang.String"/>
+    <arg column="limits" javaType="java.lang.String"/><arg column="status" javaType="java.lang.String"/>
+    <arg column="schema_version" javaType="java.lang.String"/><arg column="schema_manifest_sha256" javaType="java.lang.String"/>
+  </constructor></resultMap>
+  <select id="definition" resultMap="stored" useCache="false" flushCache="true">
+    SELECT b.tenant_id,b.project_id,b.evaluation_id,d.definition_json,b.content_sha256,v.content_sha256 AS registry_hash,
+      JSON_OBJECT('dataset_version',b.dataset_version,'sample_manifest',b.sample_manifest,'sample_manifest_artifact_id',b.sample_manifest_artifact_id,
+        'rule_revision',b.rule_revision,'release_candidates',b.release_candidates,'authorized_use',b.authorized_use,
+        'split_manifest',b.split_manifest,'variance_policy',b.variance_policy,'missing_requirements',b.missing_requirements) AS projection,
+      b.status,b.revision,r.result_json,r.result_sha256,b.schema_version,b.schema_manifest_sha256,b.created_by,b.created_at,b.classification
+    FROM evaluation_batch b JOIN evaluation_definition d ON d.tenant_id=b.tenant_id AND d.evaluation_id=b.evaluation_id
+      AND d.content_sha256=b.content_sha256 AND d.schema_version=b.schema_version AND d.schema_manifest_sha256=b.schema_manifest_sha256
+      AND d.created_by=b.created_by AND d.created_at=b.created_at AND d.classification=b.classification
+    JOIN version_registry v ON v.tenant_id=b.tenant_id AND v.version_id=b.evaluation_id AND v.entity_kind='EVALUATION' AND v.owner_project_id &lt;=&gt; b.project_id
+    LEFT JOIN evaluation_result r ON r.tenant_id=b.tenant_id AND r.evaluation_id=b.evaluation_id
+      AND r.definition_sha256=b.content_sha256 AND r.resulting_revision=b.revision AND r.production_eligible=0
+      AND r.schema_version=b.schema_version AND r.schema_manifest_sha256=b.schema_manifest_sha256 AND r.classification=b.classification
+    WHERE b.evaluation_id=#{evaluationId} FOR UPDATE
+  </select>
+  <select id="candidate" resultMap="candidate" useCache="false" flushCache="true">
+    SELECT a.tenant_id,a.project_id,a.agent_version_id,a.content_sha256,v.content_sha256 AS registry_hash,a.agent_id,a.created_by,
+      a.dependency_manifest,a.limits,a.status,a.schema_version,a.schema_manifest_sha256
+    FROM agent_version a JOIN version_registry v ON v.tenant_id=a.tenant_id AND v.version_id=a.agent_version_id
+      AND v.entity_kind='AGENT_VERSION' AND v.owner_project_id &lt;=&gt; a.project_id
+    WHERE a.agent_version_id=#{candidateId} AND a.configuration_kind='AGENT' FOR UPDATE
+  </select>
+  <resultMap id="configurationState" type="com.ruoyi.medical.persistence.SimulationEvaluationCandidateAuthority$ConfigurationState"><constructor>
+    <arg column="version_id" javaType="java.lang.String"/><arg column="kind" javaType="java.lang.String"/>
+    <arg column="status" javaType="java.lang.String"/><arg column="head_status" javaType="java.lang.String"/>
+    <arg column="execution_mode" javaType="java.lang.String"/>
+  </constructor></resultMap>
+  <select id="configurationStates" resultMap="configurationState" useCache="false" flushCache="true">
+    SELECT c.capability_version AS version_id,c.kind,c.status,h.status AS head_status,NULL AS execution_mode
+      FROM capability_version c JOIN configuration_head h ON h.tenant_id=c.tenant_id AND h.config_id=c.config_id
+      AND h.kind=c.configuration_kind AND h.project_id &lt;=&gt; c.project_id
+      WHERE c.capability_version IN <foreach collection="versionIds" item="id" open="(" close=")" separator=",">#{id}</foreach>
+    UNION ALL
+    SELECT m.model_config_revision AS version_id,'MODEL' AS kind,m.status,h.status AS head_status,m.execution_mode
+      FROM model_config_revision m JOIN configuration_head h ON h.tenant_id=m.tenant_id AND h.config_id=m.config_id
+      AND h.kind=m.configuration_kind AND h.project_id &lt;=&gt; m.project_id AND h.execution_mode=m.execution_mode
+      WHERE m.model_config_revision IN <foreach collection="versionIds" item="id" open="(" close=")" separator=",">#{id}</foreach>
+    UNION ALL
+    SELECT a.agent_version_id AS version_id,'AGENT' AS kind,a.status,h.status AS head_status,NULL AS execution_mode
+      FROM agent_version a JOIN configuration_head h ON h.tenant_id=a.tenant_id AND h.config_id=a.agent_id
+      AND h.kind=a.configuration_kind AND h.project_id &lt;=&gt; a.project_id
+      WHERE a.agent_version_id IN <foreach collection="versionIds" item="id" open="(" close=")" separator=",">#{id}</foreach>
+  </select>
+  <select id="simulationPrompt" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT prompt_revision FROM context_manifest c WHERE context_manifest_id=#{contextId}
+      AND execution_mode='SIMULATION' AND project_id &lt;=&gt; #{projectId} FOR UPDATE
+  </select>
+  <select id="scores" resultMap="score" useCache="false" flushCache="true">
+    SELECT s.score_id,s.evaluation_id,o.score_json,o.content_sha256,s.schema_version,s.schema_manifest_sha256,s.created_by,s.created_at,s.classification,
+      JSON_OBJECT('sample_id',s.sample_id,'agent_version_id',s.agent_version_id,'dimension',s.dimension,'value',CAST(s.value AS CHAR),
+        'value_text',s.value_text,'numerator',s.numerator,'denominator',s.denominator,'rule_revision',s.rule_revision,'input_ref',s.input_ref,
+        'output_ref',s.output_ref,'evidence_ref',s.evidence_ref,'scorer_id',s.scorer_id,'supersedes',s.supersedes,'status',s.status,
+        'repeat_index',o.repeat_index,'expected_revision',CAST(o.expected_revision AS CHAR),'definition_sha256',o.definition_sha256) AS projection
+    FROM evaluation_score s LEFT JOIN evaluation_score_observation o ON o.tenant_id=s.tenant_id AND o.score_id=s.score_id
+      AND o.evaluation_id=s.evaluation_id AND o.sample_id=s.sample_id AND o.agent_version_id=s.agent_version_id AND o.dimension=s.dimension
+      AND o.supersedes &lt;=&gt; s.supersedes AND o.schema_version=s.schema_version AND o.schema_manifest_sha256=s.schema_manifest_sha256
+      AND o.created_by=s.created_by AND o.created_at=s.created_at AND o.classification=s.classification
+    WHERE s.evaluation_id=#{evaluationId} ORDER BY o.expected_revision LIMIT 50001
+  </select>
+  <select id="parents" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT upstream_version_id FROM lineage_edge e WHERE consumer_version_id=#{evaluationId} AND relation_kind='EVALUATION_DEFINITION' ORDER BY upstream_version_id
+  </select>
+  <insert id="insertVersion">INSERT INTO version_registry(version_id,owner_project_id,entity_kind,content_sha256) VALUES(#{evaluationId},#{projectId},'EVALUATION',#{definitionHash})</insert>
+  <insert id="insertBatch">
+    INSERT INTO evaluation_batch(project_id,evaluation_id,dataset_version,sample_manifest,sample_manifest_artifact_id,rule_revision,release_candidates,
+      authorized_use,split_manifest,variance_policy,missing_requirements,status,content_sha256,schema_version,schema_manifest_sha256,created_by,created_at,classification,revision,updated_at)
+    VALUES(#{projectId},#{evaluationId},#{request.dataset.version_id},#{sampleManifest},#{request.sample_manifest_artifact.version_id},#{request.rule_revision.version_id},#{candidates},
+      #{authorizedUse},#{splitManifest},#{variance},'[]','QUEUED',#{definitionHash},'1.0.0',#{manifest},#{userId},#{now},#{classification},1,#{now})
+  </insert>
+  <insert id="insertDefinition">
+    INSERT INTO evaluation_definition(evaluation_id,definition_json,content_sha256,schema_version,schema_manifest_sha256,created_by,created_at,classification)
+    VALUES(#{evaluationId},#{definition},#{definitionHash},'1.0.0',#{manifest},#{userId},#{now},#{classification})
+  </insert>
+  <insert id="insertLineage">INSERT INTO lineage_edge(consumer_version_id,upstream_version_id,relation_kind,actor_id,decision_ref,created_at) VALUES(#{evaluationId},#{upstreamId},'EVALUATION_DEFINITION',#{userId},NULL,#{now})</insert>
+  <insert id="insertScore">
+    INSERT INTO evaluation_score(score_id,evaluation_id,sample_id,agent_version_id,dimension,value,value_text,numerator,denominator,rule_revision,
+      input_ref,output_ref,evidence_ref,scorer_id,supersedes,status,schema_version,schema_manifest_sha256,created_by,created_at,classification)
+    VALUES(#{scoreId},#{evaluationId},#{observation.cell.sample_id},#{observation.cell.agent_version_id},#{observation.cell.dimension},#{value},#{valueText},
+      #{observation.numerator},#{observation.denominator},#{ruleId},#{inputRef},#{outputRef},#{evidenceRefs},#{userId},#{observation.supersedes},#{observation.status},
+      '1.0.0',#{manifest},#{userId},#{now},#{classification})
+  </insert>
+  <insert id="insertObservation">
+    INSERT INTO evaluation_score_observation(score_id,evaluation_id,definition_sha256,sample_id,agent_version_id,dimension,repeat_index,supersedes,expected_revision,
+      score_json,content_sha256,schema_version,schema_manifest_sha256,created_by,created_at,classification)
+    VALUES(#{scoreId},#{evaluationId},#{definitionHash},#{observation.cell.sample_id},#{observation.cell.agent_version_id},#{observation.cell.dimension},#{observation.cell.repeat_index},
+      #{observation.supersedes},#{expected},#{scoreJson},#{scoreHash},'1.0.0',#{manifest},#{userId},#{now},#{classification})
+  </insert>
+  <update id="advanceBatch">
+    UPDATE evaluation_batch SET status=#{nextStatus},revision=revision+1,missing_requirements=#{missing},updated_at=#{now}
+    WHERE evaluation_id=#{evaluationId} AND content_sha256=#{definitionHash} AND revision=#{expected} AND status IN ('QUEUED','RUNNING')
+  </update>
+  <insert id="insertResult">
+    INSERT INTO evaluation_result(evaluation_id,definition_sha256,result_json,result_sha256,verdict,production_eligible,expected_revision,resulting_revision,
+      operation_id,authority_grant,authority_revision,schema_version,schema_manifest_sha256,created_by,created_at,classification)
+    VALUES(#{evaluationId},#{definitionHash},#{resultJson},#{resultHash},#{verdict},0,#{expected},#{resulting},#{operationId},#{authorityGrant},#{authorityRevision},
+      '1.0.0',#{manifest},#{userId},#{now},#{classification})
+  </insert>
+  <select id="currentOperation" resultMap="com.ruoyi.medical.persistence.mapper.TenantSelectionMapper.operation" useCache="false" flushCache="true">
+    SELECT operation_id,request_sha256,state,http_status,response_ref,target_id,schema_version,schema_manifest_sha256
+    FROM operation_record o WHERE subject_id=#{userId} AND operation_name=#{operationName} AND idempotency_key=#{key}
+  </select>
+  <insert id="saveOperation">
+    INSERT INTO operation_record(operation_id,subject_id,operation_name,idempotency_key,request_sha256,state,http_status,response_ref,target_id,error_code,
+      schema_version,schema_manifest_sha256,created_by,created_at,classification,revision,updated_at)
+    VALUES(#{operationId},#{userId},#{operationName},#{key},#{requestHash},'COMPLETED',#{httpStatus},#{response},#{evaluationId},NULL,'1.0.0',#{manifest},#{userId},#{now},#{classification},1,#{now})
+  </insert>
+  <select id="audit" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT resource_ref FROM audit_event a WHERE subject_id=#{userId} AND action=#{eventType} AND result='SUCCESS'
+      AND project_id &lt;=&gt; #{projectId} AND schema_version='1.0.0' AND schema_manifest_sha256=#{manifest}
+      AND created_by=#{userId} AND classification=#{classification} AND request_id=#{requestId} AND trace_id=#{requestId}
+      AND JSON_UNQUOTE(JSON_EXTRACT(resource_ref,'$.operation_id'))=#{operationId}
+  </select>
+  <select id="event" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT payload FROM outbox_event e WHERE aggregate_id=#{evaluationId} AND aggregate_revision=#{resulting} AND event_type=#{eventType}
+      AND JSON_UNQUOTE(JSON_EXTRACT(payload,'$.operation_id'))=#{operationId}
+  </select>
+</mapper>

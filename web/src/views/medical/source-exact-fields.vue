@@ -3,6 +3,8 @@
     <h1>结构化字段核准</h1>
     <session-panel />
     <router-link :to="'/library/versions/' + sourceVersion">读取固定来源及原件</router-link>
+    <p v-if="inputIssues.length" role="status">本次输入尚未提交，请修正以下字段。原输入和待核查请求保持不变。</p>
+    <ul v-if="inputIssues.length" role="alert" aria-label="字段输入待修正"><li v-for="(issue, index) in inputIssues" :key="index">{{ issue.path || '输入 JSON' }}：{{ issue.code }}</li></ul>
     <p>来源版本：{{ sourceVersion }}</p>
     <p>原值保留原文中的空白、大小写和Unicode表示。别名需要独立审核理由。</p>
     <section v-if="pending" aria-label="原字段核准请求">
@@ -101,7 +103,9 @@ import { canonicalizeEx } from 'json-canonicalize'
 import useUserStore from '@/store/modules/user'
 import SessionPanel from './session-panel.vue'
 import { useMedicalRouteRead } from '@/api/medical/route-read'
-import { fail } from '@/api/medical/protocol'
+import { fail, schemaIssues } from '@/api/medical/protocol'
+import { parseSourceInput, exactFieldInputIssues, exactPublicationInputIssues } from '@/api/medical/source-input-issues'
+import type { SourceInputIssue } from '@/api/medical/source-input-issues'
 import type { MedicalSession } from '@/api/medical/protocol'
 import { readSourceContent, readSourceGovernance, sourceApprovalAllowed } from '@/api/medical/source-governance'
 import type { ParsedSourceContent, SourceGovernanceView } from '@/api/medical/source-governance'
@@ -119,6 +123,7 @@ const manifest = shallowRef<ExactManifest | null>(null), receipt = shallowRef<Ex
 const pending = shallowRef<RequestMetadata | null>(null), lookupState = ref(''), recoveryJson = ref('')
 const projectId = ref(''), reviewId = ref(''), fixedRevision = ref(''), expectedRevision = ref(''), reason = ref(''), attested = ref(false)
 const fields = ref<ExactField[]>([]), chunkId = ref(''), kind = ref<ExactKind>('MODEL'), start = ref(0), end = ref(1), cursors = ref<(string | undefined)[]>([])
+const inputIssues = ref<SourceInputIssue[]>([])
 const working = ref(false); let generation = 0; let controller: AbortController | null = null
 const active = useMedicalRouteRead('MedicalSourceExactFields', clear), busy = computed(() => working.value || user.medicalWriting)
 const bindings = computed(() => view.value?.bindings.filter(item => item.applicability === 'APPLICABLE') ?? [])
@@ -135,7 +140,7 @@ const selectedText = computed(() => validRange.value && chunk.value ? Array.from
 function clearSelection(): void {
   generation++; controller?.abort(); controller = null; working.value = false
   parsed.value = null; manifest.value = null; receipt.value = null; manifestHash.value = ''; fields.value = []
-  chunkId.value = ''; cursors.value = []; expectedRevision.value = ''; reason.value = ''; attested.value = false; fixedRevision.value = ''
+  inputIssues.value = []; chunkId.value = ''; cursors.value = []; expectedRevision.value = ''; reason.value = ''; attested.value = false; fixedRevision.value = ''
 }
 function clear(): void { clearSelection(); view.value = null; projectId.value = ''; reviewId.value = ''; pending.value = null; lookupState.value = ''; recoveryJson.value = '' }
 function begin() {
@@ -155,6 +160,9 @@ async function load(): Promise<void> {
 }
 async function readFields(): Promise<void> {
   if (busy.value || !scopeReady.value || !review.value) return
+  inputIssues.value = fixedRevision.value ? schemaIssues('urn:medical:templates:1.0.0#/$defs/Id', fixedRevision.value)
+    .map(issue => ({ ...issue, path: '/field_revision' + issue.path })) : []
+  if (inputIssues.value.length) return
   const work = begin(), project = projectId.value, selected = review.value; working.value = true
   try { const value = await readExactFields(work.session, work.target, project, fixedRevision.value
     ? { field_revision: fixedRevision.value } : { parse_version: selected.parse_version, approval_revision: selected.approval_revision! }, work.signal)
@@ -184,6 +192,8 @@ function addField(): void {
   if (busy.value || !mayPublish.value || !chunk.value || !validRange.value) return
   const item = chunk.value, field: ExactField = { field_kind: kind.value, raw_value: selectedText.value, alias_value: null, alias_reason: null,
     chunk_id: item.chunk_id, quote_hash: item.quote_hash, locator_sha256: item.locator_sha256, start_codepoint: start.value, end_codepoint: end.value }
+  inputIssues.value = exactFieldInputIssues(field)
+  if (inputIssues.value.length) return
   verifyExactField(field); fields.value.push(field); attested.value = false
 }
 async function verifySaved(operationId: string, fieldRevision: string, metadata: RequestMetadata,
@@ -227,9 +237,12 @@ async function send(input: ExactPublication): Promise<void> {
 }
 async function submit(): Promise<void> {
   if (busy.value || !mayPublish.value || !attested.value || !review.value || !binding.value || !view.value) return
-  await send(JSON.parse(canonicalizeEx({ schema_version: '1.0.0', project_id: projectId.value, parse_version: review.value.parse_version,
+  const input = { schema_version: '1.0.0', project_id: projectId.value, parse_version: review.value.parse_version,
     index_version: review.value.index_version, approval_revision: review.value.approval_revision, binding_revision: binding.value.binding_revision,
-    rights_revision: view.value.rights_revision, expected_revision: expectedRevision.value, fields: fields.value, reason: reason.value })))
+    rights_revision: view.value.rights_revision, expected_revision: expectedRevision.value, fields: fields.value, reason: reason.value }
+  inputIssues.value = exactPublicationInputIssues(input)
+  if (inputIssues.value.length) return
+  await send(JSON.parse(canonicalizeEx(input)))
 }
 async function recover(): Promise<void> {
   if (busy.value || !pending.value) return
@@ -243,7 +256,12 @@ async function recover(): Promise<void> {
 }
 async function resend(): Promise<void> {
   if (busy.value || !pending.value || !recoveryJson.value) return
-  const input = JSON.parse(recoveryJson.value) as ExactPublication
+  const parsedInput = parseSourceInput(recoveryJson.value)
+  inputIssues.value = parsedInput.issues
+  if (inputIssues.value.length) return
+  inputIssues.value = exactPublicationInputIssues(parsedInput.value)
+  if (inputIssues.value.length) return
+  const input = parsedInput.value as ExactPublication
   verifyExactPublication(input)
   if (await requestBodyDigest(input) !== pending.value.body_sha256) fail('IDEMPOTENCY_CONFLICT', '完整恢复输入与原字段请求摘要不同')
   await send(input)

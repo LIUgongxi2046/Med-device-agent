@@ -1,0 +1,12 @@
+{
+  "schema_version": "1.0.0",
+  "registration_id": "SIMULATION_EVALUATION_EXECUTION_V1",
+  "action": "model.simulation.execute",
+  "purpose": "SIMULATION_EVALUATION",
+  "resource_kind": "EVALUATION",
+  "scope_id_semantics": "evaluation_batch.evaluation_id",
+  "execution_kind": "SYSTEM_JOB",
+  "production_eligible": false,
+  "grants_created": false,
+  "does_not_authorize": ["TASK_EXECUTION", "PRODUCTION_SYSTEM_JOB", "EXTERNAL_PROVIDER_CALL", "ROLE_PUBLICATION"]
+}

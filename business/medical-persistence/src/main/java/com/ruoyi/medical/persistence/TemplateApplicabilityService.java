@@ -180,7 +180,7 @@ public final class TemplateApplicabilityService {
         if (!row.tenantId().equals(admission.context().tenant_id()) || !row.ruleVersion().equals(ref.version_id())
                 || !row.contentHash().equals(ref.content_sha256()) || !row.classification().equals(identity.classification())) mismatch();
         if (!row.status().equals("APPROVED")) throw new TenantAccessException(ErrorCode.SOURCE_NOT_READY);
-        WireValues.uuid(row.createdBy()); WireValues.utcTime(row.createdAt().atOffset(ZoneOffset.UTC).toString());
+        WireValues.uuid(row.createdBy()); WireValues.utcTime(DatabaseTimestamp.format(row.createdAt()));
         var rule = schema.rule(row);
         if (!rule.engine_revision().equals(condition.engine_revision()) || !rule.expression().input_keys().equals(condition.input_keys())) mismatch();
         var parents = rule.basis_manifest().stream().map(PermissionProtocol.Basis::version_id).sorted().toList();

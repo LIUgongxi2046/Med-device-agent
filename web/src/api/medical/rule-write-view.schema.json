@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:rule-write-view:1.0.0",
+  "type": "object", "additionalProperties": false,
+  "required": ["actor", "tenant_id", "operation", "key", "context", "target_id", "expected_revision", "decision", "body_sha256", "content_sha256"],
+  "properties": {
+    "actor": {"$ref": "urn:medical:rule-version-workflow:1.0.0#/$defs/Id"},
+    "tenant_id": {"$ref": "urn:medical:rule-version-workflow:1.0.0#/$defs/Id"},
+    "operation": {"enum": ["TP-03", "TP-04"]},
+    "key": {"$ref": "urn:medical:rule-version-workflow:1.0.0#/$defs/Id"},
+    "context": {"$ref": "urn:medical:rule-version-workflow:1.0.0#/$defs/Context"},
+    "target_id": {"oneOf": [{"type": "null"}, {"$ref": "urn:medical:rule-version-workflow:1.0.0#/$defs/Id"}]},
+    "expected_revision": {"oneOf": [{"type": "null"}, {"$ref": "urn:medical:rule-version-workflow:1.0.0#/$defs/Revision"}]},
+    "decision": {"enum": [null, "APPROVE", "RETURN", "DISABLE"]},
+    "body_sha256": {"$ref": "urn:medical:rule-version-workflow:1.0.0#/$defs/Hash"},
+    "content_sha256": {"$ref": "urn:medical:rule-version-workflow:1.0.0#/$defs/Hash"}
+  },
+  "allOf": [{"if": {"properties": {"operation": {"const": "TP-03"}}},
+    "then": {"properties": {"target_id": {"type": "null"}, "expected_revision": {"type": "null"}, "decision": {"type": "null"}}},
+    "else": {"properties": {"target_id": {"type": "string"}, "expected_revision": {"type": "string"}, "decision": {"type": "string"}}}
+  }]
+}

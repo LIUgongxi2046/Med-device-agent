@@ -58,7 +58,7 @@ def main():
     receipt = json.loads(receipt_path.read_bytes())
     inputs = {str(receipt_path), str(receipt_path.parent / "scan-result.json"), str(Path(__file__)),
         "tests/test_source_scan_native.py", "document/pyproject.toml", "PRD.md", "HLD.md", "LLD-数据.md",
-        "data-design/sample_dataset.json", "contracts/catalogue.json",
+        "data-design/sample_dataset.json", "contracts/catalogue.json", "contracts/extensions/evaluation-results.catalogue.json", "business/medical-persistence/src/main/resources/evaluation-results.schema.json",
         "ui-delivery/assets/public-evidence/clinical-evaluation-2021.docx",
         "ui-delivery/assets/public-evidence/clinical-evaluation-2021.pdf"}
     inputs.update(item["path"] for item in receipt["inputs"])

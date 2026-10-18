@@ -20,7 +20,7 @@ def main():
         raise ValueError("执行身份必须为单一目录名称")
 
     schemas = [
-        "contracts/catalogue.json", "data-design/dataset.schema.json", "data-design/sample_dataset.json",
+        "contracts/catalogue.json", "contracts/extensions/evaluation-results.catalogue.json", "data-design/dataset.schema.json", "data-design/sample_dataset.json",
         "backend-design/interfaces.schema.yaml", "backend-design/resource-details.schema.yaml",
         "agent-design/artifacts.schema.json", "agent-design/model-stream.schema.json",
         "business/medical-persistence/src/main/resources/templates.schema.json",
@@ -29,6 +29,7 @@ def main():
         "business/medical-persistence/src/main/resources/collections.schema.json",
         "business/medical-persistence/src/main/resources/rule-expressions.schema.json",
         "business/medical-persistence/src/main/resources/template-applicability.schema.json",
+        "business/medical-persistence/src/main/resources/evaluation-results.schema.json",
         ".implementation-work/IC-05-OBJECT-STORAGE-20261005-OBJECT-STORAGE-FINAL-01/objects.json",
         "ui-delivery/assets/public-evidence/clinical-evaluation-2021.docx",
         "ui-delivery/assets/public-evidence/safety-principles-2021.doc",

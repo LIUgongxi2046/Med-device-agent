@@ -1,0 +1,813 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:runtime-retention:1.0.0",
+  "$defs": {
+    "Id": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "Hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "Count": {
+      "type": "string",
+      "pattern": "^[1-9][0-9]{0,17}$"
+    },
+    "Time": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?Z$"
+    },
+    "Classification": {
+      "enum": [
+        "PUBLIC",
+        "INTERNAL",
+        "RESTRICTED",
+        "PERSONAL_HEALTH"
+      ]
+    },
+    "NullableId": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Id"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "Term": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "category",
+        "start_event",
+        "retention_duration_seconds",
+        "hold_override",
+        "purge_method",
+        "backup_expiry_seconds"
+      ],
+      "properties": {
+        "category": {
+          "enum": [
+            "RUN",
+            "STREAM"
+          ]
+        },
+        "start_event": {
+          "enum": [
+            "RUN_CREATED",
+            "STREAM_CREATED"
+          ]
+        },
+        "retention_duration_seconds": {
+          "$ref": "#/$defs/Count"
+        },
+        "hold_override": {
+          "const": false
+        },
+        "purge_method": {
+          "enum": [
+            "CRYPTOGRAPHIC_ERASURE",
+            "VERIFIED_DELETE"
+          ]
+        },
+        "backup_expiry_seconds": {
+          "$ref": "#/$defs/Count"
+        }
+      }
+    },
+    "RetentionRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "project_id",
+        "classification",
+        "effective_from",
+        "effective_until",
+        "terms",
+        "reason",
+        "replaces"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "project_id": {
+          "$ref": "#/$defs/NullableId"
+        },
+        "classification": {
+          "$ref": "#/$defs/Classification"
+        },
+        "effective_from": {
+          "$ref": "#/$defs/Time"
+        },
+        "effective_until": {
+          "$ref": "#/$defs/Time"
+        },
+        "terms": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {
+            "$ref": "#/$defs/Term"
+          }
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+        },
+        "replaces": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Replacement"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "Grant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "grant_id",
+        "revision"
+      ],
+      "properties": {
+        "grant_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "revision": {
+          "$ref": "#/$defs/Count"
+        }
+      }
+    },
+    "RetentionFixed": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "tenant_id",
+        "policy_revision",
+        "request",
+        "approved_by",
+        "approved_at",
+        "approval_grant"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "tenant_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "policy_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "request": {
+          "$ref": "#/$defs/RetentionRequest"
+        },
+        "approved_by": {
+          "$ref": "#/$defs/Id"
+        },
+        "approved_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "approval_grant": {
+          "$ref": "#/$defs/Grant"
+        }
+      }
+    },
+    "RetentionReceipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "policy_revision",
+        "operation_id",
+        "request_body_sha256",
+        "content_sha256",
+        "status"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "policy_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "operation_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "request_body_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "content_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "status": {
+          "const": "APPROVED"
+        }
+      }
+    },
+    "RetentionRecovery": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "status",
+        "receipt"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "status": {
+          "enum": [
+            "FOUND",
+            "NOT_FOUND"
+          ]
+        },
+        "receipt": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RetentionReceipt"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "Replacement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "policy_revision",
+        "expected_revision"
+      ],
+      "properties": {
+        "policy_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "expected_revision": {
+          "$ref": "#/$defs/Count"
+        }
+      }
+    },
+    "RetireRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "policy_revision",
+        "expected_revision",
+        "effective_at",
+        "reason"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "policy_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "expected_revision": {
+          "$ref": "#/$defs/Count"
+        },
+        "effective_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+        }
+      }
+    },
+    "RetireReceipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "decision_id",
+        "policy_revision",
+        "operation_id",
+        "request_body_sha256",
+        "effective_at",
+        "revision",
+        "status"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "decision_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "policy_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "operation_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "request_body_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "effective_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "revision": {
+          "const": "2"
+        },
+        "status": {
+          "const": "RETIREMENT_RECORDED"
+        }
+      }
+    },
+    "Retirement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "tenant_id",
+        "project_id",
+        "decision_id",
+        "policy_revision",
+        "replacement_policy_revision",
+        "operation_id",
+        "operation_target_id",
+        "kind",
+        "original_request",
+        "original_request_sha256",
+        "operation_receipt",
+        "effective_at",
+        "expected_revision",
+        "resulting_revision",
+        "decided_by",
+        "decided_at",
+        "authority_grant",
+        "audit_id",
+        "event_id"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "tenant_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "project_id": {
+          "$ref": "#/$defs/NullableId"
+        },
+        "decision_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "policy_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "replacement_policy_revision": {
+          "$ref": "#/$defs/NullableId"
+        },
+        "operation_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "operation_target_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "kind": {
+          "enum": [
+            "DISABLE",
+            "REPLACE"
+          ]
+        },
+        "original_request": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RetireRequest"
+            },
+            {
+              "$ref": "#/$defs/RetentionRequest"
+            }
+          ]
+        },
+        "original_request_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "operation_receipt": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RetireReceipt"
+            },
+            {
+              "$ref": "#/$defs/RetentionReceipt"
+            }
+          ]
+        },
+        "effective_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "expected_revision": {
+          "const": "1"
+        },
+        "resulting_revision": {
+          "const": "2"
+        },
+        "decided_by": {
+          "$ref": "#/$defs/Id"
+        },
+        "decided_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "authority_grant": {
+          "$ref": "#/$defs/Grant"
+        },
+        "audit_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "event_id": {
+          "$ref": "#/$defs/Id"
+        }
+      }
+    },
+    "Context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tenant_id",
+        "context_revision",
+        "auth_epoch",
+        "governance_epoch"
+      ],
+      "properties": {
+        "tenant_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "context_revision": {
+          "$ref": "#/$defs/Count"
+        },
+        "auth_epoch": {
+          "$ref": "#/$defs/Count"
+        },
+        "governance_epoch": {
+          "$ref": "#/$defs/Count"
+        }
+      }
+    },
+    "RetentionView": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "fixed",
+        "content_sha256",
+        "revision",
+        "lifecycle",
+        "observed_at",
+        "retirement_at",
+        "retirement_decision_id"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "fixed": {
+          "$ref": "#/$defs/RetentionFixed"
+        },
+        "content_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "revision": {
+          "$ref": "#/$defs/Count"
+        },
+        "lifecycle": {
+          "enum": [
+            "SCHEDULED",
+            "IN_EFFECT",
+            "EXPIRED",
+            "RETIRED"
+          ]
+        },
+        "observed_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "retirement_at": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "retirement_decision_id": {
+          "$ref": "#/$defs/NullableId"
+        }
+      }
+    },
+    "RetentionList": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "scope",
+        "project_id",
+        "current_context",
+        "pagination",
+        "limit",
+        "items",
+        "next_after",
+        "complete",
+        "listing_sha256"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "scope": {
+          "enum": [
+            "ENTERPRISE",
+            "PROJECT"
+          ]
+        },
+        "project_id": {
+          "$ref": "#/$defs/NullableId"
+        },
+        "current_context": {
+          "$ref": "#/$defs/Context"
+        },
+        "pagination": {
+          "const": "LIVE_KEYSET"
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20
+        },
+        "items": {
+          "type": "array",
+          "maxItems": 20,
+          "items": {
+            "$ref": "#/$defs/RetentionView"
+          }
+        },
+        "next_after": {
+          "$ref": "#/$defs/NullableId"
+        },
+        "complete": {
+          "type": "boolean"
+        },
+        "listing_sha256": {
+          "$ref": "#/$defs/Hash"
+        }
+      }
+    },
+    "RetireRecovery": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "status",
+        "receipt"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "status": {
+          "enum": [
+            "FOUND",
+            "NOT_FOUND"
+          ]
+        },
+        "receipt": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RetireReceipt"
+            },
+            {
+              "$ref": "#/$defs/RetentionReceipt"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "Availability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "current_context",
+        "runtime_retention_enabled"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "current_context": {
+          "$ref": "#/$defs/Context"
+        },
+        "runtime_retention_enabled": {
+          "type": "boolean"
+        }
+      }
+    },
+    "CancelRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "original_kind",
+        "original_key",
+        "original_request"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "original_kind": {
+          "enum": [
+            "APPROVE",
+            "RETIRE"
+          ]
+        },
+        "original_key": {
+          "type": "string",
+          "pattern": "^[!-~]{16,128}$"
+        },
+        "original_request": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/RetentionRequest"
+            },
+            {
+              "$ref": "#/$defs/RetireRequest"
+            }
+          ]
+        }
+      }
+    },
+    "CancelReceipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "status",
+        "cancellation_id",
+        "operation_id",
+        "tenant_id",
+        "actor_id",
+        "original_kind",
+        "original_key",
+        "original_request_sha256",
+        "cancellation_request_sha256",
+        "recorded_at",
+        "receipt"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "status": {
+          "enum": [
+            "CANCELLED",
+            "COMPLETED"
+          ]
+        },
+        "cancellation_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "operation_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "tenant_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "original_kind": {
+          "enum": [
+            "APPROVE",
+            "RETIRE"
+          ]
+        },
+        "original_key": {
+          "type": "string",
+          "pattern": "^[!-~]{16,128}$"
+        },
+        "original_request_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "cancellation_request_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "recorded_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "receipt": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RetentionReceipt"
+            },
+            {
+              "$ref": "#/$defs/RetireReceipt"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "Cancellation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "request",
+        "receipt",
+        "session_id",
+        "context",
+        "cancel_key",
+        "audit_id",
+        "event_id",
+        "read_grant"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "request": {
+          "$ref": "#/$defs/CancelRequest"
+        },
+        "receipt": {
+          "$ref": "#/$defs/CancelReceipt"
+        },
+        "session_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255
+        },
+        "context": {
+          "$ref": "#/$defs/Context"
+        },
+        "cancel_key": {
+          "type": "string",
+          "pattern": "^[!-~]{16,128}$"
+        },
+        "audit_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "event_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "read_grant": {
+          "$ref": "#/$defs/Grant"
+        }
+      }
+    },
+    "CancelRecovery": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "status",
+        "receipt"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "status": {
+          "enum": [
+            "FOUND",
+            "NOT_FOUND"
+          ]
+        },
+        "receipt": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CancelReceipt"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

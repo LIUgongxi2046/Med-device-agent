@@ -29,7 +29,7 @@ def digest(path):
 
 
 def snapshot():
-    paths = {ROOT / "scripts/check_source_index_build.py", ROOT / "data-design/core.sql", ROOT / "contracts/catalogue.json"}
+    paths = {ROOT / "scripts/check_source_index_build.py", ROOT / "data-design/core.sql", ROOT / "contracts/catalogue.json", ROOT / "contracts/extensions/evaluation-results.catalogue.json", ROOT / "business/medical-persistence/src/main/resources/evaluation-results.schema.json"}
     for module in (ROOT / "business").iterdir():
         if not module.is_dir() or not (module / "pom.xml").is_file():
             continue

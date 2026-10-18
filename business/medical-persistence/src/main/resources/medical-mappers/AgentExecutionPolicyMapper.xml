@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.medical.persistence.mapper.AgentExecutionPolicyMapper">
+ <resultMap id="policy" type="com.ruoyi.medical.persistence.AgentExecutionPolicyProtocol$Row"><constructor>
+  <arg column="tenant_id" javaType="java.lang.String"/>
+  <arg column="project_id" javaType="java.lang.String"/>
+  <arg column="policy_id" javaType="java.lang.String"/>
+  <arg column="version_id" javaType="java.lang.String"/>
+  <arg column="author_record_id" javaType="java.lang.String"/>
+  <arg column="fixed_json" javaType="java.lang.String"/>
+  <arg column="content_sha256" javaType="java.lang.String"/>
+  <arg column="registry_hash" javaType="java.lang.String"/>
+  <arg column="registry_kind" javaType="java.lang.String"/>
+  <arg column="schema_version" javaType="java.lang.String"/>
+  <arg column="schema_manifest_sha256" javaType="java.lang.String"/>
+  <arg column="created_by" javaType="java.lang.String"/>
+  <arg column="created_at" javaType="java.time.LocalDateTime"/>
+  <arg column="classification" javaType="java.lang.String"/>
+ </constructor></resultMap>
+ <resultMap id="state" type="com.ruoyi.medical.persistence.AgentExecutionPolicyProtocol$State"><constructor>
+  <arg column="tenant_id" javaType="java.lang.String"/>
+  <arg column="project_id" javaType="java.lang.String"/>
+  <arg column="policy_id" javaType="java.lang.String"/>
+  <arg column="version_id" javaType="java.lang.String"/>
+  <arg column="status" javaType="java.lang.String"/>
+  <arg column="revision" javaType="java.math.BigInteger"/>
+  <arg column="latest_decision_id" javaType="java.lang.String"/>
+  <arg column="updated_at" javaType="java.time.LocalDateTime"/>
+ </constructor></resultMap>
+ <resultMap id="component" type="com.ruoyi.medical.persistence.AgentExecutionPolicyProtocol$Component"><constructor>
+  <arg column="tenant_id" javaType="java.lang.String"/>
+  <arg column="project_id" javaType="java.lang.String"/>
+  <arg column="policy_id" javaType="java.lang.String"/>
+  <arg column="version_id" javaType="java.lang.String"/>
+  <arg column="component_id" javaType="java.lang.String"/>
+  <arg column="kind" javaType="java.lang.String"/>
+  <arg column="content_json" javaType="java.lang.String"/>
+  <arg column="content_sha256" javaType="java.lang.String"/>
+  <arg column="registry_hash" javaType="java.lang.String"/>
+  <arg column="registry_kind" javaType="java.lang.String"/>
+  <arg column="schema_version" javaType="java.lang.String"/>
+  <arg column="schema_manifest_sha256" javaType="java.lang.String"/>
+  <arg column="created_by" javaType="java.lang.String"/>
+  <arg column="created_at" javaType="java.time.LocalDateTime"/>
+  <arg column="classification" javaType="java.lang.String"/>
+ </constructor></resultMap>
+ <resultMap id="decision" type="com.ruoyi.medical.persistence.AgentExecutionPolicyProtocol$DecisionRow"><constructor>
+  <arg column="tenant_id" javaType="java.lang.String"/>
+  <arg column="project_id" javaType="java.lang.String"/>
+  <arg column="policy_id" javaType="java.lang.String"/>
+  <arg column="version_id" javaType="java.lang.String"/>
+  <arg column="decision_record_id" javaType="java.lang.String"/>
+  <arg column="content_sha256" javaType="java.lang.String"/>
+  <arg column="decision_json" javaType="java.lang.String"/>
+  <arg column="decision_sha256" javaType="java.lang.String"/>
+  <arg column="decision" javaType="java.lang.String"/>
+  <arg column="status" javaType="java.lang.String"/>
+  <arg column="before_revision" javaType="java.math.BigInteger"/>
+  <arg column="after_revision" javaType="java.math.BigInteger"/>
+  <arg column="created_by" javaType="java.lang.String"/>
+  <arg column="created_at" javaType="java.time.LocalDateTime"/>
+  <arg column="schema_version" javaType="java.lang.String"/>
+  <arg column="schema_manifest_sha256" javaType="java.lang.String"/>
+  <arg column="classification" javaType="java.lang.String"/>
+ </constructor></resultMap>
+ <resultMap id="domain" type="com.ruoyi.medical.persistence.AgentExecutionPolicyProtocol$DomainRow"><constructor>
+  <arg column="version_id" javaType="java.lang.String"/>
+  <arg column="content_sha256" javaType="java.lang.String"/>
+  <arg column="entity_kind" javaType="java.lang.String"/>
+  <arg column="project_id" javaType="java.lang.String"/>
+  <arg column="resource_id" javaType="java.lang.String"/>
+  <arg column="kind" javaType="java.lang.String"/>
+  <arg column="status" javaType="java.lang.String"/>
+  <arg column="execution_mode" javaType="java.lang.String"/>
+ </constructor></resultMap>
+ <select id="policy" resultMap="policy" useCache="false" flushCache="true">
+  SELECT p.tenant_id,p.project_id,p.policy_id,p.version_id,p.author_record_id,p.fixed_json,p.content_sha256,
+   r.content_sha256 AS registry_hash,r.entity_kind AS registry_kind,p.schema_version,p.schema_manifest_sha256,p.created_by,p.created_at,p.classification
+  FROM agent_execution_policy_version p JOIN version_registry r ON r.tenant_id=p.tenant_id AND r.version_id=p.version_id
+   AND r.owner_project_id &lt;=&gt; p.project_id
+  WHERE p.version_id=#{versionId} FOR UPDATE
+ </select>
+ <select id="state" resultMap="state" useCache="false" flushCache="true">
+  SELECT s.tenant_id,s.project_id,s.policy_id,s.version_id,s.status,s.revision,s.latest_decision_id,s.updated_at
+  FROM agent_execution_policy_state s JOIN agent_execution_policy_version p ON p.tenant_id=s.tenant_id AND p.project_key=s.project_key
+   AND p.policy_id=s.policy_id AND p.version_id=s.version_id AND p.content_sha256=s.content_sha256
+   AND p.schema_version=s.schema_version AND p.schema_manifest_sha256=s.schema_manifest_sha256 AND p.created_by=s.created_by
+   AND p.created_at=s.created_at AND p.classification=s.classification
+  WHERE s.version_id=#{versionId} FOR UPDATE
+ </select>
+ <select id="components" resultMap="component" useCache="false" flushCache="true">
+  SELECT c.tenant_id,c.project_id,c.policy_id,c.version_id,c.component_id,c.kind,c.content_json,c.content_sha256,
+   r.content_sha256 AS registry_hash,r.entity_kind AS registry_kind,c.schema_version,c.schema_manifest_sha256,c.created_by,c.created_at,c.classification
+  FROM agent_execution_policy_component c JOIN agent_execution_policy_version p ON p.tenant_id=c.tenant_id AND p.project_key=c.project_key
+   AND p.policy_id=c.policy_id AND p.version_id=c.version_id AND p.content_sha256=c.policy_sha256
+  JOIN version_registry r ON r.tenant_id=c.tenant_id AND r.version_id=c.component_id AND r.owner_project_id &lt;=&gt; c.project_id
+  WHERE c.version_id=#{versionId} ORDER BY c.component_id
+ </select>
+ <select id="decisions" resultMap="decision" useCache="false" flushCache="true">
+  SELECT d.tenant_id,d.project_id,d.policy_id,d.version_id,d.decision_record_id,d.content_sha256,d.decision_json,d.decision_sha256,
+   d.decision,d.status,d.before_revision,d.after_revision,d.created_by,d.created_at,d.schema_version,d.schema_manifest_sha256,d.classification
+  FROM agent_execution_policy_decision d WHERE d.version_id=#{versionId} ORDER BY d.after_revision
+ </select>
+ <select id="parents" resultType="java.lang.String" useCache="false" flushCache="true">
+  SELECT CONCAT(e.relation_kind,':',e.upstream_version_id) FROM lineage_edge e WHERE e.consumer_version_id=#{versionId} ORDER BY e.upstream_version_id,e.relation_kind
+ </select>
+ <select id="componentParents" resultType="java.lang.String" useCache="false" flushCache="true">
+  SELECT CONCAT(e.relation_kind,':',e.upstream_version_id) FROM lineage_edge e WHERE e.consumer_version_id=#{versionId} ORDER BY e.upstream_version_id,e.relation_kind
+ </select>
+ <select id="source" resultMap="domain" useCache="false" flushCache="true">
+  SELECT v.source_version AS version_id,v.original_sha256 AS content_sha256,r.entity_kind,s.owner_project_id AS project_id,s.source_id AS resource_id,
+   'SOURCE' AS kind,NULL AS status,NULL AS execution_mode
+  FROM source_version v JOIN source s ON s.tenant_id=v.tenant_id AND s.source_id=v.source_id
+  JOIN version_registry r ON r.tenant_id=v.tenant_id AND r.version_id=v.source_version AND r.content_sha256=v.original_sha256
+   AND r.owner_project_id &lt;=&gt; s.owner_project_id WHERE v.source_version=#{versionId}
+ </select>
+ <select id="role" resultMap="domain" useCache="false" flushCache="true">
+  SELECT c.capability_version AS version_id,c.content_sha256,r.entity_kind,c.project_id,c.config_id AS resource_id,c.kind,
+   CASE WHEN h.status='DISABLED' THEN 'DISABLED' ELSE c.status END AS status,NULL AS execution_mode
+  FROM capability_version c JOIN configuration_head h ON h.tenant_id=c.tenant_id AND h.project_key=c.project_key AND h.config_id=c.config_id AND h.kind=c.configuration_kind
+  JOIN version_registry r ON r.tenant_id=c.tenant_id AND r.version_id=c.capability_version AND r.content_sha256=c.content_sha256 AND r.owner_project_id &lt;=&gt; c.project_id
+  WHERE c.capability_version=#{versionId}
+ </select>
+ <select id="model" resultMap="domain" useCache="false" flushCache="true">
+  SELECT c.model_config_revision AS version_id,c.content_sha256,r.entity_kind,c.project_id,c.config_id AS resource_id,'MODEL' AS kind,
+   CASE WHEN h.status='DISABLED' THEN 'DISABLED' ELSE c.status END AS status,c.execution_mode
+  FROM model_config_revision c JOIN configuration_head h ON h.tenant_id=c.tenant_id AND h.project_key=c.project_key AND h.config_id=c.config_id AND h.kind=c.configuration_kind
+  JOIN version_registry r ON r.tenant_id=c.tenant_id AND r.version_id=c.model_config_revision AND r.content_sha256=c.content_sha256 AND r.owner_project_id &lt;=&gt; c.project_id
+  WHERE c.model_config_revision=#{versionId}
+ </select>
+ <select id="list" resultType="java.lang.String" useCache="false" flushCache="true">
+  SELECT p.version_id FROM agent_execution_policy_version p WHERE (p.project_id &lt;=&gt; #{projectId} OR p.project_id IS NULL)
+   AND p.version_id &gt; #{afterId} ORDER BY p.version_id LIMIT #{scanLimit}
+ </select>
+ <insert id="insertRegistry">
+  INSERT INTO version_registry(version_id,owner_project_id,entity_kind,content_sha256) VALUES(#{versionId},#{projectId},#{entityKind},#{contentHash})
+ </insert>
+ <insert id="insertPolicy">
+  INSERT INTO agent_execution_policy_version(project_id,policy_id,version_id,content_sha256,author_record_id,author_kind,fixed_json,schema_version,schema_manifest_sha256,created_by,created_at,classification) VALUES(#{projectId},#{policyId},#{versionId},#{contentHash},#{authorRecordId},'EXECUTION_POLICY_AUTHOR',#{fixedJson},'1.0.0',#{schemaManifest},#{userId},#{now},#{classification})
+ </insert>
+ <insert id="insertState">
+  INSERT INTO agent_execution_policy_state(project_id,policy_id,version_id,content_sha256,status,revision,latest_decision_id,updated_at,schema_version,schema_manifest_sha256,created_by,created_at,classification) VALUES(#{projectId},#{policyId},#{versionId},#{contentHash},'DRAFT',1,NULL,#{now},'1.0.0',#{schemaManifest},#{userId},#{now},#{classification})
+ </insert>
+ <insert id="insertComponent">
+  INSERT INTO agent_execution_policy_component(project_id,policy_id,version_id,policy_sha256,component_id,kind,content_json,content_sha256,schema_version,schema_manifest_sha256,created_by,created_at,classification) VALUES(#{projectId},#{policyId},#{versionId},#{policyHash},#{componentId},#{kind},#{contentJson},#{contentHash},'1.0.0',#{schemaManifest},#{userId},#{now},#{classification})
+ </insert>
+ <insert id="insertDecision">
+  INSERT INTO agent_execution_policy_decision(project_id,policy_id,version_id,content_sha256,decision_record_id,decision_kind,decision_json,decision_sha256,decision,status,before_revision,after_revision,schema_version,schema_manifest_sha256,created_by,created_at,classification) VALUES(#{projectId},#{policyId},#{versionId},#{contentHash},#{decisionRecordId},'EXECUTION_POLICY_DECISION',#{decisionJson},#{decisionHash},#{decision},#{status},#{beforeRevision},#{afterRevision},'1.0.0',#{schemaManifest},#{userId},#{now},#{classification})
+ </insert>
+ <insert id="insertLineage">
+  INSERT INTO lineage_edge(consumer_version_id,upstream_version_id,relation_kind,actor_id,decision_ref,created_at) VALUES(#{versionId},#{upstreamId},'DEPENDS_ON',#{userId},NULL,#{now})
+ </insert>
+ <update id="advanceState">
+  UPDATE agent_execution_policy_state SET status=#{status},revision=#{afterRevision},latest_decision_id=#{decisionRecordId},updated_at=#{now}
+  WHERE version_id=#{versionId} AND policy_id=#{policyId} AND project_id &lt;=&gt; #{projectId} AND content_sha256=#{contentHash}
+   AND status=#{beforeStatus} AND revision=#{beforeRevision} AND schema_version='1.0.0' AND schema_manifest_sha256=#{schemaManifest}
+   AND EXISTS(SELECT 1 FROM agent_execution_policy_decision d WHERE d.tenant_id=agent_execution_policy_state.tenant_id
+    AND d.project_key=agent_execution_policy_state.project_key AND d.policy_id=agent_execution_policy_state.policy_id AND d.version_id=agent_execution_policy_state.version_id
+    AND d.decision_record_id=#{decisionRecordId} AND d.before_revision=#{beforeRevision} AND d.after_revision=#{afterRevision} AND d.status=#{status} AND d.created_by=#{userId})
+ </update>
+ <update id="advanceGovernance">
+  UPDATE tenant SET governance_epoch=governance_epoch+1 WHERE auth_epoch=#{authEpoch} AND governance_epoch=#{governanceEpoch}
+ </update>
+</mapper>

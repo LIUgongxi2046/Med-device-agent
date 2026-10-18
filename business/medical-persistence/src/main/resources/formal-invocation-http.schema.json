@@ -1,0 +1,361 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:formal-invocation-http:1.0.0",
+  "$defs": {
+    "Id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "Hash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "Positive": {
+      "type": "string",
+      "pattern": "^[1-9][0-9]{0,19}$"
+    },
+    "Scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tenant_id",
+        "project_id",
+        "resource_kind",
+        "resource_id"
+      ],
+      "properties": {
+        "tenant_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "project_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "resource_kind": {
+          "const": "CONFIGURATION"
+        },
+        "resource_id": {
+          "$ref": "#/$defs/Id"
+        }
+      }
+    },
+    "Action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "run_id",
+        "step_id",
+        "action_id",
+        "lease_generation",
+        "input_sha256",
+        "arguments_sha256",
+        "kind",
+        "tool_version",
+        "scope",
+        "action",
+        "purpose"
+      ],
+      "properties": {
+        "run_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "step_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "action_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "lease_generation": {
+          "$ref": "#/$defs/Positive"
+        },
+        "input_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "arguments_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "kind": {
+          "const": "MODEL_CALL"
+        },
+        "tool_version": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "scope": {
+          "$ref": "#/$defs/Scope"
+        },
+        "action": {
+          "const": "model.send"
+        },
+        "purpose": {
+          "const": "MODEL_VERIFICATION"
+        }
+      }
+    },
+    "Reserve": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "worker_action",
+        "model_config_revision",
+        "context_manifest_id",
+        "request_parameters"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "worker_action": {
+          "$ref": "#/$defs/Action"
+        },
+        "model_config_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "context_manifest_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "request_parameters": {
+          "type": "object"
+        }
+      }
+    },
+    "BeginSend": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "worker_action",
+        "expected_dispatch_generation"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "worker_action": {
+          "$ref": "#/$defs/Action"
+        },
+        "expected_dispatch_generation": {
+          "const": "0"
+        }
+      }
+    },
+    "Receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "tenant_id",
+        "original_actor_id",
+        "model_result",
+        "provider_capture"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "tenant_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "original_actor_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "model_result": {
+          "type": "object"
+        },
+        "provider_capture": {
+          "type": "object"
+        }
+      }
+    },
+    "Unknown": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "tenant_id",
+        "original_actor_id",
+        "dispatch_attempt_id",
+        "kind"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "tenant_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "original_actor_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "dispatch_attempt_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "kind": {
+          "const": "TRANSPORT_OUTCOME_UNKNOWN"
+        }
+      }
+    },
+    "Cancel": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "invocation_id",
+        "reason"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "invocation_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+        }
+      }
+    },
+    "WorkerClaim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "tenant_id"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "tenant_id": {
+          "$ref": "#/$defs/Id"
+        }
+      }
+    },
+    "WorkerIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "tenant_id",
+        "verification_id"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "tenant_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "verification_id": {
+          "$ref": "#/$defs/Id"
+        }
+      }
+    },
+    "CancelReceipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "invocation_id",
+        "verification_id",
+        "request_body_sha256",
+        "original_key_sha256",
+        "status",
+        "before_dispatch",
+        "reservations_released",
+        "provider_termination_confirmed",
+        "created_at"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "invocation_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "verification_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "request_body_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "original_key_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "status": {
+          "enum": [
+            "CANCELLED",
+            "CANCEL_REQUESTED",
+            "UNKNOWN",
+            "DISPATCHING",
+            "IN_FLIGHT"
+          ]
+        },
+        "before_dispatch": {
+          "type": "boolean"
+        },
+        "reservations_released": {
+          "type": "boolean"
+        },
+        "provider_termination_confirmed": {
+          "const": false
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "CancelRecovery": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "found",
+        "receipt"
+      ],
+      "properties": {
+        "found": {
+          "type": "boolean"
+        },
+        "receipt": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CancelReceipt"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "found": {
+                "const": true
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "receipt": {
+                "$ref": "#/$defs/CancelReceipt"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "receipt": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

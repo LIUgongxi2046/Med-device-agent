@@ -1,0 +1,29 @@
+package com.ruoyi.medical.persistence;
+import java.util.*;import java.math.BigInteger;import java.time.LocalDateTime;import java.nio.file.*;
+import org.junit.jupiter.api.Test;import org.apache.ibatis.builder.xml.XMLMapperBuilder;import org.apache.ibatis.session.Configuration;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
+import static org.junit.jupiter.api.Assertions.*;
+/** Actual XML/BoundSql/tenant parser. No JDBC database, query-plan or DB timeout execution claim. */
+class BusinessAuditMapperTest{
+ static final String PREFIX="com.ruoyi.medical.persistence.mapper.BusinessAuditMapper.",TENANT="00000000-0000-4000-8000-000000000001",ACTOR="00000000-0000-4000-8000-000000000002";
+ String resource(String name)throws Exception{try(var in=Objects.requireNonNull(getClass().getResourceAsStream(name))){return new String(in.readAllBytes(),java.nio.charset.StandardCharsets.UTF_8);}}
+ final Configuration c=new Configuration();
+ BusinessAuditMapperTest()throws Exception{try(var in=Objects.requireNonNull(getClass().getResourceAsStream("/medical-mappers/BusinessAuditMapper.xml"))){new XMLMapperBuilder(in,c,"BusinessAuditMapper.xml",c.getSqlFragments()).parse();}}
+ Map<String,Object> values(){var v=new HashMap<String,Object>();for(String k:List.of("userId","projectId","auditId","actorId","operationId","documentId","documentRevision","afterAuditId"))v.put(k,ACTOR);v.put("action","document.revision.saved");v.put("from",LocalDateTime.of(2026,10,1,0,0));v.put("to",LocalDateTime.of(2026,10,2,0,0));v.put("afterCreatedAt",LocalDateTime.of(2026,10,1,12,0));v.put("limit",101);v.put("maximumPayloadBytes",16384);return v;}
+ @Test void allEightReadStatementsResolveActualParametersAndTenantRewrite()throws Exception{
+  try(var scope=TenantScope.open(new TenantScope.Identity(TENANT,ACTOR,BigInteger.ONE,BigInteger.ONE,BigInteger.ONE))){TransactionSynchronizationManager.setActualTransactionActive(true);try{scope.verifyTransaction(new TenantWatermarks(BigInteger.ONE,BigInteger.ONE));
+   for(String method:List.of("scan","payload","operation","operationResponse","target","checks","reviews","signatures")){
+    var ms=c.getMappedStatement(PREFIX+method);var v=values();var b=ms.getBoundSql(v);assertFalse(ms.isUseCache());assertTrue(ms.isFlushCacheRequired());assertEquals(5,ms.getTimeout());
+    for(var param:b.getParameterMappings())assertNotNull(c.newMetaObject(v).getValue(param.getProperty()),method+":"+param.getProperty());
+    String scoped=new ProtectedTenantInterceptor().parserSingle(b.getSql(),null);assertTrue(scoped.contains(TENANT));assertDoesNotThrow(()->net.sf.jsqlparser.parser.CCJSqlParserUtil.parse(scoped));
+    if(method.equals("target")){assertEquals(4,scoped.toUpperCase().split("LEFT JOIN",-1).length-1);for(String alias:List.of("a","r","m","v","d"))assertTrue(scoped.contains(alias+".tenant_id"),scoped);}
+    if(method.startsWith("operation"))assertTrue(scoped.toUpperCase().contains("LEFT JOIN"));
+   }
+   scope.finishTransaction();
+  }finally{TransactionSynchronizationManager.setActualTransactionActive(false);}}
+ }
+ @Test void scanIsStableBoundedNoPayloadAndPartialCursorFailsClosed(){var v=values();String sql=c.getMappedStatement(PREFIX+"scan").getBoundSql(v).getSql();assertTrue(sql.contains("ORDER BY a.created_at DESC,a.audit_id DESC LIMIT ?"));assertTrue(sql.contains("OCTET_LENGTH(a.resource_ref)"));assertFalse(sql.contains("a.resource_ref,"));assertFalse(sql.toUpperCase().contains("OFFSET"));assertFalse(sql.toUpperCase().contains("COUNT("));v.remove("afterAuditId");assertTrue(c.getMappedStatement(PREFIX+"scan").getBoundSql(v).getSql().contains("AND 1=0"));v.remove("afterCreatedAt");v.remove("actorId");assertFalse(c.getMappedStatement(PREFIX+"scan").getBoundSql(v).getSql().contains("a.subject_id=?"));}
+ @Test void protectedJsonFetchIsByteBoundedAndMissingJoinsNotFiltered(){for(String m:List.of("payload","operationResponse")){String sql=c.getMappedStatement(PREFIX+m).getBoundSql(values()).getSql();assertTrue(sql.contains("CASE WHEN OCTET_LENGTH("));assertTrue(sql.contains("ELSE NULL END"));}String op=c.getMappedStatement(PREFIX+"operation").getBoundSql(values()).getSql();assertFalse(op.contains("o.state='COMPLETED'"));assertFalse(op.contains("o.operation_name='DC-02'"));assertTrue(op.contains("o.request_sha256"));String target=c.getMappedStatement(PREFIX+"target").getBoundSql(values()).getSql();assertTrue(target.contains("m.based_on_document_revision"));assertFalse(target.contains("v.entity_kind='DOCUMENT_REVISION'"));}
+ @Test void additiveIndexMatchesActualAuditColumnsAndDoesNotRewriteData()throws Exception{String migration=Files.readString(Path.of(System.getProperty("medical.projectRoot")).resolve("business/medical-data/src/main/resources/db/migration/072-business-audit-read-index.sql"));assertTrue(migration.contains("ALTER TABLE audit_event ADD KEY ix_audit_project_action_time (tenant_id,project_id,action,created_at,audit_id)"));assertFalse(migration.contains("UPDATE "));assertFalse(migration.contains("DELETE "));String actual=Files.readString(Path.of(System.getProperty("medical.projectRoot")).resolve("business/medical-data/src/main/resources/db/migration/009-conversation-events-receipts.sql"));String audit=actual.substring(actual.indexOf("CREATE TABLE audit_event ("),actual.indexOf("CREATE TABLE artifact_upload_grant ("));for(String column:List.of("tenant_id","project_id","action","created_at","audit_id"))assertTrue(audit.contains(column));assertTrue(audit.contains("PRIMARY KEY (tenant_id, audit_id)"));assertTrue(audit.contains("FOREIGN KEY (tenant_id, project_id) REFERENCES project"));}
+ @Test void constructorMappingsMatchExactRecordArity()throws Exception{for(String name:List.of("Candidate","Operation","Target")){var map=c.getResultMap(PREFIX+name);assertEquals(map.getType().getRecordComponents().length,map.getConstructorResultMappings().size());}}
+}

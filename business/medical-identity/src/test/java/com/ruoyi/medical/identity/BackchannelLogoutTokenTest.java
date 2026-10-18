@@ -39,7 +39,7 @@ class BackchannelLogoutTokenTest {
 
     @Test
     void actualRegisteredDatasetCannotActAsLogoutToken() throws Exception {
-        String dataset = Files.readString(Path.of("../../data-design/sample_dataset.json"));
+        String dataset = Files.readString(Path.of(System.getProperty("medical.projectRoot")).resolve("data-design/sample_dataset.json"));
         var method = requireType("BackchannelLogoutVerifier").getDeclaredMethod("requireSignedToken", String.class);
         var failure = assertThrows(InvocationTargetException.class, () -> method.invoke(null, dataset));
         assertInstanceOf(ParseException.class, failure.getCause());

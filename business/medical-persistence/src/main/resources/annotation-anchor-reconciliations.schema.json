@@ -1,0 +1,169 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:annotation-anchor-reconciliations:1.0.0",
+  "$defs": {
+    "Id": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "Revision": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]{0,19})$"
+    },
+    "Hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "Content": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 16000
+    },
+    "Create": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "document_revision",
+        "expected_revision",
+        "expected_document_revision",
+        "expected_anchor_id",
+        "expected_anchor_revision",
+        "reason",
+        "human_confirmed"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "document_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "expected_revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "expected_document_revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "expected_anchor_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "expected_anchor_revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "reason": {
+          "$ref": "#/$defs/Content"
+        },
+        "human_confirmed": {
+          "const": true
+        }
+      }
+    },
+    "Receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "document_id",
+        "document_revision",
+        "annotation_id",
+        "operation_id",
+        "anchor_id",
+        "transition_id",
+        "actor_id",
+        "previous_revision",
+        "revision",
+        "previous_document_revision",
+        "document_head_revision",
+        "anchor_revision",
+        "issue_watermark",
+        "evidence_watermark",
+        "origin_anchor_sha256",
+        "receipt_sha256",
+        "reason",
+        "schema_version",
+        "previous_status",
+        "status",
+        "created_at",
+        "invalidated_review_ids"
+      ],
+      "properties": {
+        "document_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "document_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "annotation_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "operation_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "anchor_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "transition_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "previous_revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "previous_document_revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "document_head_revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "anchor_revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "issue_watermark": {
+          "$ref": "#/$defs/Revision"
+        },
+        "evidence_watermark": {
+          "$ref": "#/$defs/Revision"
+        },
+        "origin_anchor_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "receipt_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "reason": {
+          "$ref": "#/$defs/Content"
+        },
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "previous_status": {
+          "enum": [
+            "OPEN",
+            "RESOLVED"
+          ]
+        },
+        "status": {
+          "const": "REANCHOR_REQUIRED"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "invalidated_review_ids": {
+          "type": "array",
+          "maxItems": 1000,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/Id"
+          }
+        }
+      }
+    }
+  }
+}

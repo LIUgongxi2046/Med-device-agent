@@ -121,7 +121,7 @@ class ArtifactBindingsTest {
         for (var definition : ModelStreamBindings.definitions()) assertTrue(actual.add(catalogue.schemaRef("model-stream", definition.name())));
         Set<String> expected = new HashSet<>();
         Set<String> publishedTemplates = new HashSet<>();
-        JsonNode manifest = JSON.readTree(Files.readAllBytes(root.resolve("contracts/catalogue.json")));
+        JsonNode manifest = SchemaCatalogue.publishedManifest(Files.readAllBytes(root.resolve("contracts/catalogue.json")), Files.readAllBytes(root.resolve(SchemaCatalogue.EXTENSION_PATH)));
         for (JsonNode entry : manifest.required("schemas")) {
             String path = entry.required("path").asText();
             JsonNode document = (path.endsWith(".yaml") ? new YAMLMapper() : JSON).readTree(Files.readAllBytes(root.resolve(path)));
@@ -132,7 +132,7 @@ class ArtifactBindingsTest {
                 String ref = catalogue.schemaRef(name, definition);
                 assertTrue(expected.add(ref));
                 if (name.equals("templates") || name.equals("template-operations") || name.equals("tasks") || name.equals("collections")
-                        || name.equals("rule-expressions") || name.equals("template-applicability") || name.equals("agent-release") || name.equals("task-plan-view")) {
+                        || name.equals("rule-expressions") || name.equals("template-applicability") || name.equals("agent-release") || name.equals("task-plan-view") || name.equals("evaluation-results")) {
                     var identity = catalogue.requirePublished(ref, entry.required("sha256").textValue());
                     assertEquals(name, identity.name()); assertEquals(definition, identity.definition());
                     assertTrue(publishedTemplates.add(ref));
@@ -140,9 +140,9 @@ class ArtifactBindingsTest {
             }
         }
         assertEquals(218, actual.size());
-        assertEquals(89, publishedTemplates.size());
+        assertEquals(107, publishedTemplates.size());
         assertTrue(java.util.Collections.disjoint(actual, publishedTemplates));
         actual.addAll(publishedTemplates);
-        assertEquals(307, expected.size()); assertEquals(expected, actual); assertEquals(307, catalogue.definitionCount());
+        assertEquals(325, expected.size()); assertEquals(expected, actual); assertEquals(503, catalogue.definitionCount());
     }
 }

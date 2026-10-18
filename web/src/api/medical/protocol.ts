@@ -1,3 +1,41 @@
+import formalPublicationAvailability from '../../../../business/medical-persistence/src/main/resources/formal-agent-publication-feature-availability.schema.json'
+import formalPublicationReceipt from '../../../../business/medical-persistence/src/main/resources/formal-agent-publication-workflow.schema.json'
+import formalScoreBinding from '../../../../business/medical-persistence/src/main/resources/formal-evaluation-score-binding.schema.json'
+import formalInputCandidates from '../../../../business/medical-persistence/src/main/resources/formal-evaluation-input-candidates.schema.json'
+import formalInputWorkflow from '../../../../business/medical-persistence/src/main/resources/formal-evaluation-input-workflow.schema.json'
+import formalInputDocument from '../../../../business/medical-persistence/src/main/resources/formal-evaluation-input.schema.json'
+import modelEnablementPolicy from '../../../../business/medical-persistence/src/main/resources/model-enablement-policy-preparation.schema.json'
+import modelVerificationTokenizer from '../../../../business/medical-persistence/src/main/resources/model-verification-tokenizer-candidates.schema.json'
+import modelVerificationInput from '../../../../business/medical-persistence/src/main/resources/model-verification-input-workflow.schema.json'
+import formalInvocationHttp from '../../../../business/medical-persistence/src/main/resources/formal-invocation-http.schema.json'
+import modelRuntime from '../../../../business/medical-persistence/src/main/resources/runtime-governance.schema.json'
+import formalInvocation from '../../../../business/medical-persistence/src/main/resources/formal-invocation.schema.json'
+import executionPolicy from '../../../../business/medical-persistence/src/main/resources/agent-execution-policy.schema.json'
+import executionPolicyAvailability from '../../../../business/medical-persistence/src/main/resources/agent-execution-policy-feature-availability.schema.json'
+import formalCapabilityCancellation from '../../../../business/medical-persistence/src/main/resources/formal-capability-cancellation.schema.json'
+import runtimeRetention from '../../../../business/medical-persistence/src/main/resources/runtime-retention.schema.json'
+import formalCapabilityContract from '../../../../business/medical-persistence/src/main/resources/agent-publication.schema.json'
+import formalCapabilityAvailability from '../../../../business/medical-persistence/src/main/resources/agent-authoring-feature-availability.schema.json'
+import businessAudit from '../../../../business/medical-persistence/src/main/resources/business-audit.schema.json'
+import gruExport from '../../../../business/medical-persistence/src/main/resources/gru-record-export.schema.json'
+import gruExportAvailability from '../../../../business/medical-persistence/src/main/resources/gru-record-export-feature-availability.schema.json'
+import documentComparisonViews from '../../../../business/medical-persistence/src/main/resources/document-comparison-views.schema.json'
+import documentComparisonAvailability from '../../../../business/medical-persistence/src/main/resources/document-comparison-feature-availability.schema.json'
+import documentComparisonCore from '../../../../business/medical-persistence/src/main/resources/document-structural-comparison-core.schema.json'
+import documentRevisionDirectory from '../../../../business/medical-persistence/src/main/resources/document-revision-directory.schema.json'
+import documentHistoryFeatureAvailability from '../../../../business/medical-persistence/src/main/resources/document-history-feature-availability.schema.json'
+import documentTechnicalCheck from '../../../../business/medical-persistence/src/main/resources/document-technical-check.schema.json'
+import documentTechnicalCheckAvailability from '../../../../business/medical-persistence/src/main/resources/document-technical-check-feature-availability.schema.json'
+import documentReviewReturn from '../../../../business/medical-persistence/src/main/resources/document-review-return.schema.json'
+import documentRevisionAssignmentQueue from '../../../../business/medical-persistence/src/main/resources/document-revision-assignment-queue.schema.json'
+import gruRecords from '../../../../business/medical-persistence/src/main/resources/gru-records.schema.json'
+import gruFeatureAvailability from '../../../../business/medical-persistence/src/main/resources/gru-feature-availability.schema.json'
+import simulationAuthorizedUseEvidence from '../../../../business/medical-persistence/src/main/resources/simulation-authorized-use-evidence.schema.json'
+import simulationEvaluationPreparation from '../../../../business/medical-persistence/src/main/resources/simulation-evaluation-preparation.schema.json'
+import simulationExecution from '../../../../agent-design/simulation-execution.schema.json'
+import simulationInputArtifact from '../../../../business/medical-persistence/src/main/resources/simulation-input-artifact.schema.json'
+import simulationInputArtifactLookup from '../../../../business/medical-persistence/src/main/resources/simulation-input-artifact-lookup.schema.json'
+import simulationRuleWorkflow from '../../../../business/medical-persistence/src/main/resources/simulation-rule-version-workflow.schema.json'
 import Ajv2020 from 'ajv/dist/2020.js'
 import type { ValidateFunction } from 'ajv'
 import addFormats from 'ajv-formats'
@@ -36,6 +74,17 @@ import templateApprovalView from './template-approval-view.schema.json'
 import templateOperations from '../../../../business/medical-persistence/src/main/resources/template-operations.schema.json'
 import templateApplicability from '../../../../business/medical-persistence/src/main/resources/template-applicability.schema.json'
 import templateCreateView from './template-create-view.schema.json'
+import ruleExpressions from '../../../../business/medical-persistence/src/main/resources/rule-expressions.schema.json'
+import ruleWorkflow from '../../../../business/medical-persistence/src/main/resources/rule-version-workflow.schema.json'
+import ruleWriteView from './rule-write-view.schema.json'
+import evaluationResults from '../../../../business/medical-persistence/src/main/resources/evaluation-results.schema.json'
+import evaluationView from './evaluation-view.schema.json'
+import configurationDiscovery from '../../../../business/medical-persistence/src/main/resources/configuration-discovery.schema.json'
+import modelConfiguration from '../../../../business/medical-persistence/src/main/resources/model-configuration.schema.json'
+import modelConfigurationWrite from './model-configuration-write-view.schema.json'
+import simulationModelConfiguration from '../../../../business/medical-persistence/src/main/resources/simulation-model-configuration.schema.json'
+import simulationConfigurationDiscovery from '../../../../business/medical-persistence/src/main/resources/simulation-configuration-discovery.schema.json'
+import simulationModelConfigurationWrite from './simulation-model-configuration-write-view.schema.json'
 import enterpriseRegistration from '../../../../business/medical-persistence/src/main/resources/enterprise-registration.schema.json'
 import enterpriseRegistrationView from './enterprise-registration-view.schema.json'
 import enterpriseReview from '../../../../business/medical-persistence/src/main/resources/enterprise-registration-review.schema.json'
@@ -59,6 +108,14 @@ import retrievalView from '../../../../business/medical-persistence/src/main/res
 import sourceGovernance from '../../../../business/medical-persistence/src/main/resources/source-governance.schema.json'
 import sourceRights from '../../../../business/medical-persistence/src/main/resources/source-rights-decisions.schema.json'
 import exportApi from '../../../../business/medical-persistence/src/main/resources/export-api.schema.json'
+import annotationReconciliations from '../../../../business/medical-persistence/src/main/resources/annotation-anchor-reconciliations.schema.json'
+import annotationReconciliationWriteView from './annotation-reconciliation-write-view.schema.json'
+import annotationAnchors from '../../../../business/medical-persistence/src/main/resources/annotation-anchors.schema.json'
+import annotationReanchorWriteView from './annotation-reanchor-write-view.schema.json'
+import annotationThreads from '../../../../business/medical-persistence/src/main/resources/annotation-threads.schema.json'
+import annotationDecisions from '../../../../business/medical-persistence/src/main/resources/annotation-decisions.schema.json'
+import annotationReplies from '../../../../business/medical-persistence/src/main/resources/annotation-replies.schema.json'
+import annotationWriteView from './annotation-write-view.schema.json'
 import requestMetadata from './request-metadata.schema.json'
 import { parseErrorCode } from '../../../../contracts/typescript/src/errors'
 
@@ -128,6 +185,17 @@ ajv.addSchema(templateApprovalView)
 ajv.addSchema(templateOperations)
 ajv.addSchema(templateApplicability)
 ajv.addSchema(templateCreateView)
+ajv.addSchema(ruleExpressions)
+ajv.addSchema(ruleWorkflow)
+ajv.addSchema(ruleWriteView)
+ajv.addSchema(evaluationResults)
+ajv.addSchema(evaluationView)
+ajv.addSchema(configurationDiscovery)
+ajv.addSchema(modelConfiguration)
+ajv.addSchema(modelConfigurationWrite)
+ajv.addSchema(simulationModelConfiguration)
+ajv.addSchema(simulationConfigurationDiscovery)
+ajv.addSchema(simulationModelConfigurationWrite)
 ajv.addSchema(enterpriseRegistration)
 ajv.addSchema(enterpriseRegistrationView)
 ajv.addSchema(enterpriseReview)
@@ -155,8 +223,108 @@ const validators = new Map<string, ValidateFunction>()
 ajv.addSchema(runView)
 ajv.addSchema(sourceExact)
 ajv.addSchema(runControl, 'urn:medical:run-control:1.0.0')
+ajv.addSchema(annotationReconciliations)
+ajv.addSchema(annotationReconciliationWriteView)
+ajv.addSchema(annotationAnchors)
+ajv.addSchema(annotationReanchorWriteView)
+ajv.addSchema(annotationThreads)
+ajv.addSchema(annotationReplies)
+ajv.addSchema(annotationDecisions)
+ajv.addSchema(annotationWriteView)
 ajv.addSchema(runCancellationView)
-for (const reference of ['urn:medical:shared#/$defs/Envelope', 'urn:medical:shared#/$defs/Error', 'urn:medical:identity',
+ajv.addSchema(simulationExecution)
+ajv.addSchema(simulationInputArtifact)
+ajv.addSchema(simulationInputArtifactLookup)
+ajv.addSchema(simulationRuleWorkflow)
+ajv.addSchema(simulationEvaluationPreparation)
+ajv.addSchema(simulationAuthorizedUseEvidence)
+ajv.addSchema(gruRecords)
+ajv.addSchema(gruFeatureAvailability)
+ajv.addSchema(documentTechnicalCheck)
+ajv.addSchema(documentTechnicalCheckAvailability)
+ajv.addSchema(documentReviewReturn)
+ajv.addSchema(documentRevisionAssignmentQueue)
+ajv.addSchema(documentComparisonViews)
+ajv.addSchema(documentComparisonAvailability)
+ajv.addSchema(documentComparisonCore)
+ajv.addSchema(gruExport)
+ajv.addSchema(gruExportAvailability)
+ajv.addSchema(businessAudit)
+ajv.addSchema(documentRevisionDirectory)
+ajv.addSchema(documentHistoryFeatureAvailability)
+ajv.addSchema(formalCapabilityContract)
+ajv.addSchema(formalCapabilityAvailability)
+ajv.addSchema(runtimeRetention)
+ajv.addSchema(formalCapabilityCancellation)
+ajv.addSchema(executionPolicy)
+ajv.addSchema(executionPolicyAvailability)
+ajv.addSchema(modelRuntime)
+ajv.addSchema(formalInvocation)
+ajv.addSchema(formalInvocationHttp)
+ajv.addSchema(formalInputCandidates)
+ajv.addSchema(formalInputWorkflow)
+ajv.addSchema(formalInputDocument)
+ajv.addSchema(modelEnablementPolicy)
+ajv.addSchema(modelVerificationInput)
+ajv.addSchema(modelVerificationTokenizer)
+ajv.addSchema(formalPublicationAvailability)
+ajv.addSchema(formalPublicationReceipt)
+ajv.addSchema(formalScoreBinding)
+const allowedSchemaReferences = new Set<string>([
+  formalPublicationAvailability.$id,
+  formalPublicationReceipt.$id,
+  ...['FormalScoreBinding','FormalRecovery','FormalReceipt'].map(name => formalScoreBinding.$id + '#/$defs/' + name),
+  formalInputCandidates.$id + '#/$defs/Candidates',
+  formalInputDocument.$id + '#/$defs/Document',
+  ...['Register','Receipt','Read','Availability'].map(name => formalInputWorkflow.$id + '#/$defs/' + name),
+  ...['Candidate','Register','Receipt','Read','Recovery'].map(name => modelEnablementPolicy.$id + '#/$defs/' + name),
+  modelVerificationTokenizer.$id + '#/$defs/Candidates',
+  ...['Id','ModelRuntimeAvailability','ModelEnableRequest','ModelEnableReceipt','ModelEnableRecovery','ConnectionResult','ConnectionPassed'].map(name => modelRuntime.$id + '#/$defs/' + name),
+  formalInvocation.$id + '#/$defs/VerificationRequest',
+  ...['Id','Candidates','Register','Receipt','Read','Recovery'].map(name => modelVerificationInput.$id + '#/$defs/' + name),
+  ...['Cancel','CancelReceipt','CancelRecovery'].map(name => formalInvocationHttp.$id + '#/$defs/' + name),
+  executionPolicyAvailability.$id,
+  ...Object.keys(executionPolicy.$defs).map(name => executionPolicy.$id + '#/$defs/' + name),
+  ...['CancelRequest', 'CancelReceipt', 'CancelRecovery'].map(name => formalCapabilityCancellation.$id + '#/$defs/' + name),
+  ...['Id', 'Context', 'Availability', 'RetentionRequest', 'RetentionView', 'RetentionList', 'RetentionReceipt', 'RetentionRecovery', 'RetireRequest', 'RetireReceipt', 'RetireRecovery', 'CancelRequest', 'CancelReceipt', 'CancelRecovery'].map(name => runtimeRetention.$id + '#/$defs/' + name),
+  formalCapabilityAvailability.$id,
+  ...['FormalCapability', 'FormalCapabilityFixed', 'RuntimePermission', 'RuntimeRoleScope', 'CapabilityQuery', 'Receipt', 'RecordView', 'List']
+    .map(name => formalCapabilityContract.$id + '#/$defs/' + name),
+  ...['Availability', 'Query', 'Page'].map(name => businessAudit.$id + '#/$defs/' + name),
+  documentComparisonAvailability.$id,
+  ...Object.keys(documentComparisonViews.$defs).map(name => documentComparisonViews.$id + '#/$defs/' + name),
+  ...Object.keys(documentComparisonCore.$defs).map(name => documentComparisonCore.$id + '#/$defs/' + name),
+  gruExportAvailability.$id,
+  ...Object.keys(gruExport.$defs).map(name => gruExport.$id + '#/$defs/' + name),
+  documentHistoryFeatureAvailability.$id,
+  ...Object.keys(documentRevisionDirectory.$defs).map(name => documentRevisionDirectory.$id + '#/$defs/' + name),
+  documentTechnicalCheckAvailability.$id,
+  ...Object.keys(documentTechnicalCheckAvailability.$defs).map(name => documentTechnicalCheckAvailability.$id + '#/$defs/' + name),
+  ...Object.keys(documentTechnicalCheck.$defs).map(name => documentTechnicalCheck.$id + '#/$defs/' + name),
+  ...Object.keys(documentReviewReturn.$defs).map(name => 'urn:medical:document-return-for-revision:1.0.0#/$defs/' + name),
+  ...Object.keys(documentRevisionAssignmentQueue.$defs).map(name => 'urn:medical:document-revision-assignment-queue:1.0.0#/$defs/' + name),
+  gruFeatureAvailability.$id,
+  ...Object.keys(gruRecords.$defs).map(name => 'urn:medical:gru-records:1.0.0#/$defs/' + name),
+  ...Object.keys(simulationExecution.$defs).map(name => 'urn:medical:simulation-execution:1.0.0#/$defs/' + name),
+  ...Object.keys(simulationInputArtifact.$defs).map(name => 'urn:medical:simulation-input-artifact:1.0.0#/$defs/' + name),
+  ...Object.keys(simulationInputArtifactLookup.$defs).map(name => 'urn:medical:simulation-input-artifact-lookup:1.0.0#/$defs/' + name),
+  ...Object.keys(simulationAuthorizedUseEvidence.$defs).map(name => 'urn:medical:simulation-authorized-use-evidence:1.0.0#/$defs/' + name),
+  ...Object.keys(simulationEvaluationPreparation.$defs).map(name => 'urn:medical:simulation-evaluation-preparation:1.0.0#/$defs/' + name),
+  ...Object.keys(simulationRuleWorkflow.$defs).map(name => 'urn:medical:simulation-rule-version-workflow:1.0.0#/$defs/' + name),
+  'urn:medical:annotation-reconciliation-write-view:1.0.0',
+  ...Object.keys(annotationReconciliations.$defs).map(name => 'urn:medical:annotation-anchor-reconciliations:1.0.0#/$defs/' + name),
+  'urn:medical:annotation-reanchor-write-view:1.0.0',
+  ...Object.keys(annotationAnchors.$defs).map(name => 'urn:medical:annotation-anchors:1.0.0#/$defs/' + name),
+  ...Object.keys(annotationThreads.$defs).map(name => 'urn:medical:annotation-threads:1.0.0#/$defs/' + name),
+  ...Object.keys(annotationDecisions.$defs).map(name => 'urn:medical:annotation-decisions:1.0.0#/$defs/' + name),
+  ...Object.keys(annotationReplies.$defs).map(name => 'urn:medical:annotation-replies:1.0.0#/$defs/' + name),
+  'urn:medical:annotation-write-view:1.0.0',
+  ...Object.keys(modelConfiguration.$defs).map(name => 'urn:medical:model-configuration:1.0.0#/$defs/' + name),
+  'urn:medical:model-configuration-write-view:1.0.0',
+  ...Object.keys(simulationModelConfiguration.$defs).map(name => 'urn:medical:simulation-model-configuration:1.0.0#/$defs/' + name),
+  'urn:medical:simulation-model-configuration-write-view:1.0.0',
+  ...['Query', 'SimulationModelList'].map(name => 'urn:medical:simulation-configuration-discovery:1.0.0#/$defs/' + name),
+  'urn:medical:shared#/$defs/Envelope', 'urn:medical:shared#/$defs/Error', 'urn:medical:identity',
   ...['Field', 'PublicationInput', 'Manifest', 'PublicationReceipt', 'SearchInput', 'Hit', 'Page']
     .map(name => 'urn:medical:source-exact:1.0.0#/$defs/' + name),
   'urn:medical:identity#/$defs/SelectionRequest', 'urn:medical:identity#/$defs/SelectionReceipt',
@@ -207,6 +375,7 @@ for (const reference of ['urn:medical:shared#/$defs/Envelope', 'urn:medical:shar
   'urn:medical:source-governance:1.0.0#/$defs/BindingView',
   'urn:medical:source-governance:1.0.0#/$defs/CatalogueItem',
   'urn:medical:source-governance:1.0.0#/$defs/Listing',
+  'urn:medical:source-governance:1.0.0#/$defs/ArtifactCataloguePage',
   'urn:medical:source-governance:1.0.0#/$defs/UsageItem',
   'urn:medical:source-governance:1.0.0#/$defs/UsagePage',
   'urn:medical:source-governance:1.0.0#/$defs/ParsedContentItem',
@@ -241,7 +410,7 @@ for (const reference of ['urn:medical:shared#/$defs/Envelope', 'urn:medical:shar
   'urn:medical:task-plan-write-view:1.0.0',
   ...['Baseline', 'Request', 'Receipt'].map(name => 'urn:medical:task-plan-decision:1.0.0#/$defs/' + name),
   'urn:medical:task-plan-return-view:1.0.0',
-  ...['Id', 'Operation', 'DocumentSnapshot', 'DocumentBody', 'TextContent', 'FieldValue', 'BodyPage', 'RevisionInput', 'UploadRequest', 'UploadGrant', 'UploadCompletion', 'ArtifactReceipt', 'PublicEvent', 'StreamCursor', 'CandidateDelta', 'Selection']
+  ...['Id', 'Operation', 'DocumentSnapshot', 'DocumentBody', 'TextContent', 'FieldValue', 'BodyPage', 'RevisionInput', 'UploadRequest', 'UploadGrant', 'UploadCompletion', 'ArtifactReceipt', 'ContentChunk', 'PublicEvent', 'StreamCursor', 'CandidateDelta', 'Selection']
     .map(name => 'https://schemas.medical-agent.invalid/1.0.0/backend-design/interfaces.schema.yaml#/$defs/' + name),
   'https://schemas.medical-agent.invalid/1.0.0/backend-design/resource-details.schema.yaml#/$defs/TaskDetail',
   ...['Request', 'Pending', 'Profile'].map(name => 'urn:medical:own-profile:1.0.0#/$defs/' + name),
@@ -250,15 +419,37 @@ for (const reference of ['urn:medical:shared#/$defs/Envelope', 'urn:medical:shar
   ...['Request', 'Detail', 'Page', 'Uuid'].map(name => 'urn:medical:enterprise-registration:1.0.0#/$defs/' + name),
   ...['LocalAccountPage', 'LocalAccountItem'].map(name => 'urn:medical:identity#/$defs/' + name),
   'urn:medical:template-operations:1.0.0#/$defs/Created', 'urn:medical:template-create-view:1.0.0',
+  ...['Create', 'Append', 'Finalize', 'Definition', 'Score', 'Result', 'Receipt', 'Basis', 'Cell'].map(name => 'urn:medical:evaluation-results:1.0.0#/$defs/' + name),
+  ...['Id', 'Read', 'Scores', 'Pending'].map(name => 'urn:medical:evaluation-view:1.0.0#/$defs/' + name),
+  'urn:medical:rule-write-view:1.0.0',
+  ...['Query', 'RuleList', 'ModelList'].map(name => 'urn:medical:configuration-discovery:1.0.0#/$defs/' + name),
+  ...['Id', 'Hash', 'Basis', 'VersionInput', 'StoredRule', 'Read', 'Created', 'Preview', 'Decide', 'Receipt']
+    .map(name => 'urn:medical:rule-version-workflow:1.0.0#/$defs/' + name),
+  ...['Content', 'Constant', 'Result'].map(name => 'urn:medical:rule-expressions:1.0.0#/$defs/' + name),
   ...['Query', 'Page'].map(name => 'urn:medical:template-applicability:1.0.0#/$defs/' + name),
   'urn:medical:templates:1.0.0#/$defs/Condition',
   ...['DocumentType', 'ApplicationPath', 'ConditionSchema', 'FormatProfile', 'Bases', 'Node', 'Field', 'Repeat', 'Attachment', 'CrossDocumentRule']
     .map(name => 'urn:medical:templates:1.0.0#/$defs/' + name),
   ...['Create', 'Decide', 'Approval', 'Account', 'Listing', 'Receipt', 'Limits', 'Id', 'Money', 'Currency', 'Time']
-    .map(name => 'urn:medical:budgets:1.0.0#/$defs/' + name)]) {
+    .map(name => 'urn:medical:budgets:1.0.0#/$defs/' + name)])
+
+function schemaValidator(reference: string): ValidateFunction | undefined {
+  // Membership is checked before AJV: registered but unapproved fragments stay inaccessible.
+  if (!allowedSchemaReferences.has(reference)) return undefined
+  const cached = validators.get(reference)
+  if (cached) return cached
   const validator = ajv.getSchema(reference)
   if (!validator) throw new Error('医疗接口Schema缺少登记定义')
   validators.set(reference, validator)
+  return validator
+}
+
+// Explicit build/test gate. Runtime calls stay synchronous and compile only on first use.
+export function compileAllMedicalSchemas(): number {
+  for (const reference of allowedSchemaReferences) {
+    if (!schemaValidator(reference)) throw new Error('医疗接口Schema缺少登记定义')
+  }
+  return allowedSchemaReferences.size
 }
 
 export class MedicalFailure extends Error {
@@ -280,13 +471,15 @@ export function revision(value: string): string {
 }
 
 export function validate<T>(reference: string, value: unknown): T {
-  const validator = validators.get(reference)
+  let validator: ValidateFunction | undefined
+  try { validator = schemaValidator(reference) }
+  catch { fail('SCHEMA_INVALID', '医疗接口Schema编译失败') }
   if (!validator || !validator(value)) fail('SCHEMA_INVALID', '医疗接口响应未通过Schema校验')
   return value as T
 }
 
 export function schemaIssues(reference: string, value: unknown): { path: string; code: string }[] {
-  const validator = validators.get(reference)
+  const validator = schemaValidator(reference)
   if (!validator) throw new Error('医疗表单Schema缺少登记定义')
   if (validator(value)) return []
   return (validator.errors ?? []).map(error => ({ path: error.instancePath, code: error.keyword }))

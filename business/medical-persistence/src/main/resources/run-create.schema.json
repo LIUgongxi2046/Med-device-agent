@@ -1,0 +1,25 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$defs":{
+    "Id":{"type":"string","format":"uuid"},
+    "Revision":{"type":"string","pattern":"^(0|[1-9][0-9]*)$","maxLength":20},
+    "Create":{
+      "type":"object","additionalProperties":false,
+      "required":["schema_version","task_revision","plan_revision","snapshot_id","budget_revision","expected_revision"],
+      "properties":{"schema_version":{"const":"1.0.0"},"task_revision":{"$ref":"#/$defs/Id"},"plan_revision":{"$ref":"#/$defs/Id"},
+        "snapshot_id":{"$ref":"#/$defs/Id"},"budget_revision":{"$ref":"#/$defs/Id"},"expected_revision":{"$ref":"#/$defs/Revision"}}
+    },
+    "Operation":{
+      "type":"object","additionalProperties":false,"required":["operation_id","resource_id","status","status_url"],
+      "properties":{"operation_id":{"$ref":"#/$defs/Id"},"resource_id":{"$ref":"#/$defs/Id"},"status":{"const":"PROCESSING"},
+        "status_url":{"type":"string","pattern":"^/api/operations/"}}
+    },
+    "Receipt":{
+      "type":"object","additionalProperties":false,
+      "required":["operation","run_id","task_id","task_revision","plan_revision","snapshot_id","budget_revision","command_id","status","revision"],
+      "properties":{"operation":{"$ref":"#/$defs/Operation"},"run_id":{"$ref":"#/$defs/Id"},"task_id":{"$ref":"#/$defs/Id"},
+        "task_revision":{"$ref":"#/$defs/Id"},"plan_revision":{"$ref":"#/$defs/Id"},"snapshot_id":{"$ref":"#/$defs/Id"},
+        "budget_revision":{"$ref":"#/$defs/Id"},"command_id":{"$ref":"#/$defs/Id"},"status":{"const":"QUEUED"},"revision":{"const":"1"}}
+    }
+  }
+}

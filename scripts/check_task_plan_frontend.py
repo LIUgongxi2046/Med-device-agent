@@ -32,7 +32,7 @@ def main():
     if not args.execution or Path(args.execution).name != args.execution or args.execution in ('.', '..'):
         raise ValueError('执行身份需要使用单一目录名称')
     inputs = {ROOT / name for name in ('scripts/check_task_plan_frontend.py', 'scripts/check_task_plan_frontend.mjs',
-        'web/package.json', 'web/package-lock.json', 'web/tsconfig.medical.json', 'contracts/catalogue.json',
+        'web/package.json', 'web/package-lock.json', 'web/tsconfig.medical.json', 'contracts/catalogue.json', 'contracts/extensions/evaluation-results.catalogue.json', 'business/medical-persistence/src/main/resources/evaluation-results.schema.json',
         'backend-design/interfaces.openapi.yaml', 'docs/development/IMP-12.md')}
     inputs.add(ROOT / 'business/medical-persistence/src/main/resources/task-plan-decision.schema.json')
     inputs.add(ROOT / 'business/medical-persistence/src/main/resources/task-create-draft.schema.json')

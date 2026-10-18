@@ -1,0 +1,23 @@
+package com.ruoyi.medical.persistence;
+import com.ruoyi.medical.contracts.ErrorCode;
+import com.ruoyi.medical.persistence.mapper.ModelEnablementPolicyMapper;
+import java.nio.file.*;
+import java.util.*;
+import org.apache.ibatis.builder.xml.XMLMapperBuilder;
+import org.apache.ibatis.session.Configuration;
+import org.apache.ibatis.mapping.SqlCommandType;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
+import static com.ruoyi.medical.persistence.VerificationInputFixture.*;
+final class ModelEnablementPolicyMapperTest {
+ static final String PREFIX="com.ruoyi.medical.persistence.mapper.ModelEnablementPolicyMapper.";
+ static final List<String> READS=List.of("original","lockActor","lockSource","databaseTime","stored","operation","operationById","audit","event","classifications");
+ static final List<String> WRITES=List.of("insertStored","insertOperation","insertAudit","insertEvent");
+ Configuration configuration()throws Exception{var c=new Configuration();try(var in=Objects.requireNonNull(getClass().getResourceAsStream("/medical-mappers/ModelEnablementPolicyMapper.xml"))){new XMLMapperBuilder(in,c,"ModelEnablementPolicyMapper.xml",c.getSqlFragments()).parse();}return c;}
+ @Test void exactFourteenActualStatementsMatchJavaInterfaceAndNoUpdatesExist()throws Exception{var c=configuration();var all=new HashSet<>(READS);all.addAll(WRITES);assertEquals(14,all.size());assertEquals(all,Arrays.stream(ModelEnablementPolicyMapper.class.getDeclaredMethods()).map(java.lang.reflect.Method::getName).collect(java.util.stream.Collectors.toSet()));for(String id:all)assertTrue(c.hasStatement(PREFIX+id),id);for(String id:WRITES)assertEquals(SqlCommandType.INSERT,c.getMappedStatement(PREFIX+id).getSqlCommandType());assertEquals(30,c.getResultMap(PREFIX+"stored").getConstructorResultMappings().size());}
+ @Test void allReadsDisableBothMybatisCachesIncludingHistoricalReads()throws Exception{var c=configuration();for(String id:READS){var statement=c.getMappedStatement(PREFIX+id);assertFalse(statement.isUseCache(),id);assertTrue(statement.isFlushCacheRequired(),id);}}
+ @Test void everyStatementUsesActualTenantAndSubjectGates()throws Exception{var c=configuration();var all=new ArrayList<>(READS);all.addAll(WRITES);for(String id:all)assertEquals(ErrorCode.ACCESS_DENIED,assertThrows(TenantAccessException.class,()->TenantScope.requireSqlAccess(PREFIX+id)).code());try(var f=new VerificationInputFixture()){f.transaction(()->{var values=new HashMap<String,Object>();values.put("userId",ACTOR);for(String id:all){TenantScope.requireSqlAccess(PREFIX+id);TenantScope.requireSubjectParameter(PREFIX+id,values);for(var wrong:List.of(Map.of(),Map.of("creatorId",ACTOR),Map.of("userId",id(999))))assertThrows(TenantAccessException.class,()->TenantScope.requireSubjectParameter(PREFIX+id,wrong),id);String sql=new ProtectedTenantInterceptor().parserSingle(c.getMappedStatement(PREFIX+id).getBoundSql(values).getSql(),null);if(!id.equals("databaseTime"))assertTrue(sql.contains(TENANT),id); }return null;});}}
+ @Test void immutableRegistrationCannotBeUpdatedDeletedOrTenantSpoofed()throws Exception{try(var f=new VerificationInputFixture()){f.transaction(()->{var guard=new ProtectedTenantInterceptor();for(String sql:List.of("UPDATE model_enablement_policy_preparation SET classification='PUBLIC' WHERE preparation_id='"+id(10)+"'","DELETE FROM model_enablement_policy_preparation WHERE preparation_id='"+id(10)+"'","INSERT INTO model_enablement_policy_preparation(tenant_id,preparation_id) VALUES('"+id(999)+"','"+id(10)+"')"))assertThrows(TenantAccessException.class,()->guard.parserSingle(sql,null));return null;});}}
+ @Test void actorAndSourceLocksPrecedeMutableOperationObservation()throws Exception{var c=configuration();assertTrue(c.getMappedStatement(PREFIX+"lockActor").getBoundSql(Map.of()).getSql().contains("FOR UPDATE"));assertTrue(c.getMappedStatement(PREFIX+"lockSource").getBoundSql(Map.of()).getSql().contains("FOR UPDATE"));}
+ @Test void operationByIdKeepsHistoricalCreatorButCallerMapMustStillCurrentActor()throws Exception{var c=configuration();var v=new HashMap<String,Object>();v.put("userId",ACTOR);v.put("creatorId",id(50));v.put("key",KEY);v.put("now",java.time.LocalDateTime.now());v.put("classification","INTERNAL");var bound=c.getMappedStatement(PREFIX+"operationById").getBoundSql(v);var props=bound.getParameterMappings().stream().map(p->p.getProperty()).toList();assertEquals(List.of("creatorId","creatorId","operationId","key","now","classification"),props);assertTrue(bound.getSql().contains("updated_at=created_at"));assertTrue(bound.getSql().contains("error_code IS NULL"));}
+}

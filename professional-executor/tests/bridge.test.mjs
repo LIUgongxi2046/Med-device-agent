@@ -13,6 +13,8 @@ const root = fileURLToPath(new URL('../../', import.meta.url))
 const { catalogue } = await loadCatalogue(root)
 
 test('工程模拟接口通过实际Unix Socket及SSE完成模型消费，重复动作使用原结果', { timeout: 45_000 }, async context => {
+  await mkdir(resolve(root, '.build-work'), { recursive: true, mode: 0o700 })
+  await mkdir(resolve(root, '.implementation-work'), { recursive: true, mode: 0o700 })
   const directory = resolve(root, '.build-work', `mp-${randomUUID().slice(0, 8)}`)
   await mkdir(directory, { mode: 0o700 })
   const socketPath = resolve(directory, 'b.sock')

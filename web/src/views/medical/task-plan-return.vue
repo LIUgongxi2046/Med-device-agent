@@ -75,6 +75,7 @@ async function finish(session: MedicalSession, version: number, operation: Pendi
 }
 async function submit(): Promise<void> {
   if (busy.value || user.medicalWriting || !allowed.value || !props.active || document.hidden || !basis.value || pending.value) return
+  if (projectTextIssue(reason.value, 2000)) return
   const session = props.session; const version = generation
   const body: PlanReturnRequest = { schema_version: '1.0.0', target_revision: basis.value.plan_revision,
     expected_revision: basis.value.expected_revision, decision: decision.value, reason: reason.value, baseline_manifest: basis.value }

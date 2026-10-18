@@ -1,5 +1,5 @@
 <template>
-  <section aria-label="文稿导出" data-document-export>
+  <section class="document-export" aria-label="文稿导出" data-document-export>
     <h4>文稿导出</h4>
     <el-button :disabled="!active || loading || writing" @click="loadBasis">读取导出依据</el-button>
     <p v-if="loading" role="status">正在读取审查状态和格式版本</p>
@@ -36,23 +36,63 @@
       </el-form>
       <el-button type="primary" :disabled="!active || loading || writing || formats.length === 0" @click="submit">提交导出</el-button>
     </template>
-    <template v-if="history.length > 0">
-      <h4>导出记录</h4>
+    <section v-if="basis" aria-label="固定文稿导出历史">
+      <div class="export-section-heading"><h4>导出记录</h4>
+        <el-button :disabled="!active || loading || writing" @click="loadHistoryPage(historyPage)">刷新本页</el-button>
+      </div>
+      <p class="export-hint">仅查询当前固定文稿版本，每页 {{ historySize }} 项。翻页后重新选择记录；记录总数按本次查询返回。</p>
+      <p v-if="historyNeedsRefresh" role="status">导出记录已有变化，请刷新本页读取服务端列表。</p>
+      <p v-if="historyReadFailed" role="alert">本页读取未完成，请刷新本页重试。</p>
+      <p v-if="historyMeta">第 {{ historyMeta.page }} 页 · 服务端共 {{ historyMeta.total }} 项</p>
       <el-table :data="history" row-key="export_id">
         <el-table-column prop="purpose" label="用途" width="150" />
         <el-table-column prop="status" label="状态" width="150" />
         <el-table-column prop="created_at" label="创建时间" min-width="210" />
         <el-table-column label="操作" width="110"><template #default="scope">
-          <el-button :disabled="!active || loading || writing" @click="current = scope.row">查看</el-button>
+          <el-button :disabled="!active || loading || writing" @click="selectExport(scope.row)">查看</el-button>
         </template></el-table-column>
       </el-table>
-    </template>
+      <el-empty v-if="historyMeta && history.length === 0" :image-size="60" description="当前页没有导出记录" />
+      <div class="export-pagination">
+        <el-button :disabled="!active || loading || writing || historyPage <= 1" @click="loadHistoryPage(historyPage - 1)">上一页</el-button>
+        <span>第 {{ historyPage }} 页</span>
+        <el-button :disabled="!active || loading || writing || !historyMeta?.has_more || historyPage >= 1000000" @click="loadHistoryPage(historyPage + 1)">下一页</el-button>
+      </div>
+    </section>
     <template v-if="current">
       <h4>导出状态</h4>
       <p>导出编号：{{ current.export_id }}；文稿版本：{{ current.document_revision }}；状态：{{ current.status }}；修订：{{ current.revision }}</p>
+      <details class="export-fixed-inputs"><summary>本次导出的固定输入</summary>
+        <dl><dt>模板版本</dt><dd>{{ current.template_version }}</dd><dt>审查清单摘要</dt><dd>{{ current.review_manifest_sha256 }}</dd>
+          <dt>格式版本</dt><dd>{{ current.format_profile_revision }}</dd><dt>渠道版本</dt><dd>{{ current.channel_profile_revision ?? '未指定' }}</dd>
+          <dt>导出清单摘要</dt><dd>{{ current.manifest_sha256 }}</dd></dl>
+      </details>
       <el-button :disabled="!active || loading || writing" @click="refresh">刷新状态</el-button>
       <el-form label-position="top"><el-form-item label="重试理由"><el-input v-model="retryReason" maxlength="1000" /></el-form-item></el-form>
       <el-table :data="current.items" row-key="export_item_id">
+        <el-table-column type="expand"><template #default="scope">
+          <section class="export-validation" aria-label="格式核验覆盖与固定输入">
+            <p v-if="!scope.row.validation">当前格式尚未返回核验记录。</p>
+            <template v-else>
+              <h5>{{ scope.row.format }} · 第 {{ scope.row.attempt_no }} 次尝试</h5>
+              <dl><dt>核验格式</dt><dd>{{ scope.row.validation.format }}</dd>
+                <dt>固定输入摘要</dt><dd>{{ scope.row.validation.input_sha256 }}</dd>
+                <dt>执行计划摘要</dt><dd>{{ scope.row.validation.plan_sha256 }}</dd>
+                <dt>文件 SHA-256</dt><dd>{{ scope.row.validation.sha256 }}</dd>
+                <dt>文件字节数</dt><dd>{{ scope.row.validation.size_bytes }}</dd>
+                <dt>转换器版本</dt><dd>{{ scope.row.validation.converter_revision }}</dd>
+                <dt>字体清单版本</dt><dd>{{ scope.row.validation.font_manifest_revision }}</dd>
+                <dt>渠道核验</dt><dd>{{ scope.row.validation.channel_check === 'APPROVED' ? '已批准' : '待人工审查' }}</dd>
+                <dt>版面检查</dt><dd>{{ scope.row.validation.visual_check === 'PASSED' ? '已通过' : '未执行' }}</dd>
+                <dt>核验制品标识</dt><dd>{{ scope.row.validation_artifact_id ?? '未提供' }}</dd>
+              </dl>
+              <h5>服务端已核验节点（{{ scope.row.validation.verified_node_ids.length }}）</h5>
+              <p class="export-hint">以下为本格式实际返回的覆盖范围，不据此推算全文覆盖率。</p>
+              <ul v-if="scope.row.validation.verified_node_ids.length" class="verified-nodes"><li v-for="node in scope.row.validation.verified_node_ids" :key="node">{{ node }}</li></ul>
+              <p v-else>没有返回已核验节点。</p>
+            </template>
+          </section>
+        </template></el-table-column>
         <el-table-column prop="format" label="格式" width="110" />
         <el-table-column prop="attempt_no" label="尝试次数" width="110" />
         <el-table-column prop="status" label="状态" width="150" />
@@ -75,13 +115,15 @@ import { computed, onBeforeUnmount, ref, shallowRef, watch } from 'vue'
 import type { MedicalSession } from '@/api/medical/protocol'
 import { fail } from '@/api/medical/protocol'
 import { createExport, downloadExportItem, executeExportItem, readExport, readExportBasis, readExportHistory, recoverExportRequest, retryExportItem } from '@/api/medical/exports'
-import type { ExportBasis, ExportFormat, ExportItem, ExportPurpose, ExportView } from '@/api/medical/exports'
+import type { ExportBasis, ExportFormat, ExportItem, ExportPurpose, ExportView, ExportHistory } from '@/api/medical/exports'
 import { clearExpiredRequestMetadata, confirmRequestMetadata, listRequestMetadata } from '@/api/medical/request-metadata'
 import type { RequestMetadata } from '@/api/medical/request-metadata'
 
 const props = defineProps<{ session: MedicalSession; documentId: string; documentRevision: string; active: boolean }>()
 const basis = shallowRef<ExportBasis | null>(null); const current = shallowRef<ExportView | null>(null)
 const history = shallowRef<ExportView[]>([])
+const historyMeta = shallowRef<ExportHistory | null>(null); const historyPage = ref(1); const historySize = 20
+const historyNeedsRefresh = ref(false); const historyReadFailed = ref(false)
 const purpose = ref<ExportPurpose>('INTERNAL_EXCHANGE'); const formats = ref<ExportFormat[]>([])
 const channelProfile = ref(''); const retryReason = ref(''); const loading = ref(false); const writing = ref(false)
 const pendingRequests = shallowRef<RequestMetadata[]>([]); const recoveryMessage = ref('')
@@ -93,6 +135,7 @@ function clear(): void {
   generation++; controller?.abort(); controller = null; basis.value = null; current.value = null; history.value = []
   purpose.value = 'INTERNAL_EXCHANGE'; formats.value = []; channelProfile.value = ''; retryReason.value = ''; loading.value = false; writing.value = false
   pendingRequests.value = []; recoveryMessage.value = ''
+  historyMeta.value = null; historyPage.value = 1; historyNeedsRefresh.value = false; historyReadFailed.value = false
   if (downloadUrl !== null) URL.revokeObjectURL(downloadUrl)
   downloadUrl = null
 }
@@ -110,8 +153,29 @@ async function loadBasis(): Promise<void> {
     ])
     if (version !== generation || !props.active || document.hidden || request.signal.aborted) return
     basis.value = value; formats.value = value.allowed_formats.filter(format => format !== 'MARKDOWN')
-    history.value = records.items; current.value = records.items[0] ?? null
+    history.value = records.items; historyMeta.value = records; historyPage.value = 1
+    historyNeedsRefresh.value = false; historyReadFailed.value = false; selectExport(records.items[0] ?? null)
   } finally { if (version === generation) loading.value = false }
+}
+function selectExport(value: ExportView | null): void {
+  current.value = value; retryReason.value = ''
+  if (downloadUrl !== null) URL.revokeObjectURL(downloadUrl)
+  downloadUrl = null
+}
+async function loadHistoryPage(page: number): Promise<void> {
+  if (!props.active || document.hidden || loading.value || writing.value || !basis.value
+      || !Number.isInteger(page) || page < 1 || page > 1000000) return
+  const request = new AbortController(); controller?.abort(); controller = request
+  const version = ++generation; const session = props.session; loading.value = true
+  selectExport(null); history.value = []; historyMeta.value = null; historyPage.value = page; historyReadFailed.value = false
+  try {
+    const records = await readExportHistory(session, props.documentId, props.documentRevision, request.signal, page, historySize)
+    if (!validWrite(version, session) || request.signal.aborted) return
+    history.value = records.items; historyMeta.value = records; historyNeedsRefresh.value = false
+  } catch (error) {
+    if (validWrite(version, session) && !request.signal.aborted) historyReadFailed.value = true
+    throw error
+  } finally { if (version === generation) { loading.value = false; controller = null } }
 }
 async function submit(): Promise<void> {
   const source = basis.value
@@ -202,10 +266,26 @@ async function download(item: ExportItem): Promise<void> {
   } finally { if (version === generation) { controller = null; loading.value = false } }
 }
 function remember(value: ExportView): void {
-  history.value = [value, ...history.value.filter(item => item.export_id !== value.export_id)]
-    .sort((left, right) => right.created_at.localeCompare(left.created_at)).slice(0, 20)
+  const listed = history.value.some(item => item.export_id === value.export_id)
+  if (listed) history.value = history.value.map(item => item.export_id === value.export_id ? value : item)
+  else historyNeedsRefresh.value = true
 }
 watch(() => [props.active, props.session, props.session.user.user_id, props.session.current_context?.tenant_id, props.session.current_context?.context_revision,
   props.session.current_context?.auth_epoch, props.session.current_context?.governance_epoch, props.documentId, props.documentRevision], () => { clear(); syncPending() }, { immediate: true, flush: 'sync' })
 onBeforeUnmount(clear)
 </script>
+
+<style scoped>
+.document-export { min-width: 0; }
+.export-section-heading { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; margin-top: 20px; }
+.export-pagination { display: flex; align-items: center; gap: 12px; margin: 16px 0; font-size: 13px; }
+.export-hint { font-size: 12px; color: var(--el-text-color-secondary); line-height: 1.7; }
+.export-fixed-inputs { padding: 12px; margin: 12px 0; border: 1px solid var(--el-border-color-light); border-radius: 8px; }
+summary { cursor: pointer; }
+.export-validation { padding: 16px 24px; }
+h5 { font-size: 14px; margin: 0 0 12px; }
+dl { display: grid; grid-template-columns: 130px minmax(0, 1fr); gap: 10px; font-size: 12px; }
+dt { color: var(--el-text-color-secondary); }
+dd { margin: 0; overflow-wrap: anywhere; }
+.verified-nodes { max-height: 240px; overflow: auto; font-size: 12px; line-height: 1.8; overflow-wrap: anywhere; }
+</style>

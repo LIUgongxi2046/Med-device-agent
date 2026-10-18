@@ -1,0 +1,76 @@
+openapi: 3.1.0
+info:
+  title: 固定文稿标注人工重新定位扩展
+  version: 1.0.0
+  description: >-
+    IMP-23 / RV-06 additive extension. Human-confirmed reanchor always returns OPEN (user-approved 2026-10-18).
+    Original annotation fields and migration058 decision foreign keys remain immutable. No automatic text matching, confirmation, or signature.
+jsonSchemaDialect: https://json-schema.org/draft/2020-12/schema
+security: [{Session: []}]
+components:
+  securitySchemes:
+    Session: {type: apiKey, in: cookie, name: SESSION}
+  parameters:
+    Id: &id {name: id, in: path, required: true, schema: {$ref: '../business/medical-persistence/src/main/resources/annotation-anchors.schema.json#/$defs/Id'}}
+    Version: &version {name: X-Schema-Version, in: header, required: true, schema: {const: 1.0.0}}
+    Context: &context {name: X-Context-Revision, in: header, required: true, schema: {$ref: '../business/medical-persistence/src/main/resources/annotation-anchors.schema.json#/$defs/Revision'}}
+    Idempotency: &idem {name: Idempotency-Key, in: header, required: true, schema: {type: string, minLength: 16, maxLength: 128, pattern: '^[\x21-\x7e]+$'}}
+    CSRF: &csrf {name: X-CSRF-Token, in: header, required: true, schema: {type: string, minLength: 1}}
+  responses:
+    Error: &error
+      description: Identity, permission, source, context, fixed-version, CAS, capacity or integrity rejection without private content.
+      content: {application/json: {schema: {$ref: './interfaces.schema.yaml#/$defs/Error'}}}
+paths:
+  /api/documents/{id}/annotation-anchors:
+    get:
+      operationId: listDocumentAnnotationAnchorsV1
+      description: >-
+        annotation.read / DOCUMENT_REVIEW. Fully verifies original and effective fixed bodies and actual immutable Selection objects.
+        Current document includes every original thread, including REANCHOR_REQUIRED old positions; no old Selection is tested against the new body.
+        Historical views show only matching origin/effective positions, with explicit ORIGINAL_VERSION labels.
+        All items retain the original annotation separately from effective_anchor. Maximum100 document-wide annotations, complete=true, no truncation.
+      parameters:
+        - *id
+        - *version
+        - *context
+        - {name: document_revision, in: query, required: true, schema: {$ref: '../business/medical-persistence/src/main/resources/annotation-anchors.schema.json#/$defs/Id'}}
+      responses:
+        '200':
+          description: Envelope.resource_revision is document head CAS, data is Listing.
+          content: {application/json: {schema: {allOf: [{$ref: './interfaces.schema.yaml#/$defs/Envelope'}, {properties: {data: {$ref: '../business/medical-persistence/src/main/resources/annotation-anchors.schema.json#/$defs/Listing'}}}]}}}
+        default: *error
+  /api/annotation-threads/{id}/anchors:
+    get:
+      operationId: readAnnotationAnchorHistoryV1
+      description: >-
+        Complete immutable anchor history with original/source authorizations and actual byte verification for every fixed version.
+        lifecycle covers every revision after OPEN@1, including unchanged-status replies, decisions, invalidations and human reanchors.
+        Anchor identity chain, revision chain, document ownership and current pointer must all agree. No silently omitted events.
+      parameters: [*id, *version, *context]
+      responses:
+        '200':
+          description: Envelope.resource_revision is annotation CAS; data is History.
+          content: {application/json: {schema: {allOf: [{$ref: './interfaces.schema.yaml#/$defs/Envelope'}, {properties: {data: {$ref: '../business/medical-persistence/src/main/resources/annotation-anchors.schema.json#/$defs/History'}}}]}}}
+        default: *error
+  /api/annotation-threads/{id}/reanchors:
+    post:
+      operationId: reanchorAnnotationV1
+      description: >-
+        review.decide / DOCUMENT_REVIEW. Only REANCHOR_REQUIRED on an ACTIVE project to the current unsigned saved fixed body.
+        Explicit human_confirmed=true and unchanged nonblank reason are required. Selection uses the published genuine TEXT/IMAGE/TABLE semantics.
+        CAS compares annotation revision, document head revision, effective anchor identity/pointer revision, body/source proofs and reply count.
+        Durable write intent precedes actual immutable Selection object write/readback and registration/dependencies verification.
+        Atomic commit appends anchor+transition, advances pointer/annotation/head/issue watermarks, preserves evidence watermark and invalidates full-document confirmations.
+        Status always becomes OPEN. Original annotation body/node/Selection/quote/artifact and all original decision FKs remain unchanged.
+        Same key/request reauthenticates origin, old and new historical anchors plus current effective source, then returns exact original201 receipt despite later replies/decisions/reanchors.
+        Different request hash conflicts. Unknown outcome must retain original key and exact request. No new writes on completed replay.
+        Maximum1MiB request, 64KiB reserved canonical anchor, 100 anchors per thread and 10000 lifecycle events; complete responses bounded16MiB.
+      parameters: [*id, *version, *context, *idem, *csrf]
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: '../business/medical-persistence/src/main/resources/annotation-anchors.schema.json#/$defs/Create'}}}
+      responses:
+        '201':
+          description: Durable original receipt with hashes, original OPEN state and revisions; replay uses same request_id and operation_id.
+          content: {application/json: {schema: {allOf: [{$ref: './interfaces.schema.yaml#/$defs/Envelope'}, {properties: {data: {$ref: '../business/medical-persistence/src/main/resources/annotation-anchors.schema.json#/$defs/Receipt'}}}]}}}
+        default: *error

@@ -40,7 +40,7 @@ def main():
     temporary = ROOT / '.implementation-work/source-rights-tmp'
     temporary.mkdir(parents=True, exist_ok=True)
     inputs = {ROOT / name for name in ('scripts/check_source_rights_frontend.py', 'scripts/check_local_browser.py',
-        'business/pom.xml', 'business/ruoyi-admin/pom.xml', 'business/medical-persistence/pom.xml', 'contracts/catalogue.json')}
+        'business/pom.xml', 'business/ruoyi-admin/pom.xml', 'business/medical-persistence/pom.xml', 'contracts/catalogue.json', 'contracts/extensions/evaluation-results.catalogue.json', 'business/medical-persistence/src/main/resources/evaluation-results.schema.json')}
     inputs.add(CAPTURE)
     inputs.add(ROOT / 'scripts/prepare_source_exact_simulation.py')
     for directory in ('document/src', 'contracts/python/src'):

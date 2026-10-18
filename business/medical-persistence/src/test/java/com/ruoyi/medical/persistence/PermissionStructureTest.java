@@ -45,15 +45,26 @@ class PermissionStructureTest {
         assertFalse(statement.isUseCache()); assertTrue(statement.isFlushCacheRequired());
         for (String kind : List.of("ENTERPRISE", "PROJECT", "MEMBER", "SOURCE", "TASK", "DOCUMENT", "ARTIFACT", "CONFIGURATION", "TEMPLATE", "RULE", "BUDGET", "EVALUATION", "AUDIT", "REPORT")) {
             Map<String, Object> parameters = new HashMap<>(); parameters.put("kind", kind); parameters.put("resourceId", null);
-            var select = assertInstanceOf(PlainSelect.class, CCJSqlParserUtil.parse(statement.getBoundSql(parameters).getSql()));
-            assertNotNull(select.getFromItem()); queries.put(kind, statement.getBoundSql(parameters).getSql());
+            var parsed = CCJSqlParserUtil.parse(statement.getBoundSql(parameters).getSql());
+            if ("CONFIGURATION".equals(kind)) {
+                var union=assertInstanceOf(net.sf.jsqlparser.statement.select.SetOperationList.class,parsed);
+                assertEquals(2,union.getSelects().size());
+                var tables=new java.util.HashSet<String>();
+                for(var branch:union.getSelects()) {
+                    var select=assertInstanceOf(PlainSelect.class,branch);
+                    tables.add(assertInstanceOf(net.sf.jsqlparser.schema.Table.class,select.getFromItem()).getName());
+                    assertNotNull(select.getWhere());
+                }
+                assertEquals(java.util.Set.of("configuration_head","agent_execution_policy_version"),tables);
+            } else assertNotNull(assertInstanceOf(PlainSelect.class,parsed).getFromItem());
+            queries.put(kind, statement.getBoundSql(parameters).getSql());
         }
         var epoch = configuration.getMappedStatement("com.ruoyi.medical.persistence.mapper.PermissionMapper.advanceAuthEpoch");
         var update = assertInstanceOf(Update.class, CCJSqlParserUtil.parse(epoch.getBoundSql(Map.of("epoch", "0")).getSql()));
         assertNotNull(update.getWhere()); queries.put("AUTH_EPOCH", epoch.getBoundSql(Map.of("epoch", "0")).getSql());
         Path output = root.resolve(".implementation-work/permission-query-columns.json");
         Files.write(output, new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsBytes(queries));
-        var process = new ProcessBuilder(root.resolve(".lld-data-work/venv/bin/python").toString(),
+        var process = new ProcessBuilder(System.getProperty("medical.test.python", root.resolve(".lld-data-work/venv/bin/python").toString()),
                 root.resolve("tests/check_permission_sql_columns.py").toString(), output.toString()).directory(root.toFile()).inheritIO().start();
         assertEquals(0, process.waitFor());
     }

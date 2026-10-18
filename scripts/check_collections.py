@@ -24,7 +24,7 @@ def main():
     environment.update({"JAVA_HOME": str(tools / "jdk-17.0.20.1+1/Contents/Home"), "TMPDIR": str(temporary),
                         "MAVEN_OPTS": "-Dfile.encoding=UTF-8 -Djava.io.tmpdir=" + str(temporary)})
     inputs = ["scripts/check_collections.py", "business/pom.xml", "business/medical-persistence/pom.xml",
-              "contracts/catalogue.json", "LLD-后端.md", "backend-design/接口补充设计.md", ".implementation-work/runtime/service-identity.json"]
+              "contracts/catalogue.json", "contracts/extensions/evaluation-results.catalogue.json", "business/medical-persistence/src/main/resources/evaluation-results.schema.json", "LLD-后端.md", "backend-design/接口补充设计.md", ".implementation-work/runtime/service-identity.json"]
     for directory in ("business/medical-contracts/src", "business/medical-persistence/src", "business/medical-data/src"):
         inputs.extend(str(path.relative_to(ROOT)) for path in sorted((ROOT / directory).rglob("*")) if path.is_file())
     check_id = "IC-10-COLLECTION"

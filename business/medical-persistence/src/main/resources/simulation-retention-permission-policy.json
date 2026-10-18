@@ -1,0 +1,11 @@
+{
+  "schema_version": "1.0.0",
+  "registration_id": "SIMULATION_RETENTION_CONFIGURATION_V1",
+  "action": "model.simulation.retention.configure",
+  "purpose": "SIMULATION_EVALUATION",
+  "resource_kinds": ["EVALUATION"],
+  "bounded_fields": ["retain_until", "maximum_record_bytes"],
+  "grants_created": false,
+  "authorizes_execution": false,
+  "financial_budget_approval": false
+}

@@ -1,0 +1,11 @@
+{
+  "fixture_only": true,
+  "external_network_sent": false,
+  "transport": "actual OpenAI SDK over httpx2.MockTransport",
+  "files": {
+    "actual-sdk-capture.json": "80729b46d6fb71a525020d7ac998bbdefec68f5312d21dc4ab831c9627030053",
+    "approved-provider-body.json": "10f29fa9d6680f00a5667c3f82949091bbee68ea7e1079ec06141f345415e103",
+    "actual-sdk-request-body.json": "c0b8eecfdba8c6b8c1bda780b96dab991cdb4dcf8036a84f5ebfa69da83db784",
+    "actual-sdk-model-result.json": "4aa90269c5c6e86ecfc194cbe5a9dc3aeec88998b52c7b563856c4d78a5a91dc"
+  }
+}

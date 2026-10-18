@@ -1,5 +1,9 @@
 # 开发记录索引
 
+2026-10-18 重新定位和旧数据兼容切片：见[正常生命周期](IMP-23-REANCHOR-PLAN.md)、[重新定位前端](IMP-23-REANCHOR-FRONTEND.md)、[旧数据显式核对](IMP-23-LEGACY-ANCHOR-RECONCILIATION-IMPLEMENTATION.md)及[对应前端](IMP-23-LEGACY-ANCHOR-RECONCILIATION-FRONTEND.md)。最终55套376项Java组合测试及12模块package通过；前端15+20+9+9组检查、类型和构建通过，全部为离线/替身范围，非真实数据库或浏览器验收。
+
+2026-10-18 当前续接状态与可恢复源码检查点以[本轮开发记录](../接管开发记录-2026-10-18.md)为准。新增[人工解决/重开批注](../annotation-decisions-implementation.md)及[对应前端](IMP-23-ANNOTATION-DECISIONS-FRONTEND.md)、模拟配置与前端、评测前端、模拟执行/控制纯组件、Selection语义、[批注创建与列表](IMP-23-ANNOTATION-THREADS.md)、[批注回复](IMP-23-ANNOTATION-REPLIES.md)和[批注前端](IMP-23-ANNOTATION-FRONTEND.md)已分别记录离线验证。真实数据库、对象服务、HTTP及浏览器联调仍BLOCKED/NOT_RUN；下面历史运行记录不代表当前工作区服务可用，也不改变原任务验收状态。
+
 2026-10-16 FRONT-HANDOFF-20261016、[前端开发交接](../前端开发交接.md)维护接收范围、源码与接口、完整剩余任务、环境与复验入口、原始证据适用性及待批准的数据清理。关联IMP-04/05/08/09/10/11/16/36/37/40/41/42。当前只读核查确认EXACT-RECOVERY-10登记文件保持一致；BROWSER-31原始50项浏览器通过保留，当前Chrome两项文件身份变化，浏览器组合适用性为STALE，继续使用当前工具复验。功能任务状态仍按原计划维护。
 
 2026-10-16后端接续资料读取[后端开发交接文档](../后端开发交接文档.md)，包含全部后端责任、当前源码与登记制品关系、历史证据、证书期限、环境及继续开发入口；任务状态仍由实施任务计划维护。
@@ -344,3 +348,22 @@ IMP-04的邀请保存检索字段为BACK-MEMBER-INVITATION-01、member_invitatio
 IMP-04的企业权限决定检索字段为BACK-PERMISSION-01、ID-09、EnterpriseAccess、PermissionProtocol、PermissionSchema、PermissionAuthority、PermissionDecisionService、PermissionDecisionController、PermissionMapper、permission-decisions.schema.json、GRANT、REVOKE、DISABLE_MEMBER、PERMISSION_ADMINISTRATION、check_permission_decision、IC-04-PERMISSION、PermissionStructureTest、check_permission_sql_columns；沿用当前主记录，关联IMP-01/03/05/06及ID-07/08。
 
 IMP-04的邀请服务检索字段为BACK-INVITATION-SERVICE-01、ID-07/08、MemberInvitationService、MemberInvitationController、InvitationAccess、InvitationMapper、InvitationSchema、InvitationProtocol、InvitationResponseCipher、InvitationSecurityTest、INVITATION_ADMINISTRATION、enterprise_role_version、019-enterprise-role-version.sql、member-invitations.schema.json、invitation_secret、check_member_invitation_flow、IC-04-INVITATION-FLOW、check_invitation_sql_columns；沿用当前主记录，关联IMP-01/02/03/05/06。
+
+## 2026-10-18 前端优先增量与发布安排
+
+- [当前前端剩余清单](../frontend/remaining-frontend-20261018.md)：按真实Controller区分可立即消费、待联调和后端缺口；不替代42项主工单状态。
+- [工作台与访问恢复](../frontend/workbench-access-acceptance.md)：S01/S17，权限与异步竞态复核。
+- [上传队列与逐文件操作](../FE-08-upload-workspace-2026-10-18.md)：真实上传/恢复及逐文件确认。
+- [首次任务启动](FRONT-RUN-CREATE-01.md)：RN-01、固定计划/快照、实际预算及未知结果恢复。
+- [指定时间main提交预检](SCHEDULED-MAIN-PUBLISH-20261019.md)：北京时间2026-10-19 06:30，尚未执行提交或推送。
+- [当日整合开发记录](../接管开发记录-2026-10-18.md)：验证范围、恢复包和环境阻塞。
+
+- [SIM输入制品登记063](SIMULATION-INPUT-ARTIFACT-063.md)：固定ObjectRef/raw SHA、当前授权与原请求。
+- [SIM规则独立流程064](SIMULATION-RULE-WORKFLOW-01.md)：不可变用途binding、批准证据和legacy隔离。
+- [评测依赖用途集成方案](SIMULATION-DEPENDENCY-USE-PLAN.md)：方案与当日整合记录联合阅读，不以早期计划替代当前实现证据。
+
+第十三阶段增量：真实原请求lookup与跨scope输入登记见 [SIMULATION-INPUT-ARTIFACT-063.md](SIMULATION-INPUT-ARTIFACT-063.md)；企业评测材料见 [SIMULATION-EVALUATION-PREPARATION-01.md](SIMULATION-EVALUATION-PREPARATION-01.md)；SIM规则界面见 [FRONT-SIMULATION-RULE-MANAGEMENT-01.md](FRONT-SIMULATION-RULE-MANAGEMENT-01.md)；[授权用途见证](../backend/simulation-authorized-use-evidence-20261018.md)、[准备页面](../frontend/simulation-preparation-20261018.md)、[企业上传](../frontend/enterprise-source-upload-20261018.md)记录独立边界。整体仍为部分开发检查点，不是全部功能/端到端验收通过。
+
+第十四阶段：固定文稿记录见 [GRU-RECORD-ONLY-01.md](GRU-RECORD-ONLY-01.md)、[本地合同复核](GRU-RECORD-ONLY-CONTRACT-REVIEW.md)、[066迁移验证](GRU-066-MIGRATION-VALIDATION.md) 和 [Gru前端](../frontend/gru-records-20261018.md)；历史结果当前用途见 [SIM结果legal-use](../backend/simulation-result-current-legal-use-20261018.md)。这些是局部功能及离线验证，不是完整Gru模型执行或全项目验收。
+
+后续正式增量： [073正式能力草稿](FORMAL-CAPABILITY-AUTHORING-073.md)、[074保存策略](RUNTIME-RETENTION-074.md)、[供应商原始响应捕获](PROVIDER-RESPONSE-CAPTURE-01.md)。完整42项差距以 [真实剩余清单](REMAINING-FUNCTIONS-20261018.md) 为准，不以测试数量替代业务完成判断。

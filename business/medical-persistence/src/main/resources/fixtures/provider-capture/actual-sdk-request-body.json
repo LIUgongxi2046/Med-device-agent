@@ -1,0 +1,1 @@
+{"model":"deepseek-chat","stream":true,"messages":[{"role":"user","content":"测试输入"}],"max_tokens":16,"reasoning_effort":"none","stream_options":{"include_usage":true}}

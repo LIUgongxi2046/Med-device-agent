@@ -64,4 +64,39 @@
     <include file="db/migration/051-source-index-build.sql" relativeToChangelogFile="false"/>
     <include file="db/migration/052-source-exact-fields.sql" relativeToChangelogFile="false"/>
     <include file="db/migration/053-run-token-authority.sql" relativeToChangelogFile="false"/>
+    <include file="db/migration/054-model-configuration-definition.sql" relativeToChangelogFile="false"/>
+    <include file="db/migration/055-rule-version-workflow.sql" relativeToChangelogFile="false"/>
+    <include file="db/migration/056-evaluation-results.sql" relativeToChangelogFile="false"/>
+    <include file="db/migration/057-simulation-model-configuration.sql" relativeToChangelogFile="false"/>
+    <include file="db/migration/058-annotation-decisions.sql" relativeToChangelogFile="false"/>
+    <include file="db/migration/059-annotation-anchor-lifecycle.sql" relativeToChangelogFile="false"/>
+    <include file="db/migration/060-simulation-invocation-ledger.sql" relativeToChangelogFile="false"/>
+    <include file="db/migration/061-simulation-evaluation-job.sql" relativeToChangelogFile="false"/>
+    <include file="db/migration/062-simulation-result-settlement.sql" relativeToChangelogFile="false"/>
+    <include file="db/migration/063-simulation-input-artifact.sql" relativeToChangelogFile="false"/>
+    <include file="db/migration/064-simulation-rule-binding.sql" relativeToChangelogFile="false"/>
+    <include file="db/migration/065-simulation-evaluation-preparation.sql" relativeToChangelogFile="false"/>
+    <include file="db/migration/066-gru-records.sql" relativeToChangelogFile="false"/>
+    <include file="db/migration/067-document-review-return.sql" relativeToChangelogFile="false"/>
+    <include file="db/migration/068-document-technical-check.sql" relativeToChangelogFile="false"/>
+    <include file="db/migration/069-document-comparison.sql" relativeToChangelogFile="false"/>
+    <include file="db/migration/070-gru-record-export.sql" relativeToChangelogFile="false"/>
+    <include file="db/migration/071-document-technical-check-recovery.sql" relativeToChangelogFile="false"/>
+    <include file="db/migration/072-business-audit-read-index.sql" relativeToChangelogFile="false"/>
+    <include file="db/migration/073-agent-publication.sql" relativeToChangelogFile="false"/>
+    <include file="db/migration/074-runtime-retention.sql" relativeToChangelogFile="false"/>
+    <include file="db/migration/075-persistent-run-runtime.sql" relativeToChangelogFile="false"/>
+    <include file="db/migration/076-formal-model-invocation.sql" relativeToChangelogFile="false"/>
+    <include file="db/migration/077-model-eligibility-connection.sql" relativeToChangelogFile="false"/>
+    <include file="db/migration/078-agent-execution-policy.sql" relativeToChangelogFile="false"/>
+    <include file="db/migration/079-formal-evaluation-input.sql" relativeToChangelogFile="false"/>
+    <include file="db/migration/080-agent-publication.sql" relativeToChangelogFile="false"/>
+    <include file="db/migration/081-expert-qualification.sql" relativeToChangelogFile="false"/>
+    <include file="db/migration/082-formal-capability-cancellation.sql" relativeToChangelogFile="false"/>
+    <include file="db/migration/083-formal-evaluation-runtime.sql" relativeToChangelogFile="false"/>
+    <include file="db/migration/084-formal-evaluation-policy.sql" relativeToChangelogFile="false"/>
+    <include file="db/migration/085-model-verification-input.sql" relativeToChangelogFile="false"/>
+    <include file="db/migration/086-agent-publication-lifecycle.sql" relativeToChangelogFile="false"/>
+    <include file="db/migration/087-model-enablement-policy-preparation.sql" relativeToChangelogFile="false"/>
+    <include file="db/migration/088-formal-evaluation-context.sql" relativeToChangelogFile="false"/>
 </databaseChangeLog>

@@ -21,7 +21,7 @@ def main():
     if Path(args.execution).name != args.execution or args.execution in (".", ".."):
         raise ValueError("执行身份必须使用单一目录名称")
     output = ROOT / ".implementation-work" / ("IC-12-SNAPSHOT-" + args.execution)
-    inputs = {ROOT / "scripts/check_scope_snapshot.py", ROOT / "business/pom.xml", ROOT / "contracts/catalogue.json",
+    inputs = {ROOT / "scripts/check_scope_snapshot.py", ROOT / "business/pom.xml", ROOT / "contracts/catalogue.json", ROOT / "contracts/extensions/evaluation-results.catalogue.json", ROOT / "business/medical-persistence/src/main/resources/evaluation-results.schema.json",
         ROOT / "data-design/core.sql", ROOT / "docs/development/IMP-12.md"}
     for module in ("medical-contracts", "medical-data", "ruoyi-common", "ruoyi-system", "ruoyi-framework", "medical-identity", "medical-persistence"):
         inputs.add(ROOT / "business" / module / "pom.xml")

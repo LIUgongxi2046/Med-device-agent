@@ -1,0 +1,32 @@
+--liquibase formatted sql
+--changeset medical-agent:065-01-simulation-evaluation-preparation dbms:mysql runInTransaction:false failOnError:true
+CREATE TABLE simulation_evaluation_preparation (
+ tenant_id CHAR(36) CHARACTER SET ascii NOT NULL,
+ artifact_id CHAR(36) CHARACTER SET ascii NOT NULL,
+ kind VARCHAR(32) CHARACTER SET ascii NOT NULL,
+ source_version CHAR(36) CHARACTER SET ascii NOT NULL,
+ rights_revision CHAR(36) CHARACTER SET ascii NOT NULL,
+ canonical_document LONGTEXT NOT NULL,
+ document_sha256 CHAR(64) CHARACTER SET ascii NOT NULL,
+ canonical_request_json LONGTEXT NOT NULL,
+ request_body_sha256 CHAR(64) CHARACTER SET ascii NOT NULL,
+ operation_request_sha256 CHAR(64) CHARACTER SET ascii NOT NULL,
+ receipt_json LONGTEXT NOT NULL,
+ operation_id CHAR(36) CHARACTER SET ascii NOT NULL,
+ schema_version VARCHAR(32) NOT NULL,
+ schema_manifest_sha256 CHAR(64) CHARACTER SET ascii NOT NULL,
+ created_by CHAR(36) CHARACTER SET ascii NOT NULL,
+ created_at DATETIME(6) NOT NULL,
+ classification VARCHAR(24) NOT NULL,
+ PRIMARY KEY(tenant_id,artifact_id),
+ UNIQUE KEY uq_sim_preparation_operation(tenant_id,operation_id),
+ FOREIGN KEY(tenant_id,artifact_id) REFERENCES artifact(tenant_id,artifact_id),
+ FOREIGN KEY(tenant_id,source_version) REFERENCES source_version(tenant_id,source_version),
+ FOREIGN KEY(tenant_id,source_version,rights_revision) REFERENCES rights_revision(tenant_id,source_version,rights_revision),
+ FOREIGN KEY(tenant_id,created_by) REFERENCES tenant_member(tenant_id,user_id),
+ CHECK(schema_version='1.0.0'),
+ CHECK(kind IN ('EXPECTED_ITEMS','SAMPLE_MANIFEST','AUTHORIZED_USE_EVIDENCE')),
+ CHECK(classification IN ('PUBLIC','INTERNAL','RESTRICTED','PERSONAL_HEALTH')),
+ CHECK(JSON_VALID(canonical_document) AND JSON_VALID(canonical_request_json) AND JSON_VALID(receipt_json)),
+ CHECK(operation_request_sha256 REGEXP '^[a-f0-9]{64}$' AND document_sha256 REGEXP '^[a-f0-9]{64}$' AND request_body_sha256 REGEXP '^[a-f0-9]{64}$' AND schema_manifest_sha256 REGEXP '^[a-f0-9]{64}$')
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_as_cs;

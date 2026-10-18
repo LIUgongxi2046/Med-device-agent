@@ -50,7 +50,7 @@ def main():
     environment = os.environ.copy()
     environment.update({"PYTHONPATH": "" if args.installed else str(ROOT / "document/src"), "TMPDIR": str(temporary),
         "HF_HUB_OFFLINE": "1", "TRANSFORMERS_OFFLINE": "1", "HF_HOME": str(ROOT / ".implementation-work/document-model-cache")})
-    inputs = ["scripts/check_document_native.py", "tests/test_document_native.py", "document/pyproject.toml", "contracts/catalogue.json",
+    inputs = ["scripts/check_document_native.py", "tests/test_document_native.py", "document/pyproject.toml", "contracts/catalogue.json", "contracts/extensions/evaluation-results.catalogue.json", "business/medical-persistence/src/main/resources/evaluation-results.schema.json",
         "data-design/sample_dataset.json", "PRD.md", "HLD.md", "LLD-数据.md",
         "ui-delivery/assets/public-evidence/clinical-evaluation-2021.docx",
         "ui-delivery/assets/public-evidence/clinical-evaluation-2021.pdf",

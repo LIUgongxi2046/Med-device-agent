@@ -6,7 +6,7 @@
         <h1>医疗业务工作台</h1>
         <p>查看当前企业的待办事项、重点项目、任务进度和场景入口。</p>
       </div>
-      <el-button :loading="loading" :disabled="loading || !session?.current_context" @click="load">刷新工作台</el-button>
+      <el-button :loading="loading" :disabled="loading || !session?.current_context" @click="load()">刷新工作台</el-button>
     </header>
 
     <session-panel />
@@ -27,35 +27,52 @@
       <section class="workbench__section" aria-labelledby="today-title">
         <div class="section-heading">
           <div>
-            <h2 id="today-title">今日更新待办</h2>
-            <p>当前人员共有{{ workItems?.total ?? '0' }}项待处理事项，其中{{ todayItems.length }}项今天更新。</p>
+            <h2 id="today-title">我的待处理事项</h2>
+            <p>仅展示当前人员的待处理事项；每页最多 50 项，不限更新时间。</p>
           </div>
         </div>
-        <el-table v-if="todayItems.length" :data="todayItems" row-key="waiting_item_id" data-workbench-items>
+        <p v-if="!canReadWorkItems">当前账户没有待办读取许可。</p>
+        <el-alert v-else-if="errors.items" :title="errors.items" type="error" :closable="false" />
+        <p v-else-if="loading" role="status">正在读取待办</p>
+        <el-table v-else-if="workItems?.items.length" :data="workItems.items" row-key="waiting_item_id" data-workbench-items>
           <el-table-column prop="question" label="待办内容" min-width="300" />
           <el-table-column label="项目" min-width="180">
             <template #default="scope">
-              <router-link v-if="scope.row.project_id" :to="'/projects/' + scope.row.project_id">
+              <router-link v-if="scope.row.project_id && canReadProject(scope.row.project_id)" :to="'/projects/' + scope.row.project_id">
                 {{ projectName(scope.row.project_id) }}
               </router-link>
-              <span v-else>企业事项</span>
+              <span v-else>{{ scope.row.project_id ? '项目事项' : '企业事项' }}</span>
             </template>
           </el-table-column>
           <el-table-column label="原因" min-width="150"><template #default="scope">{{ reasonLabel(scope.row.reason_code) }}</template></el-table-column>
           <el-table-column label="更新时间" min-width="180"><template #default="scope">{{ formatTime(scope.row.updated_at) }}</template></el-table-column>
+          <el-table-column label="下一步" min-width="150"><template #default="scope">
+            <router-link v-if="scope.row.project_id && canReadTasks(scope.row.project_id)" :to="waitingTaskLocation(scope.row.project_id, scope.row.waiting_item_id, scope.row.run_id)">定位关联任务</router-link>
+            <span v-else>请联系企业管理员确认处理范围</span>
+          </template></el-table-column>
         </el-table>
-        <el-empty v-else description="今天没有新增或更新的待办事项" />
+        <el-empty v-else-if="workItems" description="本页没有待处理事项，可刷新首页核查最新队列" />
+        <div v-if="workItems" class="queue-footer">
+          <span>同范围共 {{ workItems.total }} 项；本页 {{ workItems.items.length }} 项</span>
+          <el-button :disabled="loading || !workItems.next_after" @click="load(workItems.next_after)">下一页待办</el-button>
+          <el-button :disabled="loading" @click="load()">回到首页</el-button>
+        </div>
       </section>
+
+      <document-revision-assignment-queue v-if="session?.current_context" :session="session" :active="routeActive" />
 
       <section class="workbench__section" aria-labelledby="project-title">
         <div class="section-heading">
           <div>
             <h2 id="project-title">重点项目</h2>
-            <p>按照最近更新时间展示当前获授权项目。</p>
+            <p>展示当前授权查询首批项目中最近更新的最多 6 个项目。</p>
           </div>
           <router-link to="/projects">查看全部项目</router-link>
         </div>
-        <el-row v-if="projectDetails.length" :gutter="16">
+        <p v-if="!canReadProjects">当前账户没有项目读取许可。</p>
+        <el-alert v-else-if="errors.projects" :title="errors.projects" type="error" :closable="false" />
+        <p v-else-if="loading" role="status">正在读取项目</p>
+        <el-row v-else-if="projectDetails.length" :gutter="16">
           <el-col v-for="project in projectDetails" :key="project.project_id" :xs="24" :md="12" :lg="8">
             <el-card shadow="hover" class="project-card">
               <template #header>
@@ -70,11 +87,29 @@
                 <div><dt>待办</dt><dd>{{ project.children.waiting_items ?? '未获准读取' }}</dd></div>
               </dl>
               <p>最近更新：{{ formatTime(project.updated_at) }}</p>
-              <router-link v-if="project.allowed_actions.includes('project.task.read')" :to="'/projects/' + project.project_id + '/tasks'">查看项目任务</router-link>
+              <router-link v-if="canReadTasks(project.project_id) && project.allowed_actions.includes('project.task.read')" :to="'/projects/' + project.project_id + '/tasks'">查看项目任务</router-link>
             </el-card>
           </el-col>
         </el-row>
-        <el-empty v-else description="当前授权范围没有可展示项目" />
+        <el-empty v-else-if="projects" description="当前授权范围没有可展示项目" />
+      </section>
+
+      <section class="workbench__section" aria-labelledby="tasks-title">
+        <div class="section-heading"><div><h2 id="tasks-title">项目任务进度</h2><p>选择一个获授权项目，查看最近更新的 5 项任务。状态来自实际任务响应。</p></div></div>
+        <el-select v-model="selectedProject" aria-label="选择任务预览项目" placeholder="选择项目" :disabled="loading || taskProjects.length === 0" clearable>
+          <el-option v-for="project in taskProjects" :key="project.project_id" :value="project.project_id" :label="project.name" />
+        </el-select>
+        <p v-if="!selectedProject">{{ taskProjects.length ? '请选择项目后读取任务。' : '当前首批项目没有可读取的任务范围。' }}</p>
+        <p v-else-if="tasksLoading" role="status">正在读取所选项目任务</p>
+        <el-alert v-else-if="taskError" :title="taskError" type="error" :closable="false"><el-button @click="loadTasks">重试任务读取</el-button></el-alert>
+        <template v-else-if="tasks">
+          <el-table :data="tasks.items" row-key="detail.task_id" empty-text="所选项目还没有任务">
+            <el-table-column prop="goal" label="任务目标" min-width="220" />
+            <el-table-column label="状态" min-width="140"><template #default="scope">{{ taskStatusLabels[scope.row.detail.status] }}</template></el-table-column>
+            <el-table-column label="下一步" min-width="140"><template #default="scope"><router-link v-if="taskReadAllowed(session, selectedProject, scope.row.detail.task_id)" :to="'/projects/' + selectedProject + '/tasks/' + scope.row.detail.task_id + '/config'">查看任务与处理入口</router-link><span v-else>当前没有任务详情读取许可</span></template></el-table-column>
+          </el-table>
+          <p>所选项目共 {{ tasks.page_info.total }} 项任务；<router-link :to="'/projects/' + selectedProject + '/tasks'">查看全部任务</router-link></p>
+        </template>
       </section>
 
       <section class="workbench__section" aria-labelledby="scenario-title">
@@ -85,6 +120,7 @@
           </div>
           <router-link to="/scenarios">查看场景目录</router-link>
         </div>
+        <el-alert v-if="errors.scenarios" :title="errors.scenarios" type="error" :closable="false" />
         <el-row :gutter="16">
           <el-col v-for="scenario in scenarioEntries" :key="scenario.id" :xs="24" :sm="12" :lg="8">
             <el-card shadow="never" class="scenario-card">
@@ -105,19 +141,26 @@
 <script setup lang="ts" name="Index">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import useUserStore from '@/store/modules/user'
-import { listProjects, listWorkItems, readProject } from '@/api/medical/projects'
-import type { Project, WorkItem, WorkItemListing } from '@/api/medical/projects'
+import { listProjects, listWorkItems } from '@/api/medical/projects'
+import type { WorkItemListing } from '@/api/medical/projects'
 import { listScenarios } from '@/api/medical/scenarios'
 import type { PlannedScenario, ScenarioPage } from '@/api/medical/scenarios'
-import type { Listing, MedicalSession } from '@/api/medical/protocol'
+import type { Listing, MedicalSession, Project } from '@/api/medical/protocol'
 import { projectActionAllowed } from '@/api/medical/project-write'
+import { listTasks, taskStatusLabels } from '@/api/medical/tasks'
+import { taskReadAllowed } from '@/api/medical/task-detail'
+import { useMedicalRouteRead } from '@/api/medical/route-read'
+import type { TaskPage } from '@/api/medical/tasks'
+import { workbenchCount, recentWorkbenchProjects } from '@/utils/medical-workbench'
+import { waitingTaskLocation } from '@/utils/medical-task-context'
+import DocumentRevisionAssignmentQueue from '@/views/medical/document-revision-assignment-queue.vue'
 import SessionPanel from '@/views/medical/session-panel.vue'
 
 const user = useUserStore()
 const session = computed<MedicalSession | null>(() => user.medicalSession)
 const loading = ref(false)
 const projects = ref<Listing | null>(null)
-const projectDetails = ref<Project[]>([])
+const projectDetails = computed(() => recentWorkbenchProjects(projects.value?.projects ?? []))
 const workItems = ref<WorkItemListing | null>(null)
 const scenarios = ref<ScenarioPage | null>(null)
 const projectStatuses: Record<Project['status'], string> = { PENDING: '建档待确认', ACTIVE: '使用中', PAUSED: '已暂停', ARCHIVED: '已归档' }
@@ -128,19 +171,24 @@ const reasonLabels: Record<string, string> = {
 
 let generation = 0
 let controller: AbortController | null = null
+let queueSession: MedicalSession | null = null
 
-const todayItems = computed<WorkItem[]>(() => {
-  const now = new Date()
-  return (workItems.value?.items ?? []).filter(item => {
-    const updated = new Date(item.updated_at)
-    return updated.getFullYear() === now.getFullYear() && updated.getMonth() === now.getMonth() && updated.getDate() === now.getDate()
-  })
-})
+const errors = ref({ projects: '', items: '', scenarios: '' })
+const canReadProjects = computed(() => projectActionAllowed(session.value, 'project.read'))
+const canReadWorkItems = computed(() => projectActionAllowed(session.value, 'work_item.read'))
+const canReadProject = (id: string) => projectActionAllowed(session.value, 'project.read', id)
+const canReadTasks = (id: string) => projectActionAllowed(session.value, 'project.task.read', id)
+const selectedProject = ref('')
+const tasks = ref<TaskPage | null>(null)
+const tasksLoading = ref(false)
+const taskError = ref('')
+let taskController: AbortController | null = null
+const taskProjects = computed(() => (projects.value?.projects ?? []).filter(project => canReadTasks(project.project_id) && project.allowed_actions.includes('project.task.read')))
 const metrics = computed(() => [
-  { label: '获授权项目', value: projects.value?.total ?? '0' },
-  { label: '当前人员待办', value: workItems.value?.total ?? '0' },
-  { label: '重点项目任务', value: sumProjectCount('tasks') },
-  { label: '重点项目运行中', value: sumProjectCount('active_runs') }
+  { label: '获授权项目', value: projects.value?.total ?? '未读取' },
+  { label: '我的待处理事项', value: workItems.value?.total ?? '未读取' },
+  { label: '展示项目任务数', value: projects.value ? workbenchCount(projectDetails.value, 'tasks') : '未读取' },
+  { label: '展示项目运行数', value: projects.value ? workbenchCount(projectDetails.value, 'active_runs') : '未读取' }
 ])
 const scenarioEntries = computed(() => {
   const primary = { id: 'registration-dossier', name: '注册申报资料', purpose: '创建项目任务，组织核准资料并形成注册申报文稿。', path: '/projects', available: true }
@@ -150,16 +198,8 @@ const scenarioEntries = computed(() => {
   return [primary, ...planned]
 })
 
-function sumProjectCount(field: keyof Project['children']): string {
-  let total = 0n
-  for (const project of projectDetails.value) {
-    const value = project.children[field]
-    if (value !== null) total += BigInt(value)
-  }
-  return total.toString()
-}
 function projectName(projectId: string): string {
-  return projectDetails.value.find(project => project.project_id === projectId)?.name ?? projectId
+  return projectDetails.value.find(project => project.project_id === projectId)?.name ?? '查看关联项目'
 }
 function reasonLabel(reason: string): string { return reasonLabels[reason] ?? reason }
 function formatTime(value: string): string {
@@ -174,52 +214,70 @@ function clear(): void {
   controller = null
   loading.value = false
   projects.value = null
-  projectDetails.value = []
+  taskController?.abort()
+  taskController = null
+  selectedProject.value = ''
+  tasks.value = null
+  tasksLoading.value = false
+  taskError.value = ''
+  errors.value = { projects: '', items: '', scenarios: '' }
+  queueSession = null
   workItems.value = null
   scenarios.value = null
 }
-async function load(): Promise<void> {
-  clear()
+const routeActive = useMedicalRouteRead('Index', clear)
+async function load(after?: string | null): Promise<void> {
   const actual = session.value
-  if (!actual?.current_context || document.hidden) return
+  // A queued click must never carry a cursor across session changes or newer reads.
+  if (after && (loading.value || queueSession !== actual || workItems.value?.next_after !== after)) return
+  clear()
+  if (!actual?.current_context || !routeActive.value || document.hidden) return
   const currentGeneration = generation
   const reading = new AbortController()
   controller = reading
   loading.value = true
-  const canReadProjects = projectActionAllowed(actual, 'project.read')
-  const canReadWorkItems = projectActionAllowed(actual, 'work_item.read')
+  const current = () => routeActive.value && currentGeneration === generation && session.value === actual && !reading.signal.aborted && !document.hidden
+  async function section<T>(key: keyof typeof errors.value, fetch: () => Promise<T>, apply: (value: T) => void): Promise<void> {
+    try { const value = await fetch(); if (current()) apply(value) }
+    catch { if (current()) errors.value[key] = '读取未完成，可能是权限或连接已变化。请刷新工作台或重新核查会话。' }
+  }
   try {
-    const [projectListing, itemListing, scenarioPage] = await Promise.all([
-      canReadProjects ? listProjects(actual.current_context, {}, reading.signal) : Promise.resolve(null),
-      canReadWorkItems ? listWorkItems(actual, { limit: 50, status: 'WAITING_INPUT' }, reading.signal) : Promise.resolve(null),
-      listScenarios(actual, { limit: 50 }, null, reading.signal)
+    await Promise.all([
+      canReadProjects.value ? section('projects', () => listProjects(actual.current_context!, {}, reading.signal), value => { projects.value = value }) : Promise.resolve(),
+      canReadWorkItems.value ? section('items', () => listWorkItems(actual, { limit: 50, status: 'WAITING_INPUT', assignee_id: actual.user.user_id, ...(after ? { after } : {}) }, reading.signal), value => { workItems.value = value; queueSession = actual }) : Promise.resolve(),
+      section('scenarios', () => listScenarios(actual, { limit: 50 }, null, reading.signal), value => { scenarios.value = value })
     ])
-    const details = projectListing === null ? [] : await Promise.all(projectListing.projects.slice(0, 6)
-      .map(project => readProject(actual.current_context!, project.project_id, reading.signal)))
-    if (currentGeneration === generation && session.value === actual && !document.hidden) {
-      projects.value = projectListing
-      projectDetails.value = details
-      workItems.value = itemListing
-      scenarios.value = scenarioPage
-    }
   } finally {
-    if (currentGeneration === generation) {
-      loading.value = false
-      controller = null
-    }
+    if (currentGeneration === generation) { loading.value = false; controller = null }
   }
 }
+async function loadTasks(): Promise<void> {
+  taskController?.abort()
+  const reading = new AbortController(); taskController = reading
+  tasks.value = null; taskError.value = ''; tasksLoading.value = false
+  const actual = session.value, id = selectedProject.value
+  if (!actual?.current_context || !routeActive.value || !id || !taskProjects.value.some(project => project.project_id === id) || document.hidden) return
+  tasksLoading.value = true
+  const current = () => routeActive.value && taskController === reading && !reading.signal.aborted && session.value === actual && selectedProject.value === id && !document.hidden
+  try {
+    const page = await listTasks(actual, id, { page: 1, page_size: 5 }, null, reading.signal)
+    if (current()) tasks.value = page
+  } catch { if (current()) taskError.value = '任务读取未完成，请核查当前项目权限或重试。' }
+  finally { if (taskController === reading) tasksLoading.value = false }
+}
+watch(selectedProject, loadTasks)
 async function visibilityChanged(): Promise<void> {
   if (document.hidden) clear()
   else await load()
 }
 
-watch(session, load, { immediate: true })
+watch([session, routeActive], () => load(), { immediate: true, flush: 'sync' })
 onMounted(() => document.addEventListener('visibilitychange', visibilityChanged))
 onBeforeUnmount(() => { document.removeEventListener('visibilitychange', visibilityChanged); clear() })
 </script>
 
 <style scoped lang="scss">
+.queue-footer { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 12px; }
 .workbench {
   color: #263445;
 }

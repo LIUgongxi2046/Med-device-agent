@@ -1,0 +1,563 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:document-technical-check:1.0.0",
+  "$defs": {
+    "Id": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "Hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "Limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "maximum_nodes",
+        "maximum_table_cells",
+        "maximum_relationships"
+      ],
+      "properties": {
+        "maximum_nodes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2147483647
+        },
+        "maximum_table_cells": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2147483647
+        },
+        "maximum_relationships": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2147483647
+        }
+      }
+    },
+    "Input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "tenant_id",
+        "project_id",
+        "document_id",
+        "document_revision",
+        "body_sha256",
+        "baseline_sha256",
+        "body_schema_ref",
+        "body_schema_sha256",
+        "execution_manifest_id",
+        "check_kind",
+        "checker_id",
+        "limits"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "tenant_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "project_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "document_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "document_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "body_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "baseline_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "body_schema_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "body_schema_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "execution_manifest_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "check_kind": {
+          "const": "STRUCTURE_FIXED_REFERENCES"
+        },
+        "checker_id": {
+          "const": "urn:medical:document-technical-check:structure-fixed-references:1.0.0"
+        },
+        "limits": {
+          "$ref": "#/$defs/Limits"
+        }
+      }
+    },
+    "Coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "check_kind",
+        "selection_sha256",
+        "delivered_sha256",
+        "complete",
+        "next_cursor"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "check_kind": {
+          "const": "STRUCTURE_FIXED_REFERENCES"
+        },
+        "selection_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "delivered_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "complete": {
+          "const": true
+        },
+        "next_cursor": {
+          "type": "null"
+        }
+      }
+    },
+    "Finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "code",
+        "check_kind",
+        "message"
+      ],
+      "properties": {
+        "code": {
+          "const": "DOCUMENT_STRUCTURE_INVALID"
+        },
+        "check_kind": {
+          "const": "STRUCTURE_FIXED_REFERENCES"
+        },
+        "message": {
+          "const": "The fixed document failed structural or internal-reference validation."
+        }
+      }
+    },
+    "Result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "checker_id",
+        "check_kind",
+        "input",
+        "input_sha256",
+        "execution_status",
+        "technical_result",
+        "findings",
+        "coverage",
+        "professional_coverage",
+        "review_ready"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "checker_id": {
+          "const": "urn:medical:document-technical-check:structure-fixed-references:1.0.0"
+        },
+        "check_kind": {
+          "const": "STRUCTURE_FIXED_REFERENCES"
+        },
+        "input": {
+          "$ref": "#/$defs/Input"
+        },
+        "input_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "execution_status": {
+          "const": "COMPLETED"
+        },
+        "technical_result": {
+          "enum": [
+            "PASS",
+            "FAIL"
+          ]
+        },
+        "findings": {
+          "type": "array",
+          "maxItems": 1,
+          "items": {
+            "$ref": "#/$defs/Finding"
+          }
+        },
+        "coverage": {
+          "$ref": "#/$defs/Coverage"
+        },
+        "professional_coverage": {
+          "const": "UNKNOWN"
+        },
+        "review_ready": {
+          "const": false
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "technical_result": {
+                "const": "PASS"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "findings": {
+                "maxItems": 0
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "findings": {
+                "minItems": 1
+              }
+            }
+          }
+        }
+      ]
+    },
+    "Basis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version_id",
+        "content_sha256"
+      ],
+      "properties": {
+        "version_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "content_sha256": {
+          "$ref": "#/$defs/Hash"
+        }
+      }
+    },
+    "Request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "document_revision",
+        "expected_revision",
+        "reason"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "document_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "expected_revision": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]{0,19}$"
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+        }
+      }
+    },
+    "Receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "check_id",
+        "job_id",
+        "operation_id",
+        "document_id",
+        "document_revision",
+        "input_sha256",
+        "technical_execution",
+        "technical_result",
+        "coverage_artifact",
+        "findings_artifact",
+        "professional_coverage",
+        "overall_review_ready",
+        "request_body_sha256"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "check_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "job_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "operation_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "document_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "document_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "input_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "technical_execution": {
+          "const": "COMPLETE"
+        },
+        "technical_result": {
+          "enum": [
+            "PASS",
+            "FAIL"
+          ]
+        },
+        "coverage_artifact": {
+          "$ref": "#/$defs/Basis"
+        },
+        "findings_artifact": {
+          "$ref": "#/$defs/Basis"
+        },
+        "professional_coverage": {
+          "const": "UNKNOWN"
+        },
+        "overall_review_ready": {
+          "const": false
+        },
+        "request_body_sha256": {
+          "$ref": "#/$defs/Hash"
+        }
+      }
+    },
+    "Read": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "currentness",
+        "invalidation_reasons",
+        "receipt",
+        "result",
+        "coverage"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "currentness": {
+          "enum": [
+            "CURRENT",
+            "STALE"
+          ]
+        },
+        "invalidation_reasons": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Z0-9_]{0,127}$"
+          }
+        },
+        "receipt": {
+          "$ref": "#/$defs/Receipt"
+        },
+        "result": {
+          "$ref": "#/$defs/Result"
+        },
+        "coverage": {
+          "$ref": "#/$defs/Coverage"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "currentness": {
+                "const": "CURRENT"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "invalidation_reasons": {
+                "maxItems": 0
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "invalidation_reasons": {
+                "minItems": 1
+              }
+            }
+          }
+        }
+      ]
+    },
+    "ExecutionManifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "manifest_kind",
+        "checker_id",
+        "implementation_sha256",
+        "schema_manifest_sha256",
+        "limits"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "manifest_kind": {
+          "const": "TECHNICAL_CHECK_MANIFEST"
+        },
+        "checker_id": {
+          "const": "urn:medical:document-technical-check:structure-fixed-references:1.0.0"
+        },
+        "implementation_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "schema_manifest_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "limits": {
+          "$ref": "#/$defs/Limits"
+        }
+      }
+    },
+    "Recovery": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "state",
+        "request_body_sha256",
+        "check_id",
+        "receipt",
+        "execution_mode",
+        "overall_review_ready"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "state": {
+          "enum": [
+            "NOT_FOUND",
+            "PROCESSING",
+            "COMPLETED"
+          ]
+        },
+        "request_body_sha256": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Hash"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "check_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "receipt": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Receipt"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "execution_mode": {
+          "const": "SYNC_REQUEST"
+        },
+        "overall_review_ready": {
+          "const": false
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "const": "NOT_FOUND"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "request_body_sha256": {
+                "type": "null"
+              },
+              "check_id": {
+                "type": "null"
+              },
+              "receipt": {
+                "type": "null"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "request_body_sha256": {
+                "$ref": "#/$defs/Hash"
+              },
+              "check_id": {
+                "$ref": "#/$defs/Id"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "const": "COMPLETED"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "receipt": {
+                "$ref": "#/$defs/Receipt"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "receipt": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

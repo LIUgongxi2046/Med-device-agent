@@ -1,6 +1,7 @@
 <template>
-  <main class="medical-page">
-    <h1>上传项目资料</h1>
+  <main class="medical-page source-upload-workspace">
+    <h1>{{ enterpriseMode ? '上传企业资料' : '上传项目资料' }}</h1>
+    <p v-if="enterpriseMode">资料归属当前企业，此项目仅用于上传处理。</p>
     <session-panel />
     <router-link v-if="validProject" :to="'/projects/' + projectId">返回项目详情</router-link>
     <p v-if="!validProject" role="alert">项目标识未通过接口校验</p>
@@ -14,44 +15,57 @@
       <el-button :disabled="busy || user.medicalWriting || !items.some(item => item.confirmed && item.file)" @click="sendConfirmed">接收已确认文件</el-button>
       <el-button v-if="busy" @click="stop">停止发送</el-button>
       <p role="status">{{ notice }}</p>
-      <el-table :data="items" row-key="id" empty-text="尚未选择文件">
-        <el-table-column type="expand"><template #default="scope"><source-upload-result v-if="scope.row.result" :value="scope.row.result" /></template></el-table-column>
-        <el-table-column label="文件" min-width="240"><template #default="scope">{{ scope.row.body?.file_name ?? '待恢复原声明' }}<p>{{ scope.row.id }}</p></template></el-table-column>
-        <el-table-column label="文件大小" min-width="130"><template #default="scope">{{ scope.row.file?.size ?? scope.row.journal?.size_bytes }} 字节</template></el-table-column>
-        <el-table-column label="接收状态" min-width="150"><template #default="scope">{{ scope.row.state ? uploadStatusLabels[scope.row.state.registration.upload_status as keyof typeof uploadStatusLabels] : '尚未核查' }}</template></el-table-column>
-        <el-table-column label="传输状态" min-width="170"><template #default="scope">{{ scope.row.state ? transferStatusLabels[scope.row.state.registration.transfer_state as keyof typeof transferStatusLabels] : '尚未登记' }}</template></el-table-column>
-        <el-table-column label="接收进度" min-width="180"><template #default="scope">
-          <p>服务器确认：{{ scope.row.state ? scope.row.state.registration.received_size + ' 字节' : '尚未核查' }}</p><p>当前分段已发送：{{ scope.row.sent }} 字节</p>
-        </template></el-table-column>
-        <el-table-column label="操作结果" min-width="240"><template #default="scope">{{ scope.row.message }}</template></el-table-column>
-        <el-table-column label="解析状态" min-width="180"><template #default="scope">
-          <p v-for="review in scope.row.result?.source?.reviews" :key="review.parse_version + ':' + review.index_version">{{ review.parse_version }}：{{ parseStatusLabels[review.parse_status as keyof typeof parseStatusLabels] }}</p>
-          <span v-if="!scope.row.result?.source">尚未取得解析版本</span>
-        </template></el-table-column>
-        <el-table-column label="索引状态" min-width="180"><template #default="scope">
-          <p v-for="review in scope.row.result?.source?.reviews" :key="review.parse_version + ':' + review.index_version">{{ review.index_version ?? '尚未建立索引版本' }}：{{ review.index_status ?? '尚未取得索引状态' }}</p>
-          <span v-if="!scope.row.result?.source">尚未取得索引版本</span>
-        </template></el-table-column>
-        <el-table-column label="人工核准" min-width="180"><template #default="scope">
-          <p v-for="review in scope.row.result?.source?.reviews" :key="review.parse_version + ':' + review.index_version">{{ review.parse_version }}：{{ approvalStatusLabels[review.approval_status as keyof typeof approvalStatusLabels] }}</p>
-          <span v-if="!scope.row.result?.source">尚未取得核准记录</span>
-        </template></el-table-column>
-        <el-table-column label="逐文件操作" min-width="260"><template #default="scope">
-          <el-button link :disabled="busy || user.medicalWriting || !scope.row.body" @click="selected = scope.row">来源与许可</el-button>
-          <el-button link :disabled="busy || user.medicalWriting" @click="reselect = scope.row">选择原文件</el-button>
-          <el-button link :disabled="busy || user.medicalWriting || !scope.row.file || !scope.row.body" @click="send(scope.row)">核查并继续接收</el-button>
-          <el-button link :disabled="busy || user.medicalWriting || !scope.row.journal?.upload_id" @click="queryResult(scope.row)">查询固定处理结果</el-button>
-          <el-button v-if="!scope.row.journal" link :disabled="busy" @click="remove(scope.row)">移除待传文件</el-button>
-        </template></el-table-column>
-      </el-table>
-      <p>展开逐文件记录可以读取固定来源、完整处理尝试、失败清单、当前权利及核准依据。接收、解析、索引和人工核准分别读取服务器保存的结果。</p>
+      <div class="upload-workspace">
+        <section class="upload-file-list" aria-label="逐文件上传队列">
+          <div class="queue-heading"><h2>本页文件</h2><span>{{ items.length }} 项</span></div>
+          <el-empty v-if="items.length === 0" description="选择文件后，逐项填写来源与许可" :image-size="80" />
+          <button v-for="item in items" :key="item.id" type="button" class="upload-file-item"
+            :class="{ 'is-current': inspected?.id === item.id }" :aria-pressed="inspected?.id === item.id" @click="inspectedId = item.id">
+            <strong>{{ item.body?.file_name ?? '待恢复原声明' }}</strong>
+            <span>{{ item.file?.size ?? item.journal?.size_bytes ?? '尚未读取' }} 字节</span>
+            <span>{{ item.state ? uploadStatusLabels[item.state.registration.upload_status] : '尚未核查接收状态' }}</span>
+            <span class="file-local-state">{{ item.confirmed ? '本地声明已确认' : '本地声明待确认' }}</span>
+          </button>
+        </section>
+        <section v-if="inspected" class="upload-detail" aria-label="当前文件详情">
+          <header class="file-detail-heading"><div><p class="section-kicker">逐文件核查</p><h2>{{ inspected.body?.file_name ?? '待恢复原声明' }}</h2></div>
+            <router-link v-if="inspected.result?.source" :to="'/library/versions/' + inspected.result.source.source_version">打开固定来源</router-link>
+          </header>
+          <p class="file-id">队列编号：{{ inspected.id }}</p>
+          <div class="file-status-grid">
+            <div><span>服务端接收</span><strong>{{ inspected.state ? uploadStatusLabels[inspected.state.registration.upload_status] : '尚未核查' }}</strong></div>
+            <div><span>传输状态</span><strong>{{ inspected.state ? transferStatusLabels[inspected.state.registration.transfer_state] : '尚未登记' }}</strong></div>
+            <div><span>来源与许可</span><strong>{{ inspected.confirmed ? '本地已确认' : '待逐项确认' }}</strong></div>
+          </div>
+          <div class="file-progress">
+            <p>服务器确认：{{ inspected.state ? inspected.state.registration.received_size + ' 字节' : '尚未核查' }}</p>
+            <el-progress v-if="receivedPercent(inspected) !== null" :percentage="receivedPercent(inspected)!" :stroke-width="8" :show-text="false" aria-label="服务器已确认接收比例" />
+            <p>当前分段已发送：{{ inspected.sent }} 字节。发送数量不代表服务器已接收。</p>
+          </div>
+          <p v-if="inspected.message" class="file-notice" role="status">{{ inspected.message }}</p>
+          <div class="file-actions">
+            <el-button :disabled="busy || user.medicalWriting || !inspected.body" @click="selected = inspected">来源与许可</el-button>
+            <el-button :disabled="busy || user.medicalWriting" @click="reselect = inspected">选择原文件</el-button>
+            <el-button type="primary" :disabled="busy || user.medicalWriting || !inspected.file || !inspected.body" @click="send(inspected)">核查并继续接收</el-button>
+            <el-button :disabled="busy || user.medicalWriting || !inspected.journal?.upload_id" @click="queryResult(inspected)">查询固定处理结果</el-button>
+            <el-button v-if="!inspected.journal" :disabled="busy" @click="remove(inspected)">移除待传文件</el-button>
+          </div>
+          <p class="upload-help">继续接收前核查本文件的完整声明；不确定的操作结果先查询原上传记录。</p>
+          <ul v-if="inspected.errors.length" class="file-errors" role="alert"><li v-for="error in inspected.errors" :key="error">{{ error }}</li></ul>
+          <source-upload-result v-if="inspected.result" :value="inspected.result" />
+          <div v-else class="processing-unread" role="status"><h3>处理结果尚未读取</h3><p>解析、索引及人工核准状态由服务端逐版本返回。登记上传后可查询固定处理结果。</p></div>
+        </section>
+      </div>
+      <p>选择左侧文件可以读取固定来源、完整处理尝试、失败清单、当前权利及核准依据。接收、解析、索引和人工核准分别读取服务器保存的结果。</p>
       <p>关闭页面或停止发送会终止本地发送。重新进入页面后，使用“查询原上传记录”核查服务器结果；继续发送需要重新选择原文件。</p>
     </section>
     <el-dialog :model-value="selected !== null" title="逐文件来源与许可声明" width="80%" destroy-on-close @close="selected = null">
       <template v-if="selected?.body">
         <p>{{ selected.body.file_name }} · {{ selected.body.size_bytes }} 字节</p>
         <p>文件摘要：{{ selected.body.sha256 }}</p>
-        <source-declaration :value="selected.body" :disabled="busy || selected.journal !== null && selected.state !== null" />
+        <p v-if="selected.journal">恢复记录沿用原始归属和声明，不会因企业上传入口而改写。</p>
+        <p v-if="selected.journal && !selected.state" role="status">原登记结果仍待核查。恢复只能填写与原摘要完全一致的完整声明，不能用新声明覆盖原请求。</p>
+        <source-declaration :value="selected.body" :ownership-locked="enterpriseMode && !selected.journal" :disabled="busy || selected.journal !== null && selected.state !== null" />
         <ul v-if="selected.errors.length" role="alert"><li v-for="error in selected.errors" :key="error">{{ error }}</li></ul>
         <el-checkbox v-model="selected.confirmed" :disabled="busy">已经按实际资料核查本文件的归属、版本意图、来源及许可</el-checkbox>
         <el-button :disabled="busy" @click="validateItem(selected)">核查声明格式</el-button>
@@ -82,15 +96,23 @@ interface UploadItem {
 }
 const route = useRoute(); const user = useUserStore()
 const session = computed<MedicalSession | null>(() => user.medicalSession)
+const enterpriseMode = computed(() => route.query.ownership === 'ENTERPRISE')
 const projectId = computed(() => typeof route.params.projectId === 'string' ? route.params.projectId : '')
 const validProject = computed(() => schemaIssues('urn:medical:source-uploads:1.0.0#/$defs/Id', projectId.value).length === 0)
-const permitted = computed(() => validProject.value && sourceUploadAllowed(session.value, projectId.value))
+const permitted = computed(() => validProject.value && sourceUploadAllowed(session.value, enterpriseMode.value ? '' : projectId.value))
 const items = ref<UploadItem[]>([]); const selected = ref<UploadItem | null>(null); const reselect = ref<UploadItem | null>(null)
+const inspectedId = ref('')
+const inspected = computed(() => items.value.find(item => item.id === inspectedId.value) ?? items.value[0] ?? null)
+function receivedPercent(item: UploadItem): number | null {
+  if (!item.state) return null
+  const received = BigInt(item.state.registration.received_size)
+  const total = BigInt(item.state.registration.request.size_bytes)
+  if (total <= 0n || received < 0n || received > total) return null
+  return Number(received * 10000n / total) / 100
+}
 const busy = ref(false); const notice = ref(''); let generation = 0; let controller: AbortController | null = null; let batch = crypto.randomUUID()
-const parseStatusLabels = { QUEUED: '等待解析', PROCESSING: '正在解析', COMPLETE: '解析完成', PARTIAL_FAILED: '部分解析失败', FAILED: '解析失败' }
-const approvalStatusLabels = { PENDING: '待核准', APPROVED: '已核准', DISABLED: '已停用' }
 function blank(file: File, hash: string, actor: string, batchId: string): SourceUploadCreate {
-  return { schema_version: '1.0.0', batch_id: batchId, project_id: projectId.value, ownership: 'PROJECT', session_id: null,
+  return { schema_version: '1.0.0', batch_id: batchId, project_id: projectId.value, ownership: enterpriseMode.value ? 'ENTERPRISE' : 'PROJECT', session_id: null,
     file_name: file.name, media_type: sourceMediaType(file), size_bytes: String(file.size), sha256: hash, source_id: null,
     version_intent: 'NEW_SOURCE', classification: 'INTERNAL', provenance: {
       owner: '', publisher: null, maintainer_id: actor, original_url: null, final_url: null, publisher_version: null,
@@ -101,7 +123,7 @@ function blank(file: File, hash: string, actor: string, batchId: string): Source
 }
 function reset(): void {
   generation += 1; controller?.abort(); controller = null; busy.value = false; items.value = []; selected.value = null
-  reselect.value = null; notice.value = ''; batch = crypto.randomUUID()
+  inspectedId.value = ''; reselect.value = null; notice.value = ''; batch = crypto.randomUUID()
 }
 function stop(): void {
   generation += 1; controller?.abort(); controller = null; busy.value = false
@@ -111,16 +133,28 @@ function stop(): void {
 function remove(item: UploadItem): void {
   if (busy.value || item.journal) return
   items.value = items.value.filter(value => value.id !== item.id)
+  if (inspectedId.value === item.id) inspectedId.value = ''
   if (selected.value?.id === item.id) selected.value = null
   if (reselect.value?.id === item.id) reselect.value = null
 }
 async function selectFile(file: File): Promise<void> {
   const actual = session.value; const current = generation; const replacement = reselect.value
   if (!actual || !permitted.value || busy.value || user.medicalWriting || document.hidden) return
+  const extension = file.name.slice(file.name.lastIndexOf('.') + 1).toLowerCase()
+  if (!Object.prototype.hasOwnProperty.call(sourceMediaTypes, extension)) {
+    notice.value = '文件格式不支持。请选择 PDF、DOCX、XLSX、CSV、PPTX、Markdown 或 TXT 文件。'
+    return
+  }
+  if (file.size <= 0 || !Number.isSafeInteger(file.size)) {
+    notice.value = '文件必须包含内容并具有可核验的大小，请重新选择非空文件。'
+    return
+  }
+  notice.value = ''
   sourceMediaType(file)
   const hash = await byteDigest(await file.arrayBuffer())
   if (current !== generation || session.value !== actual || document.hidden) return
   if (replacement) {
+    if (!items.value.some(item => item.id === replacement.id)) return
     const expected = replacement.journal
     if (expected && (expected.file_sha256 !== hash || expected.size_bytes !== String(file.size))) fail('CONTENT_MISMATCH', '所选文件与原上传的大小或内容摘要不一致')
     if (replacement.body && (replacement.body.sha256 !== hash || replacement.body.file_name !== file.name)) fail('CONTENT_MISMATCH', '所选文件与原声明中的名称或内容摘要不一致')
@@ -136,6 +170,7 @@ async function selectFile(file: File): Promise<void> {
 }
 function validateItem(item: UploadItem): boolean {
   item.errors = schemaIssues('urn:medical:source-uploads:1.0.0#/$defs/Create', item.body).map(issue => issue.path + '：' + issue.code)
+  if (enterpriseMode.value && !item.journal && item.body?.ownership !== 'ENTERPRISE') item.errors.push('此入口仅登记企业资料，请保留企业归属')
   if (!item.confirmed) item.errors.push('请确认本文件的完整来源及许可声明')
   if (!sourceUploadAllowed(session.value, projectId.value, item.body ?? undefined)) item.errors.push('当前资料归属或版本没有来源维护权限')
   if (item.errors.length) selected.value = item
@@ -269,7 +304,15 @@ async function send(item: UploadItem): Promise<void> {
   } finally { if (current === generation) { busy.value = false; controller = null; item.sent = 0 } }
 }
 watch(() => [session.value, route.fullPath], reset, { immediate: true, flush: 'sync' })
-watch(() => selected.value?.body, () => { if (selected.value) selected.value.confirmed = false }, { deep: true, flush: 'sync' })
+watch(() => items.value.map(item => ({ id: item.id, declaration: JSON.stringify(item.body) })), (current, previous) => {
+  const before = new Map(previous?.map(item => [item.id, item.declaration]) ?? [])
+  for (const item of current) {
+    if (before.has(item.id) && before.get(item.id) !== item.declaration) {
+      const changed = items.value.find(value => value.id === item.id)
+      if (changed) changed.confirmed = false
+    }
+  }
+}, { flush: 'sync' })
 function visibility(): void { if (document.hidden) reset() }
 document.addEventListener('visibilitychange', visibility)
 window.addEventListener('pagehide', reset); window.addEventListener('offline', reset); window.addEventListener('medical-failure', reset)
@@ -278,3 +321,36 @@ onBeforeUnmount(() => {
   window.removeEventListener('pagehide', reset); window.removeEventListener('offline', reset); window.removeEventListener('medical-failure', reset)
 })
 </script>
+
+<style scoped>
+.source-upload-workspace { container-type: inline-size; }
+.upload-workspace { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 20px; margin-top: 20px; align-items: start; }
+.upload-file-list, .upload-detail { border: 1px solid var(--el-border-color-light); border-radius: 12px; background: var(--el-bg-color); min-width: 0; }
+.upload-file-list { padding: 12px; max-height: 75vh; overflow: auto; }
+.queue-heading { display: flex; align-items: center; justify-content: space-between; padding: 0 4px; }
+.queue-heading h2 { font-size: 16px; }
+.queue-heading span, .section-kicker, .file-id, .upload-help, .file-progress p { font-size: 12px; color: var(--el-text-color-secondary); line-height: 1.7; }
+.upload-file-item { display: grid; gap: 7px; width: 100%; padding: 14px; margin-bottom: 8px; border: 1px solid var(--el-border-color-light); border-radius: 8px; background: var(--el-bg-color); text-align: left; color: var(--el-text-color-regular); cursor: pointer; overflow-wrap: anywhere; }
+.upload-file-item strong { font-size: 14px; line-height: 1.5; }
+.upload-file-item span { font-size: 12px; }
+.upload-file-item.is-current { border-color: var(--el-color-primary); background: var(--el-color-primary-light-9); }
+.upload-file-item:focus-visible { outline: 2px solid var(--el-color-primary); outline-offset: 2px; }
+.file-local-state { color: var(--el-text-color-secondary); }
+.upload-detail { padding: 22px; }
+.file-detail-heading { display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; align-items: center; }
+.file-detail-heading h2 { font-size: 20px; margin: 6px 0; overflow-wrap: anywhere; }
+.file-detail-heading a { color: var(--el-color-primary); font-size: 13px; }
+.section-kicker { margin: 0; }
+.file-id { overflow-wrap: anywhere; }
+.file-status-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 20px 0; }
+.file-status-grid > div { display: grid; gap: 8px; padding: 12px; background: var(--el-fill-color-extra-light); border-radius: 8px; }
+.file-status-grid span { font-size: 12px; color: var(--el-text-color-secondary); }
+.file-status-grid strong { font-size: 14px; font-weight: 500; }
+.file-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0; }
+.file-actions .el-button { margin-left: 0; }
+.file-notice, .processing-unread { padding: 14px; background: var(--el-fill-color-light); border-radius: 8px; font-size: 13px; line-height: 1.7; overflow-wrap: anywhere; }
+.processing-unread h3 { font-size: 14px; margin-top: 0; }
+.file-errors { color: var(--el-color-danger); overflow-wrap: anywhere; }
+@container (max-width: 800px) { .upload-workspace { grid-template-columns: minmax(0, 1fr); } .upload-file-list { max-height: 300px; } .upload-detail { padding: 14px; } }
+@container (max-width: 480px) { .file-status-grid { grid-template-columns: minmax(0, 1fr); } }
+</style>

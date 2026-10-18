@@ -156,4 +156,8 @@
     SELECT fact_version AS factId,node_id AS nodeId,field_id AS fieldId FROM fact_usage f
     WHERE project_id=#{projectId} AND document_revision=#{documentRevision} ORDER BY fact_version,node_id,field_id FOR UPDATE
   </select>
+  <update id="advanceAnnotationIssues">
+    UPDATE document_revision_state SET issue_watermark=issue_watermark+#{annotationIssues},revision=revision+1,updated_at=#{now}
+    WHERE project_id=#{projectId} AND document_revision=#{documentRevision} AND issue_watermark=0 AND evidence_watermark=0
+  </update>
 </mapper>

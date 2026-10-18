@@ -1,4 +1,5 @@
 import request from '@/utils/request'
+import { projectTextIssue } from './project-text'
 import { envelope, fail, revision, validate, validContext } from './protocol'
 import type { Attribute, Basis, Context, MedicalSession } from './protocol'
 import { formatProjectJson } from './project-json'
@@ -71,11 +72,7 @@ export function readPendingProjectWrite(session: MedicalSession, projectId: stri
   return value
 }
 
-export function projectTextIssue(value: string, maximum: number): string {
-  if (value.trim() !== value || value.length === 0 || Array.from(value).length > maximum || value.normalize('NFC') !== value
-      || /[\u0000-\u001f\u007f-\u009f]/u.test(value)) return '请填写规范文本，保留完整原值并检查长度、空白及控制字符'
-  return ''
-}
+export { projectTextIssue } from './project-text'
 
 export function projectBodyReference(operation: ProjectWriteOperation): string {
   return 'urn:medical:projects:1.0.0#/$defs/' + definitions[operation]

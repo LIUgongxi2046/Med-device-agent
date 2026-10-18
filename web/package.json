@@ -8,10 +8,12 @@
   "scripts": {
     "dev": "vite",
     "build:prod": "vite build",
+    "build:medical": "npm run check:medical-schemas && vite build --mode medical",
     "build:stage": "vite build --mode staging",
     "preview": "vite preview",
     "dev:medical": "vite --mode medical --host 127.0.0.1 --port 18083 --strictPort",
-    "typecheck:medical": "vue-tsc --noEmit -p tsconfig.medical.json"
+    "typecheck:medical": "npm run check:medical-schemas && vue-tsc --noEmit -p tsconfig.medical.json",
+    "check:medical-schemas": "node scripts/check-medical-schemas.mjs"
   },
   "repository": {
     "type": "git",

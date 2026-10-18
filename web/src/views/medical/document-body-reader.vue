@@ -28,7 +28,8 @@
       <p v-if="selecting" role="status">正在核查选区与原文摘要</p>
       <section v-if="selection" aria-label="当前正文选区" data-document-selection>
         <p>{{ dirty ? '未保存正文选区' : '已保存正文选区' }} · {{ selection.segments.length }} 个节点</p>
-        <pre>{{ JSON.stringify(selection, null, 2) }}</pre>
+        <p class="selection-summary">{{ selectionSummary(body, selection) }}</p>
+        <details><summary>查看选区版本与校验详情</summary><pre>{{ JSON.stringify(selection, null, 2) }}</pre></details>
       </section>
       <div ref="contents" class="reader-content">
         <document-node-editor v-for="entry in roots" :key="selectionEpoch + ':' + entry.node.node_id" :node="entry.node" :body="body" readonly selection-mode @selected="selectRequests([$event])" />
@@ -43,6 +44,7 @@ import type { DocumentBody, Node, Selection } from '../../../../contracts/typesc
 import { browserTextSelection, createDocumentSelection, orderedDocumentNodes } from '@/api/medical/document-selection'
 import type { SelectionRequest } from '@/api/medical/document-selection'
 import { fail } from '@/api/medical/protocol'
+import { selectionSummary } from '@/api/medical/annotation-domain'
 import DocumentNodeEditor from './document-node-editor.vue'
 
 const props = defineProps<{ body: DocumentBody; documentRevision: string; active: boolean; dirty: boolean }>()
@@ -111,6 +113,6 @@ onBeforeUnmount(() => { clear(); document.removeEventListener('visibilitychange'
 nav ul { list-style: none; padding: 0; }
 nav .el-button { white-space: normal; text-align: start; height: auto; }
 .reader-content { margin-top: 20px; }
-pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+.selection-summary, pre { white-space: pre-wrap; overflow-wrap: anywhere; }
 @media (max-width: 760px) { .document-body-reader { grid-template-columns: minmax(0, 1fr); } }
 </style>

@@ -37,6 +37,33 @@ public final class ArtifactContentService {
         responseManifest = schemas.bind("interfaces", com.fasterxml.jackson.databind.node.NullNode.instance, "NullableId").schemaSha256();
     }
 
+    /** A receipt proves this server's actual byte read, never browser receipt or complete consumption. */
+    ContentChunk readPage(ApplicationSessionIdentity.Verified subject, ContentReadProtocol.ReadIntent intent,
+            ObjectContentPaging paging, S3ObjectReader.TimedAdmission transport, int limitBytes, int maximumContentBytes,
+            String cursor, String requestId, String domainStateSha256, Runnable requireDomainCurrent) throws Exception {
+        Objects.requireNonNull(subject); Objects.requireNonNull(intent); Objects.requireNonNull(paging);
+        Objects.requireNonNull(transport); Objects.requireNonNull(requireDomainCurrent); WireValues.uuid(requestId); WireValues.hash(domainStateSha256);
+        if (TransactionSynchronizationManager.isActualTransactionActive()) throw new TenantAccessException(ErrorCode.CONTEXT_CHANGED);
+        if (intent.context().use() == SourceReadProtocol.Use.MODEL_SEND) throw new TenantAccessException(ErrorCode.ACCESS_DENIED);
+        requireDomainCurrent.run();
+        var initial = admit(subject, intent); var registration = initial.verified().registration();
+        var artifact = registration.artifact(); var binding = registration.binding();
+        if (maximumContentBytes < 1 || artifact.sizeBytes().signum() <= 0
+                || artifact.sizeBytes().compareTo(BigInteger.valueOf(maximumContentBytes)) > 0)
+            throw new TenantAccessException(ErrorCode.FILE_TOO_LARGE);
+        String cursorAuthorization = WireValues.sha256(ContentReadAuthorization.canonicalBytes(Map.of(
+            "content_authorization_sha256", initial.authorization(), "domain_state_sha256", domainStateSha256)));
+        Supplier<String> current = () -> {
+            requireDomainCurrent.run(); requireCurrent(subject, intent, initial.authorization()); return cursorAuthorization;
+        };
+        var page = paging.read(artifact.reference(), current, limitBytes, cursor, transport);
+        current.get(); transport.requireCurrent();
+        String receipt = save(subject, intent, initial.authorization(), page, requestId);
+        current.get(); transport.requireCurrent();
+        return new ContentChunk(binding.resourceId(), artifact.artifactId(), binding.schemaRef(), page.mediaType(), page.encoding(),
+            page.content(), page.chunkSha256(), page.fullSha256(), page.coverage(), receipt);
+    }
+
     CompleteRead readComplete(ApplicationSessionIdentity.Verified subject, ContentReadProtocol.ReadIntent intent,
             ObjectContentPaging paging, int limitBytes, int maximumContentBytes, String requestId) throws Exception {
         Objects.requireNonNull(subject); Objects.requireNonNull(intent); Objects.requireNonNull(paging); WireValues.uuid(requestId);

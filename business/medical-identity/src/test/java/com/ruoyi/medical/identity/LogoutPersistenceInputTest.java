@@ -37,7 +37,7 @@ class LogoutPersistenceInputTest {
 
     @Test
     void actualDatasetCannotEstablishPersistentLogoutIdentity() throws Exception {
-        String dataset = Files.readString(Path.of("../../data-design/sample_dataset.json"));
+        String dataset = Files.readString(Path.of(System.getProperty("medical.projectRoot")).resolve("data-design/sample_dataset.json"));
         var method = requireType("VerifiedLogoutToken").getDeclaredMethod("verify", String.class, BackchannelLogoutVerifier.class);
         var failure = assertThrows(InvocationTargetException.class, () -> method.invoke(null, dataset, null));
         assertInstanceOf(ParseException.class, failure.getCause());

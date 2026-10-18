@@ -7,6 +7,7 @@ import shutil
 import subprocess
 import xml.etree.ElementTree as ET
 from uuid import uuid4
+from build_toolchains import resolve_toolchains
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -16,16 +17,19 @@ def main():
     parser = argparse.ArgumentParser(description="使用项目固定工具运行 Maven 原生构建")
     parser.add_argument("--versions", action="store_true")
     args = parser.parse_args()
-    toolchains = ROOT / ".implementation-work/toolchains"
-    java_home = (toolchains / "jdk-17.0.20.1+1/Contents/Home").resolve(strict=True)
-    maven = (toolchains / "apache-maven-3.9.16/bin/mvn").resolve(strict=True)
+    java_home, maven = resolve_toolchains(ROOT)
     environment = os.environ.copy()
     environment["JAVA_HOME"] = str(java_home)
     # 文件处理和依赖缓存使用项目目录，保持本地构建的资源归属。
-    environment["MAVEN_OPTS"] = "-Xms128m -Xmx512m -Dfile.encoding=UTF-8 -Djava.io.tmpdir=../.implementation-work/java-temp"
+    environment["MAVEN_OPTS"] = environment.get("MAVEN_OPTS", "") + " -Xms128m -Xmx512m -Dfile.encoding=UTF-8 -Djava.io.tmpdir=../.implementation-work/java-temp"
     (ROOT / ".implementation-work/java-temp").mkdir(parents=True, exist_ok=True)
     environment["TMPDIR"] = str(ROOT / ".implementation-work/java-temp")
     command = [str(maven)]
+    if environment.get("MEDICAL_MAVEN_SETTINGS"):
+        settings = Path(environment["MEDICAL_MAVEN_SETTINGS"]).resolve(strict=True)
+        if not settings.is_file():
+            raise ValueError("MAVEN_SETTINGS_NOT_FILE")
+        command.extend(["--settings", str(settings)])
     if args.versions:
         command.append("--version")
     else:

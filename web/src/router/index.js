@@ -39,6 +39,10 @@ export const medicalRoutes = [
     { path: '', component: () => import('@/views/medical/enterprise-roles.vue'), name: 'MedicalEnterpriseRoles',
       meta: { medical: true, noCache: true, title: '企业岗位', activeMenu: '/projects' } }
   ] },
+  { path: '/sources/uploads', component: Layout, hidden: true, meta: { medical: true }, children: [
+    { path: '', component: () => import('@/views/medical/enterprise-source-uploads.vue'), name: 'MedicalEnterpriseSourceUploads',
+      meta: { medical: true, noCache: true, title: '上传企业资料', activeMenu: '/library' } }
+  ] },
   { path: '/library', component: Layout, meta: { medical: true }, children: [
     { path: 'search/exact', component: () => import('@/views/medical/source-exact-search.vue'), name: 'MedicalSourceExactSearch', hidden: true,
       meta: { medical: true, noCache: true, title: '结构化字段等值检索', activeMenu: '/library' } },
@@ -48,6 +52,8 @@ export const medicalRoutes = [
       meta: { medical: true, noCache: true, title: '来源权利审查', activeMenu: '/library' } },
     { path: '', component: () => import('@/views/medical/source-catalogue.vue'), name: 'MedicalSourceCatalogue',
       meta: { medical: true, noCache: true, title: '资料中心', icon: 'documentation' } },
+    { path: 'candidates', component: () => import('@/views/medical/source-candidates.vue'), name: 'MedicalSourceCandidates', hidden: true,
+      meta: { medical: true, noCache: true, title: '网络候选', activeMenu: '/library' } },
     { path: 'collections', component: () => import('@/views/medical/collections.vue'), name: 'MedicalCollections', hidden: true,
       meta: { medical: true, noCache: true, title: '资料集', activeMenu: '/library' } },
     { path: 'search', component: () => import('@/views/medical/source-search.vue'), name: 'MedicalSourceSearch', hidden: true,
@@ -81,6 +87,36 @@ export const medicalRoutes = [
     { path: ':templateId/approval', component: () => import('@/views/medical/template-approval.vue'), name: 'MedicalTemplateApproval', hidden: true,
       meta: { medical: true, noCache: true, title: '模板人工审查', activeMenu: '/templates' } }
   ] },
+  { path: '/rules', component: Layout, meta: { medical: true }, children: [
+    { path: 'new', component: () => import('@/views/medical/rule-create.vue'), name: 'MedicalRuleCreate', hidden: true,
+      meta: { medical: true, noCache: true, title: '创建规则草稿', activeMenu: '/rules' } },
+    { path: '', component: () => import('@/views/medical/rule-management.vue'), name: 'MedicalRuleEntry',
+      meta: { medical: true, noCache: true, title: '规则管理与人工审查', icon: 'tree-table' } },
+    { path: ':ruleId', component: () => import('@/views/medical/rule-management.vue'), name: 'MedicalRuleDetail', hidden: true,
+      meta: { medical: true, noCache: true, title: '固定规则版本', activeMenu: '/rules' } }
+  ] },
+  { path: '/document-save-audit', component: Layout, meta: { medical: true }, children: [
+    { path: '', component: () => import('@/views/medical/document-save-audit.vue'), name: 'MedicalDocumentSaveAudit',
+      meta: { medical: true, noCache: true, title: '文稿保存审计', icon: 'list' } }
+  ] },
+  { path: '/evaluation', component: Layout, meta: { medical: true }, children: [
+    { path: '', component: () => import('@/views/medical/evaluation-results.vue'), name: 'MedicalEvaluationEntry',
+      meta: { medical: true, noCache: true, title: '评测与结果', icon: 'chart' } },
+    { path: 'new', component: () => import('@/views/medical/evaluation-results.vue'), name: 'MedicalEvaluationCreate', hidden: true,
+      meta: { medical: true, noCache: true, title: '登记固定评测定义', evaluationCreate: true, activeMenu: '/evaluation' } },
+    { path: ':evaluationId', component: () => import('@/views/medical/evaluation-results.vue'), name: 'MedicalEvaluationDetail', hidden: true,
+      meta: { medical: true, noCache: true, title: '固定评测记录', activeMenu: '/evaluation' } }
+  ] },
+  { path: '/simulation-model-configurations', component: Layout, meta: { medical: true }, children: [
+    { path: '', component: () => import('@/views/medical/simulation-model-configurations.vue'), name: 'MedicalSimulationModelConfigurations',
+      meta: { medical: true, noCache: true, title: '模拟模型配置草稿', icon: 'system' } }
+  ] },
+  { path: '/model-configurations', component: Layout, meta: { medical: true }, children: [
+    { path: '', component: () => import('@/views/medical/model-configurations.vue'), name: 'MedicalModelConfigurations',
+      meta: { medical: true, noCache: true, title: '模型配置草稿', icon: 'system' } }
+  ] },
+  { path: '/access/denied', component: () => import('@/views/medical/access-denied.vue'), name: 'MedicalAccessDenied', hidden: true,
+    meta: { medical: true, public: true, noCache: true, title: '访问受限' } },
   { path: '/access', alias: ['/auth/login', '/local-auth/login.html'], component: () => import('@/views/login.vue'), hidden: true,
     meta: { medical: true, public: true, noCache: true, title: '业务账户' } },
   { path: '/account', component: Layout, hidden: true, meta: { medical: true }, children: [
@@ -102,6 +138,10 @@ export const medicalRoutes = [
       meta: { medical: true, noCache: true, title: '创建项目任务', activeMenu: '/projects' } },
     { path: ':projectId/tasks/:taskId/config', component: () => import('@/views/medical/task-detail.vue'), name: 'MedicalTaskDetail', hidden: true,
       meta: { medical: true, noCache: true, title: '任务当前状态', activeMenu: '/projects' } },
+    { path: ':projectId/tasks/:taskId/documents/:documentId/write', component: () => import('@/views/medical/task-detail.vue'), name: 'MedicalTaskWrite', hidden: true,
+      meta: { medical: true, noCache: true, title: '撰写核验', activeMenu: '/projects' } },
+    { path: ':projectId/tasks/:taskId/documents/:documentId/review', component: () => import('@/views/medical/task-detail.vue'), name: 'MedicalTaskReview', hidden: true,
+      meta: { medical: true, noCache: true, title: '审查签发', activeMenu: '/projects' } },
     { path: ':projectId/templates', component: () => import('@/views/medical/template-applicability.vue'), name: 'MedicalProjectTemplates', hidden: true,
       meta: { medical: true, noCache: true, title: '项目适用模板', activeMenu: '/projects' } },
     { path: ':projectId/uploads', component: () => import('@/views/medical/source-uploads.vue'), name: 'MedicalSourceUploads', hidden: true,
@@ -112,6 +152,31 @@ export const medicalRoutes = [
   { path: '/scenarios', component: Layout, meta: { medical: true }, children: [
     { path: '', component: () => import('@/views/medical/scenarios.vue'), name: 'MedicalScenarios',
       meta: { medical: true, noCache: true, title: '场景目录', icon: 'list' } }
+  ] },
+  { path: '/agents', component: Layout, meta: { medical: true }, children: [
+    { path: 'execution-policies/new', component: () => import('@/views/medical/execution-policy-create.vue'), name: 'MedicalExecutionPolicyCreate', hidden: true,
+      meta: { medical: true, noCache: true, title: '登记执行策略', activeMenu: '/agents' } },
+    { path: 'execution-policies/:versionId', component: () => import('@/views/medical/execution-policy-detail.vue'), name: 'MedicalExecutionPolicyDetail', hidden: true,
+      meta: { medical: true, noCache: true, title: '执行策略固定详情', activeMenu: '/agents' } },
+    { path: 'execution-policies', component: () => import('@/views/medical/execution-policy-list.vue'), name: 'MedicalExecutionPolicies', hidden: true,
+      meta: { medical: true, noCache: true, title: '执行策略', activeMenu: '/agents' } },
+    { path: 'retention', component: () => import('@/views/medical/runtime-retention.vue'), name: 'MedicalRuntimeRetention', hidden: true,
+      meta: { medical: true, noCache: true, title: '保存策略', activeMenu: '/agents' } },
+    { path: 'model-runtime', component: () => import('@/views/medical/model-runtime.vue'), name: 'MedicalModelRuntime', hidden: true, meta: { title: '模型连接与资格', medical: true, noCache: true, activeMenu: '/agents' } },
+    { path: 'drafts', component: () => import('@/views/medical/formal-agent-drafts.vue'), name: 'MedicalFormalAgentDrafts', hidden: true,
+      meta: { medical: true, noCache: true, title: '候选与运行能力草稿', activeMenu: '/agents' } },
+    { path: 'capabilities/new', component: () => import('@/views/medical/formal-capability-create.vue'), name: 'MedicalFormalCapabilityCreate', hidden: true,
+      meta: { medical: true, noCache: true, title: '登记正式能力草稿', activeMenu: '/agents' } },
+    { path: 'capabilities/:recordId', component: () => import('@/views/medical/formal-capability-detail.vue'), name: 'MedicalFormalCapabilityDetail', hidden: true,
+      meta: { medical: true, noCache: true, title: '正式能力固定草稿', activeMenu: '/agents' } },
+    { path: 'capabilities', component: () => import('@/views/medical/formal-capability-list.vue'), name: 'MedicalFormalCapabilities', hidden: true,
+      meta: { medical: true, noCache: true, title: '正式能力草稿', activeMenu: '/agents' } },
+    { path: '', component: () => import('@/views/medical/agents.vue'), name: 'MedicalAgents',
+      meta: { medical: true, noCache: true, title: 'Agent 管理', icon: 'system' } },
+    { path: 'simulation-preparation', component: () => import('@/views/medical/simulation-preparation.vue'), name: 'MedicalSimulationPreparation',
+      meta: { medical: true, noCache: true, title: '模拟评测准备', activeMenu: '/agents' } },
+    { path: 'simulation-rules/:ruleVersion?', component: () => import('@/views/medical/simulation-rule-management.vue'), name: 'MedicalSimulationRules',
+      meta: { medical: true, noCache: true, title: '模拟评分规则', activeMenu: '/agents' } }
   ] },
   { path: '/agents/budgets', component: Layout, meta: { medical: true }, children: [
     { path: '', component: () => import('@/views/medical/budgets.vue'), name: 'MedicalBudgets',

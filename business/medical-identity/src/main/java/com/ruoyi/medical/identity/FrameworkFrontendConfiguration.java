@@ -11,17 +11,24 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 @ConditionalOnProperty(name = "medical.identity.mode", havingValue = "local")
 public class FrameworkFrontendConfiguration implements WebMvcConfigurer {
     public static final List<String> ROUTES = List.of(
-        "/access", "/login", "/account", "/projects", "/projects/new", "/projects/{projectId}",
+        "/access", "/access/denied", "/login", "/account", "/projects", "/projects/new", "/projects/{projectId}",
         "/member-invitations/acceptances",
         "/projects/{projectId}/profile", "/projects/{projectId}/status", "/projects/{projectId}/tasks", "/projects/{projectId}/templates", "/projects/{projectId}/uploads",
         "/projects/{projectId}/tasks/{taskId}/config",
         "/projects/{projectId}/tasks/new",
-        "/library", "/library/collections/new", "/library/collections/{collectionId}",
+        "/projects/{projectId}/tasks/{taskId}/documents/{documentId}/write",
+        "/projects/{projectId}/tasks/{taskId}/documents/{documentId}/review",
+        "/sources/uploads", "/library/candidates", "/library", "/library/collections/new", "/library/collections/{collectionId}",
         "/session-recovery", "/library/collections", "/library/search", "/library/search/exact", "/library/processing", "/library/artifacts",
         "/library/versions/{sourceVersion}/exact-fields",
         "/library/versions/{sourceVersion}", "/library/versions/{sourceVersion}/rights",
         "/templates", "/templates/new", "/templates/{templateId}/approval",
+        "/rules", "/rules/new", "/rules/{ruleId}", "/model-configurations", "/simulation-model-configurations",
+        "/document-save-audit", "/evaluation", "/evaluation/new", "/evaluation/{evaluationId}",
         "/enterprises/members", "/enterprises/roles", "/enterprises/registrations", "/enterprises/registration-reviews", "/enterprises/registration-reviews/{registrationId}",
+        "/agents/execution-policies", "/agents/execution-policies/new", "/agents/execution-policies/{versionId}",
+        "/agents/model-runtime", "/agents/retention", "/agents/drafts", "/agents/capabilities", "/agents/capabilities/new", "/agents/capabilities/{recordId}",
+        "/agents", "/agents/simulation-preparation", "/agents/simulation-rules", "/agents/simulation-rules/{ruleVersion}",
         "/scenarios", "/agents/budgets", "/agents/budgets/new", "/agents/budgets/{budgetId}",
         "/agents/budgets/{budgetId}/decisions", "/agents/budgets/{budgetId}/revisions",
         "/agents/budgets/{budgetId}/revisions/{budgetRevision}"

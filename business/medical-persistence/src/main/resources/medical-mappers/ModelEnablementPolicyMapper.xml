@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.medical.persistence.mapper.ModelEnablementPolicyMapper">
+ <resultMap id="stored" type="com.ruoyi.medical.persistence.ModelEnablementPolicyProtocol$Stored"><constructor>
+  <arg column="tenant_id" javaType="java.lang.String"/>
+  <arg column="project_id" javaType="java.lang.String"/>
+  <arg column="preparation_id" javaType="java.lang.String"/>
+  <arg column="config_id" javaType="java.lang.String"/>
+  <arg column="model_revision" javaType="java.lang.String"/>
+  <arg column="profile_revision" javaType="java.lang.String"/>
+  <arg column="source_id" javaType="java.lang.String"/>
+  <arg column="source_version" javaType="java.lang.String"/>
+  <arg column="rights_revision" javaType="java.lang.String"/>
+  <arg column="source_sha256" javaType="java.lang.String"/>
+  <arg column="original_object" javaType="java.lang.String"/>
+  <arg column="original_authorization_sha256" javaType="java.lang.String"/>
+  <arg column="snapshot_id" javaType="java.lang.String"/>
+  <arg column="snapshot_sha256" javaType="java.lang.String"/>
+  <arg column="parse_version" javaType="java.lang.String"/>
+  <arg column="canonical_request" javaType="java.lang.String"/>
+  <arg column="request_body_sha256" javaType="java.lang.String"/>
+  <arg column="operation_request_sha256" javaType="java.lang.String"/>
+  <arg column="idempotency_key" javaType="java.lang.String"/>
+  <arg column="request_context" javaType="java.lang.String"/>
+  <arg column="request_session" javaType="java.lang.String"/>
+  <arg column="authorization_json" javaType="java.lang.String"/>
+  <arg column="authorization_sha256" javaType="java.lang.String"/>
+  <arg column="receipt_json" javaType="java.lang.String"/>
+  <arg column="operation_id" javaType="java.lang.String"/>
+  <arg column="audit_id" javaType="java.lang.String"/>
+  <arg column="schema_manifest_sha256" javaType="java.lang.String"/>
+  <arg column="created_by" javaType="java.lang.String"/>
+  <arg column="created_at" javaType="java.time.LocalDateTime"/>
+  <arg column="classification" javaType="java.lang.String"/>
+ </constructor></resultMap>
+ <resultMap id="original" type="com.ruoyi.medical.persistence.ModelEnablementPolicyProtocol$Original"><constructor>
+  <arg column="tenant_id" javaType="java.lang.String"/>
+  <arg column="source_version" javaType="java.lang.String"/>
+  <arg column="original_sha256" javaType="java.lang.String"/>
+  <arg column="object_key" javaType="java.lang.String"/>
+  <arg column="object_version" javaType="java.lang.String"/>
+  <arg column="size_bytes" javaType="java.math.BigInteger"/>
+  <arg column="media_type" javaType="java.lang.String"/>
+ </constructor></resultMap>
+ <resultMap id="operation" type="com.ruoyi.medical.persistence.SelectionOperationRow"><constructor>
+  <arg column="operation_id" javaType="java.lang.String"/>
+  <arg column="request_sha256" javaType="java.lang.String"/>
+  <arg column="state" javaType="java.lang.String"/>
+  <arg column="http_status" javaType="java.lang.Integer"/>
+  <arg column="response_ref" javaType="java.lang.String"/>
+  <arg column="target_id" javaType="java.lang.String"/>
+  <arg column="schema_version" javaType="java.lang.String"/>
+  <arg column="schema_manifest_sha256" javaType="java.lang.String"/>
+ </constructor></resultMap>
+ <resultMap id="classification" type="com.ruoyi.medical.persistence.mapper.ModelEnablementPolicyMapper$Classification"><constructor>
+  <arg column="kind" javaType="java.lang.String"/>
+  <arg column="id" javaType="java.lang.String"/>
+  <arg column="sha256" javaType="java.lang.String"/>
+  <arg column="classification" javaType="java.lang.String"/>
+ </constructor></resultMap>
+ <select id="classifications" resultMap="classification" useCache="false" flushCache="true">
+  SELECT 'SOURCE_OWNER' AS kind,sv.source_version AS id,sv.original_sha256 AS sha256,s.classification AS classification
+  FROM source_version sv JOIN source s ON s.tenant_id=sv.tenant_id AND s.source_id=sv.source_id WHERE sv.source_version=#{sourceVersion}
+  UNION ALL SELECT 'RIGHTS' AS kind,r.rights_revision AS id,r.content_sha256 AS sha256,r.classification AS classification
+  FROM rights_revision r WHERE r.source_version=#{sourceVersion} AND r.rights_revision=#{rightsRevision}
+  UNION ALL SELECT 'MODEL' AS kind,m.model_config_revision AS id,m.content_sha256 AS sha256,m.classification AS classification
+  FROM model_config_revision m WHERE m.model_config_revision=#{modelRevision} AND m.project_id=#{projectId} AND m.configuration_kind='MODEL'
+  UNION ALL SELECT 'MODEL_DEFINITION' AS kind,d.model_config_revision AS id,d.content_sha256 AS sha256,d.classification AS classification
+  FROM model_configuration_definition d JOIN model_config_revision m ON m.tenant_id=d.tenant_id AND m.model_config_revision=d.model_config_revision
+  WHERE d.model_config_revision=#{modelRevision} AND m.project_id=#{projectId} AND m.configuration_kind='MODEL'
+  UNION ALL SELECT 'PROFILE' AS kind,p.profile_revision AS id,p.content_sha256 AS sha256,p.classification AS classification
+  FROM project_profile_revision p WHERE p.project_id=#{projectId} AND p.profile_revision=#{profileRevision}
+  ORDER BY kind
+ </select>
+ <select id="original" resultMap="original" useCache="false" flushCache="true">
+  SELECT tenant_id,source_version,original_sha256,object_key,object_version,size_bytes,media_type FROM source_version WHERE source_version=#{sourceVersion}
+ </select>
+ <select id="lockActor" resultType="java.lang.String" useCache="false" flushCache="true">
+  SELECT user_id FROM tenant_member WHERE user_id=#{userId} FOR UPDATE
+ </select>
+ <select id="lockSource" resultType="java.lang.String" useCache="false" flushCache="true">
+  SELECT source_version FROM source_version WHERE source_version=#{sourceVersion} FOR UPDATE
+ </select>
+ <select id="databaseTime" resultType="java.time.LocalDateTime" useCache="false" flushCache="true">
+  SELECT UTC_TIMESTAMP(6)
+ </select>
+ <select id="stored" resultMap="stored" useCache="false" flushCache="true">
+  SELECT tenant_id,project_id,preparation_id,config_id,model_revision,profile_revision,source_id,source_version,rights_revision,source_sha256,original_object,original_authorization_sha256,snapshot_id,snapshot_sha256,parse_version,canonical_request,request_body_sha256,operation_request_sha256,idempotency_key,request_context,request_session,authorization_json,authorization_sha256,receipt_json,operation_id,audit_id,schema_manifest_sha256,created_by,created_at,classification FROM model_enablement_policy_preparation WHERE preparation_id=#{preparationId} AND project_id IS NOT NULL AND configuration_kind='MODEL' AND business_purpose='MODEL_ENABLEMENT' AND schema_version='1.0.0' AND OCTET_LENGTH(original_object)&lt;=8192 AND OCTET_LENGTH(canonical_request)&lt;=8192 AND OCTET_LENGTH(authorization_json)&lt;=4194304 AND OCTET_LENGTH(receipt_json)&lt;=16384 LIMIT 2
+ </select>
+ <select id="operation" resultMap="operation" useCache="false" flushCache="true">
+  SELECT operation_id,request_sha256,state,http_status,response_ref,target_id,schema_version,schema_manifest_sha256 FROM operation_record WHERE subject_id=#{userId} AND operation_name='MODEL-ENABLEMENT-POLICY-PREPARE' AND idempotency_key=#{key}
+ </select>
+ <select id="operationById" resultMap="operation" useCache="false" flushCache="true">
+  SELECT operation_id,request_sha256,state,http_status,response_ref,target_id,schema_version,schema_manifest_sha256 FROM operation_record WHERE subject_id=#{creatorId} AND created_by=#{creatorId} AND operation_name='MODEL-ENABLEMENT-POLICY-PREPARE' AND operation_id=#{operationId} AND error_code IS NULL AND revision=1 AND updated_at=created_at <if test="key != null">AND idempotency_key=#{key} AND created_at=#{now} AND classification=#{classification}</if>
+ </select>
+ <insert id="insertStored">
+  INSERT INTO model_enablement_policy_preparation(project_id,preparation_id,config_id,model_revision,profile_revision,source_id,source_version,rights_revision,source_sha256,original_object,original_authorization_sha256,snapshot_id,snapshot_sha256,parse_version,canonical_request,request_body_sha256,operation_request_sha256,idempotency_key,request_context,request_session,authorization_json,authorization_sha256,receipt_json,operation_id,audit_id,schema_manifest_sha256,created_by,created_at,classification,schema_version,configuration_kind,business_purpose) VALUES(#{row.projectId},#{row.preparationId},#{row.configId},#{row.modelRevision},#{row.profileRevision},#{row.sourceId},#{row.sourceVersion},#{row.rightsRevision},#{row.sourceSha256},#{row.originalObject},#{row.originalAuthorizationSha256},#{row.snapshotId},#{row.snapshotSha256},#{row.parseVersion},#{row.canonicalRequest},#{row.requestSha256},#{row.operationRequestSha256},#{row.originalKey},#{row.originalContext},#{row.originalSession},#{row.authorizationJson},#{row.authorizationSha256},#{row.receiptJson},#{row.operationId},#{row.auditId},#{row.workflowSha256},#{row.createdBy},#{row.createdAt},#{row.classification},'1.0.0','MODEL','MODEL_ENABLEMENT')
+ </insert>
+ <insert id="insertOperation">
+  INSERT INTO operation_record(operation_id,subject_id,operation_name,idempotency_key,request_sha256,state,http_status,response_ref,target_id,error_code,schema_version,schema_manifest_sha256,created_by,created_at,classification,revision,updated_at) VALUES(#{operationId},#{userId},'MODEL-ENABLEMENT-POLICY-PREPARE',#{key},#{requestHash},'COMPLETED',201,#{response},#{preparationId},NULL,'1.0.0',#{operationManifest},#{userId},#{now},#{classification},1,#{now})
+ </insert>
+ <insert id="insertAudit">
+  INSERT INTO audit_event(project_id,audit_id,subject_id,action,resource_ref,result,reason_code,request_id,trace_id,schema_version,schema_manifest_sha256,created_by,created_at,classification) VALUES(#{projectId},#{auditId},#{userId},'model.enablement.policy_prepared',#{payload},'SUCCESS',NULL,#{operationId},#{operationId},'1.0.0',#{operationManifest},#{userId},#{now},#{classification})
+ </insert>
+ <insert id="insertEvent">
+  INSERT INTO outbox_event(event_id,aggregate_id,aggregate_revision,event_type,payload,occurred_at,published_at) VALUES(#{operationId},#{preparationId},1,'model.enablement.policy_prepared',#{payload},#{now},NULL)
+ </insert>
+ <select id="audit" resultType="java.lang.String" useCache="false" flushCache="true">
+  SELECT resource_ref FROM audit_event WHERE audit_id=#{auditId} AND project_id=#{projectId} AND subject_id=#{creatorId} AND created_by=#{creatorId} AND created_at=#{now} AND request_id=#{operationId} AND trace_id=#{operationId} AND action='model.enablement.policy_prepared' AND result='SUCCESS' AND reason_code IS NULL AND schema_version='1.0.0' AND schema_manifest_sha256=#{operationManifest} AND classification=#{classification}
+ </select>
+ <select id="event" resultType="java.lang.String" useCache="false" flushCache="true">
+  SELECT payload FROM outbox_event WHERE event_id=#{operationId} AND aggregate_id=#{preparationId} AND aggregate_revision=1 AND event_type='model.enablement.policy_prepared' AND occurred_at=#{now}
+ </select>
+</mapper>

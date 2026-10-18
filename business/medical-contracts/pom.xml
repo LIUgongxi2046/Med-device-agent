@@ -17,6 +17,18 @@
                 <directory>${project.basedir}/../../</directory>
                 <includes>
                     <include>contracts/catalogue.json</include>
+                    <include>contracts/extensions/evaluation-results.catalogue.json</include>
+                    <include>contracts/extensions/simulation-execution.catalogue.json</include>
+                    <include>contracts/extensions/task-runtime.catalogue.json</include>
+                    <include>agent-design/replay-manifest.schema.json</include>
+                    <include>business/medical-persistence/src/main/resources/runtime-governance.schema.json</include>
+                    <include>business/medical-persistence/src/main/resources/agent-execution-policy.schema.json</include>
+                    <include>business/medical-persistence/src/main/resources/runtime-retention.schema.json</include>
+                    <include>business/medical-persistence/src/main/resources/run-token-authority.schema.json</include>
+                    <include>business/medical-persistence/src/main/resources/projects.schema.json</include>
+                    <include>business/medical-persistence/src/main/resources/budgets.schema.json</include>
+                    <include>agent-design/simulation-execution.schema.json</include>
+                    <include>model-gateway/src/medical_model_gateway/simulation-execution.schema.json</include>
                     <include>data-design/dataset.schema.json</include>
                     <include>backend-design/interfaces.schema.yaml</include>
                     <include>backend-design/resource-details.schema.yaml</include>
@@ -30,6 +42,11 @@
                     <include>business/medical-persistence/src/main/resources/template-applicability.schema.json</include>
                     <include>business/medical-persistence/src/main/resources/agent-release.schema.json</include>
                     <include>business/medical-persistence/src/main/resources/task-plan-view.schema.json</include>
+                    <include>business/medical-persistence/src/main/resources/evaluation-results.schema.json</include>
+                    <include>business/medical-persistence/src/main/resources/formal-evaluation-context.schema.json</include>
+                    <include>contracts/extensions/evaluation-context-compiler.catalogue.json</include>
+                    <include>business/medical-persistence/src/main/resources/formal-evaluation-input.schema.json</include>
+                    <include>business/medical-persistence/src/main/resources/evaluation-context-compiler.schema.json</include>
                 </includes>
             </resource>
         </resources>

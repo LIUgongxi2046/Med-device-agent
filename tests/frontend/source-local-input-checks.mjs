@@ -1,0 +1,55 @@
+import assert from 'node:assert/strict'
+import fs from 'node:fs'
+import {test} from 'node:test'
+import vm from 'node:vm'
+import {fileURLToPath} from 'node:url'
+import * as Vue from '../../web/node_modules/vue/dist/vue.runtime.esm-bundler.js'
+import ts from '../../web/node_modules/typescript/lib/typescript.js'
+import {parse,compileScript,compileTemplate} from '../../web/node_modules/@vue/compiler-sfc/dist/compiler-sfc.esm-browser.js'
+import Ajv from '../../web/node_modules/ajv/dist/2020.js'
+import addFormats from '../../web/node_modules/ajv-formats/dist/index.js'
+import {canonicalizeEx} from '../../web/node_modules/json-canonicalize/dist/index.js'
+const root=fileURLToPath(new URL('../../',import.meta.url)), id='11111111-1111-4111-a111-111111111111', hash='a'.repeat(64)
+const read=path=>fs.readFileSync(root+path,'utf8')
+const ajv=new Ajv({strict:false,allErrors:true});addFormats(ajv)
+for(const name of ['source-exact','source-rights-decisions'])ajv.addSchema(JSON.parse(read(`business/medical-persistence/src/main/resources/${name}.schema.json`)), `urn:medical:${name}:1.0.0`)
+ajv.addSchema({$id:'urn:medical:templates:1.0.0',$defs:{Id:{type:'string',format:'uuid'}}})
+const issues=(ref,value)=>{const v=ajv.getSchema(ref);if(!v)throw Error(ref);return v(value)?[]:v.errors.map(e=>({path:e.instancePath,code:e.keyword}))}
+const transpile=s=>ts.transpileModule(s,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText
+function harness(name,overrides={}){
+ const failCalls=[];const calls=[];const protocol={schemaIssues:issues,validate:(ref,v)=>{if(issues(ref,v).length)protocol.fail('SCHEMA_INVALID','strict schema');return v},revision:v=>{if(!/^(0|[1-9][0-9]{0,19})$/.test(v)||BigInt(v)>18446744073709551615n)protocol.fail('SCHEMA_INVALID','revision');return v},fail:(code,msg)=>{failCalls.push(code);throw Error(code+': '+msg)}}
+ const user=Vue.reactive({medicalWriting:false,medicalSession:{user:{user_id:id},current_context:{tenant_id:id},action_summary:[{action:'source.approve'}]}})
+ const route=Vue.reactive({params:{sourceVersion:id}}), scope=Vue.effectScope(),cleanup=[]
+ const api={sourceApprovalAllowed:()=>true,readSourceGovernance:async()=>({source_id:id,rights_status:'APPROVED',lifecycle_state:'ACTIVE',rights_revision:id,bindings:[{project_id:id,applicability:'APPLICABLE',binding_revision:id}],reviews:[{review_manifest_sha256:hash,parse_version:id,index_version:id,index_status:'READY',approval_revision:id,approval_status:'APPROVED'}]}),readRequestMetadata:()=>null,requestBodyDigest:async()=>hash,readExactFields:async()=>{calls.push('readExactFields');throw Error('strict-read')},prepareRequestMetadata:async()=>{calls.push('prepare');throw Error('strict-send')},submitSourceRights:async()=>{calls.push('submitRights');throw Error('strict-rights')},...overrides}
+ const cache={};function requireModule(path){
+  if(path==='vue')return {...Vue,onBeforeUnmount:fn=>cleanup.push(fn)}
+  if(path==='vue-router')return {useRoute:()=>route}
+  if(path==='json-canonicalize')return {canonicalizeEx}
+  if(path==='@/store/modules/user')return {default:()=>user}
+  if(path.endsWith('/protocol')||path==='./protocol')return protocol
+  if(path.endsWith('/route-read'))return {useMedicalRouteRead:()=>Vue.ref(true)}
+  for(const moduleName of ['source-exact-domain','source-input-issues','source-rights'])if(path.endsWith('/'+moduleName)){
+   if(cache[moduleName])return cache[moduleName]
+   const result={};cache[moduleName]=result;vm.runInNewContext(transpile(read(`web/src/api/medical/${moduleName}.ts`)),{exports:result,require:requireModule,TextEncoder,AbortController,console});return moduleName==='source-rights'?{...result,...api}:result
+  }
+  if(path.endsWith('.vue'))return {default:{}}
+  return api
+ }
+ const source=read(`web/src/views/medical/${name}.vue`);const {descriptor}=parse(source,{filename:name+'.vue'});const compiled=compileScript(descriptor,{id:name});const exports={}
+ vm.runInNewContext(transpile(compiled.content),{exports,require:requireModule,AbortController,TextEncoder,document:{hidden:false,addEventListener(){},removeEventListener(){}},window:{addEventListener(){},removeEventListener(){}},console})
+ const b=scope.run(()=>exports.default.setup({}, {expose(){}}))
+ return {b,user,api,failCalls,calls,helper:()=>requireModule('./source-input-issues'),async ready(){await new Promise(resolve=>setImmediate(resolve));if(name==='source-exact-fields'){b.projectId.value=id;b.reviewId.value=hash}},close(){cleanup.forEach(fn=>fn());scope.stop()}}
+}
+const field=()=>({field_kind:'MODEL',raw_value:'A',alias_value:null,alias_reason:null,chunk_id:id,quote_hash:hash,locator_sha256:hash,start_codepoint:0,end_codepoint:1})
+const publication=()=>({schema_version:'1.0.0',project_id:id,parse_version:id,index_version:id,approval_revision:id,binding_revision:id,rights_revision:id,expected_revision:'0',reason:'reason',fields:[field()]})
+const rights=()=>({schema_version:'1.0.0',expected_revision:'1',base_rights:{version_id:id,content_sha256:hash},decision:'RETURN',proposal:null,reviewed_manifest_sha256:hash,reason:'return reason'})
+for(const name of ['source-rights','source-exact-fields'])test(name+' compiles',()=>{const {descriptor}=parse(read(`web/src/views/medical/${name}.vue`),{filename:name});const compiled=compileScript(descriptor,{id:name});assert.deepEqual(compileTemplate({id:name,filename:name,source:descriptor.template.content,compilerOptions:{bindingMetadata:compiled.bindings}}).errors,[])})
+test('EXACT invalid fixed UUID stays local; legal UUID reaches strict read',async()=>{const r=harness('source-exact-fields');try{await r.ready();r.b.fixedRevision.value='bad';await r.b.readFields();assert.equal(r.failCalls.length,0);assert.equal(r.calls.length,0);assert.equal(r.b.fixedRevision.value,'bad');assert.ok(r.b.inputIssues.value.length);r.b.fixedRevision.value=id;await assert.rejects(r.b.readFields(),/strict-read/);assert.deepEqual(r.calls,['readExactFields'])}finally{r.close()}})
+test('EXACT publication catches revision/reason/alias/duplicate issues without send',async()=>{const r=harness('source-exact-fields');try{await r.ready();for(const edit of [p=>p.expected_revision='bad',p=>p.expected_revision='18446744073709551616',p=>p.expected_revision='18446744073709551615',p=>p.reason=' padded ',p=>p.fields[0].alias_value='alias',p=>{p.fields[0].alias_value='A';p.fields[0].alias_reason='reason'},p=>p.fields.push({...p.fields[0]})]){const p=publication();edit(p);r.b.expectedRevision.value=p.expected_revision;r.b.reason.value=p.reason;r.b.fields.value=p.fields;await Vue.nextTick();r.b.attested.value=true;await r.b.submit();assert.ok(r.b.inputIssues.value.length);assert.equal(r.b.reason.value,p.reason)}assert.equal(r.failCalls.length,0);assert.equal(r.calls.length,0)}finally{r.close()}})
+test('EXACT legal publication reaches original strict send',async()=>{const r=harness('source-exact-fields');try{await r.ready();r.b.expectedRevision.value='0';r.b.reason.value='reason';r.b.fields.value=[field()];await Vue.nextTick();r.b.attested.value=true;await assert.rejects(r.b.submit(),/strict-send/);assert.deepEqual(r.calls,['prepare']);assert.equal(r.failCalls.length,0)}finally{r.close()}})
+test('EXACT malformed recovery preserves input/key; valid different digest stays fail-closed',async()=>{const r=harness('source-exact-fields');try{await r.ready();r.b.pending.value={key:'original',body_sha256:'b'.repeat(64)};for(const text of ['{','null','{}',JSON.stringify({...publication(),reason:' padded '})]){r.b.recoveryJson.value=text;await r.b.resend();assert.equal(r.b.recoveryJson.value,text);assert.equal(r.b.pending.value.key,'original');assert.ok(r.b.inputIssues.value.length)}assert.equal(r.failCalls.length,0);r.b.recoveryJson.value=JSON.stringify(publication());await assert.rejects(r.b.resend(),/IDEMPOTENCY_CONFLICT/);assert.deepEqual(r.failCalls,['IDEMPOTENCY_CONFLICT']);assert.equal(r.calls.length,0)}finally{r.close()}})
+test('rights recovery syntax/schema errors stay local and original metadata intact',async()=>{const r=harness('source-rights');try{await r.ready();r.b.pending.value={key:'original',state:'PENDING',context:r.user.medicalSession.current_context,body_sha256:hash};r.b.lookupState.value='NOT_FOUND';for(const text of ['{','null','{}',JSON.stringify({schema_version:'1.0.0',decision:'RETURN',proposal:null}),JSON.stringify({...rights(),reason:' padded '})]){r.b.originalJson.value=text;await r.b.recoverOriginal();assert.ok(r.b.recoveryIssues.value.length);assert.equal(r.b.originalJson.value,text);assert.equal(r.b.pending.value.key,'original')}assert.equal(r.failCalls.length,0);assert.equal(r.calls.length,0)}finally{r.close()}})
+test('rights valid recovery reaches strict API; changed digest remains fatal',async()=>{const r=harness('source-rights');try{await r.ready();r.b.pending.value={key:'original',state:'PENDING',context:r.user.medicalSession.current_context,body_sha256:hash};r.b.lookupState.value='NOT_FOUND';r.b.originalJson.value=JSON.stringify(rights());await assert.rejects(r.b.recoverOriginal(),/strict-rights/);assert.deepEqual(r.calls,['submitRights']);r.b.pending.value={...r.b.pending.value,body_sha256:'b'.repeat(64)};await assert.rejects(r.b.recoverOriginal(),/IDEMPOTENCY_CONFLICT/);assert.deepEqual(r.failCalls,['IDEMPOTENCY_CONFLICT'])}finally{r.close()}})
+test('EXACT valid original recovery preserves key and reaches strict publication path',async()=>{const r=harness('source-exact-fields');try{await r.ready();r.b.pending.value={key:'original',body_sha256:hash};r.b.recoveryJson.value=JSON.stringify(publication());await assert.rejects(r.b.resend(),/strict-send/);assert.equal(r.b.pending.value.key,'original');assert.equal(r.b.recoveryJson.value,JSON.stringify(publication()));assert.deepEqual(r.calls,['prepare']);assert.equal(r.failCalls.length,0)}finally{r.close()}})
+test('EXACT oversized original selection is local and never enters field list',async()=>{const r=harness('source-exact-fields');try{await r.ready();r.b.parsed.value={items:[{chunk_id:id,raw_text:'A'.repeat(513),quote_hash:hash,locator_sha256:hash}]};r.b.chunkId.value=id;r.b.start.value=0;r.b.end.value=513;r.b.addField();assert.equal(r.b.fields.value.length,0);assert.ok(r.b.inputIssues.value.length);assert.equal(r.failCalls.length,0);r.b.end.value=1;r.b.addField();assert.equal(r.b.fields.value.length,1);assert.equal(r.b.fields.value[0].raw_value,'A')}finally{r.close()}})
+test('local semantic helper rejects Unicode, whitespace, range and alias reason errors',async()=>{const r=harness('source-exact-fields');try{await r.ready();const helper=r.helper();for(const edit of [f=>f.raw_value=' ',f=>f.raw_value='\ud800',f=>f.end_codepoint=0,f=>f.end_codepoint=Number.MAX_SAFE_INTEGER+1,f=>{f.alias_value='other';f.alias_reason=' padded '},f=>{f.alias_value='other';f.alias_reason='e\u0301'},f=>{f.alias_value=' ';f.alias_reason='reason'}]){const f=field();edit(f);assert.ok(helper.exactFieldInputIssues(f).length)}assert.deepEqual(Array.from(helper.exactPublicationInputIssues(publication())),[]);assert.equal(r.failCalls.length,0)}finally{r.close()}})

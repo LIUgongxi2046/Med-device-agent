@@ -1,0 +1,78 @@
+--liquibase formatted sql
+
+--changeset medical-agent:067-01-document-revision-return dbms:mysql runInTransaction:false failOnError:true
+-- Independent human revision request. No formal review_batch/review_decision row is produced.
+CREATE TABLE document_revision_return (
+  tenant_id CHAR(36) CHARACTER SET ascii NOT NULL,
+  project_id CHAR(36) CHARACTER SET ascii NOT NULL,
+  return_id CHAR(36) CHARACTER SET ascii NOT NULL,
+  document_id CHAR(36) CHARACTER SET ascii NOT NULL,
+  document_revision CHAR(36) CHARACTER SET ascii NOT NULL,
+  task_id CHAR(36) CHARACTER SET ascii NOT NULL,
+  task_revision CHAR(36) CHARACTER SET ascii NOT NULL,
+  assignee_id CHAR(36) CHARACTER SET ascii NOT NULL,
+  actor_id CHAR(36) CHARACTER SET ascii NOT NULL,
+  reason TEXT NOT NULL,
+  decision VARCHAR(32) NOT NULL,
+  operation_id CHAR(36) CHARACTER SET ascii NOT NULL,
+  canonical_request LONGTEXT NOT NULL,
+  request_sha256 CHAR(64) CHARACTER SET ascii NOT NULL,
+  canonical_receipt LONGTEXT NOT NULL,
+  schema_version VARCHAR(32) NOT NULL,
+  schema_manifest_sha256 CHAR(64) CHARACTER SET ascii NOT NULL,
+  created_by CHAR(36) CHARACTER SET ascii NOT NULL,
+  created_at DATETIME(6) NOT NULL,
+  classification VARCHAR(24) NOT NULL,
+  PRIMARY KEY (tenant_id, project_id, return_id),
+  UNIQUE KEY uq_revision_return_operation (tenant_id, operation_id),
+  UNIQUE KEY uq_revision_return_assignment_binding (tenant_id, project_id, return_id, document_id, document_revision, task_id, task_revision, assignee_id),
+  FOREIGN KEY (tenant_id, project_id, document_id, document_revision) REFERENCES document_revision_meta (tenant_id, project_id, document_id, document_revision),
+  FOREIGN KEY (tenant_id, project_id, document_id, task_id) REFERENCES document_head (tenant_id, project_id, document_id, task_id),
+  FOREIGN KEY (tenant_id, project_id, task_id, task_revision) REFERENCES task_revision (tenant_id, project_id, task_id, task_revision),
+  FOREIGN KEY (tenant_id, assignee_id) REFERENCES tenant_member (tenant_id, user_id),
+  FOREIGN KEY (tenant_id, actor_id) REFERENCES tenant_member (tenant_id, user_id),
+  FOREIGN KEY (tenant_id, operation_id) REFERENCES operation_record (tenant_id, operation_id),
+  CHECK (decision = 'RETURN_FOR_REVISION'),
+  CHECK (CHAR_LENGTH(reason) > 0),
+  CHECK (created_by = actor_id),
+  CHECK (schema_version = '1.0.0'),
+  CHECK (classification IN ('PUBLIC','INTERNAL','RESTRICTED','PERSONAL_HEALTH')),
+  CHECK (JSON_VALID(canonical_request)),
+  CHECK (JSON_VALID(canonical_receipt)),
+  CHECK (request_sha256 REGEXP '^[a-f0-9]{64}$'),
+  CHECK (schema_manifest_sha256 REGEXP '^[a-f0-9]{64}$')
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_as_cs;
+
+--changeset medical-agent:067-02-document-revision-return-assignment dbms:mysql runInTransaction:false failOnError:true
+-- Immutable initial assignment; completion requires a future append-only resolution, never fake run/step IDs.
+CREATE TABLE document_revision_return_assignment (
+  tenant_id CHAR(36) CHARACTER SET ascii NOT NULL,
+  project_id CHAR(36) CHARACTER SET ascii NOT NULL,
+  assignment_id CHAR(36) CHARACTER SET ascii NOT NULL,
+  return_id CHAR(36) CHARACTER SET ascii NOT NULL,
+  document_id CHAR(36) CHARACTER SET ascii NOT NULL,
+  document_revision CHAR(36) CHARACTER SET ascii NOT NULL,
+  task_id CHAR(36) CHARACTER SET ascii NOT NULL,
+  task_revision CHAR(36) CHARACTER SET ascii NOT NULL,
+  assignee_id CHAR(36) CHARACTER SET ascii NOT NULL,
+  status VARCHAR(24) NOT NULL,
+  schema_version VARCHAR(32) NOT NULL,
+  schema_manifest_sha256 CHAR(64) CHARACTER SET ascii NOT NULL,
+  created_by CHAR(36) CHARACTER SET ascii NOT NULL,
+  created_at DATETIME(6) NOT NULL,
+  classification VARCHAR(24) NOT NULL,
+  revision BIGINT UNSIGNED NOT NULL,
+  updated_at DATETIME(6) NOT NULL,
+  PRIMARY KEY (tenant_id, project_id, assignment_id),
+  UNIQUE KEY uq_revision_return_assignment (tenant_id, project_id, return_id),
+  UNIQUE KEY uq_revision_assignment_identity (tenant_id, assignment_id),
+  KEY ix_revision_assignment_queue (tenant_id, assignee_id, assignment_id),
+  KEY ix_revision_return_assignee (tenant_id, project_id, assignee_id, status, created_at),
+  FOREIGN KEY (tenant_id, project_id, return_id, document_id, document_revision, task_id, task_revision, assignee_id)
+    REFERENCES document_revision_return (tenant_id, project_id, return_id, document_id, document_revision, task_id, task_revision, assignee_id),
+  FOREIGN KEY (tenant_id, created_by) REFERENCES tenant_member (tenant_id, user_id),
+  CHECK (status = 'WAITING_INPUT' AND revision = 1),
+  CHECK (schema_version = '1.0.0'),
+  CHECK (classification IN ('PUBLIC','INTERNAL','RESTRICTED','PERSONAL_HEALTH')),
+  CHECK (schema_manifest_sha256 REGEXP '^[a-f0-9]{64}$')
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_as_cs;

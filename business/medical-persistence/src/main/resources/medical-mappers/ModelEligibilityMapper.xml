@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.medical.persistence.mapper.ModelEligibilityMapper">
+<resultMap id="Row" type="com.ruoyi.medical.persistence.mapper.ModelEligibilityMapper$Row"><constructor>
+<arg column="tenant_id" javaType="java.lang.String"/>
+<arg column="project_id" javaType="java.lang.String"/>
+<arg column="eligibility_id" javaType="java.lang.String"/>
+<arg column="model_revision" javaType="java.lang.String"/>
+<arg column="config_id" javaType="java.lang.String"/>
+<arg column="verification_id" javaType="java.lang.String"/>
+<arg column="fixed_json" javaType="java.lang.String"/>
+<arg column="content_sha256" javaType="java.lang.String"/>
+<arg column="request_sha256" javaType="java.lang.String"/>
+<arg column="operation_id" javaType="java.lang.String"/>
+<arg column="idempotency_key" javaType="java.lang.String"/>
+<arg column="created_by" javaType="java.lang.String"/>
+<arg column="created_at" javaType="java.lang.String"/>
+<arg column="schema_version" javaType="java.lang.String"/>
+<arg column="schema_manifest_sha256" javaType="java.lang.String"/>
+<arg column="classification" javaType="java.lang.String"/>
+<arg column="status" javaType="java.lang.String"/>
+<arg column="revision" javaType="java.lang.String"/>
+<arg column="receipt_json" javaType="java.lang.String"/>
+<arg column="audit_id" javaType="java.lang.String"/>
+<arg column="event_id" javaType="java.lang.String"/>
+</constructor></resultMap>
+<select id="model" resultMap="Row" timeout="5" useCache="false" flushCache="true">SELECT tenant_id,project_id,eligibility_id,model_revision,config_id,verification_id,fixed_json,content_sha256,request_sha256,operation_id,idempotency_key,created_by,DATE_FORMAT(created_at,'%Y-%m-%dT%H:%i:%s.%fZ') AS created_at,schema_version,schema_manifest_sha256,classification,status,CAST(revision AS CHAR) AS revision,receipt_json,audit_id,event_id FROM model_eligibility WHERE model_revision=#{modelRevision} LIMIT 2</select>
+<select id="byKey" resultMap="Row" timeout="5" useCache="false" flushCache="true">SELECT tenant_id,project_id,eligibility_id,model_revision,config_id,verification_id,fixed_json,content_sha256,request_sha256,operation_id,idempotency_key,created_by,DATE_FORMAT(created_at,'%Y-%m-%dT%H:%i:%s.%fZ') AS created_at,schema_version,schema_manifest_sha256,classification,status,CAST(revision AS CHAR) AS revision,receipt_json,audit_id,event_id FROM model_eligibility WHERE created_by=#{userId} AND idempotency_key=#{key} LIMIT 2</select>
+<insert id="insertEligibility">INSERT INTO model_eligibility(project_id,eligibility_id,model_revision,config_id,verification_id,fixed_json,content_sha256,request_sha256,operation_id,idempotency_key,created_by,created_at,schema_version,schema_manifest_sha256,classification,status,revision,receipt_json,audit_id,event_id) VALUES(#{projectId},#{eligibilityId},#{modelRevision},#{configId},#{verificationId},#{fixedJson},#{contentHash},#{requestHash},#{operationId},#{key},#{userId},#{now},'1.0.0',#{manifest},#{classification},'ENABLED',1,#{receiptJson},#{auditId},#{eventId})</insert>
+<insert id="insertVersion">INSERT INTO version_registry(version_id,owner_project_id,entity_kind,content_sha256) VALUES(#{eligibilityId},#{projectId},'MODEL_ELIGIBILITY',#{contentHash})</insert>
+<insert id="insertOperation">INSERT INTO operation_record(operation_id,subject_id,operation_name,idempotency_key,request_sha256,state,http_status,response_ref,target_id,schema_version,schema_manifest_sha256,created_by,created_at,classification,revision,updated_at) VALUES(#{operationId},#{userId},'MODEL-ELIGIBILITY-ENABLE',#{key},#{requestHash},'COMPLETED',201,#{receiptJson},#{eligibilityId},'1.0.0',#{manifest},#{userId},#{now},#{classification},1,#{now})</insert>
+<select id="registry" resultType="java.lang.String" timeout="5" useCache="false" flushCache="true">SELECT content_sha256 FROM version_registry WHERE version_id=#{eligibilityId} AND owner_project_id &lt;=> #{projectId} AND entity_kind='MODEL_ELIGIBILITY' LIMIT 2</select>
+<select id="operation" resultType="java.lang.String" timeout="5" useCache="false" flushCache="true">SELECT response_ref FROM operation_record WHERE operation_id=#{operationId} AND subject_id=#{creator} AND created_by=#{creator} AND operation_name='MODEL-ELIGIBILITY-ENABLE' AND idempotency_key=#{key} AND request_sha256=#{requestHash} AND target_id=#{eligibilityId} AND state='COMPLETED' AND http_status=201 AND schema_version='1.0.0' AND schema_manifest_sha256=#{manifest} AND classification=#{classification} LIMIT 2</select>
+<select id="audit" resultType="java.lang.String" timeout="5" useCache="false" flushCache="true">SELECT resource_ref FROM audit_event WHERE audit_id=#{auditId} AND project_id &lt;=> #{projectId} AND subject_id=#{creator} AND created_by=#{creator} AND request_id=#{operationId} AND trace_id=#{operationId} AND action='model.eligibility.enabled' AND result='SUCCESS' AND reason_code IS NULL AND schema_version='1.0.0' AND schema_manifest_sha256=#{manifest} AND classification=#{classification} LIMIT 2</select>
+<select id="event" resultType="java.lang.String" timeout="5" useCache="false" flushCache="true">SELECT payload FROM outbox_event WHERE event_id=#{eventId} AND aggregate_id=#{eligibilityId} AND aggregate_revision=1 AND event_type='model.eligibility.enabled' LIMIT 2</select>
+</mapper>

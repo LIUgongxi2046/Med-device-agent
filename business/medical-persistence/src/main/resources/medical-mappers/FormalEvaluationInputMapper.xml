@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.medical.persistence.mapper.FormalEvaluationInputMapper">
+ <resultMap id="registration" type="com.ruoyi.medical.persistence.FormalEvaluationInputProtocol$Registration"><constructor>
+  <arg column="tenant_id" javaType="java.lang.String"/>
+  <arg column="project_id" javaType="java.lang.String"/>
+  <arg column="artifact_id" javaType="java.lang.String"/>
+  <arg column="source_id" javaType="java.lang.String"/>
+  <arg column="source_version" javaType="java.lang.String"/>
+  <arg column="rights_revision" javaType="java.lang.String"/>
+  <arg column="purpose" javaType="java.lang.String"/>
+  <arg column="access_set_id" javaType="java.lang.String"/>
+  <arg column="dependency_sha256" javaType="java.lang.String"/>
+  <arg column="document_sha256" javaType="java.lang.String"/>
+  <arg column="object_version" javaType="java.lang.String"/>
+  <arg column="schema_ref" javaType="java.lang.String"/>
+  <arg column="document_schema_sha256" javaType="java.lang.String"/>
+  <arg column="canonical_document" javaType="java.lang.String"/>
+  <arg column="canonical_request" javaType="java.lang.String"/>
+  <arg column="request_body_sha256" javaType="java.lang.String"/>
+  <arg column="operation_request_sha256" javaType="java.lang.String"/>
+  <arg column="idempotency_key" javaType="java.lang.String"/>
+  <arg column="request_context" javaType="java.lang.String"/>
+  <arg column="request_session" javaType="java.lang.String"/>
+  <arg column="authorization_json" javaType="java.lang.String"/>
+  <arg column="authorization_sha256" javaType="java.lang.String"/>
+  <arg column="receipt_json" javaType="java.lang.String"/>
+  <arg column="operation_id" javaType="java.lang.String"/>
+  <arg column="audit_id" javaType="java.lang.String"/>
+  <arg column="schema_version" javaType="java.lang.String"/>
+  <arg column="schema_manifest_sha256" javaType="java.lang.String"/>
+  <arg column="created_by" javaType="java.lang.String"/>
+  <arg column="created_at" javaType="java.time.LocalDateTime"/>
+  <arg column="classification" javaType="java.lang.String"/>
+ </constructor></resultMap>
+ <resultMap id="original" type="com.ruoyi.medical.persistence.FormalEvaluationInputProtocol$Original"><constructor>
+  <arg column="tenant_id" javaType="java.lang.String"/>
+  <arg column="source_version" javaType="java.lang.String"/>
+  <arg column="original_sha256" javaType="java.lang.String"/>
+  <arg column="object_key" javaType="java.lang.String"/>
+  <arg column="object_version" javaType="java.lang.String"/>
+  <arg column="size_bytes" javaType="java.math.BigInteger"/>
+  <arg column="media_type" javaType="java.lang.String"/>
+ </constructor></resultMap>
+ <resultMap id="operation" type="com.ruoyi.medical.persistence.SelectionOperationRow"><constructor>
+  <arg column="operation_id" javaType="java.lang.String"/>
+  <arg column="request_sha256" javaType="java.lang.String"/>
+  <arg column="state" javaType="java.lang.String"/>
+  <arg column="http_status" javaType="java.lang.Integer"/>
+  <arg column="response_ref" javaType="java.lang.String"/>
+  <arg column="target_id" javaType="java.lang.String"/>
+  <arg column="schema_version" javaType="java.lang.String"/>
+  <arg column="schema_manifest_sha256" javaType="java.lang.String"/>
+ </constructor></resultMap>
+ <select id="candidateVersions" resultType="java.lang.String" useCache="false" flushCache="true">
+  SELECT sv.source_version FROM source_version sv JOIN source s ON s.tenant_id=sv.tenant_id AND s.source_id=sv.source_id
+  JOIN rights_revision r ON r.tenant_id=sv.tenant_id AND r.rights_revision=sv.rights_revision AND r.source_version=sv.source_version
+  WHERE s.ownership='ENTERPRISE' AND s.owner_project_id IS NULL AND r.purpose=#{purpose}
+  ORDER BY sv.source_version LIMIT 21 OFFSET #{offset}
+ </select>
+ <select id="original" resultMap="original" useCache="false" flushCache="true">
+  SELECT tenant_id,source_version,original_sha256,object_key,object_version,size_bytes,media_type FROM source_version WHERE source_version=#{sourceVersion}
+ </select>
+ <select id="lockActor" resultType="java.lang.String" useCache="false" flushCache="true">
+  SELECT user_id FROM tenant_member WHERE user_id=#{userId} FOR UPDATE
+ </select>
+ <select id="lockSource" resultType="java.lang.String" useCache="false" flushCache="true">
+  SELECT source_version FROM source_version WHERE source_version=#{sourceVersion} FOR UPDATE
+ </select>
+ <select id="databaseTime" resultType="java.time.LocalDateTime" useCache="false" flushCache="true">
+  SELECT UTC_TIMESTAMP(6)
+ </select>
+ <select id="registration" resultMap="registration" useCache="false" flushCache="true">
+  SELECT tenant_id,project_id,artifact_id,source_id,source_version,rights_revision,purpose,access_set_id,dependency_sha256,document_sha256,object_version,schema_ref,document_schema_sha256,canonical_document,canonical_request,request_body_sha256,operation_request_sha256,idempotency_key,request_context,request_session,authorization_json,authorization_sha256,receipt_json,operation_id,audit_id,schema_version,schema_manifest_sha256,created_by,created_at,classification FROM formal_evaluation_input_registration WHERE artifact_id=#{artifactId} AND project_id IS NULL AND resource_kind='SOURCE' AND artifact_kind='FORMAL_EVALUATION_INPUT'
+ </select>
+ <select id="operation" resultMap="operation" useCache="false" flushCache="true">
+  SELECT operation_id,request_sha256,state,http_status,response_ref,target_id,schema_version,schema_manifest_sha256 FROM operation_record WHERE subject_id=#{userId} AND operation_name='FORMAL-EVALUATION-INPUT-REGISTER' AND idempotency_key=#{key}
+ </select>
+ <select id="operationById" resultMap="operation" useCache="false" flushCache="true">
+  SELECT operation_id,request_sha256,state,http_status,response_ref,target_id,schema_version,schema_manifest_sha256 FROM operation_record WHERE subject_id=#{creatorId} AND created_by=#{creatorId} AND operation_name='FORMAL-EVALUATION-INPUT-REGISTER' AND operation_id=#{operationId} AND error_code IS NULL AND revision=1 AND updated_at=created_at <if test="key != null">AND idempotency_key=#{key} AND created_at=#{now} AND classification=#{classification}</if>
+ </select>
+ <insert id="insertVersion">
+  INSERT INTO version_registry(version_id,owner_project_id,entity_kind,content_sha256) VALUES(#{versionId},NULL,#{kind},#{hash})
+ </insert>
+ <insert id="insertAccessSet">
+  INSERT INTO dependency_access_set(project_id,access_set_id,manifest_sha256,content_sha256,created_by,created_at,classification) VALUES(NULL,#{accessId},#{dependencyHash},#{dependencyHash},#{userId},#{now},#{classification})
+ </insert>
+ <insert id="insertManifest">
+  INSERT INTO dependency_access_manifest(project_id,access_set_id,manifest_json,manifest_sha256,content_sha256,member_count,schema_version,schema_manifest_sha256,created_by,created_at,classification) VALUES(NULL,#{accessId},#{dependencyJson},#{dependencyHash},#{dependencyHash},#{memberCount},'1.0.0',#{dependencySchema},#{userId},#{now},#{classification})
+ </insert>
+ <insert id="insertMember">
+  INSERT INTO dependency_access_member(access_set_id,upstream_version_id,rights_revision,created_by,created_at,classification) VALUES(#{accessId},#{member.upstreamVersionId},#{member.rightsRevision},#{userId},#{now},#{classification})
+ </insert>
+ <insert id="insertLineage">
+  INSERT INTO lineage_edge(consumer_version_id,upstream_version_id,relation_kind,actor_id,decision_ref,created_at) VALUES(#{consumer},#{upstream},'FORMAL_INPUT_SOURCE',#{userId},NULL,#{now})
+ </insert>
+ <insert id="insertArtifact">
+  INSERT INTO artifact(project_id,artifact_id,artifact_kind,object_ref,object_key,object_version,sha256,size_bytes,media_type,dependency_access_set_id,content_sha256,schema_version,schema_manifest_sha256,created_by,created_at,classification) VALUES(NULL,#{artifactId},'FORMAL_EVALUATION_INPUT',#{storedObject},#{reference.objectKey},#{reference.objectVersion},#{reference.sha256},#{reference.sizeBytes},#{reference.mediaType},#{accessId},#{reference.sha256},'1.0.0',#{schemaHash},#{userId},#{now},#{classification})
+ </insert>
+ <insert id="insertBinding">
+  INSERT INTO artifact_content_binding(project_id,artifact_id,resource_kind,resource_id,schema_ref,schema_document_sha256,dependency_access_set_id,dependency_manifest_sha256,created_by,created_at,classification) VALUES(NULL,#{artifactId},'SOURCE',#{sourceId},#{schemaRef},#{schemaHash},#{accessId},#{dependencyHash},#{userId},#{now},#{classification})
+ </insert>
+ <insert id="insertRegistration">
+  INSERT INTO formal_evaluation_input_registration(project_id,artifact_id,source_id,source_version,rights_revision,purpose,access_set_id,dependency_sha256,document_sha256,object_version,schema_ref,document_schema_sha256,canonical_document,canonical_request,request_body_sha256,operation_request_sha256,idempotency_key,request_context,request_session,authorization_json,authorization_sha256,receipt_json,operation_id,audit_id,schema_version,schema_manifest_sha256,created_by,created_at,classification,resource_kind,artifact_kind) VALUES(#{row.projectId},#{row.artifactId},#{row.sourceId},#{row.sourceVersion},#{row.rightsRevision},#{row.purpose},#{row.accessSetId},#{row.dependencySha256},#{row.documentSha256},#{row.objectVersion},#{row.schemaRef},#{row.documentSchemaSha256},#{row.canonicalDocument},#{row.canonicalRequest},#{row.requestBodySha256},#{row.operationRequestSha256},#{row.idempotencyKey},#{row.requestContext},#{row.requestSession},#{row.authorizationJson},#{row.authorizationSha256},#{row.receiptJson},#{row.operationId},#{row.auditId},#{row.schemaVersion},#{row.schemaManifest},#{row.createdBy},#{row.createdAt},#{row.classification},'SOURCE','FORMAL_EVALUATION_INPUT')
+ </insert>
+ <insert id="saveOperation">
+  INSERT INTO operation_record(operation_id,subject_id,operation_name,idempotency_key,request_sha256,state,http_status,response_ref,target_id,error_code,schema_version,schema_manifest_sha256,created_by,created_at,classification,revision,updated_at) VALUES(#{operationId},#{userId},'FORMAL-EVALUATION-INPUT-REGISTER',#{key},#{requestHash},'COMPLETED',201,#{response},#{artifactId},NULL,'1.0.0',#{operationManifest},#{userId},#{now},#{classification},1,#{now})
+ </insert>
+ <insert id="saveAudit">
+  INSERT INTO audit_event(project_id,audit_id,subject_id,action,resource_ref,result,reason_code,request_id,trace_id,schema_version,schema_manifest_sha256,created_by,created_at,classification) VALUES(NULL,#{auditId},#{userId},'formal.evaluation.input_registered',#{payload},'SUCCESS',NULL,#{operationId},#{operationId},'1.0.0',#{operationManifest},#{userId},#{now},#{classification})
+ </insert>
+ <insert id="saveEvent">
+  INSERT INTO outbox_event(event_id,aggregate_id,aggregate_revision,event_type,payload,occurred_at,published_at) VALUES(#{operationId},#{artifactId},1,'formal.evaluation.input_registered',#{payload},#{now},NULL)
+ </insert>
+ <select id="audit" resultType="java.lang.String" useCache="false" flushCache="true">
+  SELECT resource_ref FROM audit_event WHERE audit_id=#{auditId} AND project_id IS NULL AND subject_id=#{creatorId} AND created_by=#{creatorId} AND created_at=#{now} AND request_id=#{operationId} AND trace_id=#{operationId} AND action='formal.evaluation.input_registered' AND result='SUCCESS' AND reason_code IS NULL AND schema_version='1.0.0' AND schema_manifest_sha256=#{operationManifest} AND classification=#{classification}
+ </select>
+ <select id="event" resultType="java.lang.String" useCache="false" flushCache="true">
+  SELECT payload FROM outbox_event WHERE event_id=#{operationId} AND aggregate_id=#{artifactId} AND aggregate_revision=1 AND event_type='formal.evaluation.input_registered' AND occurred_at=#{now}
+ </select>
+</mapper>

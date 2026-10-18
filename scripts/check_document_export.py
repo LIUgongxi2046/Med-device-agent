@@ -52,7 +52,7 @@ def main():
     environment.update({'TMPDIR': str(temporary), 'PYTHONPATH': '' if args.installed else str(ROOT / 'document/src') + ':' + str(ROOT / 'contracts/python/src'),
         'MEDICAL_EXPORT_TEST_ROOT': str(output / 'files')})
     inputs = {'scripts/check_document_export.py', 'tests/test_document_export.py', 'document/pyproject.toml',
-        'contracts/catalogue.json', 'LLD-后端.md', 'LLD-数据.md'}
+        'contracts/catalogue.json', 'contracts/extensions/evaluation-results.catalogue.json', 'business/medical-persistence/src/main/resources/evaluation-results.schema.json', 'LLD-后端.md', 'LLD-数据.md'}
     for directory in ('document/src', 'contracts/python/src'):
         inputs.update(str(path.relative_to(ROOT)) for path in (ROOT / directory).rglob('*.py'))
     inputs.update(str(path.relative_to(ROOT)) for path in (ROOT / 'contracts').glob('*.json'))

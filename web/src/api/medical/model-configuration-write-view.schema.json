@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:model-configuration-write-view:1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "actor",
+    "tenant_id",
+    "key",
+    "context",
+    "config_id",
+    "project_id",
+    "expected_revision",
+    "based_on_revision",
+    "body_sha256",
+    "public_definition_sha256",
+    "operation"
+  ],
+  "properties": {
+    "actor": {
+      "$ref": "urn:medical:model-configuration:1.0.0#/$defs/Id"
+    },
+    "tenant_id": {
+      "$ref": "urn:medical:model-configuration:1.0.0#/$defs/Id"
+    },
+    "key": {
+      "$ref": "urn:medical:model-configuration:1.0.0#/$defs/Id"
+    },
+    "context": {
+      "$ref": "urn:medical:model-configuration:1.0.0#/$defs/Context"
+    },
+    "config_id": {
+      "$ref": "urn:medical:model-configuration:1.0.0#/$defs/NullableId"
+    },
+    "project_id": {
+      "$ref": "urn:medical:model-configuration:1.0.0#/$defs/NullableId"
+    },
+    "expected_revision": {
+      "$ref": "urn:medical:model-configuration:1.0.0#/$defs/Revision"
+    },
+    "based_on_revision": {
+      "$ref": "urn:medical:model-configuration:1.0.0#/$defs/NullableBasis"
+    },
+    "body_sha256": {
+      "$ref": "urn:medical:model-configuration:1.0.0#/$defs/Hash"
+    },
+    "public_definition_sha256": {
+      "$ref": "urn:medical:model-configuration:1.0.0#/$defs/Hash"
+    },
+    "operation": {
+      "const": "CP-08"
+    }
+  }
+}

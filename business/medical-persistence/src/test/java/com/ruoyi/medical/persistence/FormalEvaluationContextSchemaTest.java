@@ -1,0 +1,21 @@
+package com.ruoyi.medical.persistence;
+import org.junit.jupiter.api.Test;import static org.junit.jupiter.api.Assertions.*;import java.util.*;import com.ruoyi.medical.contracts.SchemaRejection;import static com.ruoyi.medical.persistence.FormalEvaluationContextProtocol.*;
+class FormalEvaluationContextSchemaTest {
+ final PermissionSchema json=new PermissionSchema();final FormalEvaluationContextSchema schema=new FormalEvaluationContextSchema(json);
+ FormalEvaluationContextSchemaTest()throws Exception{}
+ static String id(int n){return String.format("00000000-0000-4000-8000-%012d",n);}static PermissionProtocol.Basis b(int n){return new PermissionProtocol.Basis(id(n),"a".repeat(64));}
+ static Definition definition(){var schema=new Schema("urn:medical:task:1.0.0#/$defs/Create","b".repeat(64));return new Definition("1.0.0",id(1),b(2),b(3),List.of(new Node("N01",b(4),b(5),b(6),schema,schema)));}
+ byte[] bytes(Object value)throws Exception{return json.canonicalObject(value).getBytes(java.nio.charset.StandardCharsets.UTF_8);}
+ @Test void roundTripsClosedExplicitNodeBinding()throws Exception{var request=new Author("1.0.0",definition(),"Explicit bounded context");assertEquals(request,schema.author(bytes(request)));}
+ @Test void duplicateNodeBindingRejected()throws Exception{var d=definition();var bad=new Definition(d.schemaVersion(),d.projectId(),d.candidate(),d.executionPolicy(),List.of(d.nodeBindings().get(0),d.nodeBindings().get(0)));assertThrows(SchemaRejection.class,()->schema.author(bytes(new Author("1.0.0",bad,"reason"))));}
+ @Test void noPublicApprovalBoolean()throws Exception{var node=(com.fasterxml.jackson.databind.node.ObjectNode)json.tree(new Author("1.0.0",definition(),"reason"));node.put("approved",true);assertThrows(SchemaRejection.class,()->schema.author(bytes(node)));}
+ @Test void promptCannotBeOmitted()throws Exception{var node=json.tree(new Author("1.0.0",definition(),"reason"));((com.fasterxml.jackson.databind.node.ObjectNode)node.at("/definition/node_bindings/0")).remove("prompt");assertThrows(SchemaRejection.class,()->schema.author(bytes(node)));}
+ @Test void genericPromptTextCannotReplaceFixedVersion()throws Exception{var node=json.tree(new Author("1.0.0",definition(),"reason"));((com.fasterxml.jackson.databind.node.ObjectNode)node.at("/definition/node_bindings/0")).put("prompt","helpful assistant");assertThrows(SchemaRejection.class,()->schema.author(bytes(node)));}
+ @Test void oversizedBodyRejected(){assertThrows(SchemaRejection.class,()->schema.author(new byte[1048577]));}
+ @Test void rawApprovalRequiresExactRevisionAndBasis()throws Exception{var request=new Decide("1.0.0",b(9),"1","APPROVE","Independent review");assertEquals(request,schema.decide(bytes(request)));}
+ @Test void zeroRevisionRejected(){assertThrows(SchemaRejection.class,()->schema.decide(bytes(new Decide("1.0.0",b(9),"0","APPROVE","reason"))));}
+ @Test void implicitDecisionRejected(){assertThrows(SchemaRejection.class,()->schema.decide(bytes(new Decide("1.0.0",b(9),"1","AUTO_APPROVE","reason"))));}
+ @Test void statesCannotSkipIndependentApproval(){assertThrows(TenantAccessException.class,()->FormalEvaluationContextStore.transition("DRAFT","DISABLE"));assertThrows(TenantAccessException.class,()->FormalEvaluationContextStore.transition("REJECTED","APPROVE"));assertThrows(TenantAccessException.class,()->FormalEvaluationContextStore.transition("APPROVED","APPROVE"));}
+ @Test void boundStartRequiresExplicitOriginalContextBasis()throws Exception{var start=new FormalEvaluationExecutionProtocol.Start("1.0.0",id(20),"a".repeat(64),"1",b(2),b(3),b(21),b(22));var request=new BoundStart("1.0.0",start,b(23));assertEquals(request,schema.start(bytes(request)));var raw=(com.fasterxml.jackson.databind.node.ObjectNode)json.tree(request);raw.remove("context_binding");assertThrows(SchemaRejection.class,()->schema.start(bytes(raw)));}
+ @Test void publicStartCannotSupplyCompletedFlag()throws Exception{var start=new FormalEvaluationExecutionProtocol.Start("1.0.0",id(20),"a".repeat(64),"1",b(2),b(3),b(21),b(22));var raw=(com.fasterxml.jackson.databind.node.ObjectNode)json.tree(new BoundStart("1.0.0",start,b(23)));raw.put("completed",true);assertThrows(SchemaRejection.class,()->schema.start(bytes(raw)));}
+}

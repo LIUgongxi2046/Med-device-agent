@@ -1,0 +1,92 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:annotation-reanchor-write-view:1.0.0",
+  "description": "Only opaque identities and digests. Never persist Selection, reason, comments, credentials or body.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "actor",
+    "context",
+    "operation",
+    "key",
+    "document_id",
+    "document_revision",
+    "annotation_id",
+    "expected_revision",
+    "body_sha256",
+    "fixed_body_sha256",
+    "issue_watermark",
+    "evidence_watermark",
+    "expected_document_revision",
+    "expected_anchor_id",
+    "expected_anchor_revision"
+  ],
+  "properties": {
+    "actor": {
+      "$ref": "urn:medical:annotation-threads:1.0.0#/$defs/Id"
+    },
+    "context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tenant_id",
+        "context_revision",
+        "auth_epoch",
+        "governance_epoch"
+      ],
+      "properties": {
+        "tenant_id": {
+          "$ref": "urn:medical:annotation-threads:1.0.0#/$defs/Id"
+        },
+        "context_revision": {
+          "$ref": "urn:medical:annotation-threads:1.0.0#/$defs/Revision"
+        },
+        "auth_epoch": {
+          "$ref": "urn:medical:annotation-threads:1.0.0#/$defs/Revision"
+        },
+        "governance_epoch": {
+          "$ref": "urn:medical:annotation-threads:1.0.0#/$defs/Revision"
+        }
+      }
+    },
+    "operation": {
+      "const": "RV-06-REANCHOR-1"
+    },
+    "key": {
+      "$ref": "urn:medical:annotation-threads:1.0.0#/$defs/Id"
+    },
+    "document_id": {
+      "$ref": "urn:medical:annotation-threads:1.0.0#/$defs/Id"
+    },
+    "document_revision": {
+      "$ref": "urn:medical:annotation-threads:1.0.0#/$defs/Id"
+    },
+    "annotation_id": {
+      "$ref": "urn:medical:annotation-threads:1.0.0#/$defs/Id"
+    },
+    "expected_revision": {
+      "$ref": "urn:medical:annotation-threads:1.0.0#/$defs/Revision"
+    },
+    "body_sha256": {
+      "$ref": "urn:medical:annotation-threads:1.0.0#/$defs/Hash"
+    },
+    "fixed_body_sha256": {
+      "$ref": "urn:medical:annotation-threads:1.0.0#/$defs/Hash"
+    },
+    "issue_watermark": {
+      "$ref": "urn:medical:annotation-threads:1.0.0#/$defs/Revision"
+    },
+    "evidence_watermark": {
+      "$ref": "urn:medical:annotation-threads:1.0.0#/$defs/Revision"
+    },
+    "expected_document_revision": {
+      "$ref": "urn:medical:annotation-threads:1.0.0#/$defs/Revision"
+    },
+    "expected_anchor_id": {
+      "$ref": "urn:medical:annotation-threads:1.0.0#/$defs/Id"
+    },
+    "expected_anchor_revision": {
+      "$ref": "urn:medical:annotation-threads:1.0.0#/$defs/Revision"
+    }
+  }
+}

@@ -1,0 +1,151 @@
+# 42项工单：当前功能实现与真实剩余项
+
+核对时间：2026-10-18。下表初始基线为正式源码至迁移071；后续正式合入情况以文末带时间的增量节为准，最新为21:59 UTC。尚在 `/tmp` staging 的代码不计入正式完成功能。依据原《实施任务计划》§4.2、PRD、LLD-后端/Agent/前端、公开接口合同与实际生产源码。此文不改原工单状态，也不以历史20/1/21状态推算完成率。
+
+## 判定口径
+
+- **完整代码**：该项定义范围的生产实现已具备，尚未真实联调/验收不会单独使其降为“未开发”。
+- **部分实现**：存在真实可用切片，但整项仍有具体业务代码缺口；逐项写明。
+- **缺业务实现**：目前只有类型、表、接口声明、通用基础或测试替身，缺目标业务生产者/消费者。
+- **缺契约/外部输入**：原需求明确尚待定义的业务规则，或必须由真实主体提供的许可、环境、客户接口、专业依据。可以继续做独立的确定性代码，但不能自行签发真实许可、专业批准或客户事实。
+- 验收、部署和交接工单按其本来性质说明，不把它们全部算作“功能没开发”。一个工单可以同时有代码缺口和外部输入限制。
+
+路径缩写：`P/` = `business/medical-persistence/src/main/java/com/ruoyi/medical/persistence/`；`W/` = `business/medical-workflow/src/main/java/com/ruoyi/medical/workflow/`；`UI/` = `web/src/views/medical/`。下表所指均为正式源码，不包含构建目录或测试fixture。
+
+## 逐项核对
+
+| 工单 | 当前结论 | 实际实现与最关键剩余证据 |
+|---|---|---|
+| IMP-01 工程与版本登记 | 部分实现 | `business/pom.xml`、`W/WorkflowWorker.java`、`professional-executor/src/`是真实Java/Vue/Python/Temporal/Harness工程。专业Python宿主/worker启动接线仍缺，版本与交付登记需同步当前实现；不是空工程。 |
+| IMP-02 真实输入、岗位和参数登记 | 登记工具已实现；缺真实外部输入 | `docs/implementation-inputs.md`、`tests/test_implementation_inputs.py`已有登记/校验。完整真实项目、签发岗位策略、专家标注、模型用途/价格预算、客户B/S协议及生产指标未齐；这不是一个未写API，SIM不能替代真实输入。 |
+| IMP-03 共享Schema与迁移 | 当前已发布基础代码已实现；未来主链契约仍有缺口 | `SchemaCatalogue.java`、`contracts/python/`、`contracts/typescript/`、正式master至071及219业务/256总表已有完整实现。目标数据库升级/恢复属联调；另外RN-01要求的ReplayManifest尚未发布，必须独立补扩展契约，不能据共享基础完成称所有领域合同都已齐全。 |
+| IMP-04 独立身份、企业和项目授权 | 部分实现 | `P/ProjectService.java`、`PermissionDecisionService.java`、`EnterpriseRoleService.java`及真实本地/OIDC/邀请/岗位已存在。RunTokenAuthority有签发/续租/动作核验代码，但内部运行Controller/Worker消费者未接通；跨租户真实联调另列。 |
+| IMP-05 幂等、对象、事件与审计基础 | 部分实现，基础切片已完成 | `P/OperationService.java`、`DocumentUploadCompletionService.java`、`ArtifactContentController.java`、`RunEventService.java`有真实幂等/对象/事件业务。IA-01/08、IN-13—15内部读取/受限上传/专业产物登记与mTLS/TaskToken/action/lease仍缺正式路由；BX-37不能推为所有领域制品均已接入。 |
+| IMP-06 若依组件、页面与管理模块 | 部分实现 | RuoYiManagementConfiguration、`web/src/components/Medical/framework-routes.js`及大量业务页面真实存在；当前接入11个管理Controller，尚未闭合原18类全部模块及BX-25动作/Schema/环境/权限/副作用绑定。 |
+| IMP-07 模型、预算、调用与结算 | 部分实现 | `P/ModelConfigurationService.java`、`BudgetService.java`、`SimulationInvocationService.java`及`model-gateway/src/medical_model_gateway/provider.py`已有真实草稿/预算/SIM账本/SDK适配。EXTERNAL正式发布资格、真实凭据连接/价格批准、父预算原子预占、发送落账/UNKNOWN对账/结算/取消链仍缺；SIM EVALUATION不能冒充生产付费链。 |
+| IMP-08 上传、七格式解析与原件阅读 | 部分实现 | SourceCompletionWorker/SourceProcessingWorker、`document/src/medical_document/native.py`与processing_command.py、原件阅读均已实现。扫描PDF/OCR、图片及复杂嵌套表格的完整结构化和定位仍不齐；外部OCR需真实批准配置。不得再写“解析Worker未开发”。 |
+| IMP-09 索引、检索与网络候选 | 部分实现 | `P/SourceIndexWorker.java`、SourceIndexManifest、RetrievalService、SourceExactService已实现FULLTEXT完整索引/物化/EXACT。正式任务内部检索接线、Embedding/DENSE/HYBRID，以及获准网络搜索和候选原文捕获/待核准链仍缺；Qdrant删除器不是向量检索生产者。 |
+| IMP-10 核准、资料集、关系与生命周期 | 部分实现，主体治理已实装 | SourceGovernanceService、CollectionService、SourceRightsService、SourceDeletionWorker/Stores已有核准/撤销、版本资料集、成果转存待核验及六类目标删除。剩余备份到期治理与全副本权威签名证明生产者；当前删除器消费证明但本地inventory仍complete=false。批准保存策略/真实存储联调另列。 |
+| IMP-11 模板、字段与适用性 | 部分实现及真实模板输入缺口 | TemplateService/ApprovalService、RuleVersionApprovalService、TemplateApplicabilityService及template-definition-editor.vue有作者/批准/确定性求值。BX-35固定版本读取路由、适用性/必需节点人工确认理由持久化、TP-06依据变更影响决定未闭合；13类真实核准模板需真实输入。 |
+| IMP-12 任务、快照与计划决定 | 部分实现；成功主路径受业务缺口阻断 | TaskCreateService、TaskPlanService、TaskPlanConfirmationStore、ScopeSnapshotStore有草稿/四模式范围/DAG/计划修改退回。但TaskCreateReleaseAdmission、TaskPlanReleaseAdmission只有接口无生产实现；已签发版本续修创建也明确拒绝。需C06真实生产者与消费者，不只是联调。 |
+| IMP-13 Temporal调度与恢复 | 部分实现 | TaskWorkflowImpl、WorkflowDelivery、WorkflowWorker及RunRead/Event/Cancellation有实际调度/投递/读取/取消代码。RunActivities、ProfessionalActivity和RunCreateAdmission无生产实现；RN-05人工继续、在途调用终止/结算及实际worker接线仍缺。 |
+| IMP-14 Harness profile与工具 | 部分实现，旧TODO失真 | `professional-executor/src/index.ts`、tools.ts、enterprise-model.ts、bridge.ts与medical-agent profile有真实白名单/Schema/模型流/Unix Socket适配。正式Python宿主、步骤会话/目录/租约/取消生命周期及IA/IN/C07接线仍缺；模拟桥接检查不代替专业宿主。 |
+| IMP-15 规划、研究、生成及独立检查 | 缺专业主链业务实现，非无原契约 | LLD-Agent已定义N00–N09/AS/V；ArtifactProtocol及tools.ts提供类型/提交声明，DocumentTechnicalCheckEngine提供局部结构检查。真实规划/研究/严格字段核验/写作/独立来源核查/装配及产物接收复算未形成生产主链；局部技术检查/比较/导出不能代替。 |
+
+
+| 工单 | 当前结论 | 实际实现与最关键剩余证据 |
+|---|---|---|
+| IMP-16 同版正文、候选比较及连续编辑 | 部分实现；已不再缺固定两版比较 | `P/DocumentReadService.java`、`DocumentRevisionService.java`、`DocumentStructuralComparisonEngine.java`、`DocumentComparisonService.java`、`DocumentRevisionDirectoryService.java`与`UI/document-editor.vue`、`saved-document-comparison.vue`已实现正文、历史、连续编辑和真实两版结构比较/制品。原BX-07/08候选读取/候选比较及明确部分采用仍无对应生产服务；069不能替代候选生成和采用。 |
+| IMP-17 产品技术要求及指标方法 | 缺专业业务实现，同时缺真实专业输入 | 已有通用模板/规则、正文精确字段/单位/型号结构。未找到产品技术要求专属规划、指标-方法适用性及证据检查执行器；不能把通用文本生成或结构检查视作实现。需核准产品指标、适用标准全文及方法验证依据。对应PRD FR-03专业资料要求、LLD-Agent专业节点。 |
+| IMP-18 注册目录、监管综述及质量体系 | 缺专业业务实现，同时缺真实专业输入 | 通用TemplateService与任务计划并未形成该类目录/监管路径/质量体系证据的专属生产闭环；需产品分类、注册路径、适用法规版本和实际体系资料。生产源码未见该类专业执行器。 |
+| IMP-19 非临床、基本原则与风险 | 缺专业业务实现，同时缺真实专业输入 | 通用证据链接、FactUsage结构及规则表达式已存在；未形成非临床证据覆盖、基本原则符合性和风险链独立判断业务。真实研究报告、适用性及风险准则不能由模拟fixture替代。 |
+| IMP-20 临床评价与免评价 | 缺专业业务实现，同时缺真实专业输入 | 没有专属临床/免评价路径生产与独立复核执行器；需要真实临床证据和适用目录/产品条件。现有技术检查明确不产生专业覆盖结论。 |
+| IMP-21 说明书与独立标签 | 缺专业业务实现 | 正文、表格、图片和DOCX/PDF基础可复用，但尚缺说明书与标签独立版本、产品事实一致性及专属审查业务链；需已核准产品事实和适用标签规则。 |
+| IMP-22 IVD、变更与延续 | 缺业务实现及部分原契约/专业输入 | PRD RISK-14明确IVD专属目录待核定；未发现三类独立路径的生产执行器。通用任务/模板不能证明变更前后影响、延续条件或IVD专用证据链完成。 |
+| IMP-23 检查、人工审查与签发 | 部分实现 | AnnotationThread/Reply/Decision/Anchor系列、`DocumentReviewReturnService`及待修改队列已是真持久业务；068/071提供真实技术结构check/job/manifest/artifact及恢复。`DocumentTechnicalCheckService`固定professional UNKNOWN/overall_review_ready=false。原BX-09证据审查、BX-13审查批次、BX-14/15再认证、签发创建与完整专业检查仍缺生产闭环；退回修改不是批准或签发。 |
+| IMP-24 共享事实、依据更新与撤权影响 | 部分底座，缺事实业务闭环 | `DocumentBodyDomainAuthority`与`VersionResourceAuthority`核SHARED_FACT，依赖图/当前source rights可阻断失权；但未找到事实提交、人工核准、版本发布、逐受影响文稿更新决定的公开生产服务。读取已有fact_version不等于能产生经核准事实。 |
+| IMP-25 Gru、显式采纳、摘要和习惯 | 部分实现 | `GruService`有固定文稿scope、owner-only会话、USER消息、历史/原请求恢复；`GruRecordExportService`有固定历史真实JSON制品导出。源码强制NOT_EXECUTED且candidate_ids=[]。尚缺真实QUERY/RETRIEVE/CHECK/PROPOSE_EDIT执行、PendingAction一次性业务确认、摘要和本人习惯管理；独立/api/gru-conversations不是原BX-17—20完整执行会话。070也仅闭合记录导出，不代表GR-01—08全部完成。 |
+| IMP-26 固定成品导出与成果转存 | 部分实现，三格式核心已实现 | `P/ExportService.java`、`ExportExecutionService.java`和`document/src/medical_document/export.py`、`export_command.py`具备固定内容/字体/图片、DOCX/PDF/Markdown、真实制品及读取。原件channel_check=PENDING_REVIEW、visual_check=NOT_RUN是验收状态，不是缺渲染代码；但目录页码、附件顺序、重启后自动续办仍见IMP-26剩余记录，签发前置也未闭合。不能称完整正式签发导出链已开发完。 |
+| IMP-27 运行工作区、公开流与人工继续 | 部分实现 | RunRead/RunEvent/RunCancellation服务及`UI/run-detail.vue`有真实快照、事件流、取消请求与费用未知展示。原人工计划/运行启动受生产准入实现缺失影响；人工继续、候选消费及完整会话协调仍缺。取消请求成功不等于执行立即终止或费用已结清。 |
+| IMP-28 评测、运营、反馈与能力发布 | 部分实现，SIM链已有完整切片 | `EvaluationService`实现固定定义/追加评分/终结；SimulationEvaluationPreparation、SimulationRuleVersion、SimulationEvaluation/Invocation/ResultPersistence系列补齐企业级SIM输入、批准规则、真实Python本地执行/恢复与结果结算。ConfigurationAuthoring提供能力草稿/SIM候选。仍缺完整生产能力/Agent发布决定、真实业务运营/反馈闭环及全部正式候选执行；评测代码production_eligible=false，不能拿SIM通过推定正式发布资格。 |
+| IMP-29 场景目录与未定义场景控制 | 部分实现 | `ScenarioCatalogueService`及`UI/scenarios.vue`有实际配置元数据/分页、八项规划要求和未定义拒绝。服务对documentType适用筛选明确DEPENDENCY_UNAVAILABLE；完整场景规格作者/发布/适用判断及固定场景任务入口尚缺。 |
+| IMP-30 客户B/S连接与真实同步 | 缺业务实现和真实外部输入 | 已有通用配置/凭据/网络边界基础；未找到目标客户系统增量同步、冲突处理、游标恢复和撤权传播的生产连接器。需要客户实际接口协议、字段映射、认证方式、同步范围与合法授权；不能猜接口或新增凭据替代。 |
+| IMP-31 法规比较场景 | 缺场景契约及专属业务实现 | PRD§8.7要求独立角色/输入/规则/输出/审核/失败/样本，当前仅规划目录。069文稿结构比较不做法规条款适用性和变化解读，不能冒充本场景完成。 |
+| IMP-32 报告生成场景 | 缺场景契约及专属业务实现 | 三格式文稿导出是通用基础，未定义报告场景完整输入/计算/引用/人工审核协议；不能把导出按钮当报告生成业务。 |
+| IMP-33 翻译场景 | 缺场景契约及专属业务实现 | 原PRD明确翻译输入和审核规则未定义时不得进正式任务。尚无术语/数值/版式一致性及译文审核的完整专属执行链。 |
+| IMP-34 市场分析场景 | 缺场景契约及专属业务实现 | 有授权检索基础，不具备明确市场口径、时间范围、来源许可、分析输出与复核规则的场景实现。不能把网络候选检索当市场结论。 |
+| IMP-35 多模态问答场景 | 缺场景契约及专属业务实现 | 七格式解析/阅读和模型适配属于基础；未形成多模态输入关联、真实引用问答、独立审核/失败策略的完整场景。需要允许发送的数据范围与真实提供方能力。 |
+| IMP-36 环境、监控、制品与恢复准备 | 部分工程实现，另有部署/外部输入 | 已有实际构建/迁移检查、对象服务与本地数据库恢复脚本、SourceDeletion相关运行配置；不是“没写运维代码”。生产trace/指标/告警、全组件一致性恢复与持久worker部署仍需补齐/集成。真实RTO/RPO、容量、保存期限及生产TLS/环境属独立外部输入，不能在代码内编造。 |
+| IMP-37 注册业务与边界集成验收 | 验收任务，已有测试工程但未完成整链 | `tests/`、Java src/test、web/tests及既有HTTP/浏览器脚本有大量真实校验代码；本项不是新增业务功能。须待17—25等缺口闭合再执行完整注册路径/权限边界联调，现有测试数不代表全部业务通过。 |
+| IMP-38 安全配对与制品检查 | 部分测试/防护实现，完整验收待做 | 当前TenantScope/ProtectedTenantInterceptor、immutable表保护、当前来源/权限核验、对象摘要及配套负例已实现；完整SEC配对、生产秘密/制品/跨租户端到端核查不能从单元测试外推。缺的是完整覆盖和真实环境验证，不等同全部安全功能未开发。 |
+| IMP-39 非功能、兼容与恢复验收 | 验收任务，已有测试实现，条件未齐 | 七格式阅读/清理、并发/CAS/重放/对象恢复已有专项代码。完整浏览器/无障碍/中文输入、批准负载、SLO、全组件故障恢复/版式需正式环境与阈值；不应因NOT_RUN把已写功能撤销。 |
+| IMP-40 SaaS发布与使用交接 | 部分交付准备，缺真实环境/接收 | 有构建、运行与操作说明；正式SaaS地址/TLS、部署批准和接收岗位尚需确认，生产发布与升级/恢复演练未由源码证明。是交付工作，不能用按钮实现宣称完成。 |
+| IMP-41 私有化部署与维护交接 | 部分说明，缺客户环境/维护边界 | 已有frontend-release-guide等维护说明，完整私有化安装/离线依赖/升级回滚与客户组件适配仍需工程包和真实环境决定；不能按本地构建已过判交接完成。 |
+| IMP-42 配套服务与责任交接 | 已有文档，缺真实服务/接收输入 | `docs/前端开发交接.md`、操作/发布指南已有实际交付内容；岗位责任、服务范围、维护期限和接收人需真实确认。本项主要是服务与交接，不是一个待补API。 |
+
+## 不应再列作“从零未开发”的完整切片
+
+即使其所属大工单仍为部分实现，下列代码切片可以明确报告为已开发，真实联调/验收另列：固定文稿读取与修订保存；批注/回复/决定/重新定位；固定两版结构比较及真实产物；文稿退回及本人待修改队列；结构技术检查及双产物恢复；固定Gru记录/历史/恢复及记录JSON导出；固定评测定义/评分/终结；企业级SIM规则作者/批准、准备产物及本地执行/恢复/结果结算。每项边界以对应正式Service与封闭schema为准，不能扩大到专业判断或正式发布。
+
+## 下一步可自主推进的真正业务缺口
+
+1. **主任务准入与运行接线**：实现TaskCreateReleaseAdmission、TaskPlanReleaseAdmission、RunCreateAdmission的生产消费者，复用真实发布状态/审批账本、完整依赖、模型/预算/当前授权，补创建—确认—启动的真实事务与原请求恢复；不得给接口放一个永远通过的bean。再接RunActivities与ProfessionalActivity实际执行/持久状态。这个缺口直接阻断主业务路径，优先于更多只读目录。
+2. **候选生产、比较和明确采用**：原BX-07/08已有合同，可复用069结构比较算法，但必须绑定真实候选、目标修订、完整来源/证据及选中部分；采用产生新修订并失效相关审查，不能自动合并或用文稿比较代替候选身份。
+3. **人工证据审查与审查批次**：按原BX-09/10/13保存真实人工决定、当前岗位许可、固定正文/检查/证据基线、CAS、审计/失效链及恢复。可以独立开发；无真实专业批准时只保存获授权者实际决定，不生成“已专业通过”。签发与再认证消费者随后接入，真实认证提供方仍须批准配置。
+4. **Gru明确执行与动作确认**：现有记录切片不能响应为助手答案。先补一种有明确许可/工具返回契约的只读检索或结构检查执行、真实Message产物/事件/取消；再补PendingAction显式确认与一次消费。个人习惯/摘要另有明确PRD需求，但冻结公开合同尚不完整，需要正式本地契约设计，不把项目事实或许可作为个人记忆。
+5. **共享事实作者/批准/变更影响**：已有真实FactUsage消费者，继续补事实原文证据、核准、版本化及受影响文稿处理，使用当前fact动作和完整来源权利。不可从任意聊天自动生成核准事实。
+6. **场景规格作者与发布约束**：先完成八字段规格保存/读取/版本/审核/适用范围，便于真实业务负责人填入原UNKNOWN内容。五个专属场景执行不能靠模型自行补定业务规则；完整场景输入确定后再实施。
+
+这些项是实现建议，不是本次已写代码或承诺完成的功能。072保存审计及有界元数据读取已合并并通过离线回归，仅覆盖document.revision.saved，不替代全业务审计或正式主链。
+
+## 必须单列的真实外部输入
+
+真实模型/网络提供方及数据发送许可；客户来源和授权证据；专业标准全文、产品真实参数和研究/临床材料；有权审批/签发者与真实再认证服务；客户B/S协议/认证/映射；五类场景的独立业务规格；生产与私有化环境、容量/SLO/RTO/RPO/保存策略以及实际接收人。这些限制不阻止独立代码开发，但不能以模拟资料、测试grant或伪造审批消除。
+
+## 2026-10-18 20:00 UTC 增量核对
+
+正式源码现包含072保存审计、073正式能力草稿登记和074保存策略治理，共225个业务表、262个总表。上述逐项表的初始核对仍保留为缺口依据，以下增量优先于其旧描述：
+
+- IMP-03：新增073/074独立本地契约与迁移；原共享合同不变。
+- IMP-28：正式 ROLE/PROMPT 草稿的目录、登记、固定详情和原请求恢复已实现，仍不是完整 Agent 发布或统计评测资格。
+- IMP-10/36：保存策略新增/替换/停用/未知请求安全撤回及消费验证已实现；物理清除与全部副本证明仍需独立闭合。
+- IMP-07：真实 SDK 响应原件捕获、摘要、EOF与错误/内部推理保护已实现并与 Java 原始用量验证器联合测试；正式调用完成、账单恢复和生产发布链不能因此标记完成。
+
+对应说明：[073能力草稿](FORMAL-CAPABILITY-AUTHORING-073.md)、[074保存策略](RUNTIME-RETENTION-074.md)、[供应商响应原件](PROVIDER-RESPONSE-CAPTURE-01.md)。尚未合入的开发内容不计入本次完成清单。
+
+## 2026-10-18 20:56 UTC 增量核对（开发中）
+
+正式源现含075运行证据边界、076 MODEL_VERIFICATION调用链、077连接/模型资格、078执行策略、079输入登记、081专家资格原始评分绑定、082能力登记安全取消；当前262业务表/299总表。该表数仅为实际新增DDL统计，不表示主链全部完成。
+
+- IMP-03：独立 Replay 契约及三语言固定目录扩展已加入；原始基础目录字节不变。
+- IMP-07：真实模型验证 worker 的领取、令牌、单次发送、原始响应保存和账本结算已有代码；完整原件可跨进程恢复，不重新发送。未知用量仍保留预占。初次输入/快照准备、普通专业任务的独立调用生命周期和真实部署仍待后续闭合。
+- IMP-28：078执行策略正常页面、独立审批及固定详情已接；082增加能力登记未知请求的安全取消/恢复。081仅记录真实有权人的资格决定与原始评分凭证，不产生执照、专家评分或专业执行结果。
+- IMP-13/14：075已有私有worker边界、Replay原件和对象写账本、等待输入恢复校验；不是完整八个RunActivities。专业任务执行与评测到发布仍未闭环。
+
+原固定Coverage DTO字段与076独立契约字段不一致的问题已修复：消费者严格采用selection_digest/delivered_digest，不改冻结契约，新增正反回归通过。当前定向测试通过不代表真实MySQL/S3/Temporal/浏览器联调已完成。全套新增迁移及三语言历史fixture回归正在整合。
+
+## 2026-10-18 21:59 UTC 前端优先交接增量（最终聚合PENDING）
+
+本节优先于上表初始071基线及20:00/20:56旧描述；保留旧描述便于追溯，不以其旧“无实现”措辞否认已新增切片。正式目录已见075—088迁移文件，但不能据编号、表数或复制成功认定全部能力已完成。最终源码集合仍由主负责人执行聚合；本节不填未经最终核实的总表数、总测试数、jar摘要或已推送结论。
+
+### 已补正常前端入口
+
+1. **079正式输入**：正式评测定义的PRODUCTION样本使用`UI/formal-evaluation-input-field.vue`，具备结构化规范文稿准备、企业来源目录/固定依据、显式用途、登记及原key恢复、真实输入原文详情与样本选择。079是独立企业输入，不能改名充当085项目模型验证输入；不生成专业评分或REAL资格。
+2. **080候选及TOOL/SKILL**：`/agents/drafts`和Agent管理链接已集成。真实有界目录、availability、固定详情、结构化候选表单与实际依赖选择器替代仅手填JSON的入口；缺依赖清楚提示。所有记录仍DRAFT，未提供发布/评测通过按钮。原AUTHOR固定读取类型错误已修复为独立RuntimeView，原作者schema及请求摘要不变。
+3. **077/085/087模型链入口**：`/agents/model-runtime`已接实际项目模型/角色/提示词/规则/预算、固定输入准备、验证进度/结算核验/取消、独立启用政策准备与启用申请。服务可用不等于授权，登记验证不等于PASSED，政策准备不等于启用。当前PROJECT/DEEPSEEK/none支持边界与真实部署凭据要求仍保留，模型资格续期/撤销治理尚缺。
+
+可核验证据：主负责人报告`part21-input-runtime-front.log`77/77（07921项，077/08756项）；080正式源码`part22-formal-agent-drafts-focused.log`31/31、无失败/跳过。080此前独立Java13项与静态XML/SQL形状2项通过。日志位于`.implementation-work/logs/`。这些计数不混加为最终全量通过；最新root聚合仍PENDING。
+
+### 原工单的最新边界
+
+- **IMP-03**：Replay独立契约/三语言目录扩展已有真实实现，075—088多个本地契约已进入正式资源；旧“Replay未发布”不再适用。后续完整新增迁移、三语言与制品一致性最终门禁待主负责人确认，真实DB升级未运行。
+- **IMP-07**：076/077正式MODEL_VERIFICATION和085/087准备路径已有生产代码及正常UI；不再列为从零缺失。仍需真实部署/供应商验收，普通EVAL/专业TASK独立调用与结算接线、资格持续治理不能由此推定完成。
+- **IMP-12/13/14/27**：075运行私有身份、Replay原件与治理账本、对象尝试/恢复、等待边界已实现切片；全部专业Activities/Harness/节点产物闭环仍未完成。三个Task/Plan/Run准入联合接线尚在隔离交付，不能报告正常任务主路径已通；必须真实发布proof、外事务原件准备和事务内当前复核。
+- **IMP-28**：080真实候选作者及目录UI、078策略治理、079正式输入、081资格绑定、082安全取消已存在。083/084准备/政策、086发布生命周期和088上下文增量不能代替真实专业执行/完成证明。086作者隔离联合143项通过；088作者正式源隔离53项Java及7项SQL合同通过，明确不包含真实EVAL运行、对象注册和独立结算。完整正式评测—接受—发布仍未证明可执行，不使用SIM结果或078批准策略替代。
+- **IMP-15/17—24/25**：专业规划/研究/写作/独立检查、真实临床/注册业务判断、正式审查与签发、共享事实治理、Gru实际动作及候选采用缺口仍保留。共享事实producer已明确暂缓：原状态/核验生命周期合同未充分定义，先澄清规格，不能套用FieldValue枚举或把未核验事实写成正式可消费记录。原“下一步”第5项仅为方向，不是已获准的状态设计。
+
+### 下一接管顺序与验收限制
+
+优先验证已接正常页面的实际部署与当前权限，再完成真实专业评测节点/租约/动作/对象登记/独立结算及完成证明生产者，随后闭合086接受发布和三项任务准入。不能以缺依赖就永拒绝的bean充当可用主链，也不能为使页面成功而补假grant、伪造来源权利、空专业检查或默认批准。
+
+真实MySQL/Redis/S3/Temporal/HTTP整链、实际供应商和浏览器E2E尚未完成；既有浏览器连接拒绝、宿主AF_UNIX权限阻断仍须真实环境解决。AST/SQL生成测试不是DB执行，组件setup不是浏览器验收。北京时间2026-10-19 06:30计划交付的是部分源码检查点，commit/push、最终指标及备份由主负责人单独确认。
+
+
+## 阶段22提交前最终回归（2026-10-19 北京时间06:23）
+
+本次是部分开发检查点，不是全功能验收版本。正式源已包含075—088增量及正常前端入口。
+
+- 前端454项＋补充179项，共633项通过；600个固定Schema引用、类型检查、正式Vite构建通过。
+- Java离线定向287套、2535项分六个独立JVM批次通过，无失败、错误或跳过；这不是仓库无筛选全量测试。另一次真实ConfigurationWorkflowHttpTest因缺medical.configurationWorkflowConfig失败，明确列为环境阻塞；ScopeSnapshotStore真实DB方法同样未通过环境门禁。
+- 迁移结构323项通过，实际覆盖281张业务表、318张总表；这是离线Schema/解析/FK检查，不代表真实数据库升级。Python共享契约25项、模型网关相关104项、TypeScript契约44项、专业Host19项/Temporal适配4项/无socket路由8项通过，各组存在不同验证范围，不作为新增功能数量。
+- 修复原提交解析绑定、技术检查恢复SQL、真实日期见证、上下文私proof隔离；新发布边界保留，配置作者旧测试夹具不再冒用发布manifest。元数据侧表只按精确不可空父键继承，并检查实际原记录读取，不放宽其他表约束。
+- 早期整批内存耗尽、测试launcher依赖、过期夹具/计数、一次Vite并行内存失败均有记录；最终通过结果不抹去失败过程。
+- 独立professional-executor构建缺已安装依赖，离线安装返回ENOTCACHED；真实DB/S3/Redis/Temporal/浏览器E2E、10项UDS环境检查及专业EVAL到正式发布的完整执行链仍未完成。
+
+后台最终打包、CLI与静态资产逐字节结果记录在随后提交前核验段；实际commit/push状态以GitHub提交与主会话通知为准。
+
+### 提交前打包核验（北京时间06:24）
+
+12模块后台package通过（32.665秒，定向测试已独立执行）；迁移CLI/launcher23项通过，与结构323项合计346项离线检查。Jar内486个前端文件与最终web/dist逐字节一致，无多余静态文件。Jar SHA-256：76fa228787ab7a770694c8b3aba2587275b0a134d90e0dab445233c57d701675。
+
+以上核验不改变未完成主链与环境阻塞清单。此次提交是可追溯的开发检查点，不宣称用户可完整验收。

@@ -1,0 +1,2265 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:agent-publication-workflow:1.0.0",
+  "$defs": {
+    "Id": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "Hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "Name": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[A-Za-z][A-Za-z0-9_.-]*$"
+    },
+    "Text": {
+      "type": "string",
+      "minLength": 1
+    },
+    "Count": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]{0,19})$"
+    },
+    "PositiveCount": {
+      "type": "string",
+      "pattern": "^[1-9][0-9]{0,19}$"
+    },
+    "Seconds": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 2147483647
+    },
+    "Ids": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/Id"
+      }
+    },
+    "Names": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/Name"
+      }
+    },
+    "VersionRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version_id",
+        "content_sha256"
+      ],
+      "properties": {
+        "version_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "content_sha256": {
+          "$ref": "#/$defs/Hash"
+        }
+      }
+    },
+    "Versions": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/VersionRef"
+      }
+    },
+    "PublishedSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_ref",
+        "schema_sha256"
+      ],
+      "properties": {
+        "schema_ref": {
+          "type": "string",
+          "format": "uri",
+          "minLength": 1
+        },
+        "schema_sha256": {
+          "$ref": "#/$defs/Hash"
+        }
+      }
+    },
+    "Artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact_id",
+        "sha256",
+        "size_bytes",
+        "media_type"
+      ],
+      "properties": {
+        "artifact_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "size_bytes": {
+          "$ref": "#/$defs/PositiveCount"
+        },
+        "media_type": {
+          "$ref": "#/$defs/Text"
+        }
+      }
+    },
+    "SchemaBoundArtifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact",
+        "schema"
+      ],
+      "properties": {
+        "artifact": {
+          "$ref": "#/$defs/Artifact"
+        },
+        "schema": {
+          "$ref": "#/$defs/PublishedSchema"
+        }
+      }
+    },
+    "SchemaBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "consumer_version_id",
+        "direction",
+        "schema"
+      ],
+      "properties": {
+        "consumer_version_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "direction": {
+          "enum": [
+            "INPUT",
+            "OUTPUT",
+            "PERSISTED",
+            "EVENT",
+            "BODY"
+          ]
+        },
+        "schema": {
+          "$ref": "#/$defs/PublishedSchema"
+        }
+      }
+    },
+    "HumanCheckpoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "checkpoint_id",
+        "policy_revision",
+        "operation_id",
+        "required_action",
+        "trigger_schema",
+        "decision_schema",
+        "role_version_ids"
+      ],
+      "properties": {
+        "checkpoint_id": {
+          "$ref": "#/$defs/Name"
+        },
+        "policy_revision": {
+          "$ref": "#/$defs/VersionRef"
+        },
+        "operation_id": {
+          "$ref": "#/$defs/Name"
+        },
+        "required_action": {
+          "$ref": "#/$defs/Name"
+        },
+        "trigger_schema": {
+          "$ref": "#/$defs/PublishedSchema"
+        },
+        "decision_schema": {
+          "$ref": "#/$defs/PublishedSchema"
+        },
+        "role_version_ids": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/Ids"
+            },
+            {
+              "minItems": 1
+            }
+          ]
+        }
+      }
+    },
+    "Limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "activity_start_to_close_seconds",
+        "heartbeat_interval_seconds",
+        "heartbeat_timeout_seconds",
+        "sdk_initialize_timeout_seconds",
+        "sdk_request_timeout_seconds",
+        "model_request_timeout_seconds",
+        "paid_request_extra_retries",
+        "model_spawned_subagents",
+        "max_wall_time_seconds",
+        "max_model_requests",
+        "max_tool_calls",
+        "max_research_questions",
+        "max_research_rounds",
+        "max_revision_rounds",
+        "max_parallel_steps",
+        "max_input_tokens",
+        "max_output_tokens",
+        "max_total_tokens",
+        "max_cost_amount",
+        "currency",
+        "max_consecutive_no_progress",
+        "max_repeated_failure_signature"
+      ],
+      "properties": {
+        "activity_start_to_close_seconds": {
+          "$ref": "#/$defs/Seconds"
+        },
+        "heartbeat_interval_seconds": {
+          "$ref": "#/$defs/Seconds"
+        },
+        "heartbeat_timeout_seconds": {
+          "$ref": "#/$defs/Seconds"
+        },
+        "sdk_initialize_timeout_seconds": {
+          "$ref": "#/$defs/Seconds"
+        },
+        "sdk_request_timeout_seconds": {
+          "$ref": "#/$defs/Seconds"
+        },
+        "model_request_timeout_seconds": {
+          "$ref": "#/$defs/Seconds"
+        },
+        "paid_request_extra_retries": {
+          "const": 0
+        },
+        "model_spawned_subagents": {
+          "const": 0
+        },
+        "max_wall_time_seconds": {
+          "$ref": "#/$defs/Seconds"
+        },
+        "max_model_requests": {
+          "$ref": "#/$defs/Count"
+        },
+        "max_tool_calls": {
+          "$ref": "#/$defs/Count"
+        },
+        "max_research_questions": {
+          "$ref": "#/$defs/Count"
+        },
+        "max_research_rounds": {
+          "$ref": "#/$defs/Count"
+        },
+        "max_revision_rounds": {
+          "$ref": "#/$defs/Count"
+        },
+        "max_parallel_steps": {
+          "$ref": "#/$defs/PositiveCount"
+        },
+        "max_input_tokens": {
+          "$ref": "#/$defs/Count"
+        },
+        "max_output_tokens": {
+          "$ref": "#/$defs/Count"
+        },
+        "max_total_tokens": {
+          "$ref": "#/$defs/Count"
+        },
+        "max_cost_amount": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]{0,15})(\\.[0-9]{1,8})?$"
+        },
+        "currency": {
+          "type": "string",
+          "pattern": "^[A-Z]{3}$"
+        },
+        "max_consecutive_no_progress": {
+          "$ref": "#/$defs/PositiveCount"
+        },
+        "max_repeated_failure_signature": {
+          "$ref": "#/$defs/PositiveCount"
+        }
+      }
+    },
+    "Platform": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "operating_system",
+        "architecture",
+        "python_abi"
+      ],
+      "properties": {
+        "operating_system": {
+          "$ref": "#/$defs/Text"
+        },
+        "architecture": {
+          "$ref": "#/$defs/Text"
+        },
+        "python_abi": {
+          "$ref": "#/$defs/Text"
+        }
+      }
+    },
+    "Software": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "version",
+        "artifact"
+      ],
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/Name"
+        },
+        "version": {
+          "$ref": "#/$defs/Text"
+        },
+        "artifact": {
+          "$ref": "#/$defs/Artifact"
+        }
+      }
+    },
+    "Plugin": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "plugin_id",
+        "version",
+        "artifact",
+        "dependency_ids"
+      ],
+      "properties": {
+        "plugin_id": {
+          "$ref": "#/$defs/Name"
+        },
+        "version": {
+          "$ref": "#/$defs/Text"
+        },
+        "artifact": {
+          "$ref": "#/$defs/Artifact"
+        },
+        "dependency_ids": {
+          "$ref": "#/$defs/Names"
+        }
+      }
+    },
+    "Validator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rule_id",
+        "version",
+        "implementation"
+      ],
+      "properties": {
+        "rule_id": {
+          "enum": [
+            "AS-01",
+            "AS-02",
+            "AS-03",
+            "AS-04",
+            "AS-05",
+            "AS-06",
+            "AS-07",
+            "AS-08",
+            "AS-09",
+            "AS-10",
+            "AS-11",
+            "AS-12",
+            "AS-13",
+            "AS-14",
+            "AS-15"
+          ]
+        },
+        "version": {
+          "$ref": "#/$defs/VersionRef"
+        },
+        "implementation": {
+          "$ref": "#/$defs/Artifact"
+        }
+      }
+    },
+    "EventAdapter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "component",
+        "version",
+        "implementation",
+        "input_schema",
+        "output_schema"
+      ],
+      "properties": {
+        "component": {
+          "enum": [
+            "C07",
+            "C12"
+          ]
+        },
+        "version": {
+          "$ref": "#/$defs/VersionRef"
+        },
+        "implementation": {
+          "$ref": "#/$defs/Artifact"
+        },
+        "input_schema": {
+          "$ref": "#/$defs/PublishedSchema"
+        },
+        "output_schema": {
+          "$ref": "#/$defs/PublishedSchema"
+        }
+      }
+    },
+    "RuntimeManifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_repository",
+        "source_commit",
+        "source_version",
+        "harness_distribution",
+        "python_runtime",
+        "platform",
+        "plugins",
+        "profile",
+        "sdk_configuration",
+        "session_format",
+        "artifact_schema",
+        "model_stream_schema",
+        "body_schema",
+        "validators",
+        "event_adapters"
+      ],
+      "properties": {
+        "source_repository": {
+          "type": "string",
+          "format": "uri"
+        },
+        "source_commit": {
+          "type": "string",
+          "pattern": "^([0-9a-f]{40}|[0-9a-f]{64})$"
+        },
+        "source_version": {
+          "$ref": "#/$defs/Text"
+        },
+        "harness_distribution": {
+          "$ref": "#/$defs/Software"
+        },
+        "python_runtime": {
+          "$ref": "#/$defs/Software"
+        },
+        "platform": {
+          "$ref": "#/$defs/Platform"
+        },
+        "plugins": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/Plugin"
+          }
+        },
+        "profile": {
+          "$ref": "#/$defs/SchemaBoundArtifact"
+        },
+        "sdk_configuration": {
+          "$ref": "#/$defs/SchemaBoundArtifact"
+        },
+        "session_format": {
+          "$ref": "#/$defs/PublishedSchema"
+        },
+        "artifact_schema": {
+          "$ref": "#/$defs/PublishedSchema"
+        },
+        "model_stream_schema": {
+          "$ref": "#/$defs/PublishedSchema"
+        },
+        "body_schema": {
+          "$ref": "#/$defs/PublishedSchema"
+        },
+        "validators": {
+          "type": "array",
+          "minItems": 15,
+          "maxItems": 15,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/Validator"
+          }
+        },
+        "event_adapters": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/EventAdapter"
+          }
+        }
+      }
+    },
+    "ReleaseScope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tenant_id",
+        "project_mode",
+        "project_ids",
+        "audience_mode",
+        "member_ids",
+        "role_ids",
+        "source_scope_policy",
+        "allowed_classifications"
+      ],
+      "properties": {
+        "tenant_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "project_mode": {
+          "enum": [
+            "ENTERPRISE",
+            "PROJECTS"
+          ]
+        },
+        "project_ids": {
+          "$ref": "#/$defs/Ids"
+        },
+        "audience_mode": {
+          "enum": [
+            "MEMBERS",
+            "ROLES",
+            "MEMBERS_OR_ROLES"
+          ]
+        },
+        "member_ids": {
+          "$ref": "#/$defs/Ids"
+        },
+        "role_ids": {
+          "$ref": "#/$defs/Ids"
+        },
+        "source_scope_policy": {
+          "$ref": "#/$defs/VersionRef"
+        },
+        "allowed_classifications": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/Names"
+            },
+            {
+              "minItems": 1
+            }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "project_mode": {
+                "const": "ENTERPRISE"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "project_ids": {
+                "maxItems": 0
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "project_ids": {
+                "minItems": 1
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "audience_mode": {
+                "const": "MEMBERS"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "member_ids": {
+                "minItems": 1
+              },
+              "role_ids": {
+                "maxItems": 0
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "audience_mode": {
+                "const": "ROLES"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "member_ids": {
+                "maxItems": 0
+              },
+              "role_ids": {
+                "minItems": 1
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "audience_mode": {
+                "const": "MEMBERS_OR_ROLES"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "member_ids": {
+                "minItems": 1
+              },
+              "role_ids": {
+                "minItems": 1
+              }
+            }
+          }
+        }
+      ]
+    },
+    "AgentReleaseManifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "tenant_id",
+        "agent_version_id",
+        "agent_version_sha256",
+        "release_id",
+        "role_versions",
+        "skill_versions",
+        "tool_versions",
+        "prompt_revisions",
+        "input_output_schema_refs",
+        "template_versions",
+        "rule_versions",
+        "retrieval_profiles",
+        "model_config_revisions",
+        "limits",
+        "human_checkpoints",
+        "runtime_manifest",
+        "evaluation_id",
+        "evaluation_sha256",
+        "release_scope"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "tenant_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "agent_version_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "agent_version_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "release_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "role_versions": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/Versions"
+            },
+            {
+              "minItems": 1
+            }
+          ]
+        },
+        "skill_versions": {
+          "$ref": "#/$defs/Versions"
+        },
+        "tool_versions": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/Versions"
+            },
+            {
+              "minItems": 1
+            }
+          ]
+        },
+        "prompt_revisions": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/Versions"
+            },
+            {
+              "minItems": 1
+            }
+          ]
+        },
+        "input_output_schema_refs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/SchemaBinding"
+          }
+        },
+        "template_versions": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/Versions"
+            },
+            {
+              "minItems": 1
+            }
+          ]
+        },
+        "rule_versions": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/Versions"
+            },
+            {
+              "minItems": 1
+            }
+          ]
+        },
+        "retrieval_profiles": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/Versions"
+            },
+            {
+              "minItems": 1
+            }
+          ]
+        },
+        "model_config_revisions": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/Versions"
+            },
+            {
+              "minItems": 1
+            }
+          ]
+        },
+        "limits": {
+          "$ref": "#/$defs/Limits"
+        },
+        "human_checkpoints": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/HumanCheckpoint"
+          }
+        },
+        "runtime_manifest": {
+          "$ref": "#/$defs/RuntimeManifest"
+        },
+        "evaluation_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "evaluation_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "release_scope": {
+          "$ref": "#/$defs/ReleaseScope"
+        }
+      }
+    },
+    "Reason": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2000
+    },
+    "Revision": {
+      "type": "string",
+      "pattern": "^[1-9][0-9]{0,19}$"
+    },
+    "Definition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "role_versions",
+        "skill_versions",
+        "tool_versions",
+        "prompt_revisions",
+        "input_output_schema_refs",
+        "template_versions",
+        "rule_versions",
+        "retrieval_profiles",
+        "model_config_revisions",
+        "limits",
+        "human_checkpoints",
+        "runtime_manifest",
+        "release_scope"
+      ],
+      "properties": {
+        "role_versions": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/Versions"
+            },
+            {
+              "minItems": 1
+            }
+          ]
+        },
+        "skill_versions": {
+          "$ref": "#/$defs/Versions"
+        },
+        "tool_versions": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/Versions"
+            },
+            {
+              "minItems": 1
+            }
+          ]
+        },
+        "prompt_revisions": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/Versions"
+            },
+            {
+              "minItems": 1
+            }
+          ]
+        },
+        "input_output_schema_refs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/SchemaBinding"
+          }
+        },
+        "template_versions": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/Versions"
+            },
+            {
+              "minItems": 1
+            }
+          ]
+        },
+        "rule_versions": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/Versions"
+            },
+            {
+              "minItems": 1
+            }
+          ]
+        },
+        "retrieval_profiles": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/Versions"
+            },
+            {
+              "minItems": 1
+            }
+          ]
+        },
+        "model_config_revisions": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/Versions"
+            },
+            {
+              "minItems": 1
+            }
+          ]
+        },
+        "limits": {
+          "$ref": "#/$defs/Limits"
+        },
+        "human_checkpoints": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/HumanCheckpoint"
+          }
+        },
+        "runtime_manifest": {
+          "$ref": "#/$defs/RuntimeManifest"
+        },
+        "release_scope": {
+          "$ref": "#/$defs/ReleaseScope"
+        }
+      }
+    },
+    "Author": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "project_id",
+        "name",
+        "definition",
+        "reason"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "project_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "definition": {
+          "$ref": "#/$defs/Definition"
+        },
+        "reason": {
+          "$ref": "#/$defs/Reason"
+        }
+      }
+    },
+    "Publish": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "agent_version_id",
+        "expected_revision",
+        "acceptance_id",
+        "acceptance_sha256",
+        "reason"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "agent_version_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "expected_revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "acceptance_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "acceptance_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "reason": {
+          "$ref": "#/$defs/Reason"
+        }
+      }
+    },
+    "Qualification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "project_id",
+        "expert_id",
+        "candidate_version_id",
+        "dimensions",
+        "evidence_sources",
+        "valid_from",
+        "valid_until",
+        "decision",
+        "reason"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "project_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "expert_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "candidate_version_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "dimensions": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 12,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^EVAL-(0[1-9]|1[0-2])$"
+          }
+        },
+        "evidence_sources": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 20,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/VersionRef"
+          }
+        },
+        "valid_from": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "valid_until": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "decision": {
+          "enum": [
+            "APPROVE",
+            "REJECT"
+          ]
+        },
+        "reason": {
+          "$ref": "#/$defs/Reason"
+        }
+      }
+    },
+    "Acceptance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "evaluation_id",
+        "definition_sha256",
+        "result_sha256",
+        "policy_id",
+        "policy_sha256",
+        "candidate_version_id",
+        "decision",
+        "qualification_ids",
+        "execution_evidence",
+        "reason"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "evaluation_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "definition_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "result_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "policy_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "policy_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "candidate_version_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "decision": {
+          "enum": [
+            "ACCEPT",
+            "REJECT"
+          ]
+        },
+        "qualification_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "maxItems": 100,
+          "items": {
+            "$ref": "#/$defs/Id"
+          }
+        },
+        "execution_evidence": {
+          "type": "array",
+          "maxItems": 10000,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "sample_id",
+              "repeat_index",
+              "run_id",
+              "step_id",
+              "result_artifact"
+            ],
+            "properties": {
+              "sample_id": {
+                "$ref": "#/$defs/Id"
+              },
+              "repeat_index": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 99
+              },
+              "run_id": {
+                "$ref": "#/$defs/Id"
+              },
+              "step_id": {
+                "$ref": "#/$defs/Id"
+              },
+              "result_artifact": {
+                "$ref": "#/$defs/VersionRef"
+              }
+            }
+          }
+        },
+        "reason": {
+          "$ref": "#/$defs/Reason"
+        }
+      }
+    },
+    "Receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "operation_id",
+        "resource_id",
+        "kind",
+        "content_sha256",
+        "request_body_sha256"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "operation_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "resource_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "kind": {
+          "enum": [
+            "AUTHOR",
+            "POLICY",
+            "QUALIFICATION",
+            "ACCEPTANCE",
+            "PUBLICATION",
+            "POLICY_DRAFT",
+            "EXECUTION_POLICY",
+            "EXECUTION_POLICY_DRAFT",
+            "EXECUTION_POLICY_AUTHOR",
+            "EXECUTION_POLICY_DECISION",
+            "FORMAL_CAPABILITY_AUTHOR"
+          ]
+        },
+        "content_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "request_body_sha256": {
+          "$ref": "#/$defs/Hash"
+        }
+      }
+    },
+    "Decimal": {
+      "type": "string",
+      "pattern": "^(0|1)(\\.[0-9]{1,60})?$"
+    },
+    "Dimension": {
+      "enum": [
+        "EVAL-01",
+        "EVAL-02",
+        "EVAL-03",
+        "EVAL-04",
+        "EVAL-05",
+        "EVAL-06",
+        "EVAL-07",
+        "EVAL-08",
+        "EVAL-09",
+        "EVAL-10",
+        "EVAL-11",
+        "EVAL-12"
+      ]
+    },
+    "PolicyRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dimension",
+        "method",
+        "direction",
+        "threshold",
+        "repeat_count",
+        "minimum_families"
+      ],
+      "properties": {
+        "dimension": {
+          "$ref": "#/$defs/Dimension"
+        },
+        "method": {
+          "enum": [
+            "DETERMINISTIC_ALL_REQUIRED_RUNS",
+            "SOURCE_FAMILY_HOEFFDING_V1"
+          ]
+        },
+        "direction": {
+          "enum": [
+            "MIN",
+            "MAX"
+          ]
+        },
+        "threshold": {
+          "$ref": "#/$defs/Decimal"
+        },
+        "repeat_count": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "minimum_families": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        }
+      }
+    },
+    "PolicyAuthor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "project_id",
+        "rule_revision",
+        "dataset",
+        "sample_manifest_artifact",
+        "candidate_refs",
+        "runtime_manifest_sha256",
+        "scope_sha256",
+        "familywise_confidence",
+        "sampling_design_evidence",
+        "dimensions",
+        "reason"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "project_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "rule_revision": {
+          "$ref": "#/$defs/Basis"
+        },
+        "dataset": {
+          "$ref": "#/$defs/Basis"
+        },
+        "sample_manifest_artifact": {
+          "$ref": "#/$defs/Basis"
+        },
+        "candidate_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Basis"
+          },
+          "minItems": 1,
+          "maxItems": 10,
+          "uniqueItems": true
+        },
+        "runtime_manifest_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "scope_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "familywise_confidence": {
+          "$ref": "#/$defs/Decimal"
+        },
+        "sampling_design_evidence": {
+          "$ref": "#/$defs/Basis"
+        },
+        "dimensions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/PolicyRule"
+          },
+          "minItems": 1,
+          "maxItems": 12,
+          "uniqueItems": true
+        },
+        "reason": {
+          "$ref": "#/$defs/Reason"
+        }
+      }
+    },
+    "PolicyDecision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "draft_id",
+        "draft_sha256",
+        "decision",
+        "reason"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "draft_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "draft_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "decision": {
+          "enum": [
+            "APPROVE",
+            "REJECT"
+          ]
+        },
+        "reason": {
+          "$ref": "#/$defs/Reason"
+        }
+      }
+    },
+    "Basis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version_id",
+        "content_sha256"
+      ],
+      "properties": {
+        "version_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "content_sha256": {
+          "$ref": "#/$defs/Hash"
+        }
+      }
+    },
+    "Capability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "project_id",
+        "kind",
+        "source_artifact",
+        "input_schema_ref",
+        "output_schema_ref",
+        "tool_scope",
+        "execution_mode"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "project_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "kind": {
+          "enum": [
+            "ROLE",
+            "PROMPT"
+          ]
+        },
+        "source_artifact": {
+          "$ref": "#/$defs/VersionRef"
+        },
+        "input_schema_ref": {
+          "$ref": "#/$defs/PublishedSchema"
+        },
+        "output_schema_ref": {
+          "$ref": "#/$defs/PublishedSchema"
+        },
+        "tool_scope": {
+          "type": "array",
+          "maxItems": 0
+        },
+        "execution_mode": {
+          "const": "SIMULATION"
+        }
+      }
+    },
+    "Agent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "project_id",
+        "name",
+        "role_version",
+        "prompt_revision",
+        "model_config_revision",
+        "limits",
+        "execution_mode"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "project_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "role_version": {
+          "$ref": "#/$defs/VersionRef"
+        },
+        "prompt_revision": {
+          "$ref": "#/$defs/VersionRef"
+        },
+        "model_config_revision": {
+          "$ref": "#/$defs/VersionRef"
+        },
+        "limits": {
+          "$ref": "#/$defs/Limits"
+        },
+        "execution_mode": {
+          "const": "SIMULATION"
+        }
+      }
+    },
+    "Context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tenant_id",
+        "context_revision",
+        "auth_epoch",
+        "governance_epoch"
+      ],
+      "properties": {
+        "tenant_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "context_revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "auth_epoch": {
+          "$ref": "#/$defs/Revision"
+        },
+        "governance_epoch": {
+          "$ref": "#/$defs/Revision"
+        }
+      }
+    },
+    "DependencyManifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "manifest_kind",
+        "dependencies"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "manifest_kind": {
+          "const": "SIMULATION_CANDIDATE_DEPENDENCIES"
+        },
+        "dependencies": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 1024,
+          "uniqueItems": true,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "version_id",
+              "content_sha256"
+            ],
+            "properties": {
+              "version_id": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+              },
+              "content_sha256": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              }
+            }
+          }
+        }
+      }
+    },
+    "FixedCapability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "tenant_id",
+        "config_id",
+        "version_id",
+        "request",
+        "created_by",
+        "created_at"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "tenant_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "config_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "version_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "request": {
+          "$ref": "#/$defs/Capability"
+        },
+        "created_by": {
+          "$ref": "#/$defs/Id"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "CapabilityView": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "definition",
+        "content_sha256",
+        "status",
+        "revision",
+        "production_eligible"
+      ],
+      "properties": {
+        "definition": {
+          "$ref": "#/$defs/FixedCapability"
+        },
+        "content_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "status": {
+          "const": "DRAFT"
+        },
+        "revision": {
+          "const": "1"
+        },
+        "production_eligible": {
+          "const": false
+        }
+      }
+    },
+    "FixedAgent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "tenant_id",
+        "config_id",
+        "version_id",
+        "request",
+        "created_by",
+        "created_at",
+        "dependency_manifest"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "tenant_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "config_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "version_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "request": {
+          "$ref": "#/$defs/Agent"
+        },
+        "created_by": {
+          "$ref": "#/$defs/Id"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "dependency_manifest": {
+          "$ref": "#/$defs/DependencyManifest"
+        }
+      }
+    },
+    "AgentView": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "definition",
+        "content_sha256",
+        "status",
+        "revision",
+        "production_eligible"
+      ],
+      "properties": {
+        "definition": {
+          "$ref": "#/$defs/FixedAgent"
+        },
+        "content_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "status": {
+          "const": "DRAFT"
+        },
+        "revision": {
+          "const": "1"
+        },
+        "production_eligible": {
+          "const": false
+        }
+      }
+    },
+    "ReceiptEnvelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "request_id",
+        "resource_revision",
+        "data"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "request_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "resource_revision": {
+          "const": "1"
+        },
+        "data": {
+          "$ref": "#/$defs/Receipt"
+        }
+      }
+    },
+    "AgentViewEnvelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "request_id",
+        "resource_revision",
+        "data"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "request_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "resource_revision": {
+          "const": "1"
+        },
+        "data": {
+          "$ref": "#/$defs/AgentView"
+        }
+      }
+    },
+    "CapabilityViewEnvelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "request_id",
+        "resource_revision",
+        "data"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "request_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "resource_revision": {
+          "const": "1"
+        },
+        "data": {
+          "$ref": "#/$defs/CapabilityView"
+        }
+      }
+    },
+    "FormalCapability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "project_id",
+        "kind",
+        "source_artifact",
+        "input_schema_ref",
+        "output_schema_ref",
+        "tool_scope",
+        "execution_mode",
+        "reason"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "project_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "kind": {
+          "enum": [
+            "ROLE",
+            "PROMPT"
+          ]
+        },
+        "source_artifact": {
+          "$ref": "#/$defs/VersionRef"
+        },
+        "input_schema_ref": {
+          "$ref": "#/$defs/PublishedSchema"
+        },
+        "output_schema_ref": {
+          "$ref": "#/$defs/PublishedSchema"
+        },
+        "tool_scope": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/RuntimeRoleScope"
+            },
+            {
+              "type": "array",
+              "maxItems": 0
+            }
+          ]
+        },
+        "execution_mode": {
+          "const": "PRODUCTION"
+        },
+        "reason": {
+          "$ref": "#/$defs/Reason"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "ROLE"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "tool_scope": {
+                "$ref": "#/$defs/RuntimeRoleScope"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "tool_scope": {
+                "type": "array",
+                "maxItems": 0
+              }
+            }
+          }
+        }
+      ]
+    },
+    "Policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "policy_id",
+        "tenant_id",
+        "project_id",
+        "rule_revision",
+        "dataset",
+        "sample_manifest_artifact",
+        "candidate_refs",
+        "runtime_manifest_sha256",
+        "scope_sha256",
+        "familywise_confidence",
+        "sampling_design_evidence",
+        "created_at",
+        "approved_at",
+        "dimensions"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "policy_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "tenant_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "project_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "rule_revision": {
+          "$ref": "#/$defs/Basis"
+        },
+        "dataset": {
+          "$ref": "#/$defs/Basis"
+        },
+        "sample_manifest_artifact": {
+          "$ref": "#/$defs/Basis"
+        },
+        "candidate_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Basis"
+          },
+          "minItems": 1,
+          "maxItems": 10,
+          "uniqueItems": true
+        },
+        "runtime_manifest_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "scope_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "familywise_confidence": {
+          "$ref": "#/$defs/Decimal"
+        },
+        "sampling_design_evidence": {
+          "$ref": "#/$defs/Basis"
+        },
+        "created_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "approved_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "dimensions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/PolicyRule"
+          },
+          "minItems": 1,
+          "maxItems": 12,
+          "uniqueItems": true
+        }
+      }
+    },
+    "Time": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "Z$"
+    },
+    "FormalCapabilityFixed": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "tenant_id",
+        "config_id",
+        "version_id",
+        "created_by",
+        "created_at",
+        "request"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "tenant_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "config_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "version_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "created_by": {
+          "$ref": "#/$defs/Id"
+        },
+        "created_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "request": {
+          "$ref": "#/$defs/FormalCapability"
+        }
+      }
+    },
+    "PolicyDraftContent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "status",
+        "policy_draft_id",
+        "specification"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "status": {
+          "const": "DRAFT"
+        },
+        "policy_draft_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "specification": {
+          "$ref": "#/$defs/PolicyAuthor"
+        }
+      }
+    },
+    "PolicyDecisionContent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "status",
+        "draft_id",
+        "draft_sha256",
+        "policy"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "status": {
+          "enum": [
+            "APPROVE",
+            "REJECT"
+          ]
+        },
+        "draft_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "draft_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "policy": {
+          "$ref": "#/$defs/Policy"
+        }
+      }
+    },
+    "RecordView": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_id",
+        "resource_id",
+        "kind",
+        "content_sha256",
+        "status",
+        "production_eligible",
+        "content"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "record_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "resource_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "kind": {
+          "enum": [
+            "FORMAL_CAPABILITY_AUTHOR",
+            "POLICY_DRAFT",
+            "POLICY"
+          ]
+        },
+        "content_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "status": {
+          "enum": [
+            "DRAFT",
+            "APPROVE",
+            "REJECT"
+          ]
+        },
+        "production_eligible": {
+          "const": false
+        },
+        "content": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/FormalCapabilityFixed"
+            },
+            {
+              "$ref": "#/$defs/PolicyDraftContent"
+            },
+            {
+              "$ref": "#/$defs/PolicyDecisionContent"
+            }
+          ]
+        }
+      }
+    },
+    "Cursor": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "Query": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "kind",
+        "cursor"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "kind": {
+          "enum": [
+            "FORMAL_CAPABILITY_AUTHOR",
+            "POLICY_DRAFT",
+            "POLICY"
+          ]
+        },
+        "cursor": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Cursor"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "List": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "items",
+        "next_cursor"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "items": {
+          "type": "array",
+          "maxItems": 50,
+          "items": {
+            "$ref": "#/$defs/RecordView"
+          }
+        },
+        "next_cursor": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Cursor"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "RuntimeNullableId": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Id"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "RuntimeAction": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_.-]{0,63}$"
+    },
+    "RuntimeScope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tenant_id",
+        "project_id",
+        "resource_kind",
+        "resource_id"
+      ],
+      "properties": {
+        "tenant_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "project_id": {
+          "$ref": "#/$defs/RuntimeNullableId"
+        },
+        "resource_kind": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9_]{0,63}$"
+        },
+        "resource_id": {
+          "$ref": "#/$defs/Id"
+        }
+      }
+    },
+    "RuntimePermission": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scope",
+        "action",
+        "purpose"
+      ],
+      "properties": {
+        "scope": {
+          "$ref": "#/$defs/RuntimeScope"
+        },
+        "action": {
+          "$ref": "#/$defs/RuntimeAction"
+        },
+        "purpose": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9_]{0,63}$"
+        }
+      }
+    },
+    "RuntimeRoleScope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "permissions"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "permissions": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/RuntimePermission"
+          },
+          "maxItems": 128
+        }
+      }
+    },
+    "CapabilityQuery": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "kind",
+        "cursor"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "kind": {
+          "const": "FORMAL_CAPABILITY_AUTHOR"
+        },
+        "cursor": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Cursor"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

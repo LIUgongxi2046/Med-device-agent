@@ -20,6 +20,8 @@
         <summary>使用完整原始参数恢复决定</summary>
         <p>填写原DecisionInput完整JSON。原理由及许可正文没有保存在浏览器存储中；恢复时必须与原摘要完全一致。</p>
         <el-input v-model="originalJson" type="textarea" :rows="8" :disabled="busy" aria-label="原权利决定完整JSON" />
+        <p v-if="recoveryIssues.length" role="status">原请求尚未发送，请修正以下输入。原文及原请求编号已保留。</p>
+        <ul v-if="recoveryIssues.length" role="alert"><li v-for="(issue, index) in recoveryIssues" :key="index">{{ issue.path || '原请求 JSON' }}：{{ issue.code }}</li></ul>
         <el-button :disabled="busy || !originalJson || !mayRecover" @click="recoverOriginal">{{ lookupState === 'COMPLETED' ? '读取原决定回执' : '重新发送原请求' }}</el-button>
         <p v-if="lookupState === 'NOT_FOUND' && !sameOriginalContext">当前上下文已经变化，原请求保持原版本；不能重新发送这份未找到的原请求。</p>
       </details>
@@ -100,7 +102,9 @@ import { useRoute } from 'vue-router'
 import { canonicalizeEx } from 'json-canonicalize'
 import useUserStore from '@/store/modules/user'
 import SessionPanel from './session-panel.vue'
-import { fail } from '@/api/medical/protocol'
+import { fail, schemaIssues } from '@/api/medical/protocol'
+import { parseSourceInput } from '@/api/medical/source-input-issues'
+import type { SourceInputIssue } from '@/api/medical/source-input-issues'
 import type { Basis, MedicalSession } from '@/api/medical/protocol'
 import { useMedicalRouteRead } from '@/api/medical/route-read'
 import { readSourceGovernance, sourceApprovalAllowed } from '@/api/medical/source-governance'
@@ -119,6 +123,7 @@ const evidence = ref<Basis[]>([]); const validFrom = ref(''); const validTo = re
 const preview = shallowRef<RightsPreview | null>(null); const receipt = shallowRef<RightsReceipt | null>(null)
 const pending = shallowRef<RequestMetadata | null>(null); const currentSource = shallowRef<SourceGovernanceView | null>(null)
 const lookupState = ref(''); const operation = shallowRef<Operation | null>(null); const originalJson = ref('')
+const recoveryIssues = ref<SourceInputIssue[]>([])
 const reading = ref(false); const writing = ref(false); let generation = 0; let controller: AbortController | null = null
 const active = useMedicalRouteRead('MedicalSourceRights', clear)
 const busy = computed(() => reading.value || writing.value || user.medicalWriting)
@@ -151,7 +156,7 @@ function invalidateReview(): void {
 }
 function clear(): void {
   invalidateReview(); decision.value = ''; Object.assign(proposal, emptyProposal()); evidence.value = []; validFrom.value = ''; validTo.value = ''
-  reason.value = ''; pending.value = null; currentSource.value = null; lookupState.value = ''; operation.value = null; originalJson.value = ''; writing.value = false
+  reason.value = ''; recoveryIssues.value = []; pending.value = null; currentSource.value = null; lookupState.value = ''; operation.value = null; originalJson.value = ''; writing.value = false
 }
 function removeEvidence(index: number): void { evidence.value.splice(index, 1) }
 function begin(): { session: MedicalSession; target: string; signal: AbortSignal; requested: number } {
@@ -230,8 +235,14 @@ function discardExpired(): void {
 }
 async function recoverOriginal(): Promise<void> {
   if (busy.value || !mayRecover.value || !pending.value) return
-  const body = JSON.parse(originalJson.value) as RightsDecisionInput
-  if (rightsInputIssues(body).length) fail('SCHEMA_INVALID', '原决定参数需要完整且有效的DecisionInput')
+  const parsed = parseSourceInput(originalJson.value)
+  recoveryIssues.value = parsed.issues
+  if (recoveryIssues.value.length) return
+  recoveryIssues.value = schemaIssues('urn:medical:source-rights-decisions:1.0.0#/$defs/DecisionInput', parsed.value)
+  if (recoveryIssues.value.length) return
+  const body = parsed.value as RightsDecisionInput
+  recoveryIssues.value = rightsInputIssues(body)
+  if (recoveryIssues.value.length) return
   const metadata = pending.value; const work = begin(); user.medicalWriting = true; writing.value = true
   try {
     if (metadata.body_sha256 !== await requestBodyDigest(body)) fail('IDEMPOTENCY_CONFLICT', '恢复输入与完整原请求摘要不一致')

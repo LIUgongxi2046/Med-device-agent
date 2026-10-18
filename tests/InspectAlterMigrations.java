@@ -46,6 +46,12 @@ class InspectAlterMigrations {
                     constraint.setTable(alter.getTable());
                     constraint.setAlterExpressions(List.of(change));
                     entry.put("definition", constraint.toString());
+                } else if (change.getOperation() == AlterOperation.DROP && change.getConstraintName() != null) {
+                    // Preserve an explicit constraint-drop AST for replacement-check verification.
+                    var constraint = new Alter(); constraint.setTable(alter.getTable());
+                    constraint.setAlterExpressions(List.of(change));
+                    entry.put("definition", constraint.toString());
+                    entry.put("drop_constraint", change.getConstraintName());
                 } else if (change.getColumnDropDefaultList() != null && !change.getColumnDropDefaultList().isEmpty()) {
                     entry.put("drop_defaults", change.getColumnDropDefaultList().stream()
                         .map(column -> column.getColumnName()).toList());

@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.medical.persistence.mapper.ExpertQualificationMapper">
+<resultMap id="Journal" type="com.ruoyi.medical.persistence.ExpertQualificationProtocol$Journal"><constructor>
+<arg column="tenant_id" javaType="java.lang.String"/>
+<arg column="project_id" javaType="java.lang.String"/>
+<arg column="record_id" javaType="java.lang.String"/>
+<arg column="kind" javaType="java.lang.String"/>
+<arg column="qualification_id" javaType="java.lang.String"/>
+<arg column="operation_id" javaType="java.lang.String"/>
+<arg column="idempotency_key" javaType="java.lang.String"/>
+<arg column="request_sha256" javaType="java.lang.String"/>
+<arg column="request_body_sha256" javaType="java.lang.String"/>
+<arg column="request_json" javaType="java.lang.String"/>
+<arg column="request_context" javaType="java.lang.String"/>
+<arg column="request_session" javaType="java.lang.String"/>
+<arg column="content_json" javaType="java.lang.String"/>
+<arg column="content_sha256" javaType="java.lang.String"/>
+<arg column="authorizations_json" javaType="java.lang.String"/>
+<arg column="authorizations_sha256" javaType="java.lang.String"/>
+<arg column="receipt_json" javaType="java.lang.String"/>
+<arg column="receipt_sha256" javaType="java.lang.String"/>
+<arg column="audit_id" javaType="java.lang.String"/>
+<arg column="event_id" javaType="java.lang.String"/>
+<arg column="schema_version" javaType="java.lang.String"/>
+<arg column="schema_manifest_sha256" javaType="java.lang.String"/>
+<arg column="created_by" javaType="java.lang.String"/>
+<arg column="created_at" javaType="java.time.LocalDateTime"/>
+<arg column="classification" javaType="java.lang.String"/>
+</constructor></resultMap>
+<resultMap id="Qualification" type="com.ruoyi.medical.persistence.ExpertQualificationProtocol$Qualification"><constructor>
+<arg column="tenant_id" javaType="java.lang.String"/>
+<arg column="project_id" javaType="java.lang.String"/>
+<arg column="qualification_id" javaType="java.lang.String"/>
+<arg column="content_sha256" javaType="java.lang.String"/>
+<arg column="expert_id" javaType="java.lang.String"/>
+<arg column="domain" javaType="java.lang.String"/>
+<arg column="purpose" javaType="java.lang.String"/>
+<arg column="dimensions_json" javaType="java.lang.String"/>
+<arg column="valid_from" javaType="java.time.LocalDateTime"/>
+<arg column="valid_to" javaType="java.time.LocalDateTime"/>
+<arg column="schema_version" javaType="java.lang.String"/>
+<arg column="schema_manifest_sha256" javaType="java.lang.String"/>
+<arg column="created_by" javaType="java.lang.String"/>
+<arg column="created_at" javaType="java.time.LocalDateTime"/>
+<arg column="classification" javaType="java.lang.String"/>
+</constructor></resultMap>
+<resultMap id="Head" type="com.ruoyi.medical.persistence.ExpertQualificationProtocol$Head"><constructor>
+<arg column="tenant_id" javaType="java.lang.String"/>
+<arg column="project_id" javaType="java.lang.String"/>
+<arg column="qualification_id" javaType="java.lang.String"/>
+<arg column="status" javaType="java.lang.String"/>
+<arg column="revision" javaType="java.math.BigInteger"/>
+<arg column="decision_id" javaType="java.lang.String"/>
+<arg column="decision_kind" javaType="java.lang.String"/>
+<arg column="schema_version" javaType="java.lang.String"/>
+<arg column="schema_manifest_sha256" javaType="java.lang.String"/>
+<arg column="created_by" javaType="java.lang.String"/>
+<arg column="created_at" javaType="java.time.LocalDateTime"/>
+<arg column="classification" javaType="java.lang.String"/>
+<arg column="updated_at" javaType="java.time.LocalDateTime"/>
+</constructor></resultMap>
+<resultMap id="ScoreBinding" type="com.ruoyi.medical.persistence.ExpertQualificationProtocol$ScoreBinding"><constructor>
+<arg column="tenant_id" javaType="java.lang.String"/>
+<arg column="project_id" javaType="java.lang.String"/>
+<arg column="binding_id" javaType="java.lang.String"/>
+<arg column="binding_sha256" javaType="java.lang.String"/>
+<arg column="qualification_id" javaType="java.lang.String"/>
+<arg column="qualification_sha256" javaType="java.lang.String"/>
+<arg column="approval_id" javaType="java.lang.String"/>
+<arg column="approval_sha256" javaType="java.lang.String"/>
+<arg column="evaluation_id" javaType="java.lang.String"/>
+<arg column="definition_sha256" javaType="java.lang.String"/>
+<arg column="score_id" javaType="java.lang.String"/>
+<arg column="score_sha256" javaType="java.lang.String"/>
+<arg column="sample_id" javaType="java.lang.String"/>
+<arg column="candidate_id" javaType="java.lang.String"/>
+<arg column="dimension" javaType="java.lang.String"/>
+<arg column="repeat_index" javaType="_int"/>
+<arg column="scorer_id" javaType="java.lang.String"/>
+<arg column="score_created_at" javaType="java.time.LocalDateTime"/>
+<arg column="schema_version" javaType="java.lang.String"/>
+<arg column="schema_manifest_sha256" javaType="java.lang.String"/>
+<arg column="created_by" javaType="java.lang.String"/>
+<arg column="created_at" javaType="java.time.LocalDateTime"/>
+<arg column="classification" javaType="java.lang.String"/>
+</constructor></resultMap>
+<resultMap id="ScoreAuthorityWitness" type="com.ruoyi.medical.persistence.ExpertQualificationProtocol$ScoreAuthorityWitness"><constructor>
+<arg column="tenant_id" javaType="java.lang.String"/>
+<arg column="project_id" javaType="java.lang.String"/>
+<arg column="score_id" javaType="java.lang.String"/>
+<arg column="evaluation_id" javaType="java.lang.String"/>
+<arg column="sample_id" javaType="java.lang.String"/>
+<arg column="candidate_id" javaType="java.lang.String"/>
+<arg column="dimension" javaType="java.lang.String"/>
+<arg column="repeat_index" javaType="_int"/>
+<arg column="score_sha256" javaType="java.lang.String"/>
+<arg column="definition_sha256" javaType="java.lang.String"/>
+<arg column="original_operation_id" javaType="java.lang.String"/>
+<arg column="authority_json" javaType="java.lang.String"/>
+<arg column="authority_sha256" javaType="java.lang.String"/>
+<arg column="audit_id" javaType="java.lang.String"/>
+<arg column="event_id" javaType="java.lang.String"/>
+<arg column="schema_version" javaType="java.lang.String"/>
+<arg column="schema_manifest_sha256" javaType="java.lang.String"/>
+<arg column="created_by" javaType="java.lang.String"/>
+<arg column="created_at" javaType="java.time.LocalDateTime"/>
+<arg column="classification" javaType="java.lang.String"/>
+</constructor></resultMap>
+<resultMap id="Original" type="com.ruoyi.medical.persistence.ExpertQualificationProtocol$Original"><constructor>
+<arg column="tenant_id" javaType="java.lang.String"/>
+<arg column="source_version" javaType="java.lang.String"/>
+<arg column="sha256" javaType="java.lang.String"/>
+<arg column="object_key" javaType="java.lang.String"/>
+<arg column="object_version" javaType="java.lang.String"/>
+<arg column="size_bytes" javaType="java.math.BigInteger"/>
+<arg column="media_type" javaType="java.lang.String"/>
+</constructor></resultMap>
+<resultMap id="Operation" type="com.ruoyi.medical.persistence.SelectionOperationRow"><constructor>
+<arg column="operation_id" javaType="java.lang.String"/>
+<arg column="request_sha256" javaType="java.lang.String"/>
+<arg column="state" javaType="java.lang.String"/>
+<arg column="http_status" javaType="java.lang.Integer"/>
+<arg column="response_ref" javaType="java.lang.String"/>
+<arg column="target_id" javaType="java.lang.String"/>
+<arg column="schema_version" javaType="java.lang.String"/>
+<arg column="schema_manifest_sha256" javaType="java.lang.String"/>
+</constructor></resultMap>
+<select id="lockActor" resultType="java.lang.String" useCache="false" flushCache="true">SELECT user_id FROM tenant_member WHERE user_id=#{userId} FOR UPDATE</select>
+<select id="databaseTime" resultType="java.time.LocalDateTime" useCache="false" flushCache="true">SELECT UTC_TIMESTAMP(6)</select>
+<select id="expertMember" resultType="com.ruoyi.medical.persistence.TenantMemberRow" useCache="false" flushCache="true">SELECT tenant_id,member_id,user_id,status,valid_from,valid_to,revision FROM tenant_member WHERE user_id=#{expertId}</select>
+<select id="original" resultMap="Original" useCache="false" flushCache="true">SELECT tenant_id,source_version,original_sha256 AS sha256,object_key,object_version,size_bytes,media_type FROM source_version WHERE source_version=#{sourceVersion}</select>
+<select id="journal" resultMap="Journal" useCache="false" flushCache="true">SELECT tenant_id,project_id,record_id,kind,qualification_id,operation_id,idempotency_key,request_sha256,request_body_sha256,request_json,request_context,request_session,content_json,content_sha256,authorizations_json,authorizations_sha256,receipt_json,receipt_sha256,audit_id,event_id,schema_version,schema_manifest_sha256,created_by,created_at,classification FROM expert_qualification_record WHERE record_id=#{recordId}</select>
+<select id="journalByOperation" resultMap="Journal" useCache="false" flushCache="true">SELECT tenant_id,project_id,record_id,kind,qualification_id,operation_id,idempotency_key,request_sha256,request_body_sha256,request_json,request_context,request_session,content_json,content_sha256,authorizations_json,authorizations_sha256,receipt_json,receipt_sha256,audit_id,event_id,schema_version,schema_manifest_sha256,created_by,created_at,classification FROM expert_qualification_record WHERE operation_id=#{operationId} AND created_by=#{creatorId}</select>
+<select id="qualification" resultMap="Qualification" useCache="false" flushCache="true">SELECT tenant_id,project_id,qualification_id,content_sha256,expert_id,domain,purpose,dimensions_json,valid_from,valid_to,schema_version,schema_manifest_sha256,created_by,created_at,classification FROM expert_qualification WHERE qualification_id=#{qualificationId}</select>
+<select id="head" resultMap="Head" useCache="false" flushCache="true">SELECT tenant_id,project_id,qualification_id,status,revision,decision_id,decision_kind,schema_version,schema_manifest_sha256,created_by,created_at,classification,updated_at FROM expert_qualification_state WHERE qualification_id=#{qualificationId}</select>
+<select id="lockHead" resultMap="Head" useCache="false" flushCache="true">SELECT tenant_id,project_id,qualification_id,status,revision,decision_id,decision_kind,schema_version,schema_manifest_sha256,created_by,created_at,classification,updated_at FROM expert_qualification_state WHERE qualification_id=#{qualificationId} FOR UPDATE</select>
+<select id="decisions" resultMap="Journal" useCache="false" flushCache="true">SELECT tenant_id,project_id,record_id,kind,qualification_id,operation_id,idempotency_key,request_sha256,request_body_sha256,request_json,request_context,request_session,content_json,content_sha256,authorizations_json,authorizations_sha256,receipt_json,receipt_sha256,audit_id,event_id,schema_version,schema_manifest_sha256,created_by,created_at,classification FROM expert_qualification_record WHERE qualification_id=#{qualificationId} AND kind IN ('APPROVE','REJECT','REVOKE') ORDER BY created_at,record_id LIMIT 3</select>
+<select id="scoreBinding" resultMap="ScoreBinding" useCache="false" flushCache="true">SELECT tenant_id,project_id,binding_id,binding_sha256,qualification_id,qualification_sha256,approval_id,approval_sha256,evaluation_id,definition_sha256,score_id,score_sha256,sample_id,candidate_id,dimension,repeat_index,scorer_id,score_created_at,schema_version,schema_manifest_sha256,created_by,created_at,classification FROM expert_score_binding WHERE binding_id=#{bindingId}</select>
+<select id="bindingForScore" resultMap="ScoreBinding" useCache="false" flushCache="true">SELECT tenant_id,project_id,binding_id,binding_sha256,qualification_id,qualification_sha256,approval_id,approval_sha256,evaluation_id,definition_sha256,score_id,score_sha256,sample_id,candidate_id,dimension,repeat_index,scorer_id,score_created_at,schema_version,schema_manifest_sha256,created_by,created_at,classification FROM expert_score_binding WHERE score_id=#{scoreId} AND qualification_id=#{qualificationId}</select>
+<select id="scoreAuthority" resultMap="ScoreAuthorityWitness" useCache="false" flushCache="true">SELECT tenant_id,project_id,score_id,evaluation_id,sample_id,candidate_id,dimension,repeat_index,score_sha256,definition_sha256,original_operation_id,authority_json,authority_sha256,audit_id,event_id,schema_version,schema_manifest_sha256,created_by,created_at,classification FROM expert_score_authority_witness WHERE score_id=#{scoreId}</select>
+<select id="scoreClassification" resultType="java.lang.String" useCache="false" flushCache="true">SELECT classification FROM evaluation_score_observation WHERE score_id=#{scoreId}</select>
+<select id="version" resultType="com.ruoyi.medical.persistence.ArtifactRegistryProtocol$VersionRow" useCache="false" flushCache="true">SELECT version_id AS id,owner_project_id AS projectId,entity_kind AS entityKind,content_sha256 AS contentSha256 FROM version_registry WHERE version_id=#{recordId}</select>
+<select id="operation" resultMap="Operation" useCache="false" flushCache="true">SELECT operation_id,request_sha256,state,http_status,response_ref,target_id,schema_version,schema_manifest_sha256 FROM operation_record WHERE subject_id=#{userId} AND operation_name=#{operationName} AND idempotency_key=#{key}</select>
+<select id="operationById" resultMap="Operation" useCache="false" flushCache="true">SELECT operation_id,request_sha256,state,http_status,response_ref,target_id,schema_version,schema_manifest_sha256 FROM operation_record WHERE operation_id=#{operationId} AND subject_id=#{creatorId} AND created_by=#{creatorId} AND operation_name=#{operationName} AND idempotency_key=#{key} AND error_code IS NULL AND revision=1 AND updated_at=created_at AND created_at=#{row.createdAt} AND classification=#{row.classification}</select>
+<select id="originalScoreOperation" resultMap="Operation" useCache="false" flushCache="true">SELECT operation_id,request_sha256,state,http_status,response_ref,target_id,schema_version,schema_manifest_sha256 FROM operation_record WHERE operation_id=#{witness.originalOperationId} AND subject_id=#{creatorId} AND created_by=#{creatorId} AND operation_name='EV-02' AND target_id=#{witness.evaluationId} AND error_code IS NULL AND revision=1 AND created_at=#{witness.createdAt} AND updated_at=created_at AND classification=#{witness.classification}</select>
+<insert id="insertVersion">INSERT INTO version_registry(version_id,owner_project_id,entity_kind,content_sha256) VALUES(#{row.recordId},#{row.projectId},#{entityKind},#{row.contentHash})</insert>
+<insert id="insertJournal">INSERT INTO expert_qualification_record(project_id,record_id,kind,qualification_id,operation_id,idempotency_key,request_sha256,request_body_sha256,request_json,request_context,request_session,content_json,content_sha256,authorizations_json,authorizations_sha256,receipt_json,receipt_sha256,audit_id,event_id,schema_version,schema_manifest_sha256,created_by,created_at,classification) VALUES(#{row.projectId},#{row.recordId},#{row.kind},#{row.qualificationId},#{row.operationId},#{row.idempotencyKey},#{row.requestHash},#{row.bodyHash},#{row.requestJson},#{row.requestContext},#{row.requestSession},#{row.contentJson},#{row.contentHash},#{row.authorizationsJson},#{row.authorizationsHash},#{row.receiptJson},#{row.receiptHash},#{row.auditId},#{row.eventId},#{row.schemaVersion},#{row.schemaManifest},#{row.createdBy},#{row.createdAt},#{row.classification})</insert>
+<insert id="insertQualification">INSERT INTO expert_qualification(project_id,qualification_id,content_sha256,expert_id,domain,purpose,dimensions_json,valid_from,valid_to,schema_version,schema_manifest_sha256,created_by,created_at,classification,author_record_id,author_kind) VALUES(#{qualification.projectId},#{qualification.qualificationId},#{qualification.contentHash},#{qualification.expertId},#{qualification.domain},#{qualification.purpose},#{qualification.dimensionsJson},#{qualification.validFrom},#{qualification.validTo},#{qualification.schemaVersion},#{qualification.schemaManifest},#{qualification.createdBy},#{qualification.createdAt},#{qualification.classification},#{qualification.qualificationId},'AUTHOR')</insert>
+<insert id="insertHead">INSERT INTO expert_qualification_state(project_id,qualification_id,status,revision,decision_id,decision_kind,schema_version,schema_manifest_sha256,created_by,created_at,classification,updated_at) VALUES(#{head.projectId},#{head.qualificationId},#{head.status},#{head.revision},#{head.decisionId},#{head.decisionKind},#{head.schemaVersion},#{head.schemaManifest},#{head.createdBy},#{head.createdAt},#{head.classification},#{head.updatedAt})</insert>
+<insert id="insertScoreBinding">INSERT INTO expert_score_binding(project_id,binding_id,binding_sha256,qualification_id,qualification_sha256,approval_id,approval_sha256,evaluation_id,definition_sha256,score_id,score_sha256,sample_id,candidate_id,dimension,repeat_index,scorer_id,score_created_at,schema_version,schema_manifest_sha256,created_by,created_at,classification,record_kind,approval_kind) VALUES(#{binding.projectId},#{binding.bindingId},#{binding.bindingHash},#{binding.qualificationId},#{binding.qualificationHash},#{binding.approvalId},#{binding.approvalHash},#{binding.evaluationId},#{binding.definitionHash},#{binding.scoreId},#{binding.scoreHash},#{binding.sampleId},#{binding.candidateId},#{binding.dimension},#{binding.repeatIndex},#{binding.scorerId},#{binding.scoreCreatedAt},#{binding.schemaVersion},#{binding.schemaManifest},#{binding.createdBy},#{binding.createdAt},#{binding.classification},'SCORE_BIND','APPROVE')</insert>
+<insert id="insertScoreAuthority">INSERT INTO expert_score_authority_witness(project_id,score_id,evaluation_id,sample_id,candidate_id,dimension,repeat_index,score_sha256,definition_sha256,original_operation_id,authority_json,authority_sha256,audit_id,event_id,schema_version,schema_manifest_sha256,created_by,created_at,classification) VALUES(#{witness.projectId},#{witness.scoreId},#{witness.evaluationId},#{witness.sampleId},#{witness.candidateId},#{witness.dimension},#{witness.repeatIndex},#{witness.scoreHash},#{witness.definitionHash},#{witness.originalOperationId},#{witness.authorityJson},#{witness.authorityHash},#{witness.auditId},#{witness.eventId},#{witness.schemaVersion},#{witness.schemaManifest},#{witness.createdBy},#{witness.createdAt},#{witness.classification})</insert>
+<update id="advanceHead">UPDATE expert_qualification_state SET status=#{status},revision=revision+1,decision_id=#{decisionId},decision_kind=#{decisionKind},updated_at=#{now} WHERE qualification_id=#{qualificationId} AND status=#{previousStatus} AND revision=#{expected} AND decision_id &lt;=&gt; #{previousDecision}</update>
+<insert id="saveOperation">INSERT INTO operation_record(operation_id,subject_id,operation_name,idempotency_key,request_sha256,state,http_status,response_ref,target_id,error_code,schema_version,schema_manifest_sha256,created_by,created_at,classification,revision,updated_at) VALUES(#{row.operationId},#{userId},#{operationName},#{row.idempotencyKey},#{row.requestHash},'COMPLETED',201,#{row.receiptJson},#{row.recordId},NULL,'1.0.0',#{row.schemaManifest},#{userId},#{row.createdAt},#{row.classification},1,#{row.createdAt})</insert>
+<insert id="saveAudit">INSERT INTO audit_event(project_id,audit_id,subject_id,action,resource_ref,result,reason_code,request_id,trace_id,schema_version,schema_manifest_sha256,created_by,created_at,classification) VALUES(#{row.projectId},#{row.auditId},#{userId},#{eventType},#{payload},'SUCCESS',NULL,#{row.operationId},#{row.operationId},'1.0.0',#{row.schemaManifest},#{userId},#{row.createdAt},#{row.classification})</insert>
+<insert id="saveEvent">INSERT INTO outbox_event(event_id,aggregate_id,aggregate_revision,event_type,payload,occurred_at,published_at) VALUES(#{row.eventId},#{row.recordId},1,#{eventType},#{payload},#{row.createdAt},NULL)</insert>
+<select id="audit" resultType="java.lang.String" useCache="false" flushCache="true">SELECT resource_ref FROM audit_event WHERE audit_id=#{row.auditId} AND project_id &lt;=&gt; #{row.projectId} AND subject_id=#{creatorId} AND created_by=#{creatorId} AND action=#{eventType} AND result='SUCCESS' AND reason_code IS NULL AND request_id=#{row.operationId} AND trace_id=#{row.operationId} AND schema_version='1.0.0' AND schema_manifest_sha256=#{row.schemaManifest} AND created_at=#{row.createdAt} AND classification=#{row.classification}</select>
+<select id="event" resultType="java.lang.String" useCache="false" flushCache="true">SELECT payload FROM outbox_event WHERE event_id=#{row.eventId} AND aggregate_id=#{row.recordId} AND aggregate_revision=1 AND event_type=#{eventType} AND occurred_at=#{row.createdAt}</select>
+<insert id="saveScoreAuthorityAudit">INSERT INTO audit_event(project_id,audit_id,subject_id,action,resource_ref,result,reason_code,request_id,trace_id,schema_version,schema_manifest_sha256,created_by,created_at,classification) VALUES(#{witness.projectId},#{witness.auditId},#{userId},'expert.score_authority_recorded',#{payload},'SUCCESS',NULL,#{witness.originalOperationId},#{witness.originalOperationId},'1.0.0',#{witness.schemaManifest},#{userId},#{witness.createdAt},#{witness.classification})</insert>
+<insert id="saveScoreAuthorityEvent">INSERT INTO outbox_event(event_id,aggregate_id,aggregate_revision,event_type,payload,occurred_at,published_at) VALUES(#{witness.eventId},#{witness.scoreId},1,'expert.score_authority_recorded',#{payload},#{witness.createdAt},NULL)</insert>
+<select id="scoreAuthorityAudit" resultType="java.lang.String" useCache="false" flushCache="true">SELECT resource_ref FROM audit_event WHERE audit_id=#{witness.auditId} AND project_id &lt;=&gt; #{witness.projectId} AND subject_id=#{creatorId} AND created_by=#{creatorId} AND action='expert.score_authority_recorded' AND result='SUCCESS' AND reason_code IS NULL AND request_id=#{witness.originalOperationId} AND trace_id=#{witness.originalOperationId} AND schema_version='1.0.0' AND schema_manifest_sha256=#{witness.schemaManifest} AND created_at=#{witness.createdAt} AND classification=#{witness.classification}</select>
+<select id="scoreAuthorityEvent" resultType="java.lang.String" useCache="false" flushCache="true">SELECT payload FROM outbox_event WHERE event_id=#{witness.eventId} AND aggregate_id=#{witness.scoreId} AND aggregate_revision=1 AND event_type='expert.score_authority_recorded' AND occurred_at=#{witness.createdAt}</select>
+</mapper>

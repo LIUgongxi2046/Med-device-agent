@@ -72,6 +72,16 @@
         <el-table-column label="最多数量" width="120"><template #default="scope">{{ scope.row.max_count ?? '未设上限' }}</template></el-table-column>
         <el-table-column type="expand"><template #default="scope"><pre class="template-definition">{{ full(scope.row) }}</pre></template></el-table-column>
       </el-table>
+      <section v-if="referencedRules.length" aria-label="模板引用的固定规则">
+        <h2>模板引用的固定规则</h2>
+        <p>打开已授权规则并核对模板引用的内容摘要；读取不会改变模板或规则状态。</p>
+        <ul><li v-for="rule in referencedRules" :key="rule.version_id">
+          <router-link v-if="ruleAllowed(user.medicalSession, 'rule.read', rule.version_id) || ruleAllowed(user.medicalSession, 'rule.approve', rule.version_id)"
+            :to="{ path: '/rules/' + rule.version_id, query: { content_sha256: rule.content_sha256 } }">{{ rule.version_id }}</router-link>
+          <span v-else>{{ rule.version_id }}（当前没有规则读取或审查权限）</span>
+          <p>SHA-256：{{ rule.content_sha256 }}</p>
+        </li></ul>
+      </section>
       <el-collapse>
         <el-collapse-item title="条件规则与输入属性" name="conditions"><pre class="template-definition">{{ full(preview.template.content.condition_schema) }}</pre></el-collapse-item>
         <el-collapse-item title="全部跨文档规则" name="cross"><pre class="template-definition">{{ full(preview.template.content.cross_document_rules) }}</pre></el-collapse-item>
@@ -122,6 +132,7 @@ import { lookupOperation } from '@/api/medical/operations'
 import type { Operation, OperationLookup } from '@/api/medical/operations'
 import useUserStore from '@/store/modules/user'
 import SessionPanel from './session-panel.vue'
+import { referencedTemplateRules, ruleAllowed } from '@/api/medical/rule-versions'
 
 const user = useUserStore(); const route = useRoute(); const router = useRouter()
 const target = computed(() => typeof route.params.templateId === 'string' ? route.params.templateId : null)
@@ -130,6 +141,7 @@ const preview = ref<TemplatePreview | null>(null); const loading = ref(false); c
 const pending = ref<PendingApproval | null>(null); const lookupResult = ref<OperationLookup | null>(null)
 const receipt = ref<ApprovalReceipt | null>(null); const completed = ref<Operation | null>(null)
 const decisions = computed(() => preview.value ? approvalDecisions(preview.value) : [])
+const referencedRules = computed(() => preview.value ? referencedTemplateRules(preview.value.template.content) : [])
 const mayWrite = computed(() => permitted.value && preview.value !== null && (pending.value === null
   || pending.value.expected_revision === preview.value.template.revision
     && pending.value.content_sha256 === preview.value.template.content_sha256

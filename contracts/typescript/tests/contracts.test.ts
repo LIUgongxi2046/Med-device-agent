@@ -16,7 +16,7 @@ const dataset = decodeDataset(catalogue, JSON.parse(await readFile(resolve(root,
 
 test('实际登记包与全部共享定义使用相同发布集合', () => {
   catalogue.validate('dataset', dataset)
-  assert.equal(catalogue.definitionCount, 307)
+  assert.equal(catalogue.definitionCount, 503)
   const bound = catalogue.bind('dataset', dataset)
   assert.deepEqual(JSON.parse(bound.canonicalJson), dataset)
 })

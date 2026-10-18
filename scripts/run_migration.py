@@ -3,6 +3,7 @@ import hashlib
 import os
 from pathlib import Path
 import re
+import shutil
 import subprocess
 from uuid import UUID
 
@@ -11,6 +12,36 @@ ROOT = Path(__file__).resolve().parents[1]
 JAR = ROOT / "business/medical-data/target/medical-data-3.9.2-cli.jar"
 LIBRARY = ROOT / "business/medical-data/target/medical-data-3.9.2.jar"
 DATABASE_COMMANDS = ("validate", "status", "update-sql", "update")
+
+
+def resolve_java(root, environment=None):
+    """Find a Java runtime without requiring Maven or a compiler.
+
+    An explicit Java home is authoritative, including when it is invalid.
+    Otherwise prefer the project's pinned macOS/Linux layouts before PATH.
+    """
+    environment = os.environ if environment is None else environment
+    for name in ("MEDICAL_JAVA_HOME", "JAVA_HOME"):
+        if name in environment:
+            value = environment[name]
+            if value and value.strip():
+                java = Path(value).expanduser() / "bin/java"
+                if java.is_file() and os.access(java, os.X_OK):
+                    return java.resolve(strict=True)
+            raise ValueError("JAVA_NOT_FOUND: " + name + " must contain an executable bin/java")
+
+    toolchains = Path(root) / ".implementation-work/toolchains"
+    candidates = [
+        toolchains / "jdk-17.0.20.1+1/Contents/Home/bin/java",
+        toolchains / "jdk-17.0.20.1+1/bin/java",
+    ]
+    for java in candidates:
+        if java.is_file() and os.access(java, os.X_OK):
+            return java.resolve(strict=True)
+    java = shutil.which("java", path=environment.get("PATH", ""))
+    if java:
+        return Path(java).resolve(strict=True)
+    raise ValueError("JAVA_NOT_FOUND: set MEDICAL_JAVA_HOME or JAVA_HOME, or put java on PATH")
 
 
 def required_value(environment, name):
@@ -27,9 +58,9 @@ def main():
     args = parser.parse_args()
     if args.for_command and args.command != "help":
         parser.error("--for-command 仅用于原生命令帮助")
-    java = (ROOT / ".implementation-work/toolchains/jdk-17.0.20.1+1/Contents/Home/bin/java").resolve(strict=True)
-    jar = JAR.resolve(strict=True)
     environment = os.environ.copy()
+    java = resolve_java(ROOT, environment)
+    jar = JAR.resolve(strict=True)
     temporary = ROOT / ".implementation-work/java-temp"
     temporary.mkdir(parents=True, exist_ok=True)
     environment["TMPDIR"] = str(temporary)

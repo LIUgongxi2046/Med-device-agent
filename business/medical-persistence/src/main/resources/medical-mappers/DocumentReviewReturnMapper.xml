@@ -1,0 +1,174 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.medical.persistence.mapper.DocumentReviewReturnMapper">
+  <resultMap id="task" type="com.ruoyi.medical.persistence.DocumentReviewReturnProtocol$Task">
+    <constructor><arg column="task_id" javaType="java.lang.String"/><arg column="current_revision" javaType="java.lang.String"/>
+      <arg column="status" javaType="java.lang.String"/><arg column="revision" javaType="java.math.BigInteger"/></constructor>
+  </resultMap>
+  <resultMap id="stored" type="com.ruoyi.medical.persistence.DocumentReviewReturnProtocol$Stored">
+    <constructor><arg column="assignment_id" javaType="java.lang.String"/><arg column="return_id" javaType="java.lang.String"/>
+      <arg column="operation_id" javaType="java.lang.String"/><arg column="canonical_request" javaType="java.lang.String"/>
+      <arg column="request_sha256" javaType="java.lang.String"/><arg column="canonical_receipt" javaType="java.lang.String"/>
+      <arg column="schema_manifest_sha256" javaType="java.lang.String"/></constructor>
+  </resultMap>
+  <resultMap id="queueCandidate" type="com.ruoyi.medical.persistence.DocumentReviewReturnProtocol$QueueCandidate">
+    <constructor><arg column="assignment_id" javaType="java.lang.String"/><arg column="project_id" javaType="java.lang.String"/>
+      <arg column="document_id" javaType="java.lang.String"/><arg column="document_revision" javaType="java.lang.String"/>
+      <arg column="task_id" javaType="java.lang.String"/><arg column="task_revision" javaType="java.lang.String"/>
+      <arg column="assignee_id" javaType="java.lang.String"/><arg column="return_id" javaType="java.lang.String"/>
+      <arg column="operation_id" javaType="java.lang.String"/></constructor>
+  </resultMap>
+  <select id="myAssignments" resultMap="queueCandidate" useCache="false" flushCache="true">
+    SELECT a.assignment_id,a.project_id,a.document_id,a.document_revision,a.task_id,a.task_revision,a.assignee_id,a.return_id,r.operation_id
+    FROM document_revision_return_assignment a JOIN document_revision_return r ON r.tenant_id=a.tenant_id
+      AND r.project_id=a.project_id AND r.return_id=a.return_id AND r.document_id=a.document_id
+      AND r.document_revision=a.document_revision AND r.task_id=a.task_id AND r.task_revision=a.task_revision
+      AND r.assignee_id=a.assignee_id
+    WHERE a.assignee_id=#{userId} AND a.assignment_id &gt; #{after}
+    ORDER BY a.assignment_id LIMIT #{fetchLimit} FOR UPDATE
+  </select>
+  <select id="task" resultMap="task" useCache="false" flushCache="true">
+    SELECT task_id,current_revision,status,revision FROM task_head WHERE project_id=#{projectId} AND task_id=#{taskId} FOR UPDATE
+  </select>
+  <select id="assigneeCandidates" resultMap="com.ruoyi.medical.persistence.mapper.TenantMemberMapper.member" useCache="false" flushCache="true">
+    SELECT m.tenant_id,m.member_id,m.user_id,m.status,m.valid_from,m.valid_to,m.revision FROM tenant_member m
+    WHERE m.status='ACTIVE' AND m.valid_from &lt;= UTC_TIMESTAMP(6) AND (m.valid_to IS NULL OR m.valid_to &gt; UTC_TIMESTAMP(6))
+      AND EXISTS(SELECT 1 FROM identity_binding i WHERE i.tenant_id=m.tenant_id AND i.user_id=m.user_id AND i.status='ACTIVE')
+      AND EXISTS(SELECT 1 FROM permission_grant g WHERE g.tenant_id=m.tenant_id AND g.subject_id=m.user_id
+        AND g.action='task.read' AND g.status='ACTIVE' AND g.valid_from &lt;= UTC_TIMESTAMP(6)
+        AND (g.valid_to IS NULL OR g.valid_to &gt; UTC_TIMESTAMP(6))
+        AND ((g.resource_kind='ENTERPRISE' AND g.project_id IS NULL AND g.resource_id=m.tenant_id)
+          OR (g.resource_kind='PROJECT' AND g.project_id=#{projectId} AND g.resource_id=#{projectId})
+          OR (g.resource_kind='TASK' AND g.project_id=#{projectId} AND (g.resource_id IS NULL OR g.resource_id=#{taskId}))))
+    ORDER BY m.user_id LIMIT 101 FOR UPDATE
+  </select>
+  <select id="checks" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT CAST(JSON_OBJECT('record_sha256',SHA2(CAST(JSON_OBJECT('revision',CAST(c.revision AS CHAR),
+      'scope_manifest_id',c.scope_manifest_id,'rule_manifest',c.rule_manifest,'input_watermarks',c.input_watermarks,
+      'result_ref',c.result_ref,'coverage_hash',coverage.sha256,'findings_hash',findings.sha256) AS CHAR),256),
+      'check_id',c.check_id,'status',c.status,'input_sha256',c.input_sha256,
+      'rule_manifest_id',c.rule_manifest_id,'evidence_watermark',CAST(c.evidence_watermark AS CHAR),
+      'issue_watermark',CAST(c.issue_watermark AS CHAR),'invalidation_reason',c.invalidation_reason,
+      'coverage_artifact_id',c.coverage_artifact_id,'findings_artifact_id',c.findings_artifact_id,
+      'record_complete',CAST(IF(c.status='SUCCEEDED' AND c.invalidation_reason IS NULL
+        AND c.evidence_watermark=#{evidenceWatermark} AND c.issue_watermark=#{issueWatermark}
+        AND c.result_ref IS NOT NULL AND coverage.artifact_id IS NOT NULL AND findings.artifact_id IS NOT NULL,
+        'true','false') AS JSON)) AS CHAR)
+    FROM check_run c
+    LEFT JOIN artifact coverage ON coverage.tenant_id=c.tenant_id AND coverage.project_key=c.project_key AND coverage.artifact_id=c.coverage_artifact_id
+    LEFT JOIN artifact findings ON findings.tenant_id=c.tenant_id AND findings.project_key=c.project_key AND findings.artifact_id=c.findings_artifact_id
+    WHERE c.project_id=#{projectId} AND c.target_kind='DOCUMENT' AND c.target_id=#{documentId}
+      AND c.target_revision=#{documentRevision} ORDER BY c.check_id LIMIT 101 FOR UPDATE
+  </select>
+  <select id="confirmations" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT r.review_id FROM review_decision r WHERE r.project_id=#{projectId} AND r.document_revision=#{documentRevision}
+      AND r.decision='CONFIRM' AND NOT EXISTS(SELECT 1 FROM review_invalidation i
+        WHERE i.tenant_id=r.tenant_id AND i.project_id=r.project_id AND i.review_id=r.review_id)
+    ORDER BY r.review_id LIMIT 101 FOR UPDATE
+  </select>
+  <insert id="invalidate">
+    INSERT INTO review_invalidation(project_id,invalidation_id,review_id,trigger_version,reason_code,created_by,created_at,classification)
+    VALUES(#{projectId},#{invalidationId},#{invalidatedReviewId},#{documentRevision},'DOCUMENT_RETURNED_FOR_REVISION',#{userId},#{now},#{classification})
+  </insert>
+  <update id="advanceDocument">
+    UPDATE document_head SET revision=revision+1,updated_at=#{now}
+    WHERE project_id=#{projectId} AND document_id=#{documentId} AND current_document_revision=#{documentRevision}
+      AND revision=#{expectedDocument} AND status&lt;&gt;'SIGNED'
+  </update>
+  <update id="advanceTask">
+    UPDATE task_head SET status='RETURNED',revision=revision+1,updated_at=#{now}
+    WHERE project_id=#{projectId} AND task_id=#{taskId} AND current_revision=#{taskRevision}
+      AND revision=#{expectedTask} AND status='REVIEW_PENDING'
+  </update>
+  <select id="historyOperation" resultMap="com.ruoyi.medical.persistence.mapper.TenantSelectionMapper.operation" useCache="false" flushCache="true">
+    SELECT o.operation_id,o.request_sha256,o.state,o.http_status,o.response_ref,o.target_id,o.schema_version,o.schema_manifest_sha256
+    FROM document_revision_return r JOIN operation_record o ON o.tenant_id=r.tenant_id AND o.operation_id=r.operation_id
+      AND o.subject_id=r.actor_id AND o.created_by=r.actor_id AND r.created_by=r.actor_id
+    WHERE r.project_id=#{projectId} AND r.document_id=#{documentId} AND r.return_id=#{returnId}
+      AND o.operation_name='DOCUMENT-RETURN-FOR-REVISION-1' FOR UPDATE
+  </select>
+  <select id="historyAudit" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT a.resource_ref FROM document_revision_return r JOIN audit_event a ON a.tenant_id=r.tenant_id
+      AND a.project_id=r.project_id AND a.subject_id=r.actor_id AND r.created_by=r.actor_id
+    WHERE r.project_id=#{projectId} AND r.document_id=#{documentId} AND r.return_id=#{returnId}
+      AND a.action='document.returned_for_revision' AND a.result='SUCCESS' AND a.request_id=#{requestId}
+      AND a.created_by=r.actor_id AND a.trace_id=a.request_id AND a.reason_code IS NULL AND a.schema_version='1.0.0'
+      AND a.classification=r.classification AND a.schema_manifest_sha256=#{manifest} ORDER BY a.audit_id LIMIT 2 FOR UPDATE
+  </select>
+  <select id="operation" resultMap="com.ruoyi.medical.persistence.mapper.TenantSelectionMapper.operation" useCache="false" flushCache="true">
+    SELECT operation_id,request_sha256,state,http_status,response_ref,target_id,schema_version,schema_manifest_sha256
+    FROM operation_record WHERE subject_id=#{userId} AND operation_name='DOCUMENT-RETURN-FOR-REVISION-1' AND idempotency_key=#{key} FOR UPDATE
+  </select>
+  <insert id="saveOperation">
+    INSERT INTO operation_record(operation_id,subject_id,operation_name,idempotency_key,request_sha256,state,http_status,response_ref,
+      target_id,error_code,schema_version,schema_manifest_sha256,created_by,created_at,classification,revision,updated_at)
+    VALUES(#{operationId},#{userId},'DOCUMENT-RETURN-FOR-REVISION-1',#{key},#{requestHash},'COMPLETED',200,#{response},#{documentId},NULL,
+      '1.0.0',#{manifest},#{userId},#{now},#{classification},1,#{now})
+  </insert>
+  <select id="audit" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT resource_ref FROM audit_event WHERE subject_id=#{userId} AND project_id=#{projectId}
+      AND action='document.returned_for_revision' AND result='SUCCESS' AND request_id=#{requestId}
+      AND created_by=#{userId} AND trace_id=request_id AND reason_code IS NULL AND schema_version='1.0.0'
+      AND classification=#{classification} AND schema_manifest_sha256=#{manifest} ORDER BY audit_id
+  </select>
+  <select id="event" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT payload FROM outbox_event WHERE aggregate_id=#{documentId} AND aggregate_revision=#{resultingDocument}
+      AND event_type='document.returned_for_revision'
+  </select>
+  <select id="signatures" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT signature_id FROM signature_record WHERE project_id=#{projectId} AND document_id=#{documentId}
+      AND document_revision=#{documentRevision} ORDER BY signature_id LIMIT 101 FOR UPDATE
+  </select>
+  <select id="targetGrants" resultMap="com.ruoyi.medical.persistence.mapper.PermissionMapper.grant" useCache="false" flushCache="true">
+    SELECT grant_id,subject_id,project_id,resource_kind,resource_id,action,`condition`,status,valid_from,valid_to,
+      basis_version,schema_version,schema_manifest_sha256,revision FROM permission_grant
+    WHERE subject_id=#{assigneeId} AND action=#{targetAction} AND status='ACTIVE'
+      AND valid_from &lt;= UTC_TIMESTAMP(6) AND (valid_to IS NULL OR valid_to &gt; UTC_TIMESTAMP(6)) ORDER BY grant_id LIMIT 101 FOR UPDATE
+  </select>
+  <select id="assignments" resultMap="stored" useCache="false" flushCache="true">
+    SELECT a.assignment_id,r.return_id,r.operation_id,r.canonical_request,r.request_sha256,r.canonical_receipt,r.schema_manifest_sha256
+    FROM document_revision_return r JOIN document_revision_return_assignment a ON a.tenant_id=r.tenant_id AND a.project_id=r.project_id AND a.return_id=r.return_id AND r.created_by=r.actor_id AND r.schema_version='1.0.0' AND a.created_by=r.actor_id AND a.created_at=r.created_at AND a.classification=r.classification AND a.schema_version=r.schema_version AND a.schema_manifest_sha256=r.schema_manifest_sha256
+    WHERE r.project_id=#{projectId} AND r.document_id=#{documentId} AND r.document_revision=#{documentRevision}
+    ORDER BY r.created_at,r.return_id LIMIT 101 FOR UPDATE
+  </select>
+  <select id="stored" resultMap="stored" useCache="false" flushCache="true">
+    SELECT a.assignment_id,r.return_id,r.operation_id,r.canonical_request,r.request_sha256,r.canonical_receipt,r.schema_manifest_sha256
+    FROM document_revision_return r JOIN document_revision_return_assignment a ON a.tenant_id=r.tenant_id AND a.project_id=r.project_id AND a.return_id=r.return_id AND r.created_by=r.actor_id AND r.schema_version='1.0.0' AND a.created_by=r.actor_id AND a.created_at=r.created_at AND a.classification=r.classification AND a.schema_version=r.schema_version AND a.schema_manifest_sha256=r.schema_manifest_sha256
+    WHERE r.project_id=#{projectId} AND r.document_id=#{documentId} AND r.operation_id=#{operationId} FOR UPDATE
+  </select>
+  <select id="decision" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT CAST(JSON_OBJECT('return_id',r.return_id,'document_id',r.document_id,'document_revision',r.document_revision,
+      'decision',r.decision,'reason',r.reason,'actor_id',r.actor_id,'assignee_id',r.assignee_id,
+      'decided_at',DATE_FORMAT(r.created_at,'%Y-%m-%dT%H:%i:%s.%fZ'),'baseline_manifest',JSON_EXTRACT(r.canonical_request,'$.request.basis'),
+      'assignment',JSON_OBJECT('assignment_id',a.assignment_id,'kind','DOCUMENT_RETURN_FOR_REVISION','return_id',a.return_id,
+      'document_id',a.document_id,'document_revision',a.document_revision,'task_id',a.task_id,'task_revision',a.task_revision,
+      'assignee_id',a.assignee_id,'reason',r.reason,'status',a.status,'revision',CAST(a.revision AS CHAR),
+      'created_at',DATE_FORMAT(a.created_at,'%Y-%m-%dT%H:%i:%s.%fZ'))) AS CHAR)
+    FROM document_revision_return r JOIN document_revision_return_assignment a ON a.tenant_id=r.tenant_id AND a.project_id=r.project_id
+      AND a.return_id=r.return_id AND a.document_id=r.document_id AND a.document_revision=r.document_revision
+      AND a.task_id=r.task_id AND a.task_revision=r.task_revision AND a.assignee_id=r.assignee_id AND r.created_by=r.actor_id AND r.schema_version='1.0.0' AND a.created_by=r.actor_id AND a.created_at=r.created_at AND a.classification=r.classification AND a.schema_version=r.schema_version AND a.schema_manifest_sha256=r.schema_manifest_sha256
+    WHERE r.project_id=#{projectId} AND r.document_id=#{documentId} AND r.return_id=#{returnId} FOR UPDATE
+  </select>
+  <insert id="insertDecision">
+    INSERT INTO document_revision_return(project_id,return_id,document_id,document_revision,task_id,task_revision,assignee_id,actor_id,
+      reason,decision,operation_id,canonical_request,request_sha256,canonical_receipt,schema_version,schema_manifest_sha256,created_by,created_at,classification)
+    VALUES(#{projectId},#{returnId},#{documentId},#{documentRevision},#{taskId},#{taskRevision},#{assigneeId},#{userId},#{reason},
+      'RETURN_FOR_REVISION',#{operationId},#{request},#{requestHash},#{response},'1.0.0',#{manifest},#{userId},#{now},#{classification})
+  </insert>
+  <insert id="insertAssignment">
+    INSERT INTO document_revision_return_assignment(project_id,assignment_id,return_id,document_id,document_revision,task_id,task_revision,
+      assignee_id,status,schema_version,schema_manifest_sha256,created_by,created_at,classification,revision,updated_at)
+    VALUES(#{projectId},#{assignmentId},#{returnId},#{documentId},#{documentRevision},#{taskId},#{taskRevision},#{assigneeId},
+      'WAITING_INPUT','1.0.0',#{manifest},#{userId},#{now},#{classification},1,#{now})
+  </insert>
+  <select id="invalidations" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT CASE WHEN i.reason_code='DOCUMENT_RETURNED_FOR_REVISION' AND i.classification=r.classification
+      AND d.review_id IS NOT NULL AND d.decision='CONFIRM' AND d.document_revision=r.document_revision
+      THEN i.review_id ELSE 'INVALID_INVALIDATION' END
+    FROM document_revision_return r JOIN review_invalidation i ON i.tenant_id=r.tenant_id AND i.project_id=r.project_id
+      AND i.trigger_version=r.document_revision AND i.created_by=r.actor_id AND i.created_at=r.created_at
+    LEFT JOIN review_decision d ON d.tenant_id=i.tenant_id AND d.project_id=i.project_id AND d.review_id=i.review_id
+    WHERE r.project_id=#{projectId} AND r.document_id=#{documentId} AND r.return_id=#{returnId}
+    ORDER BY i.review_id LIMIT 101 FOR UPDATE
+  </select>
+</mapper>

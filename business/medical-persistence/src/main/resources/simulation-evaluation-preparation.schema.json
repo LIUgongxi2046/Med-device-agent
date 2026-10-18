@@ -1,0 +1,151 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:simulation-evaluation-preparation:1.0.0",
+  "$defs": {
+    "Preview": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "project_id",
+        "kind",
+        "specification"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "project_id": {
+          "type": "null"
+        },
+        "kind": {
+          "enum": [
+            "EXPECTED_ITEMS",
+            "SAMPLE_MANIFEST",
+            "AUTHORIZED_USE_EVIDENCE"
+          ]
+        },
+        "specification": {}
+      }
+    },
+    "Register": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "project_id",
+        "kind",
+        "source_version",
+        "rights_revision",
+        "document_sha256"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "project_id": {
+          "type": "null"
+        },
+        "kind": {
+          "enum": [
+            "EXPECTED_ITEMS",
+            "SAMPLE_MANIFEST",
+            "AUTHORIZED_USE_EVIDENCE"
+          ]
+        },
+        "source_version": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "rights_revision": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "document_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      }
+    },
+    "Receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "project_id",
+        "kind",
+        "operation_id",
+        "source_version",
+        "rights_revision",
+        "production_eligible",
+        "registered",
+        "approved",
+        "artifact",
+        "created_by",
+        "created_at"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "project_id": {
+          "type": "null"
+        },
+        "kind": {
+          "enum": [
+            "EXPECTED_ITEMS",
+            "SAMPLE_MANIFEST",
+            "AUTHORIZED_USE_EVIDENCE"
+          ]
+        },
+        "operation_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "source_version": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "rights_revision": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "production_eligible": {
+          "const": false
+        },
+        "registered": {
+          "const": true
+        },
+        "approved": {
+          "const": false
+        },
+        "artifact": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "version_id",
+            "content_sha256"
+          ],
+          "properties": {
+            "version_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "content_sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          }
+        },
+        "created_by": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,675 @@
+{
+  "$defs": {
+    "CounterIdentity": {
+      "additionalProperties": false,
+      "properties": {
+        "unit": {
+          "const": "CANONICAL_UTF8_BYTE",
+          "title": "Unit",
+          "type": "string"
+        },
+        "revision": {
+          "const": "LOCAL_SIMULATION_CANONICAL_UTF8_BYTE_V1",
+          "title": "Revision",
+          "type": "string"
+        },
+        "implementation_sha256": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Implementation Sha256",
+          "type": "string"
+        },
+        "measurement_schema_sha256": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Measurement Schema Sha256",
+          "type": "string"
+        }
+      },
+      "required": [
+        "unit",
+        "revision",
+        "implementation_sha256",
+        "measurement_schema_sha256"
+      ],
+      "title": "CounterIdentity",
+      "type": "object"
+    },
+    "Measurement": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "enum": [
+            "EXACT_INPUT",
+            "MODEL_RESULT"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "counter": {
+          "$ref": "#/$defs/CounterIdentity"
+        },
+        "content_sha256": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Content Sha256",
+          "type": "string"
+        },
+        "units": {
+          "maximum": 9007199254740991,
+          "minimum": 1,
+          "title": "Units",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "kind",
+        "counter",
+        "content_sha256",
+        "units"
+      ],
+      "title": "Measurement",
+      "type": "object"
+    },
+    "SimulationBinding": {
+      "additionalProperties": false,
+      "properties": {
+        "identity": {
+          "$ref": "#/$defs/SimulationIdentity"
+        },
+        "configuration_sha256": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Configuration Sha256",
+          "type": "string"
+        },
+        "case_id": {
+          "title": "Case Id",
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "case_sha256": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Case Sha256",
+          "type": "string"
+        },
+        "case_receipt_id": {
+          "title": "Case Receipt Id",
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "settings_sha256": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Settings Sha256",
+          "type": "string"
+        },
+        "parameters_sha256": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Parameters Sha256",
+          "type": "string"
+        },
+        "local_request_sha256": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Local Request Sha256",
+          "type": "string"
+        },
+        "exact_input": {
+          "$ref": "#/$defs/Measurement"
+        },
+        "caps": {
+          "$ref": "#/$defs/SimulationUnitCaps"
+        }
+      },
+      "required": [
+        "identity",
+        "configuration_sha256",
+        "case_id",
+        "case_sha256",
+        "case_receipt_id",
+        "settings_sha256",
+        "parameters_sha256",
+        "local_request_sha256",
+        "exact_input",
+        "caps"
+      ],
+      "title": "SimulationBinding",
+      "type": "object"
+    },
+    "SimulationIdentity": {
+      "additionalProperties": false,
+      "properties": {
+        "tenant_id": {
+          "title": "Tenant Id",
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "project_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Project Id"
+        },
+        "run_id": {
+          "title": "Run Id",
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "step_id": {
+          "title": "Step Id",
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "action_id": {
+          "title": "Action Id",
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "invocation_id": {
+          "title": "Invocation Id",
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "context_manifest_id": {
+          "title": "Context Manifest Id",
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "model_config_revision": {
+          "title": "Model Config Revision",
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        }
+      },
+      "required": [
+        "tenant_id",
+        "project_id",
+        "run_id",
+        "step_id",
+        "action_id",
+        "invocation_id",
+        "context_manifest_id",
+        "model_config_revision"
+      ],
+      "title": "SimulationIdentity",
+      "type": "object"
+    },
+    "SimulationInvocation": {
+      "additionalProperties": false,
+      "properties": {
+        "binding": {
+          "$ref": "#/$defs/SimulationBinding"
+        },
+        "status": {
+          "enum": [
+            "RESERVED",
+            "DISPATCHING",
+            "IN_FLIGHT",
+            "UNKNOWN",
+            "CANCEL_REQUESTED",
+            "SUCCEEDED",
+            "FAILED",
+            "CANCELLED"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "revision": {
+          "maximum": 9007199254740991,
+          "minimum": 1,
+          "title": "Revision",
+          "type": "integer"
+        },
+        "dispatch_generation": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Dispatch Generation",
+          "type": "integer"
+        },
+        "reservation_state": {
+          "enum": [
+            "HELD",
+            "CONSUMED",
+            "RELEASED"
+          ],
+          "title": "Reservation State",
+          "type": "string"
+        },
+        "reserved_units": {
+          "maximum": 9007199254740991,
+          "minimum": 1,
+          "title": "Reserved Units",
+          "type": "integer"
+        },
+        "charged_units": {
+          "anyOf": [
+            {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Charged Units"
+        },
+        "output": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Measurement"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "receipt_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Receipt Id"
+        },
+        "provenance_sha256": {
+          "anyOf": [
+            {
+              "pattern": "^[a-f0-9]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Provenance Sha256"
+        },
+        "fixture_usage": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Usage"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "usage_origin": {
+          "enum": [
+            "UNKNOWN",
+            "SIMULATION_FIXTURE"
+          ],
+          "title": "Usage Origin",
+          "type": "string"
+        },
+        "external_request_sent": {
+          "const": false,
+          "default": false,
+          "title": "External Request Sent",
+          "type": "boolean"
+        },
+        "provider_charge_amount": {
+          "const": "0.00000000",
+          "default": "0.00000000",
+          "title": "Provider Charge Amount",
+          "type": "string"
+        },
+        "charge_basis": {
+          "const": "LOCAL_SIMULATION_NO_PROVIDER_REQUEST",
+          "default": "LOCAL_SIMULATION_NO_PROVIDER_REQUEST",
+          "title": "Charge Basis",
+          "type": "string"
+        },
+        "production_eligible": {
+          "const": false,
+          "default": false,
+          "title": "Production Eligible",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "binding",
+        "status",
+        "revision",
+        "dispatch_generation",
+        "reservation_state",
+        "reserved_units",
+        "charged_units",
+        "output",
+        "receipt_id",
+        "provenance_sha256",
+        "fixture_usage",
+        "usage_origin"
+      ],
+      "title": "SimulationInvocation",
+      "type": "object"
+    },
+    "SimulationQuota": {
+      "additionalProperties": false,
+      "description": "Unapproved accounting input. This record is not a quota approval.",
+      "properties": {
+        "account_id": {
+          "title": "Account Id",
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "maximum_units": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Maximum Units",
+          "type": "integer"
+        },
+        "maximum_calls": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Maximum Calls",
+          "type": "integer"
+        },
+        "spent_units": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Spent Units",
+          "type": "integer"
+        },
+        "reserved_units": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Reserved Units",
+          "type": "integer"
+        },
+        "spent_calls": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Spent Calls",
+          "type": "integer"
+        },
+        "reserved_calls": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Reserved Calls",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "account_id",
+        "maximum_units",
+        "maximum_calls",
+        "spent_units",
+        "reserved_units",
+        "spent_calls",
+        "reserved_calls"
+      ],
+      "title": "SimulationQuota",
+      "type": "object"
+    },
+    "SimulationSnapshot": {
+      "additionalProperties": false,
+      "description": "One parent run plus both authoritative account snapshots, supplied by caller.\n\nAccount totals may include other runs. The repository must lock/CAS the shared\nenterprise account as well as this parent and all changed invocation records.",
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "scope": {
+          "const": "PURE_SIMULATION_POLICY_COMPONENT",
+          "title": "Scope",
+          "type": "string"
+        },
+        "tenant_id": {
+          "title": "Tenant Id",
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "parent_run_id": {
+          "title": "Parent Run Id",
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "counter": {
+          "$ref": "#/$defs/CounterIdentity"
+        },
+        "enterprise_quota": {
+          "$ref": "#/$defs/SimulationQuota"
+        },
+        "parent_quota": {
+          "$ref": "#/$defs/SimulationQuota"
+        },
+        "revision": {
+          "maximum": 9007199254740991,
+          "minimum": 1,
+          "title": "Revision",
+          "type": "integer"
+        },
+        "invocations": {
+          "items": {
+            "$ref": "#/$defs/SimulationInvocation"
+          },
+          "title": "Invocations",
+          "type": "array"
+        },
+        "production_eligible": {
+          "const": false,
+          "default": false,
+          "title": "Production Eligible",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "schema_version",
+        "scope",
+        "tenant_id",
+        "parent_run_id",
+        "counter",
+        "enterprise_quota",
+        "parent_quota",
+        "revision",
+        "invocations"
+      ],
+      "title": "SimulationSnapshot",
+      "type": "object"
+    },
+    "SimulationTransition": {
+      "additionalProperties": false,
+      "properties": {
+        "expected_snapshot_sha256": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Expected Snapshot Sha256",
+          "type": "string"
+        },
+        "next_snapshot": {
+          "$ref": "#/$defs/SimulationSnapshot"
+        },
+        "decision": {
+          "enum": [
+            "RESERVED",
+            "DISPATCH_CANDIDATE",
+            "NO_DISPATCH",
+            "OBSERVED",
+            "RECEIPT_RECORDED",
+            "REPLAY",
+            "CANCEL_REQUESTED",
+            "RELEASED_UNSENT"
+          ],
+          "title": "Decision",
+          "type": "string"
+        },
+        "dispatch_candidate": {
+          "title": "Dispatch Candidate",
+          "type": "boolean"
+        },
+        "requires_atomic_commit": {
+          "const": true,
+          "default": true,
+          "title": "Requires Atomic Commit",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "expected_snapshot_sha256",
+        "next_snapshot",
+        "decision",
+        "dispatch_candidate"
+      ],
+      "title": "SimulationTransition",
+      "type": "object"
+    },
+    "SimulationUnitCaps": {
+      "additionalProperties": false,
+      "description": "Local byte caps, deliberately unrelated to model token limits.",
+      "properties": {
+        "maximum_input_units": {
+          "maximum": 9007199254740991,
+          "minimum": 1,
+          "title": "Maximum Input Units",
+          "type": "integer"
+        },
+        "maximum_output_units": {
+          "maximum": 9007199254740991,
+          "minimum": 1,
+          "title": "Maximum Output Units",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "maximum_input_units",
+        "maximum_output_units"
+      ],
+      "title": "SimulationUnitCaps",
+      "type": "object"
+    },
+    "Usage": {
+      "additionalProperties": false,
+      "properties": {
+        "uncached_input_tokens": {
+          "anyOf": [
+            {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Uncached Input Tokens"
+        },
+        "cache_read_tokens": {
+          "anyOf": [
+            {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Cache Read Tokens"
+        },
+        "cache_write_tokens": {
+          "anyOf": [
+            {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Cache Write Tokens"
+        },
+        "output_tokens": {
+          "anyOf": [
+            {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Output Tokens"
+        },
+        "total_tokens": {
+          "anyOf": [
+            {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Total Tokens"
+        },
+        "reasoning_tokens": {
+          "anyOf": [
+            {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Reasoning Tokens"
+        },
+        "source_receipt_id": {
+          "title": "Source Receipt Id",
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        }
+      },
+      "required": [
+        "uncached_input_tokens",
+        "cache_read_tokens",
+        "cache_write_tokens",
+        "output_tokens",
+        "total_tokens",
+        "reasoning_tokens",
+        "source_receipt_id"
+      ],
+      "title": "Usage",
+      "type": "object"
+    }
+  },
+  "anyOf": [
+    {
+      "$ref": "#/$defs/SimulationBinding"
+    },
+    {
+      "$ref": "#/$defs/SimulationSnapshot"
+    },
+    {
+      "$ref": "#/$defs/SimulationTransition"
+    }
+  ],
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:simulation-control-component:1.0.0",
+  "description": "Pure local simulation policy proposals. No authorization, persistence, provider token accounting or production eligibility."
+}

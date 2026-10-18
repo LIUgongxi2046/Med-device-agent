@@ -417,7 +417,8 @@ public final class SourceGovernanceService {
             var stored = single(mapper.artifactSubmission(values));
             if (!tenant.equals(stored.tenantId()) || !submissionId.equals(stored.submissionId())
                     || !artifactId.equals(stored.artifactId()) || !sourceId.equals(stored.targetSourceId())
-                    || !sourceVersion.equals(stored.targetSourceVersion()) || !sharingDecision.equals(stored.sharingDecision())
+                    || !sourceVersion.equals(stored.targetSourceVersion()) || !parseVersion.equals(stored.parseVersion())
+                    || !sharingDecision.equals(stored.sharingDecision())
                     || !"PENDING".equals(stored.status()) || !BigInteger.ONE.equals(stored.revision())) mismatch();
             if (!artifact.equals(single(artifacts.artifact(artifactId)))) mismatch();
             if (!response.equals(replayArtifactSubmission(single(mapper.artifactSubmissionOperation(values)), values, artifactId))) mismatch();
@@ -1207,7 +1208,8 @@ public final class SourceGovernanceService {
             String artifactId, String actor, LocalDateTime now) throws IOException {
         if (!admission.context().tenant_id().equals(stored.tenantId()) || !artifactId.equals(stored.artifactId())
                 || !Objects.equals(values.get("targetProjectId"), stored.projectId()) || !"PENDING".equals(stored.status())
-                || !BigInteger.ONE.equals(stored.revision())) mismatch();
+                || !BigInteger.ONE.equals(stored.revision()) || stored.parseVersion() == null) mismatch();
+        WireValues.uuid(stored.parseVersion());
         String operationId = UUID.randomUUID().toString(); values.put("operationId", operationId);
         values.put("sourceVersion", stored.targetSourceVersion()); values.put("classification", stored.classification());
         var receipt = json.object(); receipt.put("schema_version", "1.0.0"); receipt.put("operation_id", operationId);

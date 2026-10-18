@@ -36,7 +36,7 @@ def main():
         raise ValueError('执行身份必须使用单一目录名称')
     output = ROOT / '.implementation-work' / ('IC-14-PROFESSIONAL-' + args.execution)
     inputs = {ROOT / 'scripts/check_professional_executor.py', ROOT / 'scripts/check_professional_initialize.py',
-        ROOT / 'LLD-Agent.md', ROOT / 'contracts/catalogue.json'}
+        ROOT / 'LLD-Agent.md', ROOT / 'contracts/catalogue.json', ROOT / 'business/medical-persistence/src/main/resources/evaluation-results.schema.json', ROOT / 'contracts/extensions/evaluation-results.catalogue.json'}
     for directory in ('professional-executor/src', 'professional-executor/tests', 'contracts/typescript/src', 'agent-design'):
         inputs.update(path for path in (ROOT / directory).rglob('*') if path.is_file())
     for path in ('professional-executor/package.json', 'professional-executor/package-lock.json', 'professional-executor/tsconfig.json',
@@ -47,6 +47,7 @@ def main():
         inputs.add(ROOT / path)
     manifest = json.loads((ROOT / 'contracts/catalogue.json').read_bytes())
     inputs.update(ROOT / entry['path'] for entry in manifest['schemas'])
+    inputs.update(ROOT / entry['path'] for entry in json.loads((ROOT / 'contracts/extensions/evaluation-results.catalogue.json').read_bytes())['schemas'])
     command = [sys.executable, str(CAPTURE), '--output-dir', str(output), '--check-id', 'IC-14-PROFESSIONAL',
         '--kind', 'INTEGRATION', '--baseline-id', 'HARNESS-MEDICAL-AGENT-01', '--cwd', str(ROOT), '--timeout', '240']
     for path in sorted(inputs):

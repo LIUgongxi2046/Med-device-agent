@@ -1,0 +1,15 @@
+# 066 Gru record-only SQL contract validation
+
+2026-10-18. This checks persisted context/message records, not execution of BX17–20.
+
+- `tests/test_gru_records_migration.py` uses existing 065 helpers: JSQLParser 5.2 parses actual migration statements and sqlglot inspects ASTs; MyBatis XML placeholders are parsed into SQL placeholders, with `${}` interpolation rejected.
+- Verified 001–065 (64 SQL/XML files) byte-for-byte against `Med-device-agent-20261018-part13-source-and-validation.zip`. Frozen aggregate SHA-256: `a602b4a3faa10c2ded50edf30ef3f9fed12aefc10a5b5539236c0030c522482d`. No historical migration rewritten.
+- Current manifest contains 207 business tables, 244 total. 066 adds only `gru_conversation_context` and `gru_message_record`. Updated exact-count tests in migration bundle, annotation anchor, simulation ledger and simulation preparation. No assumed 067 schema/table count.
+- Context FKs bind tenant+project to conversation, document head, document revision, scope snapshot and dependency access set; operation and creator FKs retain tenant. Message FK binds tenant+project+conversation+message. Unique operation and conversation sequence constraints are asserted.
+- Both sidecars are insert-only; mapper's sole UPDATE is the existing conversation CAS guarded by owner, ACTIVE status and expected revision. Immutable interceptor and actor-requiring TenantScope mapper registration are checked.
+- Mapper reads retain owner/creator and original-key scope; message join includes tenant/project/conversation/message plus schema and audit metadata equality. Original full request, body/transport hashes and receipt columns are inserted. Message execution remains `NOT_EXECUTED`; base message run_id is NULL.
+- Full migration bundle's `test_foreign_keys_reference_complete_unique_keys` checks these actual FKs against real parent PK/unique definitions including historical ALTER/XML additions, rather than assuming a parent key exists from column names alone.
+
+Specialized suite after messageCounts publication: 6/6 passed; full migration bundle rerun: 23/23 passed, including actual parent unique-key checks. The initial 106-test aggregate exposed an omitted gru_records count-group assertion (fixed and rerun); remaining CLI resource checks require repackaging because the old jar lacks 066 and has stale master/coverage bytes. Strict resource assertions remain unchanged. Full migration suite result is recorded separately in `.implementation-work/logs/part14-gru-migration-checks.log` and parent delivery report. Offline parsing and source contracts do not prove real MySQL DDL execution, transaction behavior or runtime interceptor acceptance. No Maven run by this author; packaged CLI mismatch, if any, must wait for rebuilding rather than weakening source equality.
+
+- The published 19th mapper statement `messageCounts` is covered by a parsed AST test: only two COUNT(message_id) projections, exact three tables, two LEFT JOINs, full tenant/project/conversation and record metadata equality, owner+conversation WHERE and conversation-only GROUP BY. It reads no historical body or operation table.

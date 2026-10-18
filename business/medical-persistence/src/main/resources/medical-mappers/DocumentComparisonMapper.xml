@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.medical.persistence.mapper.DocumentComparisonMapper">
+<resultMap id="Intent" type="com.ruoyi.medical.persistence.mapper.DocumentComparisonMapper$Intent"><constructor><arg column="tenant_id" javaType="java.lang.String"/><arg column="project_id" javaType="java.lang.String"/><arg column="comparison_id" javaType="java.lang.String"/><arg column="operation_id" javaType="java.lang.String"/><arg column="manifest_id" javaType="java.lang.String"/><arg column="access_set_id" javaType="java.lang.String"/><arg column="artifact_id" javaType="java.lang.String"/><arg column="write_id" javaType="java.lang.String"/><arg column="start_event_id" javaType="java.lang.String"/><arg column="document_id" javaType="java.lang.String"/><arg column="left_revision" javaType="java.lang.String"/><arg column="right_revision" javaType="java.lang.String"/><arg column="request_context" javaType="java.lang.String"/><arg column="request_session" javaType="java.lang.String"/><arg column="idempotency_key" javaType="java.lang.String"/><arg column="canonical_request" javaType="java.lang.String"/><arg column="request_body_sha256" javaType="java.lang.String"/><arg column="operation_request_sha256" javaType="java.lang.String"/><arg column="input_manifest" javaType="java.lang.String"/><arg column="input_sha256" javaType="java.lang.String"/><arg column="dependency_manifest" javaType="java.lang.String"/><arg column="dependency_sha256" javaType="java.lang.String"/><arg column="canonical_core" javaType="java.lang.String"/><arg column="core_sha256" javaType="java.lang.String"/><arg column="schema_version" javaType="java.lang.String"/><arg column="schema_manifest_sha256" javaType="java.lang.String"/><arg column="created_by" javaType="java.lang.String"/><arg column="created_at" javaType="java.time.LocalDateTime"/><arg column="deadline" javaType="java.time.LocalDateTime"/><arg column="classification" javaType="java.lang.String"/></constructor></resultMap>
+<resultMap id="Registration" type="com.ruoyi.medical.persistence.mapper.DocumentComparisonMapper$Registration"><constructor><arg column="tenant_id" javaType="java.lang.String"/><arg column="project_id" javaType="java.lang.String"/><arg column="comparison_id" javaType="java.lang.String"/><arg column="operation_id" javaType="java.lang.String"/><arg column="artifact_id" javaType="java.lang.String"/><arg column="intent_sha256" javaType="java.lang.String"/><arg column="reference" javaType="java.lang.String"/><arg column="receipt_json" javaType="java.lang.String"/><arg column="core_sha256" javaType="java.lang.String"/><arg column="schema_version" javaType="java.lang.String"/><arg column="schema_manifest_sha256" javaType="java.lang.String"/><arg column="created_by" javaType="java.lang.String"/><arg column="created_at" javaType="java.time.LocalDateTime"/><arg column="classification" javaType="java.lang.String"/></constructor></resultMap>
+<resultMap id="ArtifactOwner" type="com.ruoyi.medical.persistence.mapper.DocumentComparisonMapper$ArtifactOwner"><constructor><arg column="document_revision" javaType="java.lang.String"/><arg column="run_id" javaType="java.lang.String"/></constructor></resultMap>
+<select id="intent" resultMap="Intent" useCache="false" flushCache="true">
+ SELECT * FROM document_comparison_intent WHERE comparison_id=#{comparisonId}
+</select>
+<select id="intentByOperation" resultMap="Intent" useCache="false" flushCache="true">
+ SELECT * FROM document_comparison_intent WHERE operation_id=#{operationId}
+</select>
+<select id="registration" resultMap="Registration" useCache="false" flushCache="true">
+ SELECT * FROM document_comparison_registration WHERE comparison_id=#{comparisonId}
+</select>
+<select id="operation" resultMap="com.ruoyi.medical.persistence.mapper.TenantSelectionMapper.operation" useCache="false" flushCache="true">
+ SELECT operation_id,request_sha256,state,http_status,response_ref,target_id,schema_version,schema_manifest_sha256 FROM operation_record WHERE operation_name='DOCUMENT-COMPARISON' AND subject_id=#{userId} AND idempotency_key=#{key} FOR UPDATE
+</select>
+<select id="operationById" resultMap="com.ruoyi.medical.persistence.mapper.TenantSelectionMapper.operation" useCache="false" flushCache="true">
+ SELECT operation_id,request_sha256,state,http_status,response_ref,target_id,schema_version,schema_manifest_sha256 FROM operation_record WHERE operation_name='DOCUMENT-COMPARISON' AND subject_id=#{creatorId} AND operation_id=#{operationId}
+</select>
+<select id="operationRevision" resultType="java.math.BigInteger" useCache="false" flushCache="true">
+ SELECT revision FROM operation_record WHERE operation_id=#{operationId} AND subject_id=#{userId} AND operation_name='DOCUMENT-COMPARISON' AND idempotency_key=#{key} AND request_sha256=#{requestHash} AND target_id=#{comparisonId} FOR UPDATE
+</select>
+<select id="startAudit" resultType="java.lang.String" useCache="false" flushCache="true">
+ SELECT resource_ref FROM audit_event WHERE project_id=#{projectId} AND subject_id=#{creatorId} AND created_by=#{creatorId} AND request_id=#{operationId} AND trace_id=#{operationId} AND action='document.comparison.started' AND result='SUCCESS' AND reason_code IS NULL AND schema_version='1.0.0' AND schema_manifest_sha256=#{manifest} AND classification=#{classification}
+</select>
+<select id="startEvent" resultType="java.lang.String" useCache="false" flushCache="true">
+ SELECT payload FROM outbox_event WHERE event_id=#{startEventId} AND aggregate_id=#{comparisonId} AND aggregate_revision=1 AND event_type='document.comparison.started'
+</select>
+<select id="finalAudit" resultType="java.lang.String" useCache="false" flushCache="true">
+ SELECT resource_ref FROM audit_event WHERE project_id=#{projectId} AND subject_id=#{creatorId} AND created_by=#{creatorId} AND request_id=#{operationId} AND trace_id=#{operationId} AND action='document.comparison.completed' AND result='SUCCESS' AND reason_code IS NULL AND schema_version='1.0.0' AND schema_manifest_sha256=#{manifest} AND classification=#{classification}
+</select>
+<select id="finalEvent" resultType="java.lang.String" useCache="false" flushCache="true">
+ SELECT payload FROM outbox_event WHERE event_id=#{operationId} AND aggregate_id=#{comparisonId} AND aggregate_revision=2 AND event_type='document.comparison.completed'
+</select>
+<select id="artifactOwner" resultMap="ArtifactOwner" useCache="false" flushCache="true">
+ SELECT document_revision,run_id FROM artifact WHERE artifact_id=#{artifactId}
+</select>
+<insert id="insertVersion">
+ INSERT INTO version_registry(version_id,owner_project_id,entity_kind,content_sha256) VALUES(#{versionId},#{projectId},#{versionKind},#{versionHash})
+</insert>
+<insert id="insertAccessSet">
+ INSERT INTO dependency_access_set(project_id,access_set_id,manifest_sha256,content_sha256,created_by,created_at,classification) VALUES(#{projectId},#{accessSetId},#{dependencyHash},#{dependencyHash},#{userId},#{now},#{classification})
+</insert>
+<insert id="insertAccessManifest">
+ INSERT INTO dependency_access_manifest(project_id,access_set_id,manifest_json,manifest_sha256,content_sha256,member_count,schema_version,schema_manifest_sha256,created_by,created_at,classification) VALUES(#{projectId},#{accessSetId},#{dependencyJson},#{dependencyHash},#{dependencyHash},#{memberCount},'1.0.0',#{dependencySchema},#{userId},#{now},#{classification})
+</insert>
+<insert id="insertAccessMember">
+ INSERT INTO dependency_access_member(access_set_id,upstream_version_id,rights_revision,created_by,created_at,classification) VALUES(#{accessSetId},#{member.upstreamVersionId},#{member.rightsRevision},#{userId},#{now},#{classification})
+</insert>
+<insert id="insertLineage">
+ INSERT INTO lineage_edge(consumer_version_id,upstream_version_id,relation_kind,actor_id,decision_ref,created_at) VALUES(#{consumerId},#{upstreamId},'DOCUMENT_COMPARISON_INPUT',#{userId},NULL,#{now})
+</insert>
+<insert id="insertIntent">
+ INSERT INTO document_comparison_intent(project_id,comparison_id,operation_id,manifest_id,access_set_id,artifact_id,write_id,start_event_id,document_id,left_revision,right_revision,request_context,request_session,idempotency_key,canonical_request,request_body_sha256,operation_request_sha256,input_manifest,input_sha256,dependency_manifest,dependency_sha256,canonical_core,core_sha256,schema_version,schema_manifest_sha256,created_by,created_at,deadline,classification) VALUES(#{row.projectId},#{row.comparisonId},#{row.operationId},#{row.manifestId},#{row.accessSetId},#{row.artifactId},#{row.writeId},#{row.startEventId},#{row.documentId},#{row.leftRevision},#{row.rightRevision},#{row.requestContext},#{row.requestSession},#{row.idempotencyKey},#{row.canonicalRequest},#{row.requestBodySha256},#{row.operationRequestSha256},#{row.inputManifest},#{row.inputSha256},#{row.dependencyManifest},#{row.dependencySha256},#{row.canonicalCore},#{row.coreSha256},#{row.schemaVersion},#{row.schemaManifest},#{row.createdBy},#{row.createdAt},#{row.deadline},#{row.classification})
+</insert>
+<insert id="insertRegistration">
+ INSERT INTO document_comparison_registration(project_id,comparison_id,operation_id,artifact_id,intent_sha256,reference,receipt_json,core_sha256,schema_version,schema_manifest_sha256,created_by,created_at,classification) VALUES(#{row.projectId},#{row.comparisonId},#{row.operationId},#{row.artifactId},#{row.intentSha256},#{row.reference},#{row.receiptJson},#{row.coreSha256},#{row.schemaVersion},#{row.schemaManifest},#{row.createdBy},#{row.createdAt},#{row.classification})
+</insert>
+<insert id="startOperation">
+ INSERT INTO operation_record(operation_id,subject_id,operation_name,idempotency_key,request_sha256,state,response_ref,target_id,schema_version,schema_manifest_sha256,created_by,created_at,classification,revision,updated_at) VALUES(#{operationId},#{userId},'DOCUMENT-COMPARISON',#{key},#{requestHash},'PROCESSING',#{commandJson},#{comparisonId},'1.0.0',#{manifest},#{userId},#{now},#{classification},1,#{now})
+</insert>
+<update id="updateCommand">
+ UPDATE operation_record SET response_ref=#{commandJson},revision=revision+1,updated_at=#{now} WHERE operation_id=#{operationId} AND subject_id=#{userId} AND operation_name='DOCUMENT-COMPARISON' AND idempotency_key=#{key} AND request_sha256=#{requestHash} AND target_id=#{comparisonId} AND state='PROCESSING' AND revision=#{operationRevision}
+</update>
+<update id="completeOperation">
+ UPDATE operation_record SET state='COMPLETED',http_status=200,response_ref=#{response},revision=revision+1,updated_at=#{now} WHERE operation_id=#{operationId} AND subject_id=#{userId} AND operation_name='DOCUMENT-COMPARISON' AND idempotency_key=#{key} AND request_sha256=#{requestHash} AND target_id=#{comparisonId} AND state='PROCESSING' AND revision=#{operationRevision}
+</update>
+<insert id="insertArtifact">
+ INSERT INTO artifact(project_id,artifact_id,run_id,document_revision,artifact_kind,object_ref,object_key,object_version,sha256,size_bytes,media_type,dependency_access_set_id,content_sha256,schema_version,schema_manifest_sha256,created_by,created_at,classification) VALUES(#{projectId},#{artifactId},NULL,#{rightRevision},'DOCUMENT_COMPARISON',#{storedObject},#{reference.objectKey},#{reference.objectVersion},#{reference.sha256},#{reference.sizeBytes},#{reference.mediaType},#{accessSetId},#{reference.sha256},'1.0.0',#{manifest},#{userId},#{now},#{classification})
+</insert>
+<insert id="insertBinding">
+ INSERT INTO artifact_content_binding(project_id,artifact_id,resource_kind,resource_id,schema_ref,schema_document_sha256,dependency_access_set_id,dependency_manifest_sha256,created_by,created_at,classification) VALUES(#{projectId},#{artifactId},'DOCUMENT',#{documentId},#{schemaRef},#{schemaHash},#{accessSetId},#{dependencyHash},#{userId},#{now},#{classification})
+</insert>
+<resultMap id="Attempt" type="com.ruoyi.medical.persistence.mapper.DocumentComparisonMapper$Attempt"><constructor><arg column="tenant_id" javaType="java.lang.String"/><arg column="project_id" javaType="java.lang.String"/><arg column="comparison_id" javaType="java.lang.String"/><arg column="operation_id" javaType="java.lang.String"/><arg column="write_id" javaType="java.lang.String"/><arg column="intent_sha256" javaType="java.lang.String"/><arg column="schema_version" javaType="java.lang.String"/><arg column="schema_manifest_sha256" javaType="java.lang.String"/><arg column="created_by" javaType="java.lang.String"/><arg column="created_at" javaType="java.time.LocalDateTime"/><arg column="classification" javaType="java.lang.String"/></constructor></resultMap>
+<select id="attempt" resultMap="Attempt" useCache="false" flushCache="true">SELECT * FROM document_comparison_attempt WHERE comparison_id=#{comparisonId}</select>
+<insert id="insertAttempt">INSERT INTO document_comparison_attempt(project_id,comparison_id,operation_id,write_id,intent_sha256,schema_version,schema_manifest_sha256,created_by,created_at,classification) VALUES(#{row.projectId},#{row.comparisonId},#{row.operationId},#{row.writeId},#{row.intentSha256},#{row.schemaVersion},#{row.schemaManifest},#{row.createdBy},#{row.createdAt},#{row.classification})</insert>
+<select id="intentByKey" resultMap="Intent" useCache="false" flushCache="true">SELECT * FROM document_comparison_intent WHERE created_by=#{userId} AND idempotency_key=#{key}</select>
+</mapper>

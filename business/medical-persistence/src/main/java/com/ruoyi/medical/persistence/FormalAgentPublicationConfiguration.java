@@ -1,0 +1,12 @@
+package com.ruoyi.medical.persistence;
+import javax.sql.DataSource;import org.springframework.context.annotation.*;import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;import org.springframework.beans.factory.ObjectProvider;import com.ruoyi.medical.persistence.mapper.*;
+/** Optional real publication storage workflow. Missing evidence/transport remains a runtime blocker. */
+@Configuration(proxyBeanMethods=false)
+@ConditionalOnProperty(prefix="medical.formal-agent-publication",name="enabled",havingValue="true",matchIfMissing=false)
+public class FormalAgentPublicationConfiguration {
+ @Bean FormalAgentPublicationLifecycle formalAgentPublicationLifecycle(DataSource d,AgentPublicationJournal j,AgentPublicationMapper m,ResourceReadAuthority r,FormalAgentPublicationSchema s,PermissionSchema p){return new FormalAgentPublicationLifecycle(d,j,m,r,s,p);}
+ @Bean FormalAgentPublicationObjectLedger formalAgentPublicationObjectLedger(DataSource d,FormalAgentPublicationSchema s,PermissionSchema p){return new FormalAgentPublicationObjectLedger(d,s,p);}
+ @Bean FormalAgentPublicationRegistration formalAgentPublicationRegistration(DataSource d,FormalAgentPublicationObjectLedger l,FormalAgentPublicationSchema s,PermissionSchema p,ArtifactRegistryMapper a,DependencyManifestSchema m,ResourceReadAuthority r,AgentReleaseStore releases,FormalAgentPublicationLifecycle lifecycle){return new FormalAgentPublicationRegistration(d,l,s,p,a,m,r,releases,lifecycle);}
+ @Bean AgentPublicationAuthority agentPublicationAuthority(EnterpriseAccess a,DataSource d,FormalAgentAcceptanceStore s,FormalAgentPublicationAuthorization auth,FormalAgentPublicationObjectLedger l,FormalAgentPublicationRegistration r,ObjectProvider<PublicationEvidenceRevalidation> e,ObjectProvider<RuntimeObjectTransport> t,ResourceReadAuthority reads,FormalAgentPublicationSchema schema,PermissionSchema json,FormalAgentPublicationLifecycle lifecycle){return new AgentPublicationAuthority(a,d,s,auth,l,r,e,t,reads,schema,json,lifecycle);}
+ @Bean FormalAgentPublicationService formalAgentPublicationService(EnterpriseAccess a,FormalAgentPublicationSchema s,PermissionSchema p,FormalAgentAcceptanceStore store,FormalAgentPublicationAuthorization auth,FormalAgentPublicationObjectLedger l,FormalAgentPublicationRegistration r,AgentPublicationAuthority published,ObjectProvider<PublicationEvidenceRevalidation> e,ObjectProvider<RuntimeObjectTransport> t)throws java.io.IOException{return new FormalAgentPublicationService(a,s,p,store,auth,l,r,published,e,t);}
+}

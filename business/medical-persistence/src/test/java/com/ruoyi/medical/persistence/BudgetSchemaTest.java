@@ -71,7 +71,7 @@ class BudgetSchemaTest {
         }
         var output = root.resolve(".implementation-work/budget-query-columns.json");
         java.nio.file.Files.write(output, new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsBytes(statements));
-        var process = new ProcessBuilder(root.resolve(".lld-data-work/venv/bin/python").toString(),
+        var process = new ProcessBuilder(System.getProperty("medical.test.python", root.resolve(".lld-data-work/venv/bin/python").toString()),
                 root.resolve("tests/check_budget_sql_columns.py").toString(), output.toString()).directory(root.toFile()).inheritIO().start();
         assertEquals(0, process.waitFor());
     }

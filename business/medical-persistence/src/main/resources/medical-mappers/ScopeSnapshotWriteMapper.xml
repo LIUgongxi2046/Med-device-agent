@@ -21,4 +21,19 @@
     SELECT upstream_version_id FROM lineage_edge e WHERE consumer_version_id=#{snapshotId} AND relation_kind='SCOPE_SNAPSHOT'
     ORDER BY upstream_version_id
   </select>
+  <select id="boundedSnapshot" resultMap="com.ruoyi.medical.persistence.mapper.TaskMapper.snapshot" useCache="false" flushCache="true">
+    SELECT s.tenant_id,s.project_id,s.snapshot_id,s.manifest,s.manifest_sha256,s.auth_epoch,s.governance_epoch,s.created_at,
+      v.content_sha256 AS registry_hash FROM scope_snapshot s LEFT JOIN version_registry v
+      ON v.tenant_id=s.tenant_id AND v.version_id=s.snapshot_id AND v.owner_project_id=s.project_id AND v.entity_kind='SCOPE_SNAPSHOT'
+    WHERE s.project_id=#{projectId} AND s.snapshot_id=#{snapshotId} AND OCTET_LENGTH(s.manifest)&lt;=#{maximumBytes} LIMIT 2
+  </select>
+  <select id="boundedMembers" resultMap="com.ruoyi.medical.persistence.mapper.DocumentUploadBasisMapper.memberRow" useCache="false" flushCache="true">
+    SELECT m.tenant_id,m.project_id,m.snapshot_id,m.source_id,m.source_version,m.parse_version,m.index_version,m.approval_revision,m.binding_revision
+    FROM scope_member m WHERE m.project_id=#{projectId} AND m.snapshot_id=#{snapshotId}
+    ORDER BY m.source_version,m.parse_version LIMIT #{maximumMembers}
+  </select>
+  <select id="boundedParents" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT upstream_version_id FROM lineage_edge e WHERE consumer_version_id=#{snapshotId} AND relation_kind='SCOPE_SNAPSHOT'
+    ORDER BY upstream_version_id LIMIT #{maximumParents}
+  </select>
 </mapper>

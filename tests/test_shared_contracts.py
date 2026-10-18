@@ -1,17 +1,49 @@
 from copy import deepcopy
+from contextlib import contextmanager
 import hashlib
 import json
 from pathlib import Path
+import shutil
+from tempfile import TemporaryDirectory
 import unittest
+from urllib.parse import urljoin
 from uuid import uuid4
 
 from jsonschema import ValidationError
+from referencing.exceptions import Unresolvable
+import yaml
 
 from medical_contracts import SchemaCatalogue
+from medical_contracts.catalogue import _merge_published_catalogue
 from medical_contracts.wire import code_point_quote, decimal_value, unsigned_revision, utc_time, uuid_value
 
 
 ROOT = Path(__file__).resolve().parents[1]
+EXTENSION_PATH = "contracts/extensions/evaluation-results.catalogue.json"
+
+
+@contextmanager
+def copied_publication():
+    with TemporaryDirectory() as directory:
+        root = Path(directory) / "project"
+        base = json.loads((ROOT / "contracts/catalogue.json").read_bytes())
+        extension = json.loads((ROOT / EXTENSION_PATH).read_bytes())
+        simulation_path = "contracts/extensions/simulation-execution.catalogue.json"
+        simulation = json.loads((ROOT / simulation_path).read_bytes())
+        runtime_path = "contracts/extensions/task-runtime.catalogue.json"
+        runtime = json.loads((ROOT / runtime_path).read_bytes())
+        context_path = "contracts/extensions/evaluation-context-compiler.catalogue.json"
+        context = json.loads((ROOT / context_path).read_bytes())
+        paths = ["contracts/catalogue.json", EXTENSION_PATH, simulation_path, runtime_path, context_path]
+        paths.extend(entry["path"] for entry in runtime["schemas"])
+        paths.extend(entry["path"] for entry in context["schemas"])
+        paths.extend(entry["path"] for entry in simulation["schemas"])
+        paths.extend(entry["path"] for entry in [*base["schemas"], *extension["schemas"]])
+        for relative in paths:
+            target = root / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(ROOT / relative, target)
+        yield root
 
 
 class SharedContractChecks(unittest.TestCase):
@@ -51,7 +83,7 @@ class SharedContractChecks(unittest.TestCase):
                 )
 
     def test_all_registered_schema_references_resolve_offline(self):
-        self.assertEqual(set(self.catalogue.schemas), {"dataset", "interfaces", "resource-details", "artifacts", "model-stream", "templates", "template-operations", "tasks", "collections", "rule-expressions", "template-applicability", "agent-release", "task-plan-view"})
+        self.assertEqual(set(self.catalogue.schemas), {"dataset", "interfaces", "resource-details", "artifacts", "model-stream", "templates", "template-operations", "tasks", "collections", "rule-expressions", "template-applicability", "agent-release", "task-plan-view", "evaluation-results", "simulation-execution", "local-simulation-provenance", "replay-manifest", "runtime-governance", "agent-execution-policy", "runtime-retention", "run-token-authority", "projects", "budgets", "formal-evaluation-input", "evaluation-context-compiler"})
         self.assertGreater(self.catalogue.reference_count, 0)
         for name, schema in self.catalogue.schemas.items():
             for definition in schema["$defs"]:
@@ -61,6 +93,76 @@ class SharedContractChecks(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.catalogue.validate("https://unregistered.invalid/schema", self.dataset)
 
+    def test_pinned_extension_preserves_every_legacy_identity_and_digest(self):
+        base_bytes = (ROOT / "contracts/catalogue.json").read_bytes()
+        self.assertEqual(hashlib.sha256(base_bytes).hexdigest(),
+                         "dcd72acbb7a45775373662e0ffe4557030d4740b0afacdee8375e7768e761915")
+        base = json.loads(base_bytes)
+        self.assertEqual(self.catalogue.manifest["base_uri"], base["base_uri"])
+        self.assertEqual(self.catalogue.manifest["schemas"][:len(base["schemas"])], base["schemas"])
+        for entry in base["schemas"]:
+            with self.subTest(name=entry["name"]):
+                raw = (ROOT / entry["path"]).read_bytes()
+                document = yaml.safe_load(raw) if entry["path"].endswith(".yaml") else json.loads(raw)
+                self.assertEqual(self.catalogue.schemas[entry["name"]], document)
+                self.assertEqual(self.catalogue.schema_ref(entry["name"]),
+                                 document.get("$id", urljoin(base["base_uri"], entry["path"])))
+                self.assertEqual(self.catalogue.digests[entry["name"]], entry["sha256"])
+        self.assertEqual(self.catalogue.schema_ref("evaluation-results"), "urn:medical:evaluation-results:1.0.0")
+        self.assertEqual(sum(len(schema["$defs"]) for schema in self.catalogue.schemas.values()), 503)
+
+    def test_pinned_extension_rejects_changed_raw_bytes_and_wrong_base(self):
+        base = (ROOT / "contracts/catalogue.json").read_bytes()
+        extension = (ROOT / EXTENSION_PATH).read_bytes()
+        with self.assertRaisesRegex(ValueError, "扩展清单摘要"):
+            _merge_published_catalogue(base, extension + b"\n")
+        with self.assertRaisesRegex(ValueError, "基础清单摘要"):
+            _merge_published_catalogue(base + b"\n", extension)
+        with copied_publication() as root:
+            (root / EXTENSION_PATH).write_bytes(extension + b"\n")
+            with self.assertRaisesRegex(ValueError, "扩展清单摘要"):
+                SchemaCatalogue(root)
+
+    def test_pinned_extension_rejects_name_uri_base_and_path_overrides(self):
+        base = (ROOT / "contracts/catalogue.json").read_bytes()
+        original = json.loads((ROOT / EXTENSION_PATH).read_bytes())
+        legacy = json.loads(base)["schemas"][0]
+        mutations = []
+        duplicate_name = deepcopy(original)
+        duplicate_name["schemas"][0]["name"] = legacy["name"]
+        mutations.append(duplicate_name)
+        duplicate_uri = deepcopy(original)
+        duplicate_uri["schemas"][0].update(path=legacy["path"], sha256=legacy["sha256"])
+        mutations.append(duplicate_uri)
+        replacement_base = {**original, "base_uri": "https://unregistered.invalid/"}
+        mutations.append(replacement_base)
+        for path in ("../outside.json", "/outside.json", "https://unregistered.invalid/schema.json"):
+            changed = deepcopy(original)
+            changed["schemas"][0]["path"] = path
+            mutations.append(changed)
+        for changed in mutations:
+            with self.subTest(changed=changed), self.assertRaisesRegex(ValueError, "扩展清单摘要"):
+                _merge_published_catalogue(base, json.dumps(changed).encode("utf-8"))
+
+    def test_only_fixed_extension_is_loaded_and_all_files_stay_inside_root(self):
+        with copied_publication() as root:
+            (root / "contracts/extensions/untrusted.catalogue.json").write_text("invalid JSON", encoding="utf-8")
+            self.assertEqual(SchemaCatalogue(root).schema_ref("evaluation-results"),
+                             self.catalogue.schema_ref("evaluation-results"))
+        extension = json.loads((ROOT / EXTENSION_PATH).read_bytes())
+        for relative in ("contracts/catalogue.json", EXTENSION_PATH, extension["schemas"][0]["path"]):
+            with self.subTest(path=relative), copied_publication() as root:
+                path = root / relative
+                outside = root.parent / "outside.json"
+                path.rename(outside)
+                path.symlink_to(outside)
+                with self.assertRaisesRegex(ValueError, "路径超出登记目录"):
+                    SchemaCatalogue(root)
+
+    def test_unregistered_remote_reference_cannot_be_retrieved(self):
+        with self.assertRaises(Unresolvable):
+            self.catalogue.registry.resolver().lookup("https://unregistered.invalid/schema.json")
+
     def test_binding_preserves_the_actual_dataset_and_does_not_share_mutable_state(self):
         bound = self.catalogue.bind("dataset", self.dataset)
         self.assertEqual(bound.materialize(), self.dataset)
@@ -69,7 +171,7 @@ class SharedContractChecks(unittest.TestCase):
         self.assertEqual(bound.materialize(), self.dataset)
 
     def test_template_publication_uses_the_declared_identity_and_all_original_definitions(self):
-        for name in ("templates", "template-operations", "tasks", "collections", "agent-release", "task-plan-view"):
+        for name in ("templates", "template-operations", "tasks", "collections", "agent-release", "task-plan-view", "evaluation-results"):
             document = self.catalogue.schemas[name]
             self.assertEqual(self.catalogue.schema_ref(name), document["$id"])
             for definition, schema in document["$defs"].items():
@@ -147,3 +249,22 @@ class SharedContractChecks(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+class EvaluationContextCatalogueParityTests(unittest.TestCase):
+    def parts(self):
+        return [(ROOT / p).read_bytes() for p in ['contracts/catalogue.json', EXTENSION_PATH, 'contracts/extensions/simulation-execution.catalogue.json', 'contracts/extensions/task-runtime.catalogue.json', 'contracts/extensions/evaluation-context-compiler.catalogue.json']]
+
+    def test_independent_context_catalogue_has_exact_full_reference_set(self):
+        manifest = _merge_published_catalogue(*self.parts())
+        self.assertEqual(25, len(manifest['schemas']))
+        catalogue = SchemaCatalogue(ROOT)
+        self.assertEqual(503, sum(len(s['$defs']) for s in catalogue.schemas.values()))
+        self.assertEqual(528, sum(1 + len(s['$defs']) for s in catalogue.schemas.values()))
+        self.assertEqual('urn:medical:evaluation-context-compiler:1.0.0', catalogue.uris['evaluation-context-compiler'])
+        self.assertEqual('urn:medical:formal-evaluation-input:1.0.0', catalogue.uris['formal-evaluation-input'])
+
+    def test_context_extension_raw_tampering_rejected(self):
+        parts = self.parts()
+        parts[-1] += b'\n'
+        with self.assertRaises(ValueError):
+            _merge_published_catalogue(*parts)

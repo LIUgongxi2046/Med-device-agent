@@ -43,7 +43,7 @@ public final class ServiceCertificateServletTest {
         Path root = Path.of(System.getProperty("medical.projectRoot")).toRealPath();
         Path assets = root.resolve(".implementation-work/service-certificates/" + UUID.randomUUID());
         Files.createDirectories(assets.getParent());
-        var prepare = new ProcessBuilder(root.resolve(".implementation-work/document-venv/bin/python").toString(),
+        var prepare = new ProcessBuilder(System.getProperty("medical.test.python", root.resolve(".implementation-work/document-venv/bin/python").toString()),
             root.resolve("scripts/prepare_service_certificates.py").toString(), "--output", assets.toString())
             .directory(root.toFile()).redirectErrorStream(true).redirectOutput(assets.resolveSibling(assets.getFileName() + ".prepare.log").toFile()).start();
         assertTrue(prepare.waitFor(60, TimeUnit.SECONDS)); assertEquals(0, prepare.exitValue());
@@ -72,7 +72,10 @@ public final class ServiceCertificateServletTest {
         certificate.setCertificateKeystoreType("PKCS12"); host.addCertificate(certificate); connector.addSslHostConfig(host);
         tomcat.setConnector(connector);
         var context = tomcat.addContext("", base.toString());
+        // Surefire non-forked execution isolates test dependencies from the JVM system loader.
+        context.setParentClassLoader(getClass().getClassLoader());
         var web = new AnnotationConfigWebApplicationContext();
+        web.setClassLoader(getClass().getClassLoader());
         web.getEnvironment().setActiveProfiles("service-certificate-servlet-native"); web.register(NativeMvc.class);
         var servlet = Tomcat.addServlet(context, "service-peer", new DispatcherServlet(web)); servlet.setLoadOnStartup(1);
         context.addServletMappingDecoded("/", "service-peer");

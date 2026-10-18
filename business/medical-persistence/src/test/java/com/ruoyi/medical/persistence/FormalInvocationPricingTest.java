@@ -1,0 +1,12 @@
+package com.ruoyi.medical.persistence;
+import org.junit.jupiter.api.Test;import static org.junit.jupiter.api.Assertions.*;import java.math.*;
+class FormalInvocationPricingTest {
+ final String id="00000000-0000-4000-8000-000000000001";
+ FormalInvocationPricing.Schedule price(){return new FormalInvocationPricing.Schedule(id,"USD",new BigDecimal("2"),new BigDecimal("1"),new BigDecimal("3"),new BigDecimal("4"),"CEILING_8_DECIMAL_PLACES");}
+ @Test void upperUsesMaximumOfAllInputCategories(){assertEquals(new BigDecimal("7.00000000"),FormalInvocationPricing.upperAmount(price(),BigInteger.valueOf(1000000),BigInteger.valueOf(1000000)));}
+ @Test void actualFixedCategoriesAreExact(){assertEquals(new BigDecimal("0.00001000"),FormalInvocationPricing.amount(price(),new FormalInvocationPricing.Usage(BigInteger.ONE,BigInteger.ONE,BigInteger.ONE,BigInteger.ONE)));}
+ @Test void unknownCountsAndOverflowNeverBecomeZero(){assertThrows(TenantAccessException.class,()->new FormalInvocationPricing.Usage(null,BigInteger.ZERO,BigInteger.ZERO,BigInteger.ONE));assertThrows(TenantAccessException.class,()->new FormalInvocationPricing.Usage(BigInteger.ONE.shiftLeft(64),BigInteger.ZERO,BigInteger.ZERO,BigInteger.ONE));}
+ @Test void unsupportedRoundingAndNegativeRatesReject(){assertThrows(TenantAccessException.class,()->new FormalInvocationPricing.Schedule(id,"USD",BigDecimal.ZERO,BigDecimal.ZERO,BigDecimal.ZERO,BigDecimal.ONE,"GUESS"));assertThrows(TenantAccessException.class,()->new FormalInvocationPricing.Schedule(id,"USD",new BigDecimal("-1"),BigDecimal.ZERO,BigDecimal.ZERO,BigDecimal.ONE,"CEILING_8_DECIMAL_PLACES"));}
+ @Test void zeroRateUnknownRemainsUnknownWhileMoneyCanBeExact(){var usage=new FormalInvocationPricing.ObservedUsage(BigInteger.ONE,BigInteger.ONE,null,BigInteger.ONE,BigInteger.valueOf(3));var zero=new FormalInvocationPricing.Schedule(id,"USD",new BigDecimal("2"),BigDecimal.ONE,BigDecimal.ZERO,new BigDecimal("4"),"CEILING_8_DECIMAL_PLACES");assertEquals(new BigDecimal("0.00000700"),FormalInvocationPricing.observedAmount(zero,usage).orElseThrow());assertNull(usage.cacheWriteTokens());assertTrue(FormalInvocationPricing.observedAmount(price(),usage).isEmpty());}
+ @Test void reportedTotalsCannotUndercountKnownUsage(){assertThrows(TenantAccessException.class,()->new FormalInvocationPricing.ObservedUsage(BigInteger.TEN,null,null,BigInteger.ONE,BigInteger.TEN));assertThrows(TenantAccessException.class,()->new FormalInvocationPricing.ObservedUsage(BigInteger.ONE,BigInteger.ONE,BigInteger.ONE,BigInteger.ONE,BigInteger.TEN));}
+}

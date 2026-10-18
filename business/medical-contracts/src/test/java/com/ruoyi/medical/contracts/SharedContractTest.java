@@ -31,7 +31,7 @@ class SharedContractTest {
     @Test
     void actualDatasetAndAllDefinitionsUseTheSameRelease() throws Exception {
         assertDoesNotThrow(() -> catalogue.validate("dataset", dataset, null));
-        assertEquals(307, catalogue.definitionCount());
+        assertEquals(503, catalogue.definitionCount());
         SchemaCatalogue current = SchemaCatalogue.fromProject(root);
         assertEquals(current.bind("dataset", dataset, null).canonicalJson(), catalogue.bind("dataset", dataset, null).canonicalJson());
         assertEquals(dataset, JSON.readTree(catalogue.bind("dataset", dataset, null).canonicalBytes()));
@@ -150,7 +150,7 @@ class SharedContractTest {
             textRanges.put(id, WireValues.sha256(quote.getBytes(StandardCharsets.UTF_8)));
         }
         Map<String, String> inputs = new LinkedHashMap<>();
-        for (String path : new String[]{"contracts/catalogue.json", "data-design/sample_dataset.json", "data-design/dataset.schema.json", "backend-design/interfaces.schema.yaml", "backend-design/resource-details.schema.yaml", "agent-design/artifacts.schema.json", "agent-design/model-stream.schema.json", "LLD-后端.md", "business/pom.xml", "business/ruoyi-admin/pom.xml", "business/medical-contracts/pom.xml", "scripts/build_business.py"}) inputs.put(path, WireValues.sha256(Files.readAllBytes(root.resolve(path))));
+        for (String path : new String[]{"contracts/catalogue.json", "contracts/extensions/evaluation-results.catalogue.json", "data-design/sample_dataset.json", "data-design/dataset.schema.json", "backend-design/interfaces.schema.yaml", "backend-design/resource-details.schema.yaml", "agent-design/artifacts.schema.json", "agent-design/model-stream.schema.json", "LLD-后端.md", "business/pom.xml", "business/ruoyi-admin/pom.xml", "business/medical-contracts/pom.xml", "scripts/build_business.py"}) inputs.put(path, WireValues.sha256(Files.readAllBytes(root.resolve(path))));
         for (String path : new String[]{"business/medical-persistence/src/main/resources/templates.schema.json",
                 "business/medical-persistence/src/main/resources/template-operations.schema.json",
                 "business/medical-persistence/src/main/resources/tasks.schema.json",
@@ -158,7 +158,8 @@ class SharedContractTest {
                 "business/medical-persistence/src/main/resources/rule-expressions.schema.json",
                 "business/medical-persistence/src/main/resources/template-applicability.schema.json",
                 "business/medical-persistence/src/main/resources/agent-release.schema.json",
-                "business/medical-persistence/src/main/resources/task-plan-view.schema.json"}) {
+                "business/medical-persistence/src/main/resources/task-plan-view.schema.json",
+                "business/medical-persistence/src/main/resources/evaluation-results.schema.json"}) {
             inputs.put(path, WireValues.sha256(Files.readAllBytes(root.resolve(path))));
         }
         try (var paths = Files.walk(root.resolve("business/medical-contracts/src"))) {

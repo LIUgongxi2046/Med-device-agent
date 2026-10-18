@@ -389,6 +389,24 @@ public final class TaskPlanService {
         return new Confirmation(target, validation, sourceProof, ownerProof);
     }
 
+    // RN-01 repeats current template, rule, source and owner checks for the fixed confirmed plan.
+    Confirmation execution(EnterpriseAccess.Admission admission, TaskService.VerifiedTask fixed,
+            TaskPlanWriteProtocol.View plan) throws IOException {
+        var head = fixed.head();
+        if (!"READY".equals(head.status()) || !"CONFIRMED".equals(plan.status())
+                || !head.taskRevision().equals(plan.taskRevision()) || !head.planRevision().equals(plan.planRevision())
+                || !head.templateVersion().equals(plan.templateVersion()) || !head.snapshotId().equals(plan.snapshotId())
+                || !head.profileRevision().equals(plan.profileRevision())) fail(ErrorCode.PLAN_STALE);
+        var missing = inputs.read(fixed.input().missingRequirements());
+        if (!missing.isArray() || !missing.isEmpty()) fail(ErrorCode.SOURCE_NOT_READY);
+        var target = applicability.requireTarget(admission, head.projectId(), head.profileRevision(), fixed.input().documentType(), head.templateVersion(), PURPOSE);
+        var validation = validate(admission, plan.content(), target.view().template(), target.view().conditions(), head.projectId(), true);
+        plans.requireConfirmable(validation);
+        return new Confirmation(target, validation,
+                sourceProof(admission, head.projectId(), head.taskId(), head.taskRevision(), head.snapshotId(), head.profileRevision(), true),
+                confirmationOwners(admission, head, plan.content()));
+    }
+
     void requireUnchanged(EnterpriseAccess.Admission admission, TaskService.VerifiedTask fixed,
             TaskPlanWriteProtocol.View draft, Confirmation original) throws IOException {
         applicability.requireUnchanged(admission, original.template());

@@ -70,7 +70,7 @@ def main():
     output = ROOT / ".implementation-work" / ("IC-08-SOURCE-HTTP-" + args.execution)
     inputs = {"scripts/check_source_upload_http.py", "data-design/sample_dataset.json", "PRD.md", "LLD-后端.md", "LLD-数据.md", "backend-design/接口补充设计.md",
         "ui-delivery/assets/public-evidence/clinical-evaluation-2021.docx",
-        ".implementation-work/runtime/service-identity.json", "contracts/catalogue.json", "data-design/core.sql",
+        ".implementation-work/runtime/service-identity.json", "contracts/catalogue.json", "contracts/extensions/evaluation-results.catalogue.json", "business/medical-persistence/src/main/resources/evaluation-results.schema.json", "data-design/core.sql",
         ".implementation-work/maven-repository/org/apache/httpcomponents/httpclient/4.5.13/httpclient-4.5.13.jar",
         ".implementation-work/maven-repository/org/apache/httpcomponents/httpcore/4.4.16/httpcore-4.4.16.jar",
         ".implementation-work/toolchains/toxiproxy_2.12.0_darwin_amd64.tar.gz",

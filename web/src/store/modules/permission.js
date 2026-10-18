@@ -1,3 +1,5 @@
+import { prepareMedicalFrameworkRoutes, createMedicalFrameworkRegistry, frameworkRouteNames, isMedicalFrameworkPath } from '@/components/Medical/framework-routes'
+export { isMedicalFrameworkPath } from '@/components/Medical/framework-routes'
 import auth from '@/plugins/auth'
 import router, { constantRoutes, dynamicRoutes, medicalRoutes } from '@/router'
 import { getRouters } from '@/api/menu'
@@ -7,6 +9,8 @@ import InnerLink from '@/layout/components/InnerLink'
 
 // 匹配views里面所有的.vue文件
 const modules = import.meta.glob('./../../views/**/*.vue')
+const medicalFrameworkRegistry = createMedicalFrameworkRegistry({ addRoute: route => router.addRoute(route) })
+export const isMedicalFrameworkRoute = name => medicalFrameworkRegistry.has(name)
 
 const usePermissionStore = defineStore(
   'permission',
@@ -21,11 +25,24 @@ const usePermissionStore = defineStore(
     }),
     actions: {
       setMedicalRoutes(authenticated, frameworkRouters = []) {
-        const routes = authenticated ? medicalRoutes.filter(route => !route.hidden) : []
-        this.frameworkRoutes = authenticated ? filterAsyncRouter(structuredClone(frameworkRouters), false, true) : []
-        this.routes = routes; this.addRoutes = []
+        medicalFrameworkRegistry.clear()
+        const workbench = constantRoutes.find(route => route.children?.some(child => child.name === 'Index'))
+        const routes = authenticated ? [workbench, ...medicalRoutes.filter(route => !route.hidden)].filter(Boolean) : []
+        const approved = authenticated ? prepareMedicalFrameworkRoutes(frameworkRouters, router.getRoutes(), view => /^(system|monitor|tool)\//.test(view) && Boolean(loadView(view))) : []
+        this.frameworkRoutes = filterAsyncRouter(approved)
+        const existingNames = new Set([...router.getRoutes().map(route => route.name), ...frameworkRouteNames(this.frameworkRoutes)])
+        const existingPaths = new Set([...router.getRoutes().map(route => route.path), ...this.frameworkRoutes.map(route => route.path)])
+        // These are the existing RuoYi drilldowns, gated by the current server
+        // permissions/roles already copied into the user store by readMedical.
+        const drilldowns = authenticated ? filterDynamicRoutes(dynamicRoutes).filter(route =>
+          isMedicalFrameworkPath(route.path) && !existingPaths.has(route.path)
+          && frameworkRouteNames([route]).filter(Boolean).every(name => !existingNames.has(name))
+        ).map(markMedicalFrameworkRoute) : []
+        medicalFrameworkRegistry.replace([...this.frameworkRoutes, ...drilldowns])
+        this.routes = routes.concat(this.frameworkRoutes); this.addRoutes = []
         this.sidebarRouters = routes; this.topbarRouters = routes; this.defaultRoutes = routes
       },
+      isMedicalFrameworkRoute(name) { return medicalFrameworkRegistry.has(name) },
       setRoutes(routes) {
         this.addRoutes = routes
         this.routes = constantRoutes.concat(routes)
@@ -61,6 +78,11 @@ const usePermissionStore = defineStore(
       }
     }
   })
+
+function markMedicalFrameworkRoute(route) {
+  return { ...route, meta: { ...route.meta, medical: true, medicalFramework: true, public: false, noCache: true },
+    ...(route.children ? { children: route.children.map(markMedicalFrameworkRoute) } : {}) }
+}
 
 // 遍历后台传来的路由字符串，转换为组件对象
 function filterAsyncRouter(asyncRouterMap, lastRouter = false, type = false) {

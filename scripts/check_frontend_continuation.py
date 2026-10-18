@@ -51,7 +51,7 @@ def main():
     output.mkdir(parents=True, exist_ok=False)
     inputs = {ROOT / name for name in ('scripts/check_frontend_continuation.py', 'scripts/check_local_browser.py',
         'web/package.json', 'web/package-lock.json', 'web/tsconfig.medical.json', 'web/vite.config.js',
-        'web/index.html', 'web/.env.medical', 'contracts/catalogue.json')}
+        'web/index.html', 'web/.env.medical', 'contracts/catalogue.json', 'contracts/extensions/evaluation-results.catalogue.json', 'business/medical-persistence/src/main/resources/evaluation-results.schema.json')}
     inputs.add(CAPTURE)
     for directory in ('web/src', 'web/vite', 'web/public', 'contracts/typescript/src'):
         inputs.update(path for path in (ROOT / directory).rglob('*') if path.is_file())

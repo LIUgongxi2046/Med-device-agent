@@ -25,6 +25,24 @@
     </resultMap>
     <sql id="ownerSelection">
         <choose>
+<!-- Insert inside the real ownerSelection choose. No CAPABILITY_VERSION alias. -->
+<when test="domain == 'AGENT_EXECUTION_POLICY'">
+ SELECT p.tenant_id,p.version_id,p.project_id AS version_project_id,p.project_id AS resource_project_id,
+  'CONFIGURATION' AS resource_kind,p.policy_id AS resource_id,p.content_sha256,
+  <include refid="noSourceOrConversation"/>
+ FROM agent_execution_policy_version p WHERE p.version_id IN (<include refid="versionIdentities"/>)
+</when>
+<when test="domain == 'AGENT_SOURCE_SCOPE_POLICY' or domain == 'AGENT_RETRIEVAL_PROFILE' or domain == 'AGENT_NETWORK_POLICY'">
+ SELECT c.tenant_id,c.component_id AS version_id,c.project_id AS version_project_id,c.project_id AS resource_project_id,
+  'CONFIGURATION' AS resource_kind,c.policy_id AS resource_id,c.content_sha256,
+  <include refid="noSourceOrConversation"/>
+ FROM agent_execution_policy_component c
+ JOIN agent_execution_policy_version p ON p.tenant_id=c.tenant_id AND p.project_key=c.project_key
+  AND p.policy_id=c.policy_id AND p.version_id=c.version_id AND p.content_sha256=c.policy_sha256
+ WHERE c.component_id IN (<include refid="versionIdentities"/>)
+  AND c.kind=<choose><when test="domain == 'AGENT_SOURCE_SCOPE_POLICY'">'SOURCE_SCOPE'</when><when test="domain == 'AGENT_RETRIEVAL_PROFILE'">'RETRIEVAL_PROFILE'</when><otherwise>'NETWORK_POLICY'</otherwise></choose>
+</when>
+
             <when test="domain == 'SOURCE_EXACT_REVISION'">
                 SELECT v.tenant_id,v.field_revision AS version_id,s.owner_project_id AS version_project_id,s.owner_project_id AS resource_project_id,
                     'SOURCE' AS resource_kind,s.source_id AS resource_id,v.manifest_sha256 AS content_sha256,v.source_version,<include refid="noConversation"/>

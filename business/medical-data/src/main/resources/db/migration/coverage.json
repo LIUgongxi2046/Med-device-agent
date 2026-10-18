@@ -1,31 +1,501 @@
 {
   "schema_version": "1.0.0",
-  "framework_tables": ["sys_dept", "sys_user", "sys_post", "sys_role", "sys_user_role", "sys_role_dept", "sys_user_post", "sys_config", "sys_menu", "sys_role_menu", "sys_oper_log", "sys_dict_type", "sys_dict_data", "sys_logininfor", "sys_job", "sys_job_log", "sys_notice", "sys_notice_read", "gen_table", "gen_table_column"],
-  "native_sql_migrations": ["db/migration/027-template-definition.sql", "db/migration/032-task-plan-content.sql", "db/migration/034-ruoyi-management-tables.sql", "db/migration/035-source-upload-request.sql", "db/migration/040-retrieval-results.sql", "db/migration/041-current-source-binding.sql", "db/migration/042-source-processing-attempt.sql", "db/migration/043-source-usage-indexes.sql", "db/migration/044-source-lifecycle.sql", "db/migration/045-knowledge-submission-identity.sql", "db/migration/046-source-deletion-worker.sql", "db/migration/047-source-processing-worker.sql", "db/migration/048-source-completion-checkpoint.sql", "db/migration/049-source-audit-metadata.sql", "db/migration/050-source-rights-decisions.sql", "db/migration/051-source-index-build.sql", "db/migration/052-source-exact-fields.sql"],
-  "native_alter_migrations": ["db/migration/017-member-identity-mode.sql", "db/migration/024-operation-retention.sql", "db/migration/053-run-token-authority.sql"],
-  "native_xml_migrations": ["db/migration/036-task-plan-relations.xml"],
-  "structured_xml_migrations": ["db/migration/037-document-reading.xml", "db/migration/038-document-projection-kind.xml", "db/migration/039-document-revision-projections.xml"],
-  "design_sources": ["LLD-后端.md", "backend-design/接口补充设计.md", "data-design/core.sql"],
-  "platform_tables": ["platform_identity", "platform_oidc_session", "platform_oidc_client", "platform_logout_receipt", "platform_logout_session", "platform_local_account", "platform_local_session", "platform_local_bootstrap", "platform_member_route", "platform_session_context", "platform_local_operation", "platform_local_audit", "platform_invitation_route", "platform_enterprise_registration", "platform_enterprise_registration_audit", "platform_enterprise_registration_decision", "platform_enterprise_registration_decision_audit"],
+  "framework_tables": [
+    "sys_dept",
+    "sys_user",
+    "sys_post",
+    "sys_role",
+    "sys_user_role",
+    "sys_role_dept",
+    "sys_user_post",
+    "sys_config",
+    "sys_menu",
+    "sys_role_menu",
+    "sys_oper_log",
+    "sys_dict_type",
+    "sys_dict_data",
+    "sys_logininfor",
+    "sys_job",
+    "sys_job_log",
+    "sys_notice",
+    "sys_notice_read",
+    "gen_table",
+    "gen_table_column"
+  ],
+  "native_sql_migrations": [
+    "db/migration/027-template-definition.sql",
+    "db/migration/032-task-plan-content.sql",
+    "db/migration/034-ruoyi-management-tables.sql",
+    "db/migration/035-source-upload-request.sql",
+    "db/migration/040-retrieval-results.sql",
+    "db/migration/041-current-source-binding.sql",
+    "db/migration/042-source-processing-attempt.sql",
+    "db/migration/043-source-usage-indexes.sql",
+    "db/migration/044-source-lifecycle.sql",
+    "db/migration/045-knowledge-submission-identity.sql",
+    "db/migration/046-source-deletion-worker.sql",
+    "db/migration/047-source-processing-worker.sql",
+    "db/migration/048-source-completion-checkpoint.sql",
+    "db/migration/049-source-audit-metadata.sql",
+    "db/migration/050-source-rights-decisions.sql",
+    "db/migration/051-source-index-build.sql",
+    "db/migration/052-source-exact-fields.sql",
+    "db/migration/054-model-configuration-definition.sql",
+    "db/migration/055-rule-version-workflow.sql",
+    "db/migration/056-evaluation-results.sql",
+    "db/migration/058-annotation-decisions.sql",
+    "db/migration/059-annotation-anchor-lifecycle.sql",
+    "db/migration/060-simulation-invocation-ledger.sql",
+    "db/migration/061-simulation-evaluation-job.sql",
+    "db/migration/062-simulation-result-settlement.sql",
+    "db/migration/063-simulation-input-artifact.sql",
+    "db/migration/064-simulation-rule-binding.sql",
+    "db/migration/065-simulation-evaluation-preparation.sql",
+    "db/migration/066-gru-records.sql",
+    "db/migration/067-document-review-return.sql",
+    "db/migration/068-document-technical-check.sql",
+    "db/migration/069-document-comparison.sql",
+    "db/migration/070-gru-record-export.sql",
+    "db/migration/071-document-technical-check-recovery.sql",
+    "db/migration/072-business-audit-read-index.sql",
+    "db/migration/073-agent-publication.sql",
+    "db/migration/074-runtime-retention.sql",
+    "db/migration/075-persistent-run-runtime.sql",
+    "db/migration/076-formal-model-invocation.sql",
+    "db/migration/077-model-eligibility-connection.sql",
+    "db/migration/078-agent-execution-policy.sql",
+    "db/migration/079-formal-evaluation-input.sql",
+    "db/migration/080-agent-publication.sql",
+    "db/migration/081-expert-qualification.sql",
+    "db/migration/082-formal-capability-cancellation.sql",
+    "db/migration/083-formal-evaluation-runtime.sql",
+    "db/migration/084-formal-evaluation-policy.sql",
+    "db/migration/085-model-verification-input.sql",
+    "db/migration/087-model-enablement-policy-preparation.sql"
+  ],
+  "native_alter_migrations": [
+    "db/migration/057-simulation-model-configuration.sql",
+    "db/migration/017-member-identity-mode.sql",
+    "db/migration/024-operation-retention.sql",
+    "db/migration/053-run-token-authority.sql"
+  ],
+  "native_xml_migrations": [
+    "db/migration/036-task-plan-relations.xml"
+  ],
+  "structured_xml_migrations": [
+    "db/migration/037-document-reading.xml",
+    "db/migration/038-document-projection-kind.xml",
+    "db/migration/039-document-revision-projections.xml"
+  ],
+  "design_sources": [
+    "LLD-后端.md",
+    "backend-design/接口补充设计.md",
+    "data-design/core.sql"
+  ],
+  "platform_tables": [
+    "platform_identity",
+    "platform_oidc_session",
+    "platform_oidc_client",
+    "platform_logout_receipt",
+    "platform_logout_session",
+    "platform_local_account",
+    "platform_local_session",
+    "platform_local_bootstrap",
+    "platform_member_route",
+    "platform_session_context",
+    "platform_local_operation",
+    "platform_local_audit",
+    "platform_invitation_route",
+    "platform_enterprise_registration",
+    "platform_enterprise_registration_audit",
+    "platform_enterprise_registration_decision",
+    "platform_enterprise_registration_decision_audit"
+  ],
   "required_tables": {
-    "source_exact": ["source_exact_revision", "source_exact_head", "source_exact_item", "source_exact_query", "source_exact_hit"],
-    "source_index": ["source_index_build"],
-    "source_rights": ["source_rights_decision", "source_rights_state"],
-    "source_completion": ["source_completion_checkpoint", "source_upload_result"],
-    "source_lifecycle": ["retention_policy_revision", "source_lifecycle_decision", "source_lifecycle_state"],
-    "retrieval_results": ["retrieval_query", "retrieval_hit"],
-    "task_plan_content": ["task_input_revision", "plan_content_revision"],
-    "document_reading": ["document_revision_state", "document_evidence_projection"],
-    "task_plan_relations": ["plan_section_node", "plan_section_rule", "plan_question", "plan_question_node", "plan_question_rule", "plan_question_dependency", "task_plan_head", "task_plan_decision"],
-    "template_definition": ["template_definition", "template_attachment_requirement", "template_definition_dependency", "template_approval_decision"],
-    "upload_storage": ["object_upload_session", "object_upload_part", "artifact_upload_binding", "source_upload_request"],
-    "artifact_registry": ["dependency_access_manifest", "artifact_content_binding", "content_read_range"],
-    "project_governance": ["project_record", "project_state_decision"],
-    "approved_roles": ["enterprise_role_version", "enterprise_role_head", "enterprise_role_publication", "member_role_grant"],
-    "core": ["tenant", "project", "source", "source_version", "parse_version", "source_chunk", "index_manifest", "approval_decision", "source_use_gate", "project_source_binding", "scope_snapshot", "scope_member", "document_revision", "claim", "evidence_link", "version_registry", "lineage_edge", "outbox_event"],
-    "identity_and_sources": ["identity_binding", "tenant_member", "member_invitation", "permission_grant", "run_principal", "principal_token", "operation_record", "upload_item", "upload_part", "processing_attempt", "rights_revision", "content_node", "chunk_node", "index_item", "collection_head", "collection_version", "collection_member", "source_organization", "source_folder", "user_source_bookmark", "source_read_history", "change_proposal", "impact_manifest", "source_session_binding", "source_dedup"],
-    "projects_and_documents": ["project_profile_revision", "applicability_decision", "template_version", "requirement_node", "field_definition", "repeat_definition", "rule_version", "task_head", "task_revision", "plan_revision", "plan_section", "plan_dependency", "research_question", "pending_input", "execution_registry", "system_job_run", "task_run", "task_active_run", "run_step", "step_action_binding", "document_head", "document_revision_meta", "section_revision", "document_section", "document_node", "field_value", "shared_fact_version", "fact_usage", "metric", "method", "metric_method_coverage", "attachment_binding", "artifact"],
-    "review_and_governance": ["candidate", "candidate_adoption", "check_run", "issue", "annotation", "annotation_reply", "review_decision", "review_invalidation", "signature_record", "export_manifest", "export_item", "configuration_head", "agent_version", "capability_version", "model_config_revision", "release_record", "release_scope", "connection_verification", "budget_account", "budget_revision", "budget_reservation", "invocation", "invocation_receipt", "context_manifest", "dependency_access_set", "dependency_access_member", "conversation", "conversation_message", "pending_action", "user_preference", "task_summary", "knowledge_submission", "reference_hold", "deletion_job", "deletion_item", "outbox_delivery", "consumer_receipt", "stream_event", "audit_event", "notification", "evaluation_batch", "evaluation_score", "feedback", "connector_config", "connector_cursor", "sync_item"],
-    "interface_supplement": ["artifact_upload_grant", "evidence_review_batch", "evidence_review_decision", "review_batch", "review_batch_item", "reauthentication_challenge", "reauthentication_receipt", "stream_registry", "waiting_item", "content_read_receipt", "management_binding_release", "report_export"]
+    "document_return_for_revision": [
+      "document_revision_return",
+      "document_revision_return_assignment"
+    ],
+    "document_technical_check": [
+      "document_technical_check_manifest",
+      "document_technical_check"
+    ],
+    "document_comparison": [
+      "document_comparison_intent",
+      "document_comparison_registration",
+      "document_comparison_attempt"
+    ],
+    "gru_record_export": [
+      "gru_record_export_intent",
+      "gru_record_export_attempt",
+      "gru_record_export"
+    ],
+    "document_technical_check_recovery": [
+      "document_technical_check_intent",
+      "document_technical_check_attempt"
+    ],
+    "gru_records": [
+      "gru_conversation_context",
+      "gru_message_record"
+    ],
+    "simulation_evaluation_preparation": [
+      "simulation_evaluation_preparation"
+    ],
+    "simulation_input_artifact": [
+      "simulation_fixture_input_artifact",
+      "simulation_input_artifact_operation"
+    ],
+    "simulation_rule_binding": [
+      "simulation_rule_binding",
+      "simulation_rule_approval_binding"
+    ],
+    "simulation_result_settlement": [
+      "simulation_result_persistence",
+      "simulation_quota_settlement"
+    ],
+    "simulation_evaluation_job": [
+      "simulation_scope_manifest",
+      "simulation_evaluation_job",
+      "simulation_context_dependency_manifest"
+    ],
+    "simulation_ledger": [
+      "simulation_quota_account",
+      "simulation_execution_authority",
+      "simulation_invocation_provenance",
+      "simulation_quota_reservation",
+      "simulation_invocation_fact",
+      "simulation_fixture_registration",
+      "simulation_retention_policy"
+    ],
+    "annotation_anchors": [
+      "annotation_anchor",
+      "annotation_effective_anchor",
+      "annotation_transition"
+    ],
+    "annotation_decisions": [
+      "annotation_decision"
+    ],
+    "evaluation_results": [
+      "evaluation_definition",
+      "evaluation_score_observation",
+      "evaluation_result"
+    ],
+    "rule_workflow": [
+      "rule_definition",
+      "rule_approval_decision"
+    ],
+    "model_configuration": [
+      "model_configuration_definition"
+    ],
+    "source_exact": [
+      "source_exact_revision",
+      "source_exact_head",
+      "source_exact_item",
+      "source_exact_query",
+      "source_exact_hit"
+    ],
+    "source_index": [
+      "source_index_build"
+    ],
+    "source_rights": [
+      "source_rights_decision",
+      "source_rights_state"
+    ],
+    "source_completion": [
+      "source_completion_checkpoint",
+      "source_upload_result"
+    ],
+    "source_lifecycle": [
+      "retention_policy_revision",
+      "source_lifecycle_decision",
+      "source_lifecycle_state"
+    ],
+    "retrieval_results": [
+      "retrieval_query",
+      "retrieval_hit"
+    ],
+    "task_plan_content": [
+      "task_input_revision",
+      "plan_content_revision"
+    ],
+    "document_reading": [
+      "document_revision_state",
+      "document_evidence_projection"
+    ],
+    "task_plan_relations": [
+      "plan_section_node",
+      "plan_section_rule",
+      "plan_question",
+      "plan_question_node",
+      "plan_question_rule",
+      "plan_question_dependency",
+      "task_plan_head",
+      "task_plan_decision"
+    ],
+    "template_definition": [
+      "template_definition",
+      "template_attachment_requirement",
+      "template_definition_dependency",
+      "template_approval_decision"
+    ],
+    "upload_storage": [
+      "object_upload_session",
+      "object_upload_part",
+      "artifact_upload_binding",
+      "source_upload_request"
+    ],
+    "artifact_registry": [
+      "dependency_access_manifest",
+      "artifact_content_binding",
+      "content_read_range"
+    ],
+    "project_governance": [
+      "project_record",
+      "project_state_decision"
+    ],
+    "approved_roles": [
+      "enterprise_role_version",
+      "enterprise_role_head",
+      "enterprise_role_publication",
+      "member_role_grant"
+    ],
+    "core": [
+      "tenant",
+      "project",
+      "source",
+      "source_version",
+      "parse_version",
+      "source_chunk",
+      "index_manifest",
+      "approval_decision",
+      "source_use_gate",
+      "project_source_binding",
+      "scope_snapshot",
+      "scope_member",
+      "document_revision",
+      "claim",
+      "evidence_link",
+      "version_registry",
+      "lineage_edge",
+      "outbox_event"
+    ],
+    "identity_and_sources": [
+      "identity_binding",
+      "tenant_member",
+      "member_invitation",
+      "permission_grant",
+      "run_principal",
+      "principal_token",
+      "operation_record",
+      "upload_item",
+      "upload_part",
+      "processing_attempt",
+      "rights_revision",
+      "content_node",
+      "chunk_node",
+      "index_item",
+      "collection_head",
+      "collection_version",
+      "collection_member",
+      "source_organization",
+      "source_folder",
+      "user_source_bookmark",
+      "source_read_history",
+      "change_proposal",
+      "impact_manifest",
+      "source_session_binding",
+      "source_dedup"
+    ],
+    "projects_and_documents": [
+      "project_profile_revision",
+      "applicability_decision",
+      "template_version",
+      "requirement_node",
+      "field_definition",
+      "repeat_definition",
+      "rule_version",
+      "task_head",
+      "task_revision",
+      "plan_revision",
+      "plan_section",
+      "plan_dependency",
+      "research_question",
+      "pending_input",
+      "execution_registry",
+      "system_job_run",
+      "task_run",
+      "task_active_run",
+      "run_step",
+      "step_action_binding",
+      "document_head",
+      "document_revision_meta",
+      "section_revision",
+      "document_section",
+      "document_node",
+      "field_value",
+      "shared_fact_version",
+      "fact_usage",
+      "metric",
+      "method",
+      "metric_method_coverage",
+      "attachment_binding",
+      "artifact"
+    ],
+    "review_and_governance": [
+      "candidate",
+      "candidate_adoption",
+      "check_run",
+      "issue",
+      "annotation",
+      "annotation_reply",
+      "review_decision",
+      "review_invalidation",
+      "signature_record",
+      "export_manifest",
+      "export_item",
+      "configuration_head",
+      "agent_version",
+      "capability_version",
+      "model_config_revision",
+      "release_record",
+      "release_scope",
+      "connection_verification",
+      "budget_account",
+      "budget_revision",
+      "budget_reservation",
+      "invocation",
+      "invocation_receipt",
+      "context_manifest",
+      "dependency_access_set",
+      "dependency_access_member",
+      "conversation",
+      "conversation_message",
+      "pending_action",
+      "user_preference",
+      "task_summary",
+      "knowledge_submission",
+      "reference_hold",
+      "deletion_job",
+      "deletion_item",
+      "outbox_delivery",
+      "consumer_receipt",
+      "stream_event",
+      "audit_event",
+      "notification",
+      "evaluation_batch",
+      "evaluation_score",
+      "feedback",
+      "connector_config",
+      "connector_cursor",
+      "sync_item"
+    ],
+    "interface_supplement": [
+      "artifact_upload_grant",
+      "evidence_review_batch",
+      "evidence_review_decision",
+      "review_batch",
+      "review_batch_item",
+      "reauthentication_challenge",
+      "reauthentication_receipt",
+      "stream_registry",
+      "waiting_item",
+      "content_read_receipt",
+      "management_binding_release",
+      "report_export"
+    ],
+    "agent_publication_authoring": [
+      "agent_publication_record",
+      "evaluation_acceptance_policy_decision"
+    ],
+    "runtime_retention": [
+      "runtime_retention_policy",
+      "runtime_retention_state",
+      "runtime_retention_retirement",
+      "runtime_retention_cancellation"
+    ],
+    "agent_execution_policy": [
+      "agent_execution_policy_version",
+      "agent_execution_policy_component",
+      "agent_execution_policy_decision",
+      "agent_execution_policy_state"
+    ],
+    "formal_evaluation_input": [
+      "formal_evaluation_input_registration"
+    ],
+    "formal_capability_cancellation": [
+      "formal_capability_cancellation"
+    ],
+    "persistent_run_runtime": [
+      "run_runtime_intent",
+      "step_runtime_attempt",
+      "run_runtime_receipt",
+      "runtime_object_intent",
+      "runtime_object_attempt",
+      "runtime_object_state",
+      "runtime_node_definition",
+      "runtime_governance_manifest",
+      "runtime_governance_member",
+      "runtime_governance_edge",
+      "runtime_registered_object"
+    ],
+    "formal_model_invocation": [
+      "formal_model_manifest",
+      "formal_model_verification_job",
+      "formal_invocation_binding",
+      "formal_invocation_attempt",
+      "formal_invocation_object_intent",
+      "formal_invocation_object_attempt",
+      "formal_invocation_object_state",
+      "formal_invocation_registered_object",
+      "formal_invocation_accounting",
+      "formal_invocation_cancellation",
+      "formal_invocation_uncertainty"
+    ],
+    "model_eligibility_connection": [
+      "runtime_connection_intent",
+      "runtime_connection_start",
+      "runtime_connection_completed",
+      "model_eligibility"
+    ],
+    "expert_qualification": [
+      "expert_qualification_record",
+      "expert_qualification",
+      "expert_qualification_state",
+      "expert_score_binding",
+      "expert_score_authority_witness"
+    ],
+    "model_verification_input": [
+      "model_verification_input_preparation"
+    ],
+    "formal_agent_candidate": [
+      "formal_agent_candidate_binding"
+    ],
+    "formal_evaluation_policy": [
+      "formal_evaluation_policy_input"
+    ],
+    "formal_evaluation_runtime": [
+      "formal_evaluation_execution",
+      "formal_evaluation_cell",
+      "formal_evaluation_node",
+      "professional_runtime_session",
+      "professional_runtime_observation",
+      "formal_evaluation_node_result"
+    ],
+    "model_enablement_preparation": [
+      "model_enablement_policy_preparation"
+    ],
+    "formal_agent_publication": [
+      "formal_agent_acceptance",
+      "formal_agent_publication_intent",
+      "formal_agent_publication_attempt",
+      "formal_agent_publication_registration",
+      "formal_agent_publication_disable"
+    ],
+    "formal_evaluation_context": [
+      "formal_evaluation_context_version",
+      "formal_evaluation_context_decision",
+      "formal_evaluation_context_state",
+      "formal_evaluation_execution_context"
+    ]
   }
 }

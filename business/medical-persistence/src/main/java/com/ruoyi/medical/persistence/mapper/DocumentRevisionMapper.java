@@ -31,6 +31,7 @@ public interface DocumentRevisionMapper {
     int saveSection(Map<String,Object> values);
     int saveDocumentSection(Map<String,Object> values);
     int saveWatermarks(Map<String,Object> values);
+    int advanceAnnotationIssues(Map<String,Object> values);
     int advanceHead(Map<String,Object> values);
     int invalidateChecks(Map<String,Object> values);
     int invalidateEvidence(Map<String,Object> values);

@@ -1,7 +1,8 @@
 <template>
-  <el-form label-position="top" :disabled="disabled">
+  <el-form class="source-declaration" label-position="top" :disabled="disabled">
+    <fieldset><legend>1. 归属与版本</legend>
     <el-form-item label="资料归属">
-      <el-select v-model="value.ownership" aria-label="资料归属" @change="value.session_id = null">
+      <el-select v-model="value.ownership" :disabled="ownershipLocked" aria-label="资料归属" @change="value.session_id = null">
         <el-option label="项目资料" value="PROJECT" /><el-option label="企业资料" value="ENTERPRISE" /><el-option label="会话附件" value="SESSION" />
       </el-select>
     </el-form-item>
@@ -17,7 +18,8 @@
     </el-form-item>
     <el-form-item v-if="value.version_intent === 'NEW_VERSION'" label="原资料标识"><el-input v-model="value.source_id" /></el-form-item>
     <p>名称相同且内容不同的文件，需要明确选择版本意图；新版本保留原资料内容。</p>
-    <h3>来源记录</h3>
+    </fieldset>
+    <fieldset><legend>2. 来源记录</legend>
     <el-form-item v-for="field in provenanceFields" :key="field.key" :label="field.label" :required="field.required">
       <el-input :model-value="value.provenance[field.key] ?? ''" :placeholder="field.placeholder" :maxlength="4096"
         @update:model-value="value.provenance[field.key] = $event === '' && !field.required ? null : $event" />
@@ -28,7 +30,8 @@
     <el-form-item label="法律保存要求">
       <el-radio-group v-model="value.provenance.legal_hold"><el-radio :value="null">尚未确认</el-radio><el-radio :value="true">存在要求</el-radio><el-radio :value="false">确认没有要求</el-radio></el-radio-group>
     </el-form-item>
-    <h3>使用授权声明</h3>
+    </fieldset>
+    <fieldset><legend>3. 使用授权声明</legend>
     <el-form-item label="使用目的编号" required><el-input v-model="value.rights_declaration.purpose" placeholder="填写实际授权目的编号，使用大写字母、数字和下划线" maxlength="128" /></el-form-item>
     <el-form-item label="许可说明" required><el-input v-model="value.rights_declaration.license" type="textarea" maxlength="4096" /></el-form-item>
     <el-form-item label="获准操作">
@@ -43,12 +46,13 @@
     <el-form-item label="授权结束时间（UTC）"><el-input :model-value="value.rights_declaration.valid_to ?? ''" :placeholder="utcPlaceholder" @update:model-value="value.rights_declaration.valid_to = $event || null" /></el-form-item>
     <el-form-item label="授权证据标识"><el-select v-model="value.rights_declaration.authorization_evidence" multiple filterable allow-create default-first-option placeholder="逐项输入现有证据标识" /></el-form-item>
     <p>时间使用 UTC 格式；未确认的可选字段保持空白。来源声明仍需服务器核查和人工核准。</p>
+    </fieldset>
   </el-form>
 </template>
 
 <script setup lang="ts">
 import type { SourceProvenance, SourceUploadCreate } from '@/api/medical/source-uploads'
-defineProps<{ value: SourceUploadCreate; disabled: boolean }>()
+defineProps<{ value: SourceUploadCreate; disabled: boolean; ownershipLocked?: boolean }>()
 type TextKey = Exclude<keyof SourceProvenance, 'status_evidence' | 'legal_hold'>
 const utcPlaceholder = 'YYYY-MM-DDTHH:mm:ssZ'
 const provenanceFields: { key: TextKey; label: string; required?: boolean; placeholder?: string }[] = [
@@ -64,3 +68,10 @@ const provenanceFields: { key: TextKey; label: string; required?: boolean; place
   { key: 'next_check_at', label: '下次核查时间（UTC）', placeholder: utcPlaceholder }, { key: 'retention_policy_id', label: '保存策略标识' }
 ]
 </script>
+
+<style scoped>
+.source-declaration fieldset { min-width: 0; margin: 18px 0; padding: 18px; border: 1px solid var(--el-border-color-light); border-radius: 8px; }
+.source-declaration legend { padding: 0 8px; font-size: 15px; font-weight: 600; }
+.source-declaration p { font-size: 13px; color: var(--el-text-color-secondary); line-height: 1.7; }
+.source-declaration .el-select { width: 100%; }
+</style>

@@ -1,26 +1,33 @@
 <template>
   <section class="app-main" :class="{ 'medical-main': userStore.medicalMode }">
+    <library-sections v-if="userStore.medicalMode && route.path.startsWith('/library')" />
+    <el-alert v-if="route.meta.medicalFramework && !frameworkReady" :title="userStore.medicalLoading ? '正在核查当前账户' : '请重新核查当前账户后访问管理页面'" type="info" :closable="false" show-icon />
     <router-view v-slot="{ Component, route }">
       <transition name="fade-transform" mode="out-in">
         <keep-alive :include="tagsViewStore.cachedViews">
-          <component v-if="!route.meta.link" :is="Component" :key="route.path"/>
+          <component v-if="!route.meta.link && (!route.meta.medicalFramework || frameworkReady)" :is="Component" :key="route.meta.medicalFramework ? route.path + ':' + userStore.medicalGeneration : route.path"/>
         </keep-alive>
       </transition>
     </router-view>
-    <iframe-toggle />
+    <iframe-toggle v-if="!userStore.medicalMode" />
     <copyright />
   </section>
 </template>
 
 <script setup>
+import LibrarySections from "@/components/Medical/LibrarySections.vue"
 import copyright from "./Copyright/index"
 import iframeToggle from "./IframeToggle/index"
 import useTagsViewStore from '@/store/modules/tagsView'
 import useUserStore from '@/store/modules/user'
+import usePermissionStore from '@/store/modules/permission'
 
 const route = useRoute()
 const tagsViewStore = useTagsViewStore()
 const userStore = useUserStore()
+const permissionStore = usePermissionStore()
+const frameworkReady = computed(() => userStore.medicalMode && !userStore.medicalLoading && userStore.medicalSession !== null
+  && permissionStore.isMedicalFrameworkRoute(route.name))
 
 onMounted(() => {
   addIframe()

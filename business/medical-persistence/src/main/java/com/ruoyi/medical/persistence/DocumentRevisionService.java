@@ -68,16 +68,17 @@ public final class DocumentRevisionService {
     private final PermissionSchema json;
     private final SchemaCatalogue schemas;
     private final String interfacesHash;
+    private final AnnotationAnchorLifecycle annotationAnchors;
 
     public DocumentRevisionService(EnterpriseAccess access, DocumentRevisionMapper writes, DocumentReadMapper reads,
             UploadTransferMapper uploads, UploadAuthorizationAuthority authorization, UploadAuthorizationSchema authorizations,
             DocumentBodyDomainAuthority domains, ArtifactRegistryMapper artifacts, ArtifactSourceAuthority sourceAuthority,
             ArtifactContentService content, DocumentReadService documents, ResourceReadAuthority resources, PermissionMapper permissions,
-            SourceUploadTransport transport, DocumentUploadPolicy policy, PermissionSchema json) throws IOException, NoSuchAlgorithmException {
+            SourceUploadTransport transport, DocumentUploadPolicy policy, PermissionSchema json, AnnotationAnchorLifecycle annotationAnchors) throws IOException, NoSuchAlgorithmException {
         this.access = access; this.writes = writes; this.reads = reads; this.uploads = uploads; this.authorization = authorization;
         this.authorizations = authorizations; this.domains = domains; this.artifacts = artifacts; this.sourceAuthority = sourceAuthority;
         this.content = content; this.documents = documents; this.resources = resources; this.permissions = permissions;
-        this.transport = transport; this.policy = policy; this.json = json; uploadStore = new UploadTransferStore(uploads, authorizations);
+        this.transport = transport; this.policy = policy; this.json = json; this.annotationAnchors = annotationAnchors; uploadStore = new UploadTransferStore(uploads, authorizations);
         schemas = SchemaCatalogue.fromClasspath();
         interfacesHash = schemas.bind("interfaces", com.fasterxml.jackson.databind.node.NullNode.instance, "NullableId").schemaSha256();
     }
@@ -282,17 +283,18 @@ public final class DocumentRevisionService {
         for (String review : reads.reviews(previous)) {
             values.put("reviewId", review); values.put("invalidationId", id()); changed(writes.invalidateReview(values));
         }
-        changed(writes.advanceHead(values)); var saved = one(reads.header(values));
+        int invalidatedAnnotations = invalidateAnnotationsAndAdvanceHead(admission, values);
+        var saved = one(reads.header(values));
         if (!command.documentRevision().equals(saved.currentDocumentRevision()) || !WireValues.revision(input.expectedRevision()).add(BigInteger.ONE).equals(saved.revision())
                 || !input.bodySha256().equals(saved.bodySha256()) || !input.bodyArtifactId().equals(saved.bodyArtifactId())
                 || !body.templateVersion().equals(saved.templateVersion()) || !verified.basis().plan().planRevision().equals(saved.planRevision())) mismatch();
-        var marks = one(reads.watermarks(values)); if (marks.issueWatermark().signum() != 0 || marks.evidenceWatermark().signum() != 0) mismatch();
+        var marks = one(reads.watermarks(values)); if (!marks.issueWatermark().equals(BigInteger.valueOf(invalidatedAnnotations)) || marks.evidenceWatermark().signum() != 0) mismatch();
         if (!reads.streams(values).isEmpty()) throw new TenantAccessException(ErrorCode.DEPENDENCY_UNAVAILABLE);
         var projections = new HashMap<String,DocumentRevisionProtocol.PreparedObject>(); command.projections().forEach(item -> projections.put(item.kind(), item));
         var fields = projections.get("DOCUMENT_FIELDS"); var evidence = projections.get("DOCUMENT_EVIDENCE");
         var snapshot = new InterfaceProtocol.DocumentSnapshot(documentId, saved.projectId(), command.documentRevision(), saved.revision().toString(), saved.planRevision(),
             saved.templateVersion(), reference(input.bodyArtifactId(), bodyReference, verified.manifest().schemaRef()), reference(fields.artifactId(), fields.reference(), fields.schemaRef()),
-            reference(evidence.artifactId(), evidence.reference(), evidence.schemaRef()), input.bodySchemaRevision(), List.of(), List.of(), List.of(), List.of(), "0", "0",
+            reference(evidence.artifactId(), evidence.reference(), evidence.schemaRef()), input.bodySchemaRevision(), List.of(), List.of(), List.of(), List.of(), marks.issueWatermark().toString(), "0",
             admission.watermarks().authEpoch().toString(), admission.watermarks().governanceEpoch().toString(), List.of("document.edit"), List.of());
         var response = json.tree(new InterfaceProtocol.Envelope("1.0.0", command.requestId(), saved.revision().toString(),
             JSON.readTree(TypedSchemaBindings.bind(schemas, InterfaceBindings.DOCUMENT_SNAPSHOT, json.tree(snapshot)).payload().canonicalJson())));
@@ -308,6 +310,16 @@ public final class DocumentRevisionService {
         changed(permissions.saveEvent(admission.subject().user().user_id(), id(), documentId, saved.revision().toString(), "document.check.requested", json.canonical(event)));
         var completed = one(writes.operation(values)); requireOperation(admission, completed, key, documentId, hash);
         if (!"COMPLETED".equals(completed.state()) || !response.equals(JSON.readTree(completed.responseRef()))) mismatch(); return response;
+    }
+
+    /** Atomic tail of body-save: caller already wrote and verified the new fixed body inside this transaction. */
+    int invalidateAnnotationsAndAdvanceHead(EnterpriseAccess.Admission admission, Map<String,Object> values) throws Exception {
+        if (!org.springframework.transaction.support.TransactionSynchronizationManager.isActualTransactionActive())
+            throw new TenantAccessException(ErrorCode.SCOPE_STALE);
+        int count = annotationAnchors.invalidate(admission, values);
+        if (count > 0) { values.put("annotationIssues", count); changed(writes.advanceAnnotationIssues(values)); }
+        changed(writes.advanceHead(values));
+        return count;
     }
 
     private void saveEvidence(Map<String,Object> values, InterfaceProtocol.DocumentBody body, Map<String,InterfaceProtocol.Node> nodes) throws Exception {

@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.medical.persistence.mapper.ConfigurationDiscoveryMapper">
+  <resultMap id="candidate" type="com.ruoyi.medical.persistence.ConfigurationDiscoveryService$Candidate">
+    <constructor><arg column="id" javaType="java.lang.String"/><arg column="version_id" javaType="java.lang.String"/></constructor>
+  </resultMap>
+  <!-- Last crossed validity boundary is stable between transitions, unlike a wall-clock timestamp.
+       All actor grant actions and tenant source rights conservatively cover transitive dependency authorities. -->
+  <select id="authorizationClock" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT COALESCE(DATE_FORMAT(MAX(v.boundary),'%Y-%m-%dT%H:%i:%s.%fZ'),'NONE') FROM (
+      SELECT valid_from AS boundary FROM permission_grant g WHERE subject_id=#{userId} AND status='ACTIVE' AND valid_from &lt;= UTC_TIMESTAMP(6)
+      UNION ALL SELECT valid_to AS boundary FROM permission_grant g WHERE subject_id=#{userId} AND status='ACTIVE' AND valid_to &lt;= UTC_TIMESTAMP(6)
+      UNION ALL SELECT valid_from AS boundary FROM rights_revision r WHERE valid_from &lt;= UTC_TIMESTAMP(6)
+      UNION ALL SELECT valid_to AS boundary FROM rights_revision r WHERE valid_to &lt;= UTC_TIMESTAMP(6)
+    ) v
+  </select>
+  <!-- Candidates stay internal. Every returned item must pass the immutable domain reader and current authorities. -->
+  <select id="models" resultMap="candidate" useCache="false" flushCache="true">
+    SELECT h.config_id AS id,h.current_version AS version_id
+    FROM configuration_head h JOIN model_config_revision m
+      ON m.tenant_id=h.tenant_id AND m.config_id=h.config_id AND m.model_config_revision=h.current_version
+      AND m.project_id &lt;=&gt; h.project_id AND m.configuration_kind='MODEL' AND m.execution_mode=h.execution_mode
+    WHERE h.kind='MODEL' AND h.execution_mode=#{mode} AND h.current_version IS NOT NULL
+    <if test="after != null">AND h.config_id &gt; #{after}</if>
+    <if test="q != null">AND (LOCATE(LOWER(#{q}),LOWER(h.config_id)) &gt; 0
+      OR LOCATE(LOWER(#{q}),LOWER(m.provider)) &gt; 0 OR LOCATE(LOWER(#{q}),LOWER(m.model_id)) &gt; 0
+      OR LOCATE(LOWER(#{q}),LOWER(m.model_version)) &gt; 0)</if>
+    ORDER BY h.config_id
+  </select>
+  <select id="rules" resultMap="candidate" useCache="false" flushCache="true">
+    SELECT r.rule_version AS id,r.rule_version AS version_id
+    FROM rule_version r JOIN rule_definition d ON d.tenant_id=r.tenant_id AND d.rule_version=r.rule_version
+    WHERE NOT EXISTS (SELECT 1 FROM simulation_rule_binding b
+      WHERE b.tenant_id=r.tenant_id AND b.rule_version=r.rule_version)
+    <if test="after != null">AND r.rule_version &gt; #{after}</if>
+    <if test="q != null">AND (LOCATE(LOWER(#{q}),LOWER(r.rule_version)) &gt; 0
+      OR LOCATE(LOWER(#{q}),LOWER(r.engine_revision)) &gt; 0)</if>
+    ORDER BY r.rule_version
+  </select>
+</mapper>

@@ -30,7 +30,7 @@ def main():
         directory = ROOT / "business/medical-contracts/src/test/java/com/ruoyi/medical/contracts"
         selected.extend(("medical-contracts", "contracts", path.stem) for path in sorted(directory.glob("*Test.java")))
     inputs = ["scripts/check_task_list.py", "business/pom.xml", "business/ruoyi-admin/pom.xml", "business/medical-persistence/pom.xml",
-        "LLD-后端.md", "backend-design/接口补充设计.md", "contracts/catalogue.json", ".implementation-work/runtime/service-identity.json"]
+        "LLD-后端.md", "backend-design/接口补充设计.md", "contracts/catalogue.json", "contracts/extensions/evaluation-results.catalogue.json", "business/medical-persistence/src/main/resources/evaluation-results.schema.json", ".implementation-work/runtime/service-identity.json"]
     for directory in ("business/medical-contracts/src", "business/medical-data/src", "business/medical-identity/src",
             "business/medical-persistence/src", "business/ruoyi-admin/src", "business/ruoyi-framework/src", "business/ruoyi-system/src", "business/ruoyi-common/src"):
         inputs.extend(str(path.relative_to(ROOT)) for path in sorted((ROOT / directory).rglob("*")) if path.is_file())

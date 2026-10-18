@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.medical.persistence.mapper.BusinessAuditMapper">
+<resultMap id="Candidate" type="com.ruoyi.medical.persistence.mapper.BusinessAuditMapper$Candidate"><constructor><arg column="tenant_id" javaType="java.lang.String"/><arg column="project_id" javaType="java.lang.String"/><arg column="audit_id" javaType="java.lang.String"/><arg column="subject_id" javaType="java.lang.String"/><arg column="action" javaType="java.lang.String"/><arg column="result" javaType="java.lang.String"/><arg column="reason_code" javaType="java.lang.String"/><arg column="request_id" javaType="java.lang.String"/><arg column="trace_id" javaType="java.lang.String"/><arg column="schema_version" javaType="java.lang.String"/><arg column="schema_manifest" javaType="java.lang.String"/><arg column="created_by" javaType="java.lang.String"/><arg column="created_at" javaType="java.time.LocalDateTime"/><arg column="classification" javaType="java.lang.String"/><arg column="payload_bytes" javaType="java.math.BigInteger"/></constructor></resultMap>
+<resultMap id="Operation" type="com.ruoyi.medical.persistence.mapper.BusinessAuditMapper$Operation"><constructor><arg column="operation_id" javaType="java.lang.String"/><arg column="request_sha256" javaType="java.lang.String"/><arg column="subject_id" javaType="java.lang.String"/><arg column="operation_name" javaType="java.lang.String"/><arg column="state" javaType="java.lang.String"/><arg column="http_status" javaType="java.lang.Integer"/><arg column="error_code" javaType="java.lang.String"/><arg column="target_id" javaType="java.lang.String"/><arg column="schema_version" javaType="java.lang.String"/><arg column="schema_manifest" javaType="java.lang.String"/><arg column="created_by" javaType="java.lang.String"/><arg column="created_at" javaType="java.time.LocalDateTime"/><arg column="classification" javaType="java.lang.String"/><arg column="response_bytes" javaType="java.math.BigInteger"/></constructor></resultMap>
+<resultMap id="Target" type="com.ruoyi.medical.persistence.mapper.BusinessAuditMapper$Target"><constructor><arg column="revision_project_id" javaType="java.lang.String"/><arg column="revision_document_id" javaType="java.lang.String"/><arg column="document_revision" javaType="java.lang.String"/><arg column="revision_snapshot_id" javaType="java.lang.String"/><arg column="revision_body_sha256" javaType="java.lang.String"/><arg column="metadata_project_id" javaType="java.lang.String"/><arg column="metadata_document_id" javaType="java.lang.String"/><arg column="metadata_revision" javaType="java.lang.String"/><arg column="metadata_snapshot_id" javaType="java.lang.String"/><arg column="metadata_body_sha256" javaType="java.lang.String"/><arg column="metadata_content_sha256" javaType="java.lang.String"/><arg column="based_on_revision" javaType="java.lang.String"/><arg column="created_by" javaType="java.lang.String"/><arg column="created_at" javaType="java.time.LocalDateTime"/><arg column="classification" javaType="java.lang.String"/><arg column="version_id" javaType="java.lang.String"/><arg column="version_project_id" javaType="java.lang.String"/><arg column="version_kind" javaType="java.lang.String"/><arg column="version_content_sha256" javaType="java.lang.String"/><arg column="owner_project_id" javaType="java.lang.String"/><arg column="owner_document_id" javaType="java.lang.String"/></constructor></resultMap>
+<select id="scan" resultMap="Candidate" useCache="false" flushCache="true" timeout="5">
+ SELECT a.tenant_id,a.project_id,a.audit_id,a.subject_id,a.action,a.result,a.reason_code,a.request_id,a.trace_id,a.schema_version,a.schema_manifest_sha256 AS schema_manifest,a.created_by,a.created_at,a.classification,OCTET_LENGTH(a.resource_ref) AS payload_bytes
+ FROM audit_event a
+ WHERE a.project_id=#{projectId} AND a.action=#{action} AND a.action='document.revision.saved' AND a.created_at &gt;= #{from} AND a.created_at &lt; #{to}
+ <if test="actorId != null">AND a.subject_id=#{actorId}</if>
+ <choose><when test="afterCreatedAt != null and afterAuditId != null">AND (a.created_at &lt; #{afterCreatedAt} OR (a.created_at=#{afterCreatedAt} AND a.audit_id &lt; #{afterAuditId}))</when><when test="afterCreatedAt != null or afterAuditId != null">AND 1=0</when></choose>
+ ORDER BY a.created_at DESC,a.audit_id DESC LIMIT #{limit}
+</select>
+<select id="payload" resultType="java.lang.String" useCache="false" flushCache="true" timeout="5">
+ SELECT CASE WHEN OCTET_LENGTH(a.resource_ref) &lt;= #{maximumPayloadBytes} THEN a.resource_ref ELSE NULL END
+ FROM audit_event a WHERE a.project_id=#{projectId} AND a.audit_id=#{auditId} AND a.action='document.revision.saved'
+</select>
+<select id="operation" resultMap="Operation" useCache="false" flushCache="true" timeout="5">
+ SELECT o.operation_id,o.request_sha256,o.subject_id,o.operation_name,o.state,o.http_status,o.error_code,o.target_id,o.schema_version,o.schema_manifest_sha256 AS schema_manifest,o.created_by,o.created_at,o.classification,OCTET_LENGTH(o.response_ref) AS response_bytes
+ FROM audit_event a LEFT JOIN operation_record o ON o.tenant_id=a.tenant_id AND o.operation_id=#{operationId}
+ WHERE a.project_id=#{projectId} AND a.audit_id=#{auditId} AND a.action='document.revision.saved'
+</select>
+<select id="operationResponse" resultType="java.lang.String" useCache="false" flushCache="true" timeout="5">
+ SELECT CASE WHEN OCTET_LENGTH(o.response_ref) &lt;= #{maximumPayloadBytes} THEN o.response_ref ELSE NULL END
+ FROM audit_event a LEFT JOIN operation_record o ON o.tenant_id=a.tenant_id AND o.operation_id=#{operationId}
+ WHERE a.project_id=#{projectId} AND a.audit_id=#{auditId} AND a.action='document.revision.saved'
+</select>
+<select id="target" resultMap="Target" useCache="false" flushCache="true" timeout="5">
+ SELECT r.project_id AS revision_project_id,r.document_id AS revision_document_id,r.document_revision,r.snapshot_id AS revision_snapshot_id,r.body_sha256 AS revision_body_sha256,
+ m.project_id AS metadata_project_id,m.document_id AS metadata_document_id,m.document_revision AS metadata_revision,m.snapshot_id AS metadata_snapshot_id,m.body_sha256 AS metadata_body_sha256,m.content_sha256 AS metadata_content_sha256,m.based_on_document_revision AS based_on_revision,m.created_by,m.created_at,m.classification,
+ v.version_id,v.owner_project_id AS version_project_id,v.entity_kind AS version_kind,v.content_sha256 AS version_content_sha256,d.project_id AS owner_project_id,d.document_id AS owner_document_id
+ FROM audit_event a
+ LEFT JOIN document_revision r ON r.tenant_id=a.tenant_id AND r.project_id=a.project_id AND r.document_revision=#{documentRevision}
+ LEFT JOIN document_revision_meta m ON m.tenant_id=a.tenant_id AND m.project_id=a.project_id AND m.document_revision=#{documentRevision}
+ LEFT JOIN version_registry v ON v.tenant_id=a.tenant_id AND v.version_id=#{documentRevision}
+ LEFT JOIN document_head d ON d.tenant_id=a.tenant_id AND d.project_id=a.project_id AND d.document_id=#{documentId}
+ WHERE a.project_id=#{projectId} AND a.audit_id=#{auditId} AND a.action='document.revision.saved'
+</select>
+<select id="checks" resultType="java.lang.String" useCache="false" flushCache="true" timeout="5">
+
+  SELECT c.check_id FROM check_run c WHERE c.project_id=#{projectId} AND c.target_kind='DOCUMENT'
+   AND c.target_id=#{documentId} AND c.target_revision=#{documentRevision} ORDER BY c.check_id LIMIT #{limit}
+
+</select>
+<select id="reviews" resultType="java.lang.String" useCache="false" flushCache="true" timeout="5">
+
+  SELECT r.review_id FROM review_decision r
+  JOIN document_revision_meta m ON m.tenant_id=r.tenant_id AND m.project_id=r.project_id AND m.document_revision=r.document_revision
+  WHERE r.project_id=#{projectId} AND m.document_id=#{documentId} AND r.document_revision=#{documentRevision}
+  ORDER BY r.review_id LIMIT #{limit}
+
+</select>
+<select id="signatures" resultType="java.lang.String" useCache="false" flushCache="true" timeout="5">
+
+  SELECT s.signature_id FROM signature_record s WHERE s.project_id=#{projectId} AND s.document_id=#{documentId}
+   AND s.document_revision=#{documentRevision} ORDER BY s.signature_id LIMIT #{limit}
+
+</select>
+</mapper>

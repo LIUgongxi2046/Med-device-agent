@@ -1,0 +1,144 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:annotation-write-view:1.0.0",
+  "description": "Local recovery identity and digests only; never stores comment text, Selection or document body.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "actor",
+    "context",
+    "operation",
+    "key",
+    "document_id",
+    "document_revision",
+    "annotation_id",
+    "expected_revision",
+    "body_sha256",
+    "fixed_body_sha256",
+    "issue_watermark",
+    "evidence_watermark",
+    "status"
+  ],
+  "properties": {
+    "actor": {
+      "$ref": "urn:medical:annotation-threads:1.0.0#/$defs/Id"
+    },
+    "context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tenant_id",
+        "context_revision",
+        "auth_epoch",
+        "governance_epoch"
+      ],
+      "properties": {
+        "tenant_id": {
+          "$ref": "urn:medical:annotation-threads:1.0.0#/$defs/Id"
+        },
+        "context_revision": {
+          "$ref": "urn:medical:annotation-threads:1.0.0#/$defs/Revision"
+        },
+        "auth_epoch": {
+          "$ref": "urn:medical:annotation-threads:1.0.0#/$defs/Revision"
+        },
+        "governance_epoch": {
+          "$ref": "urn:medical:annotation-threads:1.0.0#/$defs/Revision"
+        }
+      }
+    },
+    "operation": {
+      "enum": [
+        "RV-04-THREAD-1",
+        "RV-05-REPLY-1",
+        "RV-06-DECISION-1"
+      ]
+    },
+    "key": {
+      "$ref": "urn:medical:annotation-threads:1.0.0#/$defs/Id"
+    },
+    "document_id": {
+      "$ref": "urn:medical:annotation-threads:1.0.0#/$defs/Id"
+    },
+    "document_revision": {
+      "$ref": "urn:medical:annotation-threads:1.0.0#/$defs/Id"
+    },
+    "annotation_id": {
+      "oneOf": [
+        {
+          "$ref": "urn:medical:annotation-threads:1.0.0#/$defs/Id"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "expected_revision": {
+      "$ref": "urn:medical:annotation-threads:1.0.0#/$defs/Revision"
+    },
+    "body_sha256": {
+      "$ref": "urn:medical:annotation-threads:1.0.0#/$defs/Hash"
+    },
+    "fixed_body_sha256": {
+      "$ref": "urn:medical:annotation-threads:1.0.0#/$defs/Hash"
+    },
+    "issue_watermark": {
+      "$ref": "urn:medical:annotation-threads:1.0.0#/$defs/Revision"
+    },
+    "evidence_watermark": {
+      "$ref": "urn:medical:annotation-threads:1.0.0#/$defs/Revision"
+    },
+    "status": {
+      "oneOf": [
+        {
+          "$ref": "urn:medical:annotation-threads:1.0.0#/$defs/Status"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "expected_document_revision": {
+      "$ref": "urn:medical:annotation-threads:1.0.0#/$defs/Revision"
+    },
+    "decision": {
+      "enum": [
+        "RESOLVE",
+        "REOPEN"
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "operation": {
+            "const": "RV-06-DECISION-1"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "expected_document_revision",
+          "decision"
+        ]
+      },
+      "else": {
+        "not": {
+          "anyOf": [
+            {
+              "required": [
+                "expected_document_revision"
+              ]
+            },
+            {
+              "required": [
+                "decision"
+              ]
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

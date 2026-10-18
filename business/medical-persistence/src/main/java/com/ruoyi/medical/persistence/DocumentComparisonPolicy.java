@@ -1,0 +1,9 @@
+package com.ruoyi.medical.persistence;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+@ConfigurationProperties("medical.document-comparison")
+public record DocumentComparisonPolicy(boolean enabled,Integer maximumNodes,Integer maximumCells,Integer maximumRelationships,Integer maximumInputBytes,Integer maximumResultBytes,Integer maximumRecords,Integer maximumTextCodePoints,Long maximumWork,Long maximumMilliseconds,Integer storageSeconds,Integer maximumVersions,Integer maximumLineageRelations){
+ public DocumentComparisonPolicy{if(enabled&&(maximumNodes==null||maximumNodes<1||maximumCells==null||maximumCells<1||maximumRelationships==null||maximumRelationships<1||maximumInputBytes==null||maximumInputBytes<1||maximumInputBytes==Integer.MAX_VALUE||maximumResultBytes==null||maximumResultBytes<1||maximumResultBytes==Integer.MAX_VALUE||maximumRecords==null||maximumRecords<1||maximumRecords==Integer.MAX_VALUE||maximumTextCodePoints==null||maximumTextCodePoints<1||maximumWork==null||maximumWork<1||maximumMilliseconds==null||maximumMilliseconds<1||maximumMilliseconds>86400000||storageSeconds==null||storageSeconds<1||maximumVersions==null||maximumVersions<1||maximumLineageRelations==null||maximumLineageRelations<1))throw new IllegalArgumentException("DOCUMENT_COMPARISON_CAPACITY_REQUIRED");}
+ void requireConfigured(){if(!enabled)throw new TenantAccessException(com.ruoyi.medical.contracts.ErrorCode.DEPENDENCY_UNAVAILABLE);}
+ DocumentStructuralComparisonEngine.Limits limits(){requireConfigured();return new DocumentStructuralComparisonEngine.Limits(maximumNodes,maximumCells,maximumRelationships,maximumInputBytes,maximumResultBytes,maximumRecords,maximumTextCodePoints,maximumWork,maximumMilliseconds);}
+ DependencyLineage.Limits lineageLimits(){return new DependencyLineage.Limits(maximumVersions,maximumLineageRelations);}
+}

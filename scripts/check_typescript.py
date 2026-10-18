@@ -22,8 +22,12 @@ def main():
     package = ROOT / "contracts/typescript"
     catalogue = json.loads((ROOT / "contracts/catalogue.json").read_bytes())
     dataset = json.loads((ROOT / "data-design/sample_dataset.json").read_bytes())
-    inputs = {"scripts/check_typescript.py", "contracts/catalogue.json", "data-design/sample_dataset.json", "LLD-后端.md"}
+    inputs = {"scripts/check_typescript.py", "contracts/catalogue.json", "business/medical-persistence/src/main/resources/evaluation-results.schema.json", "contracts/extensions/evaluation-results.catalogue.json", "data-design/sample_dataset.json", "LLD-后端.md"}
+    inputs.add("contracts/extensions/simulation-execution.catalogue.json")
+    inputs.add("contracts/fixtures/simulation-context.synthetic.json")
+    inputs.update(entry["path"] for entry in json.loads((ROOT / "contracts/extensions/simulation-execution.catalogue.json").read_bytes())["schemas"])
     inputs.update(entry["path"] for entry in catalogue["schemas"])
+    inputs.update(entry["path"] for entry in json.loads((ROOT / "contracts/extensions/evaluation-results.catalogue.json").read_bytes())["schemas"])
     inputs.update(str(path.relative_to(ROOT)) for directory in ("src", "tests") for path in (package / directory).rglob("*.ts"))
     inputs.update("contracts/typescript/" + name for name in ("package.json", "package-lock.json", "tsconfig.json"))
     for source in dataset["sources"]:

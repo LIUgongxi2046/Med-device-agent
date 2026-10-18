@@ -17,10 +17,19 @@ public final class ArtifactRegistry {
     private final DependencyManifestSchema manifests;
     private final SchemaCatalogue schemas;
     private final DependencyLineage lineage;
+    private final org.springframework.beans.factory.ObjectProvider<SimulationArtifactReadGuard> simulationReads;
 
     public ArtifactRegistry(ArtifactRegistryMapper mapper, ResourceReadAuthority authority, DependencyManifestSchema manifests, DependencyLineage lineage)
             throws IOException, NoSuchAlgorithmException {
-        this.mapper = mapper; this.authority = authority; this.manifests = manifests; this.lineage = lineage; schemas = SchemaCatalogue.fromClasspath();
+        this(mapper,authority,manifests,lineage,null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public ArtifactRegistry(ArtifactRegistryMapper mapper, ResourceReadAuthority authority, DependencyManifestSchema manifests,
+            DependencyLineage lineage,org.springframework.beans.factory.ObjectProvider<SimulationArtifactReadGuard> simulationReads)
+            throws IOException, NoSuchAlgorithmException {
+        this.mapper = mapper; this.authority = authority; this.manifests = manifests; this.lineage = lineage;
+        this.simulationReads=simulationReads; schemas = SchemaCatalogue.fromClasspath();
     }
 
     ArtifactRegistryProtocol.Registration requireRegistration(EnterpriseAccess.Admission admission, String id,
@@ -31,6 +40,8 @@ public final class ArtifactRegistry {
         // 主资源与制品分别授权，登记数据不能决定调用方应读取的领域类型。
         var resourceGrant = authority.require(admission, required.scope(), required.action(), required.purpose());
         var artifact = single(mapper.artifact(id)); var binding = single(mapper.binding(id));
+        FormalPublicationArtifactBoundary.requireGenericAllowed(artifact, binding);
+        RuntimeArtifactReadBoundary.requireGenericAllowed(artifact, binding);
         var artifactGrant = authority.require(admission, new PermissionProtocol.Scope(tenant, artifact.projectId(), "ARTIFACT", id),
             "artifact.read", required.purpose());
         if (!tenant.equals(artifact.tenantId()) || !tenant.equals(binding.tenantId()) || !id.equals(artifact.artifactId())
@@ -40,7 +51,8 @@ public final class ArtifactRegistry {
                 || !required.schemaRef().equals(binding.schemaRef()) || !required.schemaDocumentSha256().equals(binding.schemaDocumentSha256())
                 || !"1.0.0".equals(artifact.schemaVersion()) || !required.artifactSchemaManifest().equals(artifact.schemaManifest())
                 || !artifact.sha256().equals(artifact.contentSha256())) mismatch();
-        schemas.requirePublished(required.schemaRef(), required.schemaDocumentSha256());
+        if(!requireLocalSimulationSchema(artifact,required) && !requireLocalFormalInputSchema(artifact,required))
+            schemas.requirePublished(required.schemaRef(), required.schemaDocumentSha256());
         StoredObjectReferences.decode(artifact.storedObject(), artifact.reference());
         requireVersion(id, artifact.projectId(), artifact.sha256());
         var row = single(mapper.manifest(artifact.accessSetId()));
@@ -49,9 +61,43 @@ public final class ArtifactRegistry {
         var manifest = manifests.verify(row, mapper.members(row.accessSetId()));
         requireVersion(row.accessSetId(), row.projectId(), row.manifestSha256());
         var completeLineage = lineage.require(id, manifest.members(), required.lineageLimits());
+        if (List.of("MODEL_RESULT", "SIMULATION_PROVENANCE").contains(artifact.artifactKind())
+                && "EVALUATION".equals(binding.resourceKind())) {
+            // Lazy resolution breaks Registry -> context -> references -> version authority -> Registry.
+            var guard=simulationReads==null?null:simulationReads.getIfAvailable();
+            if(guard==null)denied();
+            guard.require(admission,artifact,binding,required);
+        }
         return new ArtifactRegistryProtocol.Registration(artifact, binding, manifest, artifactGrant, resourceGrant, completeLineage);
     }
 
+    /** One explicit trusted local schema; all other references retain frozen catalogue validation. */
+    static boolean requireLocalSimulationSchema(ArtifactRegistryProtocol.ArtifactRow artifact,
+            ArtifactRegistryProtocol.ReadRequirement required)throws IOException {
+        if(!SimulationAuthorizedUseEvidenceSchema.REF.equals(required.schemaRef()))return false;
+        String digest=SimulationAuthorizedUseEvidenceSchema.schemaDocumentSha256();
+        if(!"SIM_AUTHORIZED_USE_EVIDENCE".equals(artifact.artifactKind())
+            ||!"SIMULATION_EVALUATION".equals(required.purpose())||!"SOURCE".equals(required.scope().resource_kind())
+            ||required.scope().project_id()!=null||artifact.projectId()!=null||!"source.read".equals(required.action())
+            ||!digest.equals(required.schemaDocumentSha256())||!digest.equals(required.artifactSchemaManifest()))mismatch();
+        return true;
+    }
+    /** Exact local formal-input descriptor; registration alone never authorizes content transport. */
+    static boolean requireLocalFormalInputSchema(ArtifactRegistryProtocol.ArtifactRow artifact,
+            ArtifactRegistryProtocol.ReadRequirement required)throws IOException {
+        final String ref="urn:medical:formal-evaluation-input:1.0.0#/$defs/Document";
+        final String digest="4df9e483516bc858837897bb27bcc0a9df7d561d84b90800215fdc1e525aedda";
+        if(!ref.equals(required.schemaRef()))return false;
+        if(!"FORMAL_EVALUATION_INPUT".equals(artifact.artifactKind())
+            ||!"SOURCE".equals(required.scope().resource_kind())||required.scope().project_id()!=null
+            ||artifact.projectId()!=null||!"source.read".equals(required.action())
+            ||required.purpose()==null||!required.purpose().matches("[A-Z][A-Z0-9_]{0,63}")
+            ||!digest.equals(required.schemaDocumentSha256())||!digest.equals(required.artifactSchemaManifest()))mismatch();
+        try(var in=ArtifactRegistry.class.getResourceAsStream("/formal-evaluation-input.schema.json")) {
+            if(in==null||!digest.equals(org.apache.commons.codec.digest.DigestUtils.sha256Hex(in)))mismatch();
+        }
+        return true;
+    }
     private void requireVersion(String id, String project, String digest) {
         var version = single(mapper.version(id));
         if (!id.equals(version.id()) || !Objects.equals(project, version.projectId()) || !digest.equals(version.contentSha256())) mismatch();

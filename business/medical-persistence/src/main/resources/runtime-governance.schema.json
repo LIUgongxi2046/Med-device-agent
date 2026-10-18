@@ -1,0 +1,688 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:runtime-governance:1.0.0",
+  "$defs": {
+    "Id": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "Hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "Count": {
+      "type": "string",
+      "pattern": "^[1-9][0-9]{0,17}$"
+    },
+    "Time": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?Z$"
+    },
+    "Classification": {
+      "enum": [
+        "PUBLIC",
+        "INTERNAL",
+        "RESTRICTED",
+        "PERSONAL_HEALTH"
+      ]
+    },
+    "NullableId": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Id"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "Term": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "category",
+        "start_event",
+        "retention_duration_seconds",
+        "hold_override",
+        "purge_method",
+        "backup_expiry_seconds"
+      ],
+      "properties": {
+        "category": {
+          "enum": [
+            "RUN",
+            "STREAM"
+          ]
+        },
+        "start_event": {
+          "enum": [
+            "RUN_CREATED",
+            "STREAM_CREATED"
+          ]
+        },
+        "retention_duration_seconds": {
+          "$ref": "#/$defs/Count"
+        },
+        "hold_override": {
+          "const": false
+        },
+        "purge_method": {
+          "enum": [
+            "CRYPTOGRAPHIC_ERASURE",
+            "VERIFIED_DELETE"
+          ]
+        },
+        "backup_expiry_seconds": {
+          "$ref": "#/$defs/Count"
+        }
+      }
+    },
+    "RetentionRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "project_id",
+        "classification",
+        "effective_from",
+        "effective_until",
+        "terms",
+        "reason"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "project_id": {
+          "$ref": "#/$defs/NullableId"
+        },
+        "classification": {
+          "$ref": "#/$defs/Classification"
+        },
+        "effective_from": {
+          "$ref": "#/$defs/Time"
+        },
+        "effective_until": {
+          "$ref": "#/$defs/Time"
+        },
+        "terms": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {
+            "$ref": "#/$defs/Term"
+          }
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+        }
+      }
+    },
+    "Grant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "grant_id",
+        "revision"
+      ],
+      "properties": {
+        "grant_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "revision": {
+          "$ref": "#/$defs/Count"
+        }
+      }
+    },
+    "RetentionFixed": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "tenant_id",
+        "policy_revision",
+        "request",
+        "approved_by",
+        "approved_at",
+        "approval_grant"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "tenant_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "policy_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "request": {
+          "$ref": "#/$defs/RetentionRequest"
+        },
+        "approved_by": {
+          "$ref": "#/$defs/Id"
+        },
+        "approved_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "approval_grant": {
+          "$ref": "#/$defs/Grant"
+        }
+      }
+    },
+    "RetentionReceipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "policy_revision",
+        "operation_id",
+        "request_body_sha256",
+        "content_sha256",
+        "status"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "policy_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "operation_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "request_body_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "content_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "status": {
+          "const": "APPROVED"
+        }
+      }
+    },
+    "ModelEligibilityBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "provider",
+        "model_id",
+        "model_version",
+        "model_config_revision",
+        "config_id",
+        "config_content_sha256",
+        "connection_verification_id",
+        "credential_reference_id",
+        "credential_revision",
+        "price_version",
+        "data_policy_version",
+        "allowed_classifications",
+        "allowed_regions",
+        "allow_training"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "provider": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "model_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "model_version": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "model_config_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "config_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "config_content_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "connection_verification_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "credential_reference_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "credential_revision": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "price_version": {
+          "$ref": "#/$defs/Id"
+        },
+        "data_policy_version": {
+          "$ref": "#/$defs/Id"
+        },
+        "allowed_classifications": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 100,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          }
+        },
+        "allowed_regions": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 100,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          }
+        },
+        "allow_training": {
+          "type": "boolean"
+        }
+      }
+    },
+    "ModelPolicyEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_version",
+        "rights_revision",
+        "project_id",
+        "snapshot_id",
+        "parse_version"
+      ],
+      "properties": {
+        "source_version": {
+          "$ref": "#/$defs/Id"
+        },
+        "rights_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "project_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "snapshot_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "parse_version": {
+          "$ref": "#/$defs/Id"
+        }
+      }
+    },
+    "ModelEnableRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "model_config_revision",
+        "connection_verification_id",
+        "data_policy_evidence",
+        "reason"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "model_config_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "connection_verification_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "data_policy_evidence": {
+          "$ref": "#/$defs/ModelPolicyEvidence"
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+        }
+      }
+    },
+    "ModelEnableFixed": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "tenant_id",
+        "eligibility_id",
+        "request",
+        "binding",
+        "approved_by",
+        "approved_at",
+        "approval_grant"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "tenant_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "eligibility_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "request": {
+          "$ref": "#/$defs/ModelEnableRequest"
+        },
+        "binding": {
+          "$ref": "#/$defs/ModelEligibilityBinding"
+        },
+        "approved_by": {
+          "$ref": "#/$defs/Id"
+        },
+        "approved_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "approval_grant": {
+          "$ref": "#/$defs/Grant"
+        }
+      }
+    },
+    "ModelEnableReceipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "eligibility_id",
+        "model_config_revision",
+        "operation_id",
+        "request_body_sha256",
+        "content_sha256",
+        "status"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "eligibility_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "model_config_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "operation_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "request_body_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "content_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "status": {
+          "const": "ENABLED"
+        }
+      }
+    },
+    "RetentionRecovery": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "status",
+        "receipt"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "status": {
+          "enum": [
+            "FOUND",
+            "NOT_FOUND"
+          ]
+        },
+        "receipt": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RetentionReceipt"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "ConnectionStarted": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "verification_id",
+        "operation_id",
+        "request_body_sha256",
+        "status",
+        "invocation_id"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "verification_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "operation_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "request_body_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "status": {
+          "const": "RUNNING"
+        },
+        "invocation_id": {
+          "$ref": "#/$defs/NullableId"
+        }
+      }
+    },
+    "ConnectionPassed": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "verification_id",
+        "operation_id",
+        "request_body_sha256",
+        "status",
+        "invocation_id",
+        "receipt_sha256"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "verification_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "operation_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "request_body_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "status": {
+          "const": "PASSED"
+        },
+        "invocation_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "receipt_sha256": {
+          "$ref": "#/$defs/Hash"
+        }
+      }
+    },
+    "ConnectionUnknown": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "status",
+        "verification_id",
+        "request_body_sha256",
+        "receipt"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "status": {
+          "const": "UNKNOWN"
+        },
+        "verification_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "request_body_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "receipt": {
+          "type": "null"
+        }
+      }
+    },
+    "ConnectionNotFound": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "status",
+        "receipt"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "status": {
+          "const": "NOT_FOUND"
+        },
+        "receipt": {
+          "type": "null"
+        }
+      }
+    },
+    "ConnectionResult": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/ConnectionStarted"
+        },
+        {
+          "$ref": "#/$defs/ConnectionPassed"
+        },
+        {
+          "$ref": "#/$defs/ConnectionUnknown"
+        },
+        {
+          "$ref": "#/$defs/ConnectionNotFound"
+        }
+      ]
+    },
+    "ModelEnableRecovery": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "status",
+        "receipt"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "status": {
+          "enum": [
+            "FOUND",
+            "NOT_FOUND"
+          ]
+        },
+        "receipt": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ModelEnableReceipt"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "Context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tenant_id",
+        "context_revision",
+        "auth_epoch",
+        "governance_epoch"
+      ],
+      "properties": {
+        "tenant_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "context_revision": {
+          "$ref": "#/$defs/Count"
+        },
+        "auth_epoch": {
+          "$ref": "#/$defs/Count"
+        },
+        "governance_epoch": {
+          "$ref": "#/$defs/Count"
+        }
+      }
+    },
+    "ModelRuntimeAvailability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "current_context",
+        "model_runtime_enabled",
+        "supported_model_scope",
+        "supported_providers",
+        "supported_reasoning_efforts"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "current_context": {
+          "$ref": "#/$defs/Context"
+        },
+        "model_runtime_enabled": {
+          "type": "boolean"
+        },
+        "supported_model_scope": {
+          "const": "PROJECT"
+        },
+        "supported_providers": {
+          "const": [
+            "DEEPSEEK"
+          ]
+        },
+        "supported_reasoning_efforts": {
+          "const": [
+            "none"
+          ]
+        }
+      }
+    }
+  }
+}

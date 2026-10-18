@@ -1,0 +1,16 @@
+{
+  "schema_version": "1.0.0",
+  "base_catalogue_sha256": "dcd72acbb7a45775373662e0ffe4557030d4740b0afacdee8375e7768e761915",
+  "schemas": [
+    {
+      "name": "formal-evaluation-input",
+      "path": "business/medical-persistence/src/main/resources/formal-evaluation-input.schema.json",
+      "sha256": "4df9e483516bc858837897bb27bcc0a9df7d561d84b90800215fdc1e525aedda"
+    },
+    {
+      "name": "evaluation-context-compiler",
+      "path": "business/medical-persistence/src/main/resources/evaluation-context-compiler.schema.json",
+      "sha256": "b817fd2f4f5b9de881f567623698402e497837d0c97a76af2b59cab352e75202"
+    }
+  ]
+}

@@ -50,12 +50,19 @@ export async function createDocumentSelection(body: DocumentBody, documentRevisi
   signal.throwIfAborted(); validate(documentReference + 'Id', documentRevision)
   const original = immutableDocumentValue(body); const ordered = orderedDocumentNodes(original)
   if (requests.length === 0) fail('SELECTION_INVALID', '请选择正文文字、图片或表格单元格')
+  const nodes = new Map(ordered.map(item => [item.node.node_id, item.node]))
+  const coveredCellRoots = new Set<string>()
   const seen = new Set<string>(); let previous = -1
   const segments: Selection['segments'] = []
   for (const request of requests) {
     const index = ordered.findIndex(item => item.node.node_id === request.node_id)
     const node = ordered[index]?.node
     if (!node || seen.has(request.node_id) || index <= previous) fail('SELECTION_INVALID', '选区需要按正文顺序选择不同节点')
+    // A selected cell covers its direct child roots and their complete subtrees.
+    // Ancestor TABLE segments precede descendants in the validated document order.
+    for (let current: Node | undefined = node; current; current = current.parent_id === null ? undefined : nodes.get(current.parent_id)) {
+      if (coveredCellRoots.has(current.node_id)) fail('SELECTION_INVALID', '选区不能与已选择的表格单元格重叠')
+    }
     seen.add(request.node_id); previous = index
     if (request.kind === 'TEXT') {
       if (node.content.kind !== 'TEXT') fail('SELECTION_INVALID', '文字选区必须对应文字节点')
@@ -77,6 +84,10 @@ export async function createDocumentSelection(body: DocumentBody, documentRevisi
       if (cells.length !== request.cell_ids.length) fail('SELECTION_INVALID', '表格选区包含未知单元格')
       const rows = new Set<string>(); const columns = new Set<string>()
       for (const position of cells) {
+        for (const id of position.cell.node_ids) {
+          if (nodes.get(id)?.parent_id !== node.node_id || coveredCellRoots.has(id)) fail('SELECTION_INVALID', '表格单元格包含无效或重复的正文节点')
+          coveredCellRoots.add(id)
+        }
         node.content.row_ids.slice(position.row, position.row + position.cell.row_span).forEach(id => rows.add(id))
         node.content.column_ids.slice(position.column, position.column + position.cell.column_span).forEach(id => columns.add(id))
       }

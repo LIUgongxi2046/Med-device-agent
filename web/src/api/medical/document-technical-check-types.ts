@@ -1,0 +1,14 @@
+// Types from staged 068 closed schema; runtime validation remains mandatory.
+export type TechnicalId = string
+export type TechnicalHash = string
+export type TechnicalLimits = {maximum_nodes:number;maximum_table_cells:number;maximum_relationships:number}
+export type TechnicalInput = {schema_version:"1.0.0";tenant_id:TechnicalId;project_id:TechnicalId;document_id:TechnicalId;document_revision:TechnicalId;body_sha256:TechnicalHash;baseline_sha256:TechnicalHash;body_schema_ref:string;body_schema_sha256:TechnicalHash;execution_manifest_id:TechnicalId;check_kind:"STRUCTURE_FIXED_REFERENCES";checker_id:"urn:medical:document-technical-check:structure-fixed-references:1.0.0";limits:TechnicalLimits}
+export type TechnicalCoverage = {schema_version:"1.0.0";check_kind:"STRUCTURE_FIXED_REFERENCES";selection_sha256:TechnicalHash;delivered_sha256:TechnicalHash;complete:true;next_cursor:null}
+export type TechnicalFinding = {code:"DOCUMENT_STRUCTURE_INVALID";check_kind:"STRUCTURE_FIXED_REFERENCES";message:"The fixed document failed structural or internal-reference validation."}
+export type TechnicalResult = {schema_version:"1.0.0";checker_id:"urn:medical:document-technical-check:structure-fixed-references:1.0.0";check_kind:"STRUCTURE_FIXED_REFERENCES";input:TechnicalInput;input_sha256:TechnicalHash;execution_status:"COMPLETED";technical_result:"PASS"|"FAIL";findings:(TechnicalFinding)[];coverage:TechnicalCoverage;professional_coverage:"UNKNOWN";review_ready:false}
+export type TechnicalBasis = {version_id:TechnicalId;content_sha256:TechnicalHash}
+export type TechnicalRequest = {schema_version:"1.0.0";document_revision:TechnicalId;expected_revision:string;reason:string}
+export type TechnicalReceipt = {schema_version:"1.0.0";check_id:TechnicalId;job_id:TechnicalId;operation_id:TechnicalId;document_id:TechnicalId;document_revision:TechnicalId;input_sha256:TechnicalHash;technical_execution:"COMPLETE";technical_result:"PASS"|"FAIL";coverage_artifact:TechnicalBasis;findings_artifact:TechnicalBasis;professional_coverage:"UNKNOWN";overall_review_ready:false;request_body_sha256:TechnicalHash}
+export type TechnicalRead = {schema_version:"1.0.0";currentness:"CURRENT"|"STALE";invalidation_reasons:(string)[];receipt:TechnicalReceipt;result:TechnicalResult;coverage:TechnicalCoverage}
+export type TechnicalExecutionManifest = {schema_version:"1.0.0";manifest_kind:"TECHNICAL_CHECK_MANIFEST";checker_id:"urn:medical:document-technical-check:structure-fixed-references:1.0.0";implementation_sha256:TechnicalHash;schema_manifest_sha256:TechnicalHash;limits:TechnicalLimits}
+export type TechnicalRecovery = {schema_version:"1.0.0";state:"NOT_FOUND"|"PROCESSING"|"COMPLETED";request_body_sha256:TechnicalHash|null;check_id:TechnicalId|null;receipt:TechnicalReceipt|null;execution_mode:"SYNC_REQUEST";overall_review_ready:false}

@@ -1,0 +1,84 @@
+openapi: 3.1.0
+info:
+  title: 固定文稿标注线程扩展
+  version: 1.0.0
+  description: >-
+    IMP-23 的独立创建与完整读取切片，创建真实 annotation 和 Selection 对象。
+    不替换冻结 RV-04/BX-11 Record/RecordPage/AnnotationDetail ArtifactRef 契约；
+    不实施解决、重新定位、人工确认、任务状态迁移或签发。
+jsonSchemaDialect: https://json-schema.org/draft/2020-12/schema
+security: [{Session: []}]
+components:
+  securitySchemes:
+    Session: {type: apiKey, in: cookie, name: SESSION}
+  parameters:
+    Id: &id {name: id, in: path, required: true, schema: {$ref: '../business/medical-persistence/src/main/resources/annotation-threads.schema.json#/$defs/Id'}}
+    Version: &version {name: X-Schema-Version, in: header, required: true, schema: {const: 1.0.0}}
+    Context: &context {name: X-Context-Revision, in: header, required: true, schema: {$ref: '../business/medical-persistence/src/main/resources/annotation-threads.schema.json#/$defs/Revision'}}
+    Idempotency: &idem {name: Idempotency-Key, in: header, required: true, schema: {type: string, minLength: 16, maxLength: 128, pattern: '^[\x21-\x7e]+$'}}
+    CSRF: &csrf {name: X-CSRF-Token, in: header, required: true, schema: {type: string, minLength: 1}}
+  responses:
+    Error: &error
+      description: 当前会话、企业、许可、来源、版本、选区、容量或实际对象验证拒绝；不返回正文、意见、SQL、对象路径或供应商异常。
+      content: {application/json: {schema: {$ref: './interfaces.schema.yaml#/$defs/Error'}}}
+paths:
+  /api/documents/{id}/annotation-threads:
+    post:
+      operationId: createAnnotationThreadV1
+      description: >-
+        使用原 AnnotationInput 的 document_revision, selection, content, expected_revision。
+        expected_revision 为 document_head.revision；Selection.document_revision 必须等于指定固定正文。
+        新写入只接受 ACTIVE 项目当前未签发正文。要求 annotation.write 的 DOCUMENT/DOCUMENT_REVIEW 许可，
+        并复用 DOCUMENT_BODY 文稿、制品、全部固定来源及上游版本当前读取许可，不扩大来源用途。
+        文本最多16000 Unicode code points；保持原 Unicode、空格和换行，空白及非法 Unicode 拒绝。
+        Servlet 在读取前核验身份，声明长度和实际流均最多1048576字节。
+        每条标注为全部未来可读视图预留最多65536规范UTF-8字节（包含最长状态、位置状态、20位修订及回复数、完整时间），
+        超限返回422 CONTEXT_LIMIT；同一固定正文最多100条，最多1000项全稿确认失效。
+        在真实对象I/O前持久保存 PROCESSING 操作和固定 write-id、object-key、摘要、大小，
+        使用现有 S3ObjectWriter.writeVerified/recoverVerified；没有对象替代引用或未实现写入端口。
+        最终同一企业事务登记真实 Selection version/artifact/binding/完整lineage、OPEN标注、document head CAS、
+        issue_watermark+1、既有当前全稿CONFIRM的review_invalidation、原操作回执、审计和Outbox。
+        trigger_version 是实际 Selection 制品版本。保持历史签发记录和 evidence_watermark；不推断任务状态迁移。
+        原幂等键在当前授权下核验原标注和实际对象并返回原回执；未知对象写入使用相同固定写入身份恢复，不创建替代键。
+        审计与Outbox只有身份、水位和摘要，不包含意见内容、Selection原文或私有对象地址。
+      parameters: [*id, *version, *context, *idem, *csrf]
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: '../business/medical-persistence/src/main/resources/annotation-threads.schema.json#/$defs/Create'}}}
+      responses:
+        '201':
+          description: Envelope.resource_revision 和 Receipt.revision 为新的文稿头修订；annotation.revision 为1。重放返回原完整201。
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - {$ref: './interfaces.schema.yaml#/$defs/Envelope'}
+                  - properties: {data: {$ref: '../business/medical-persistence/src/main/resources/annotation-threads.schema.json#/$defs/Receipt'}}
+        default: *error
+    get:
+      operationId: listAnnotationThreadsV1
+      description: >-
+        annotation.read 的 DOCUMENT/DOCUMENT_REVIEW 许可，加上原正文的当前完整来源读取许可。
+        读取固定 document_revision，可选status；不接收分页游标、页码或未知参数，不截断结果。
+        按created_at及annotation_id稳定顺序返回完整集合、完整数量和规范集合摘要。
+        最多100条、完整响应最多8388608字节，超限返回422 CONTEXT_LIMIT。
+        每个Selection必须从实际对象完整读取并核验登记、摘要、SQL副本及原正文定位，返回前重查完整文稿/授权水位、集合和回复数。
+        历史正文使用HISTORY读取许可并显示ORIGINAL_VERSION；REANCHOR_REQUIRED不改写。
+        只接受本扩展已声明的存储schema_manifest；无法解释的历史记录明确拒绝，不猜测其quoted_sha256语义。
+        location_status依据固定正文与当前头是否相同；标注状态与位置状态独立。
+      parameters:
+        - *id
+        - *version
+        - *context
+        - {name: document_revision, in: query, required: true, schema: {$ref: '../business/medical-persistence/src/main/resources/annotation-threads.schema.json#/$defs/Id'}}
+        - {name: status, in: query, required: false, schema: {$ref: '../business/medical-persistence/src/main/resources/annotation-threads.schema.json#/$defs/Status'}}
+      responses:
+        '200':
+          description: Envelope.resource_revision/Listing.revision为当前文稿头修订；每条annotation.revision供回复CAS使用，complete恒为true。
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - {$ref: './interfaces.schema.yaml#/$defs/Envelope'}
+                  - properties: {data: {$ref: '../business/medical-persistence/src/main/resources/annotation-threads.schema.json#/$defs/Listing'}}
+        default: *error

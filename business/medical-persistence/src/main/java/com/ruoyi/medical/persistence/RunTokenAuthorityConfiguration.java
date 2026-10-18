@@ -18,14 +18,33 @@ import org.springframework.context.annotation.Configuration;
 class RunTokenAuthorityConfiguration {
     @Bean RunTokenAuthority runTokenAuthority(@Qualifier("masterDataSource") DataSource data,TenantTransaction transactions,
             PermissionMapper permissions,PermissionAuthority authorization,RunTokenAuthoritySchema schema,
+            org.springframework.beans.factory.ObjectProvider<FormalModelVerificationBootstrap> bootstrap,
+            RunTokenPolicyStore policy,RunTokenSigningKeyStore signing,
+            @Qualifier("formalRunServiceIdentity") ServiceCertificateIdentity services) {
+        return new RunTokenAuthority(data,transactions,permissions,authorization,schema,policy,signing,services,bootstrap.getIfAvailable());
+    }
+    @Bean RunTokenPolicyStore runTokenPolicyStore(
             @Value("${medical.run-authority.configuration-directory}") Path directory,
             @Value("${medical.run-authority.configuration-owner}") String ownerName,
-            @Value("${medical.run-authority.maximum-configuration-bytes}") long maximumBytes) throws Exception {
-        if(!directory.isAbsolute() || ownerName.isBlank()) throw new IllegalArgumentException("RUN_AUTHORITY_CONFIGURATION_REQUIRED");
+            @Value("${medical.run-authority.maximum-configuration-bytes}") long maximumBytes)throws Exception {
+        if(!directory.isAbsolute() || ownerName.isBlank())throw new IllegalArgumentException("RUN_AUTHORITY_CONFIGURATION_REQUIRED");
+        return new RunTokenPolicyStore(directory,directory.getFileSystem().getUserPrincipalLookupService().lookupPrincipalByName(ownerName),maximumBytes);
+    }
+    @Bean RunTokenSigningKeyStore runTokenSigningKeyStore(RunTokenPolicyStore policy,
+            @Value("${medical.run-authority.configuration-directory}") Path directory,
+            @Value("${medical.run-authority.configuration-owner}") String ownerName,
+            @Value("${medical.run-authority.maximum-configuration-bytes}") long maximumBytes)throws Exception {
+        if(!directory.isAbsolute() || ownerName.isBlank())throw new IllegalArgumentException("RUN_AUTHORITY_CONFIGURATION_REQUIRED");
+        return new RunTokenSigningKeyStore(directory,directory.getFileSystem().getUserPrincipalLookupService().lookupPrincipalByName(ownerName),maximumBytes,policy);
+    }
+    @Bean(name="formalRunServiceIdentity")
+    ServiceCertificateIdentity formalRunServiceIdentity(
+            @Value("${medical.run-authority.configuration-directory}") Path directory,
+            @Value("${medical.run-authority.configuration-owner}") String ownerName,
+            @Value("${medical.run-authority.maximum-configuration-bytes}") long maximumBytes)throws Exception {
+        if(!directory.isAbsolute() || ownerName.isBlank())throw new IllegalArgumentException("RUN_AUTHORITY_CONFIGURATION_REQUIRED");
         var owner=directory.getFileSystem().getUserPrincipalLookupService().lookupPrincipalByName(ownerName);
-        var policy=new RunTokenPolicyStore(directory,owner,maximumBytes);
-        var signing=new RunTokenSigningKeyStore(directory,owner,maximumBytes,policy);
         var trust=new ServiceCertificateTrustStore(directory,owner,maximumBytes);
-        return new RunTokenAuthority(data,transactions,permissions,authorization,schema,policy,signing,new ServiceCertificateIdentity(trust::read));
+        return new ServiceCertificateIdentity(trust::read);
     }
 }

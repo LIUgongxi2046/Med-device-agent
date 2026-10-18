@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.medical.persistence.mapper.FormalEvaluationPolicyMapper">
+ <resultMap id="Snapshot" type="com.ruoyi.medical.persistence.mapper.FormalEvaluationPolicyMapper$Snapshot"><constructor>
+ <arg column="tenant_id" javaType="java.lang.String"/><arg column="record_id" javaType="java.lang.String"/><arg column="content_sha256" javaType="java.lang.String"/><arg column="snapshot_json" javaType="java.lang.String"/><arg column="snapshot_sha256" javaType="java.lang.String"/><arg column="input_schema_sha256" javaType="java.lang.String"/><arg column="policy_schema_sha256" javaType="java.lang.String"/>
+ </constructor></resultMap>
+ <resultMap id="Classification" type="com.ruoyi.medical.persistence.mapper.FormalEvaluationPolicyMapper$Classification"><constructor>
+ <arg column="version_id" javaType="java.lang.String"/><arg column="entity_kind" javaType="java.lang.String"/><arg column="content_sha256" javaType="java.lang.String"/><arg column="classification" javaType="java.lang.String"/><arg column="owner_classification" javaType="java.lang.String"/>
+ </constructor></resultMap>
+ <select id="dependencyClassification" resultMap="Classification" useCache="false" flushCache="true">
+ SELECT v.version_id,v.entity_kind,v.content_sha256,
+ CASE v.entity_kind WHEN 'SOURCE_VERSION' THEN s.classification WHEN 'ARTIFACT' THEN a.classification WHEN 'RULE_VERSION' THEN r.classification END AS classification,
+ CASE v.entity_kind WHEN 'SOURCE_VERSION' THEN s.classification WHEN 'ARTIFACT' THEN a.classification WHEN 'RULE_VERSION' THEN r.classification END AS owner_classification
+ FROM version_registry v
+ LEFT JOIN source_version sv ON sv.tenant_id=v.tenant_id AND sv.source_version=v.version_id AND sv.original_sha256=v.content_sha256
+ LEFT JOIN source s ON s.tenant_id=sv.tenant_id AND s.source_id=sv.source_id
+ LEFT JOIN artifact a ON a.tenant_id=v.tenant_id AND a.artifact_id=v.version_id AND a.content_sha256=v.content_sha256
+ LEFT JOIN rule_version r ON r.tenant_id=v.tenant_id AND r.rule_version=v.version_id AND r.content_sha256=v.content_sha256
+ WHERE v.version_id=#{versionId} AND v.entity_kind IN ('SOURCE_VERSION','ARTIFACT','RULE_VERSION')
+ </select>
+ <select id="snapshot" resultMap="Snapshot" useCache="false" flushCache="true">
+ SELECT tenant_id,record_id,content_sha256,snapshot_json,snapshot_sha256,input_schema_sha256,policy_schema_sha256
+ FROM formal_evaluation_policy_input WHERE record_id=#{recordId} FOR SHARE
+ </select>
+ <insert id="insertSnapshot">
+ INSERT INTO formal_evaluation_policy_input(record_id,content_sha256,snapshot_json,snapshot_sha256,input_schema_sha256,policy_schema_sha256)
+ VALUES(#{snapshot.recordId},#{snapshot.contentSha256},#{snapshot.snapshotJson},#{snapshot.snapshotSha256},#{snapshot.inputSchemaSha256},#{snapshot.policySchemaSha256})
+ </insert>
+</mapper>

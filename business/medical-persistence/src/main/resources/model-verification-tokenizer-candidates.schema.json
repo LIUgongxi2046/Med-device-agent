@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:model-verification-tokenizer-candidates:1.0.0",
+  "$defs": {
+    "Candidates": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "project_id",
+        "model_config_revision",
+        "purpose",
+        "tokenizer_basis",
+        "missing_input_reasons"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "project_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "model_config_revision": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "purpose": {
+          "const": "MODEL_CONFIGURATION"
+        },
+        "tokenizer_basis": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "version_id",
+                "content_sha256"
+              ],
+              "properties": {
+                "version_id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "content_sha256": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                }
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "missing_input_reasons": {
+          "type": "array",
+          "maxItems": 1,
+          "items": {
+            "enum": [
+              "FORMAL_RUNTIME_UNAVAILABLE",
+              "TOKENIZER_EXECUTABLE_UNAVAILABLE",
+              "TOKENIZER_SOURCE_UNAVAILABLE"
+            ]
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "tokenizer_basis": {
+                "type": "null"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "missing_input_reasons": {
+                "minItems": 1
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "missing_input_reasons": {
+                "maxItems": 0
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,246 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:annotation-replies:1.0.0",
+  "description": "Additive bounded RV-05/BX-12 reply extension. Original RecordPage/ArtifactRef contracts are unchanged. Replies preserve annotation state. Complete listing maximum 1000; requests maximum 65536 UTF-8 bytes.",
+  "$defs": {
+    "Id": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "Revision": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]{0,19})$"
+    },
+    "Hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "Content": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 16000
+    },
+    "Status": {
+      "enum": [
+        "OPEN",
+        "RESOLVED",
+        "RETURNED",
+        "REANCHOR_REQUIRED"
+      ]
+    },
+    "Create": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "document_revision",
+        "expected_revision",
+        "content"
+      ],
+      "properties": {
+        "document_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "expected_revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "content": {
+          "$ref": "#/$defs/Content"
+        }
+      }
+    },
+    "Reply": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reply_id",
+        "annotation_id",
+        "actor_id",
+        "created_at",
+        "content"
+      ],
+      "properties": {
+        "reply_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "annotation_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "content": {
+          "$ref": "#/$defs/Content"
+        }
+      }
+    },
+    "Listing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "annotation_id",
+        "document_id",
+        "document_revision",
+        "revision",
+        "status",
+        "location_status",
+        "total",
+        "complete",
+        "items",
+        "listing_sha256"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "annotation_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "document_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "document_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "status": {
+          "$ref": "#/$defs/Status"
+        },
+        "location_status": {
+          "enum": [
+            "CURRENT_VERSION",
+            "ORIGINAL_VERSION"
+          ]
+        },
+        "total": {
+          "$ref": "#/$defs/Revision"
+        },
+        "complete": {
+          "const": true
+        },
+        "items": {
+          "type": "array",
+          "maxItems": 1000,
+          "items": {
+            "$ref": "#/$defs/Reply"
+          }
+        },
+        "listing_sha256": {
+          "$ref": "#/$defs/Hash"
+        }
+      }
+    },
+    "Receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "annotation_id",
+        "document_id",
+        "document_revision",
+        "revision",
+        "status",
+        "operation_id",
+        "previous_revision",
+        "reply",
+        "reply_sha256"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "annotation_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "document_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "document_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "status": {
+          "$ref": "#/$defs/Status"
+        },
+        "operation_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "previous_revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "reply": {
+          "$ref": "#/$defs/Reply"
+        },
+        "reply_sha256": {
+          "$ref": "#/$defs/Hash"
+        }
+      }
+    },
+    "Event": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "annotation_id",
+        "document_id",
+        "document_revision",
+        "revision",
+        "status",
+        "operation_id",
+        "previous_revision",
+        "reply_id",
+        "reply_sha256",
+        "actor_id",
+        "created_at"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "annotation_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "document_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "document_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "status": {
+          "$ref": "#/$defs/Status"
+        },
+        "operation_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "previous_revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "reply_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "reply_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    }
+  }
+}

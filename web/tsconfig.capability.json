@@ -1,0 +1,4 @@
+{
+  "extends": "./tsconfig.medical.json",
+  "include": ["src/api/medical/formal-capabilit*.ts", "src/views/medical/formal-capability-*.vue", "src/medical.d.ts", "node_modules/vue-cropper/shims-vue.d.ts"]
+}

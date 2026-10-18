@@ -29,9 +29,16 @@ public final class RunTokenAuthority {
     private final RunTokenPolicyStore policies;
     private final RunTokenSigningKeyStore signing;
     private final ServiceCertificateIdentity services;
+    private final FormalModelVerificationBootstrap modelVerification;
 
     public RunTokenAuthority(DataSource data,TenantTransaction transactions,PermissionMapper permissions,PermissionAuthority authorization,
             RunTokenAuthoritySchema schema,RunTokenPolicyStore policies,RunTokenSigningKeyStore signing,ServiceCertificateIdentity services) {
+        this(data,transactions,permissions,authorization,schema,policies,signing,services,null);
+    }
+    public RunTokenAuthority(DataSource data,TenantTransaction transactions,PermissionMapper permissions,PermissionAuthority authorization,
+            RunTokenAuthoritySchema schema,RunTokenPolicyStore policies,RunTokenSigningKeyStore signing,ServiceCertificateIdentity services,
+            FormalModelVerificationBootstrap modelVerification) {
+        this.modelVerification=modelVerification;
         store=new RunTokenAuthorityStore(data); jdbc=new JdbcTemplate(data);
         this.transactions=Objects.requireNonNull(transactions); this.permissions=Objects.requireNonNull(permissions);
         this.authorization=Objects.requireNonNull(authorization); this.schema=Objects.requireNonNull(schema);
@@ -53,7 +60,8 @@ public final class RunTokenAuthority {
                 denied(ErrorCode.ACTION_STALE);
             var result=operation.apply(new Admission(admission.run().tenant(),admission.run().project(),admission.run().actor(),
                 admission.run().principal(),admission.run().id(),admission.step().id(),action.actionId(),action.generation(),admission.now(),
-                current.authEpoch(),current.governanceEpoch()));
+                current.authEpoch(),current.governanceEpoch(),verified.actionScope(),service.serviceUri(),
+                schema.permissions(admission.principal()).stream().filter(p->verified.actionScope().contains(p.action())).toList()));
             // 返回之前核查当前配置和期限，业务写入与准入使用同一个企业事务。
             requirePermission(admission,action.scope(),action.action(),action.purpose()); requireExecution(admission);
             policies.verify(token); recheckService(request,service);
@@ -200,13 +208,24 @@ public final class RunTokenAuthority {
                 || !schema.manifestSha256().equals(run.principalManifest())) denied(ErrorCode.OBJECT_UNAVAILABLE);
         if(generation!=null && (!"RUNNING".equals(step.status()) || !generation.equals(step.generation()) || generation.signum()<=0
                 || !service.serviceUri().equals(step.owner()) || step.expires()==null || !now.isBefore(step.expires()))) denied(ErrorCode.LEASE_STALE);
-        if(!"PUBLISHED".equals(step.roleStatus()) || !List.of("ACTIVE","PUBLISHED").contains(step.configurationStatus())
-                || !step.roleSha256().equals(step.registeredSha256()) || !"CAPABILITY_VERSION".equals(step.entityKind())
-                || step.roleProject()!=null && !step.roleProject().equals(run.project()) || !"1.0.0".equals(step.roleSchema())
-                || !schema.manifestSha256().equals(step.roleManifest())) denied(ErrorCode.OBJECT_UNAVAILABLE);
         var scope=schema.scopeManifest(run.scope(),run.tenant(),run.project(),actor,run.id(),run.kind());
         var principal=schema.principalManifest(run.capabilities(),run.tenant(),run.project(),actor,run.id(),run.principal(),scope);
-        schema.role(step.roleScope(),principal); schema.service(principal,service.serviceUri(),audience);
+        schema.service(principal,service.serviceUri(),audience);
+        FormalModelVerificationBootstrap.Verified bootstrap=null;
+        if(modelVerification!=null && "SYSTEM_JOB".equals(run.kind())) {
+            var kinds=jdbc.query("SELECT job_type FROM system_job_run WHERE tenant_id=? AND run_id=? AND initiator_id=? AND job_type='MODEL_VERIFICATION' AND target_kind='CONFIGURATION' FOR UPDATE",(r,n)->r.getString(1),run.tenant(),run.id(),actor);
+            if(kinds.size()>1)denied(ErrorCode.CONTENT_MISMATCH);
+            if(kinds.size()==1){
+                String roleVersion=single(jdbc.query("SELECT role_version FROM run_step WHERE tenant_id=? AND run_id=? AND step_id=? AND project_key=? FOR UPDATE",(r,n)->r.getString(1),run.tenant(),run.id(),stepId,run.project()==null?"ENTERPRISE":run.project()));
+                bootstrap=modelVerification.require(run.tenant(),actor,run.id(),stepId,roleVersion,step.roleSha256(),service.serviceUri(),audience);
+                if(!schema.permissions(principal).equals(bootstrap.nodePermissions()))denied(ErrorCode.CONTENT_MISMATCH);
+            }
+        }
+        if(!step.roleSha256().equals(step.registeredSha256()) || !"CAPABILITY_VERSION".equals(step.entityKind())
+                || step.roleProject()!=null && !step.roleProject().equals(run.project()) || !"1.0.0".equals(step.roleSchema()))denied(ErrorCode.OBJECT_UNAVAILABLE);
+        if(bootstrap==null && (!"PUBLISHED".equals(step.roleStatus()) || !List.of("ACTIVE","PUBLISHED").contains(step.configurationStatus())
+                || !schema.manifestSha256().equals(step.roleManifest())))denied(ErrorCode.OBJECT_UNAVAILABLE);
+        schema.role(step.roleScope(),principal);
         var binding=single(permissions.currentBinding(actor));
         if(!actor.equals(binding.userId()) || !"ACTIVE".equals(binding.status())) denied(ErrorCode.ACCESS_DENIED);
         List<String> account;
@@ -224,12 +243,13 @@ public final class RunTokenAuthority {
               AND valid_from<=UTC_TIMESTAMP(6) AND (valid_to IS NULL OR valid_to>UTC_TIMESTAMP(6)) FOR UPDATE
             """,(r,n)->r.getString(1),run.tenant(),actor);
         if(members.size()!=1 || run.project()!=null && !"ACTIVE".equals(single(permissions.projectStatus(run.project())))) denied(ErrorCode.ACCESS_DENIED);
-        var checked=new Checked(run,step,principal,binding.mode(),now);
+        var checked=new Checked(run,step,principal,binding.mode(),now,bootstrap);
         requireExecution(checked);
         return checked;
     }
 
     private void requireExecution(Checked admission) throws Exception {
+        if(admission.bootstrap()!=null)admission.bootstrap().requireUnchanged();
         var run=admission.run();
         if("TASK".equals(run.kind())) {
             if(run.task()==null || run.project()==null) denied(ErrorCode.OBJECT_UNAVAILABLE);
@@ -277,7 +297,7 @@ public final class RunTokenAuthority {
     }
     private static <T> T single(List<T> values) { if(values.size()!=1) denied(ErrorCode.ACCESS_DENIED); return values.get(0); }
     private static void denied(ErrorCode code) { throw new TenantAccessException(code); }
-    private record Checked(RunTokenAuthorityStore.Run run,RunTokenAuthorityStore.Step step,JsonNode principal,String mode,LocalDateTime now) { }
+    private record Checked(RunTokenAuthorityStore.Run run,RunTokenAuthorityStore.Step step,JsonNode principal,String mode,LocalDateTime now,FormalModelVerificationBootstrap.Verified bootstrap) { }
     @FunctionalInterface private interface CheckedOperation<T> { T apply(TenantWatermarks current) throws Exception; }
     @FunctionalInterface public interface Operation<T> { T apply(Admission admission) throws Exception; }
 
@@ -317,11 +337,17 @@ public final class RunTokenAuthority {
         private final String tenantId,projectId,initiatorId,principalId,runId,stepId,actionId;
         private final BigInteger leaseGeneration,authEpoch,governanceEpoch;
         private final LocalDateTime admittedAt;
+        private final List<String> delegatedActions;
+        private final List<RunTokenAuthoritySchema.Permission> delegatedPermissions;
+        private final String serviceUri;
         private Admission(String tenant,String project,String actor,String principal,String run,String step,String action,BigInteger generation,
-                LocalDateTime now,BigInteger auth,BigInteger governance) {
+                LocalDateTime now,BigInteger auth,BigInteger governance,List<String> delegatedActions,String serviceUri,List<RunTokenAuthoritySchema.Permission> delegatedPermissions) {
             tenantId=tenant; projectId=project; initiatorId=actor; principalId=principal; runId=run; stepId=step; actionId=action;
-            leaseGeneration=generation; admittedAt=now; authEpoch=auth; governanceEpoch=governance;
+            leaseGeneration=generation; admittedAt=now; authEpoch=auth; governanceEpoch=governance;this.delegatedActions=List.copyOf(delegatedActions);this.serviceUri=Objects.requireNonNull(serviceUri);this.delegatedPermissions=List.copyOf(delegatedPermissions);
         }
+        public List<String> delegatedActions(){return delegatedActions;}
+        public List<RunTokenAuthoritySchema.Permission> delegatedPermissions(){return delegatedPermissions;}
+        public String serviceUri(){return serviceUri;}
         public String tenantId() { return tenantId; } public String projectId() { return projectId; }
         public String initiatorId() { return initiatorId; } public String principalId() { return principalId; }
         public String runId() { return runId; } public String stepId() { return stepId; } public String actionId() { return actionId; }

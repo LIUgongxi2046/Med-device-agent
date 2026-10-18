@@ -20,13 +20,13 @@ def main():
     if args.execute_tests:
         if args.execution is not None:
             raise ValueError("检查执行与回执登记必须分别指定")
-        subprocess.run([sys.executable, "tests/test_shared_contracts.py"], cwd=ROOT, env=environment, check=True)
+        subprocess.run([sys.executable, "-m", "unittest", "tests.test_shared_contracts", "tests.test_simulation_contract_extension"], cwd=ROOT, env=environment, check=True)
         subprocess.run(["npm", "run", "typecheck"], cwd=ROOT / "contracts/typescript", env=environment, check=True)
         subprocess.run(["npm", "test"], cwd=ROOT / "contracts/typescript", env=environment, check=True)
         return
     if not args.execution or Path(args.execution).name != args.execution or args.execution in (".", ".."):
         raise ValueError("执行身份必须为单一目录名称")
-    inputs = ["scripts/check_shared_contracts.py", "tests/test_shared_contracts.py", "contracts/catalogue.json",
+    inputs = ["scripts/check_shared_contracts.py", "tests/test_shared_contracts.py", "tests/test_simulation_contract_extension.py", "contracts/fixtures/simulation-context.synthetic.json", "contracts/extensions/simulation-execution.catalogue.json", "agent-design/simulation-execution.schema.json", "model-gateway/src/medical_model_gateway/simulation-execution.schema.json", "contracts/catalogue.json", "contracts/extensions/evaluation-results.catalogue.json",
         "contracts/python/pyproject.toml", "contracts/python/requirements.lock", "contracts/typescript/package.json",
         "contracts/typescript/package-lock.json", "contracts/typescript/tsconfig.json", "data-design/sample_dataset.json",
         "data-design/dataset.schema.json", "backend-design/interfaces.schema.yaml", "backend-design/resource-details.schema.yaml",
@@ -37,6 +37,7 @@ def main():
         "business/medical-persistence/src/main/resources/collections.schema.json",
         "business/medical-persistence/src/main/resources/rule-expressions.schema.json",
         "business/medical-persistence/src/main/resources/template-applicability.schema.json",
+        "business/medical-persistence/src/main/resources/evaluation-results.schema.json",
         "business/medical-persistence/src/main/resources/agent-release.schema.json",
         "business/medical-persistence/src/main/resources/task-plan-view.schema.json"]
     for directory, pattern in (("contracts/python/src", "*.py"), ("contracts/typescript/src", "*.ts"),

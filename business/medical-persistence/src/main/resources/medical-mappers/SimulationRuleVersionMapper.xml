@@ -1,0 +1,235 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.medical.persistence.mapper.SimulationRuleVersionMapper">
+  <resultMap id="definition" type="com.ruoyi.medical.persistence.SimulationRuleVersionProtocol$StorageRow">
+    <constructor>
+      <arg column="tenant_id" javaType="java.lang.String"/><arg column="rule_version" javaType="java.lang.String"/>
+      <arg column="engine_revision" javaType="java.lang.String"/><arg column="expression" javaType="java.lang.String"/>
+      <arg column="basis_manifest" javaType="java.lang.String"/><arg column="status" javaType="java.lang.String"/>
+      <arg column="content_sha256" javaType="java.lang.String"/><arg column="registered_sha256" javaType="java.lang.String"/>
+      <arg column="schema_version" javaType="java.lang.String"/><arg column="schema_manifest_sha256" javaType="java.lang.String"/>
+      <arg column="created_by" javaType="java.lang.String"/><arg column="created_at" javaType="java.time.LocalDateTime"/>
+      <arg column="classification" javaType="java.lang.String"/><arg column="content_json" javaType="java.lang.String"/>
+      <arg column="base_version" javaType="java.lang.String"/><arg column="base_version_sha256" javaType="java.lang.String"/>
+      <arg column="reason" javaType="java.lang.String"/><arg column="authority_grant" javaType="java.lang.String"/>
+      <arg column="authority_revision" javaType="java.math.BigInteger"/><arg column="revision" javaType="java.math.BigInteger"/>
+      <arg column="binding_json" javaType="java.lang.String"/><arg column="binding_sha256" javaType="java.lang.String"/><arg column="binding_manifest" javaType="java.lang.String"/>
+    </constructor>
+  </resultMap>
+  <sql id="metadata">schema_version,schema_manifest_sha256,created_by,created_at,classification</sql>
+  <sql id="metadataValues">'1.0.0',#{manifest},#{userId},#{now},#{classification}</sql>
+  <insert id="insertVersion">
+    INSERT INTO version_registry(version_id,owner_project_id,entity_kind,content_sha256)
+    VALUES(#{ruleId},NULL,'RULE_VERSION',#{hash})
+  </insert>
+  <insert id="insertRule">
+    INSERT INTO rule_version(rule_version,engine_revision,expression,basis_manifest,status,content_sha256,<include refid="metadata"/>)
+    VALUES(#{ruleId},#{engine},#{expression},#{basis},'DRAFT',#{hash},<include refid="metadataValues"/>)
+  </insert>
+  <insert id="insertDefinition">
+    INSERT INTO rule_definition(rule_version,content_json,content_sha256,base_version,base_version_sha256,reason,
+      authority_grant,authority_revision,revision,<include refid="metadata"/>)
+    VALUES(#{ruleId},#{content},#{hash},#{baseId},#{baseHash},#{reason},#{authorityGrant},#{authorityRevision},1,<include refid="metadataValues"/>)
+  </insert>
+  <insert id="insertLineage">
+    INSERT INTO lineage_edge(consumer_version_id,upstream_version_id,relation_kind,actor_id,decision_ref,created_at)
+    VALUES(#{ruleId},#{item.version_id},'RULE_DEFINITION',#{userId},NULL,#{now})
+  </insert>
+  <insert id="insertBaseLineage">
+    INSERT INTO lineage_edge(consumer_version_id,upstream_version_id,relation_kind,actor_id,decision_ref,created_at)
+    VALUES(#{ruleId},#{baseId},'RULE_BASE_VERSION',#{userId},NULL,#{now})
+  </insert>
+  <select id="definition" resultMap="definition" useCache="false" flushCache="true">
+    SELECT r.tenant_id,r.rule_version,r.engine_revision,r.expression,r.basis_manifest,r.status,r.content_sha256,
+      v.content_sha256 AS registered_sha256,r.schema_version,r.schema_manifest_sha256,r.created_by,r.created_at,r.classification,
+      d.content_json,d.base_version,d.base_version_sha256,d.reason,d.authority_grant,d.authority_revision,d.revision,b.binding_json,b.binding_sha256,b.schema_manifest_sha256 AS binding_manifest
+    FROM rule_version r JOIN rule_definition d ON d.tenant_id=r.tenant_id AND d.rule_version=r.rule_version
+      AND d.content_sha256=r.content_sha256 AND d.schema_version=r.schema_version AND d.schema_manifest_sha256=r.schema_manifest_sha256
+      AND d.created_by=r.created_by AND d.created_at=r.created_at AND d.classification=r.classification
+    JOIN version_registry v ON v.tenant_id=r.tenant_id AND v.version_id=r.rule_version
+      AND v.entity_kind='RULE_VERSION' AND v.owner_project_id IS NULL
+    JOIN simulation_rule_binding b ON b.tenant_id=r.tenant_id AND b.rule_version=r.rule_version
+      AND b.content_sha256=r.content_sha256 AND b.dependency_use='SIMULATION_EVALUATION'
+      AND b.schema_version='1.0.0' AND b.created_by=r.created_by AND b.created_at=r.created_at AND b.classification=r.classification
+    WHERE r.rule_version=#{ruleId} FOR UPDATE
+  </select>
+  <select id="approvedWorkflow" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT r.rule_version FROM rule_version r JOIN rule_definition d
+      ON d.tenant_id=r.tenant_id AND d.rule_version=r.rule_version
+    WHERE r.rule_version=#{upstreamId} AND r.status='APPROVED'
+      AND (FALSE OR (d.content_sha256=r.content_sha256 AND d.schema_version=r.schema_version
+        AND d.schema_manifest_sha256=r.schema_manifest_sha256 AND d.created_by=r.created_by
+        AND d.created_at=r.created_at AND d.classification=r.classification AND d.revision > 1
+        AND EXISTS (SELECT 1 FROM rule_approval_decision a JOIN operation_record o
+          ON o.tenant_id=a.tenant_id AND o.operation_id=a.operation_id AND o.subject_id=a.created_by
+          AND o.operation_name='SIM-RULE-APPROVE' AND o.target_id=a.rule_version AND o.state='COMPLETED' AND o.http_status=200
+          AND o.schema_version=a.schema_version AND o.schema_manifest_sha256=a.schema_manifest_sha256
+          WHERE a.rule_version=r.rule_version AND a.rule_sha256=r.content_sha256
+            AND EXISTS (SELECT 1 FROM simulation_rule_approval_binding ab JOIN simulation_rule_binding b ON b.tenant_id=ab.tenant_id AND b.rule_version=ab.rule_version AND b.binding_sha256=ab.binding_sha256 WHERE ab.tenant_id=a.tenant_id AND ab.decision_id=a.decision_id AND ab.rule_version=a.rule_version AND b.content_sha256=a.rule_sha256 AND b.dependency_use='SIMULATION_EVALUATION' AND JSON_UNQUOTE(JSON_EXTRACT(a.baseline_manifest,'$.binding_sha256'))=b.binding_sha256 AND JSON_UNQUOTE(JSON_EXTRACT(o.response_ref,'$.data.binding_sha256'))=b.binding_sha256)
+            AND a.resulting_revision=d.revision AND a.expected_revision+1=d.revision
+            AND a.decision='APPROVE' AND a.to_status='APPROVED' AND a.from_status IN ('DRAFT','RETURNED')
+            AND a.schema_version='1.0.0' AND a.classification=r.classification
+            AND a.authority_revision > 0 AND a.auth_epoch > 0 AND a.governance_epoch > 0
+            AND JSON_UNQUOTE(JSON_EXTRACT(o.response_ref,'$.data.decision_id'))=a.decision_id
+            AND JSON_UNQUOTE(JSON_EXTRACT(o.response_ref,'$.data.operation_id'))=a.operation_id
+            AND JSON_UNQUOTE(JSON_EXTRACT(o.response_ref,'$.data.rule_version'))=r.rule_version
+            AND JSON_UNQUOTE(JSON_EXTRACT(o.response_ref,'$.data.status'))='APPROVED'
+            AND JSON_UNQUOTE(JSON_EXTRACT(o.response_ref,'$.data.content_sha256'))=r.content_sha256
+            AND EXISTS (SELECT 1 FROM audit_event u WHERE u.subject_id=a.created_by AND u.project_id IS NULL
+              AND u.action='simulation.rule.approval_decided' AND u.result='SUCCESS' AND u.schema_manifest_sha256=a.schema_manifest_sha256
+              AND u.request_id=JSON_UNQUOTE(JSON_EXTRACT(o.response_ref,'$.request_id'))
+              AND JSON_UNQUOTE(JSON_EXTRACT(u.resource_ref,'$.decision.decision_id'))=a.decision_id)
+            AND EXISTS (SELECT 1 FROM outbox_event e WHERE e.aggregate_id=r.rule_version AND e.aggregate_revision=d.revision
+              AND e.event_type='simulation.rule.approval_decided' AND JSON_UNQUOTE(JSON_EXTRACT(e.payload,'$.decision.decision_id'))=a.decision_id))))
+  </select>
+  <select id="parents" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT upstream_version_id FROM lineage_edge e WHERE consumer_version_id=#{ruleId} AND relation_kind='RULE_DEFINITION' ORDER BY upstream_version_id
+  </select>
+  <select id="baseParents" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT upstream_version_id FROM lineage_edge e WHERE consumer_version_id=#{ruleId} AND relation_kind='RULE_BASE_VERSION' ORDER BY upstream_version_id
+  </select>
+  <select id="currentOperation" resultMap="com.ruoyi.medical.persistence.mapper.TenantSelectionMapper.operation" useCache="false" flushCache="true">
+    SELECT operation_id,request_sha256,state,http_status,response_ref,target_id,schema_version,schema_manifest_sha256
+    FROM operation_record o WHERE subject_id=#{userId} AND operation_name='SIM-RULE-CREATE' AND idempotency_key=#{key}
+  </select>
+  <insert id="saveOperation">
+    INSERT INTO operation_record(operation_id,subject_id,operation_name,idempotency_key,request_sha256,state,http_status,response_ref,
+      target_id,error_code,schema_version,schema_manifest_sha256,created_by,created_at,classification,revision,updated_at)
+    VALUES(#{operationId},#{userId},'SIM-RULE-CREATE',#{key},#{requestHash},'COMPLETED',201,#{response},#{ruleId},NULL,
+      '1.0.0',#{operationManifest},#{userId},#{now},#{classification},1,#{now})
+  </insert>
+  <select id="audit" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT resource_ref FROM audit_event a WHERE project_id IS NULL AND audit_id=#{auditId} AND subject_id=#{userId}
+      AND action='simulation.rule.draft_created' AND result='SUCCESS' AND reason_code IS NULL
+      AND request_id=#{requestId} AND trace_id=#{requestId} AND schema_version='1.0.0'
+      AND schema_manifest_sha256=#{operationManifest} AND created_by=#{userId} AND classification=#{classification}
+  </select>
+  <select id="event" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT payload FROM outbox_event e WHERE event_id=#{eventId} AND aggregate_id=#{ruleId}
+      AND aggregate_revision=1 AND event_type='simulation.rule.draft_created'
+  </select>
+  <select id="auditForOperation" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT resource_ref FROM audit_event a WHERE project_id IS NULL AND subject_id=#{userId}
+      AND action='simulation.rule.draft_created' AND result='SUCCESS' AND reason_code IS NULL
+      AND request_id=#{requestId} AND trace_id=#{requestId} AND schema_version='1.0.0'
+      AND schema_manifest_sha256=#{operationManifest} AND created_by=#{userId} AND classification=#{classification}
+  </select>
+  <select id="eventForOperation" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT payload FROM outbox_event e WHERE aggregate_id=#{ruleId} AND aggregate_revision=1
+      AND event_type='simulation.rule.draft_created' AND JSON_UNQUOTE(JSON_EXTRACT(payload,'$.creation.operation_id'))=#{operationId}
+  </select>
+  <select id="approvalOperation" resultMap="com.ruoyi.medical.persistence.mapper.TenantSelectionMapper.operation" useCache="false" flushCache="true">
+    SELECT operation_id,request_sha256,state,http_status,response_ref,target_id,schema_version,schema_manifest_sha256
+    FROM operation_record o WHERE subject_id=#{userId} AND operation_name='SIM-RULE-APPROVE' AND idempotency_key=#{key}
+  </select>
+  <insert id="saveApprovalOperation">
+    INSERT INTO operation_record(operation_id,subject_id,operation_name,idempotency_key,request_sha256,state,http_status,response_ref,
+      target_id,error_code,schema_version,schema_manifest_sha256,created_by,created_at,classification,revision,updated_at)
+    VALUES(#{operationId},#{userId},'SIM-RULE-APPROVE',#{key},#{requestHash},'COMPLETED',200,#{response},#{ruleId},NULL,
+      '1.0.0',#{operationManifest},#{userId},#{now},#{classification},1,#{now})
+  </insert>
+  <update id="advanceRule">
+    UPDATE rule_version SET status=#{newStatus} WHERE rule_version=#{ruleId} AND status=#{oldStatus} AND content_sha256=#{hash}
+  </update>
+  <update id="advanceDefinition">
+    UPDATE rule_definition SET revision=#{resulting} WHERE rule_version=#{ruleId} AND revision=#{expected} AND content_sha256=#{hash}
+  </update>
+  <update id="advanceGovernance">
+    UPDATE tenant SET governance_epoch=governance_epoch+1 WHERE governance_epoch=#{governanceEpoch} AND auth_epoch=#{authEpoch}
+  </update>
+  <insert id="saveApproval">
+    INSERT INTO rule_approval_decision(decision_id,operation_id,rule_version,rule_sha256,decision,from_status,to_status,
+      expected_revision,resulting_revision,reason,request_json,baseline_manifest,baseline_sha256,dependency_authorizations,
+      receipt_json,receipt_sha256,authority_grant,authority_revision,auth_epoch,governance_epoch,
+      schema_version,schema_manifest_sha256,created_by,created_at,classification)
+    VALUES(#{decisionId},#{operationId},#{ruleId},#{hash},#{decision},#{oldStatus},#{newStatus},#{expected},#{resulting},
+      #{reason},#{request},#{baseline},#{baselineHash},#{dependencies},#{response},#{responseHash},#{authorityGrant},#{authorityRevision},
+      #{authEpoch},#{governanceEpoch},'1.0.0',#{operationManifest},#{userId},#{now},#{classification})
+  </insert>
+  <select id="approval" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT JSON_OBJECT('decision_id',decision_id,'operation_id',operation_id,'rule_version',rule_version,
+      'rule_sha256',rule_sha256,'decision',decision,'from_status',from_status,'to_status',to_status,
+      'expected_revision',CAST(expected_revision AS CHAR),'resulting_revision',CAST(resulting_revision AS CHAR),'reason',reason,
+      'request',request_json,'baseline_manifest',baseline_manifest,'baseline_sha256',baseline_sha256,
+      'dependency_authorizations',dependency_authorizations,'receipt',receipt_json,'receipt_sha256',receipt_sha256,
+      'authority_grant',authority_grant,'authority_revision',CAST(authority_revision AS CHAR),
+      'auth_epoch',CAST(auth_epoch AS CHAR),'governance_epoch',CAST(governance_epoch AS CHAR),
+      'schema_version',schema_version,'schema_manifest_sha256',schema_manifest_sha256,'created_by',created_by,
+      'created_at',DATE_FORMAT(created_at,'%Y-%m-%dT%H:%i:%s.%fZ'),'classification',classification) AS content
+    FROM rule_approval_decision d WHERE decision_id=#{decisionId} AND operation_id=#{operationId}
+      AND rule_version=#{ruleId} AND created_by=#{userId}
+  </select>
+  <select id="approvalAudit" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT resource_ref FROM audit_event a WHERE project_id IS NULL AND audit_id=#{auditId} AND subject_id=#{userId}
+      AND action='simulation.rule.approval_decided' AND result='SUCCESS' AND reason_code IS NULL
+      AND request_id=#{requestId} AND trace_id=#{requestId} AND schema_version='1.0.0'
+      AND schema_manifest_sha256=#{operationManifest} AND created_by=#{userId} AND classification=#{classification}
+  </select>
+  <select id="approvalEvent" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT payload FROM outbox_event e WHERE event_id=#{eventId} AND aggregate_id=#{ruleId}
+      AND aggregate_revision=#{resulting} AND event_type='simulation.rule.approval_decided'
+  </select>
+  <select id="approvalAuditForOperation" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT resource_ref FROM audit_event a WHERE project_id IS NULL AND subject_id=#{userId}
+      AND action='simulation.rule.approval_decided' AND result='SUCCESS' AND reason_code IS NULL
+      AND request_id=#{requestId} AND trace_id=#{requestId} AND schema_version='1.0.0'
+      AND schema_manifest_sha256=#{operationManifest} AND created_by=#{userId} AND classification=#{classification}
+  </select>
+  <select id="approvalEventForOperation" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT payload FROM outbox_event e WHERE aggregate_id=#{ruleId} AND aggregate_revision=#{resulting}
+      AND event_type='simulation.rule.approval_decided' AND JSON_UNQUOTE(JSON_EXTRACT(payload,'$.decision.operation_id'))=#{operationId}
+  </select>
+
+  <insert id="insertBinding">
+    INSERT INTO simulation_rule_binding(rule_version,content_sha256,dependency_use,binding_json,binding_sha256,schema_version,schema_manifest_sha256,created_by,created_at,classification)
+    VALUES(#{ruleId},#{hash},'SIMULATION_EVALUATION',#{binding},#{bindingHash},'1.0.0',#{bindingManifest},#{userId},#{now},#{classification})
+  </insert>
+  <insert id="insertApprovalBinding">
+    INSERT INTO simulation_rule_approval_binding(decision_id,rule_version,binding_sha256,created_by,created_at,classification)
+    VALUES(#{decisionId},#{ruleId},#{bindingHash},#{userId},#{now},#{classification})
+  </insert>
+  <select id="approvalBinding" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT b.binding_sha256 FROM simulation_rule_approval_binding b JOIN rule_approval_decision a
+      ON a.tenant_id=b.tenant_id AND a.decision_id=b.decision_id AND a.rule_version=b.rule_version
+      AND a.created_by=b.created_by AND a.created_at=b.created_at AND a.classification=b.classification
+    WHERE b.decision_id=#{decisionId} AND b.rule_version=#{ruleId} AND b.created_by=#{userId}
+  </select>
+
+  <resultMap id="approvalEvidence" type="com.ruoyi.medical.persistence.SimulationRuleVersionProtocol$ApprovalEvidenceRow">
+    <constructor>
+      <arg column="decision_json" javaType="java.lang.String"/><arg column="operation_response" javaType="java.lang.String"/>
+      <arg column="audit_json" javaType="java.lang.String"/><arg column="event_json" javaType="java.lang.String"/>
+      <arg column="binding_hash" javaType="java.lang.String"/><arg column="binding_creator" javaType="java.lang.String"/>
+      <arg column="binding_created_at" javaType="java.time.LocalDateTime"/><arg column="binding_classification" javaType="java.lang.String"/>
+    </constructor>
+  </resultMap>
+  <select id="approvedEvidence" resultMap="approvalEvidence" useCache="false" flushCache="true">
+    SELECT JSON_OBJECT('decision_id',a.decision_id,'operation_id',a.operation_id,'rule_version',a.rule_version,
+      'rule_sha256',a.rule_sha256,'decision',a.decision,'from_status',a.from_status,'to_status',a.to_status,
+      'expected_revision',CAST(a.expected_revision AS CHAR),'resulting_revision',CAST(a.resulting_revision AS CHAR),'reason',a.reason,
+      'request',a.request_json,'baseline_manifest',a.baseline_manifest,'baseline_sha256',a.baseline_sha256,
+      'dependency_authorizations',a.dependency_authorizations,'receipt',a.receipt_json,'receipt_sha256',a.receipt_sha256,
+      'authority_grant',a.authority_grant,'authority_revision',CAST(a.authority_revision AS CHAR),
+      'auth_epoch',CAST(a.auth_epoch AS CHAR),'governance_epoch',CAST(a.governance_epoch AS CHAR),
+      'schema_version',a.schema_version,'schema_manifest_sha256',a.schema_manifest_sha256,'created_by',a.created_by,
+      'created_at',DATE_FORMAT(a.created_at,'%Y-%m-%dT%H:%i:%s.%fZ'),'classification',a.classification) AS decision_json,o.response_ref AS operation_response,u.resource_ref AS audit_json,e.payload AS event_json,
+      ab.binding_sha256 AS binding_hash,ab.created_by AS binding_creator,ab.created_at AS binding_created_at,ab.classification AS binding_classification
+    FROM rule_version r JOIN rule_definition d ON d.tenant_id=r.tenant_id AND d.rule_version=r.rule_version AND d.content_sha256=r.content_sha256
+    JOIN rule_approval_decision a ON a.tenant_id=r.tenant_id AND a.rule_version=r.rule_version AND a.rule_sha256=r.content_sha256
+      AND a.resulting_revision=d.revision AND a.expected_revision+1=d.revision
+    JOIN simulation_rule_approval_binding ab ON ab.tenant_id=a.tenant_id AND ab.decision_id=a.decision_id AND ab.rule_version=a.rule_version
+    JOIN simulation_rule_binding b ON b.tenant_id=ab.tenant_id AND b.rule_version=ab.rule_version AND b.binding_sha256=ab.binding_sha256 AND b.content_sha256=r.content_sha256
+    JOIN operation_record o ON o.tenant_id=a.tenant_id AND o.operation_id=a.operation_id AND o.subject_id=a.created_by AND o.target_id=a.rule_version
+      AND o.operation_name='SIM-RULE-APPROVE' AND o.state='COMPLETED' AND o.http_status=200 AND o.schema_version=a.schema_version AND o.schema_manifest_sha256=a.schema_manifest_sha256
+    JOIN audit_event u ON u.tenant_id=a.tenant_id AND u.subject_id=a.created_by AND u.created_by=a.created_by AND u.project_id IS NULL
+      AND u.action='simulation.rule.approval_decided' AND u.result='SUCCESS' AND u.reason_code IS NULL AND u.schema_version=a.schema_version
+      AND u.schema_manifest_sha256=a.schema_manifest_sha256 AND u.classification=a.classification
+      AND u.request_id=JSON_UNQUOTE(JSON_EXTRACT(o.response_ref,'$.request_id')) AND u.trace_id=u.request_id
+      AND JSON_UNQUOTE(JSON_EXTRACT(u.resource_ref,'$.decision.decision_id'))=a.decision_id
+    JOIN outbox_event e ON e.tenant_id=a.tenant_id AND e.aggregate_id=r.rule_version AND e.aggregate_revision=d.revision
+      AND e.event_type='simulation.rule.approval_decided' AND JSON_UNQUOTE(JSON_EXTRACT(e.payload,'$.decision.decision_id'))=a.decision_id
+    WHERE r.rule_version=#{ruleId} AND r.status='APPROVED' AND a.decision='APPROVE' AND a.to_status='APPROVED'
+      AND a.from_status IN ('DRAFT','RETURNED') AND b.dependency_use='SIMULATION_EVALUATION'
+      AND a.classification=r.classification AND a.authority_revision > 0 AND a.auth_epoch > 0 AND a.governance_epoch > 0
+  </select>
+</mapper>

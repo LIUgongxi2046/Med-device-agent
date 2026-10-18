@@ -25,7 +25,7 @@ class PublishedSchemaReferencesTest {
     @BeforeAll static void load() throws Exception {
         root = Path.of(System.getProperty("medical.projectRoot")).toRealPath();
         catalogue = SchemaCatalogue.fromClasspath();
-        manifest = JSON.readTree(Files.readAllBytes(root.resolve("contracts/catalogue.json")));
+        manifest = SchemaCatalogue.publishedManifest(Files.readAllBytes(root.resolve("contracts/catalogue.json")), Files.readAllBytes(root.resolve(SchemaCatalogue.EXTENSION_PATH)));
         datasetBytes = Files.readAllBytes(root.resolve("data-design/sample_dataset.json"));
         dataset = JSON.readTree(datasetBytes);
         reference = catalogue.schemaRef("dataset", null);
@@ -65,7 +65,7 @@ class PublishedSchemaReferencesTest {
                 count++;
             }
         }
-        assertEquals(320, count);
+        assertEquals(339, count);
     }
 
     @Test void actualCompleteDatasetAndOriginalLocatorsUseTheFixedPublishedReference() throws Exception {

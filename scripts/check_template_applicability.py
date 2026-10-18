@@ -26,7 +26,7 @@ def main():
     environment.update({"JAVA_HOME": str(tools / "jdk-17.0.20.1+1/Contents/Home"), "TMPDIR": str(temporary),
         "MAVEN_OPTS": "-Dfile.encoding=UTF-8 -Djava.io.tmpdir=" + str(temporary)})
     inputs = ["scripts/check_template_applicability.py", "business/pom.xml", "business/medical-persistence/pom.xml",
-        "business/medical-contracts/pom.xml", "contracts/catalogue.json", "backend-design/接口补充设计.md", "LLD-后端.md",
+        "business/medical-contracts/pom.xml", "contracts/catalogue.json", "contracts/extensions/evaluation-results.catalogue.json", "business/medical-persistence/src/main/resources/evaluation-results.schema.json", "backend-design/接口补充设计.md", "LLD-后端.md",
         ".implementation-work/runtime/service-identity.json"]
     for directory in ("business/medical-contracts/src", "business/medical-data/src", "business/medical-persistence/src", "business/medical-identity/src"):
         inputs.extend(str(path.relative_to(ROOT)) for path in sorted((ROOT / directory).rglob("*")) if path.is_file())

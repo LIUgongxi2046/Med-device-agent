@@ -1,0 +1,1 @@
+{"extends":"./tsconfig.medical.json","include":["src/api/medical/formal-evaluation-input.ts","src/views/medical/formal-evaluation-input-field.vue","src/views/medical/evaluation-definition-form.vue","src/medical.d.ts","node_modules/vue-cropper/shims-vue.d.ts"]}

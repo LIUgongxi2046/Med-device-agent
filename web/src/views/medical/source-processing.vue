@@ -7,7 +7,7 @@
       <router-link to="/library"><el-button>返回资料中心</el-button></router-link>
     </nav>
     <el-form :inline="true" aria-label="处理队列筛选" @submit.prevent="applyFilters">
-      <el-form-item label="项目编号"><el-input v-model="filters.project_id" clearable /></el-form-item>
+      <el-form-item label="项目范围"><project-scope-select v-model="filters.project_id" /></el-form-item>
       <el-form-item label="处理状态">
         <el-select v-model="filters.status" clearable>
           <el-option label="排队中" value="QUEUED" />
@@ -47,6 +47,8 @@
 
 <script setup lang="ts">
 import { onBeforeUnmount, reactive, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
+import ProjectScopeSelect from '@/components/Medical/ProjectScopeSelect.vue'
 import SessionPanel from './session-panel.vue'
 import useUserStore from '@/store/modules/user'
 import { readSourceProcessingQueue } from '@/api/medical/source-governance'
@@ -55,7 +57,7 @@ import type { MedicalSession } from '@/api/medical/protocol'
 import { fail } from '@/api/medical/protocol'
 import { useMedicalRouteRead } from '@/api/medical/route-read'
 
-const user = useUserStore(); const page = ref<SourceProcessingQueuePage | null>(null); const loading = ref(false)
+const route = useRoute(); const user = useUserStore(); const page = ref<SourceProcessingQueuePage | null>(null); const loading = ref(false)
 const filters = reactive({ project_id: '', status: '' }); let controller: AbortController | null = null; let generation = 0
 const active = useMedicalRouteRead('MedicalSourceProcessing', clear)
 function requestText(value: Record<string, unknown>): string { return JSON.stringify(value) }
@@ -87,7 +89,7 @@ async function read(after?: string): Promise<void> {
 }
 function applyFilters(): Promise<void> { return read() }
 function readMore(): Promise<void> | void { if (page.value?.next_after && !loading.value) return read(page.value.next_after) }
-watch(() => [user.medicalSession, active.value], () => { clear(); if (active.value) return read() }, { immediate: true, flush: 'sync' })
+watch(() => [user.medicalSession, active.value, route.query.project_id], () => { clear(); filters.project_id = typeof route.query.project_id === 'string' ? route.query.project_id : ''; if (active.value) return read() }, { immediate: true, flush: 'sync' })
 onBeforeUnmount(clear)
 </script>
 

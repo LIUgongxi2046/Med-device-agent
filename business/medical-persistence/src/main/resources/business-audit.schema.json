@@ -1,0 +1,362 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:business-audit:1.0.0",
+  "$defs": {
+    "Id": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "Revision": {
+      "type": "string",
+      "pattern": "^[1-9][0-9]{0,19}$"
+    },
+    "Hash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "Timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "Action": {
+      "const": "document.revision.saved"
+    },
+    "Context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tenant_id",
+        "context_revision",
+        "auth_epoch",
+        "governance_epoch"
+      ],
+      "properties": {
+        "tenant_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "context_revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "auth_epoch": {
+          "$ref": "#/$defs/Revision"
+        },
+        "governance_epoch": {
+          "$ref": "#/$defs/Revision"
+        }
+      }
+    },
+    "Query": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "project_id",
+        "action",
+        "from",
+        "to",
+        "actor_id",
+        "document_id",
+        "limit"
+      ],
+      "properties": {
+        "project_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "action": {
+          "$ref": "#/$defs/Action"
+        },
+        "from": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "to": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "actor_id": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "document_id": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "Target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "resource_kind",
+        "project_id",
+        "document_id",
+        "document_revision",
+        "read_url"
+      ],
+      "properties": {
+        "resource_kind": {
+          "const": "DOCUMENT"
+        },
+        "project_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "document_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "document_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "read_url": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "Entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "audit_id",
+        "action",
+        "occurred_at",
+        "actor_id",
+        "outcome",
+        "target"
+      ],
+      "properties": {
+        "audit_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "action": {
+          "$ref": "#/$defs/Action"
+        },
+        "occurred_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "outcome": {
+          "const": "SUCCESS"
+        },
+        "target": {
+          "$ref": "#/$defs/Target"
+        }
+      }
+    },
+    "Page": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "current_context",
+        "coverage_scope",
+        "pagination_mode",
+        "query",
+        "items",
+        "complete",
+        "next_cursor"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "current_context": {
+          "$ref": "#/$defs/Context"
+        },
+        "coverage_scope": {
+          "const": "DOCUMENT_SAVE_AUDIT"
+        },
+        "pagination_mode": {
+          "const": "LIVE_AUTHORIZED_SCAN"
+        },
+        "query": {
+          "$ref": "#/$defs/Query"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Entry"
+          }
+        },
+        "complete": {
+          "type": "boolean"
+        },
+        "next_cursor": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "SavedEvent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "document_id",
+        "document_revision",
+        "base_revision",
+        "body_sha256",
+        "revision",
+        "operation_id",
+        "reason"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "document_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "document_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "base_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "body_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "operation_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "Availability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "current_context",
+        "features",
+        "coverage_scope",
+        "supported_actions",
+        "scope_mode",
+        "maximum_page_size",
+        "maximum_window_seconds",
+        "maximum_response_bytes"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "current_context": {
+          "$ref": "#/$defs/Context"
+        },
+        "features": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "business_audit"
+          ],
+          "properties": {
+            "business_audit": {
+              "type": "boolean"
+            }
+          }
+        },
+        "coverage_scope": {
+          "const": "DOCUMENT_SAVE_AUDIT"
+        },
+        "supported_actions": {
+          "const": [
+            "document.revision.saved"
+          ]
+        },
+        "scope_mode": {
+          "const": "PROJECT_REQUIRED"
+        },
+        "maximum_page_size": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "maximum_window_seconds": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "maximum_response_bytes": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "features": {
+                "properties": {
+                  "business_audit": {
+                    "const": true
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "maximum_page_size": {
+                "type": "integer"
+              },
+              "maximum_window_seconds": {
+                "type": "integer"
+              },
+              "maximum_response_bytes": {
+                "type": "integer"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "maximum_page_size": {
+                "type": "null"
+              },
+              "maximum_window_seconds": {
+                "type": "null"
+              },
+              "maximum_response_bytes": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

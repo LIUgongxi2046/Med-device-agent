@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.medical.persistence.mapper.DocumentRevisionDirectoryMapper">
+ <resultMap id="Head" type="com.ruoyi.medical.persistence.mapper.DocumentRevisionDirectoryMapper$Head"><constructor>
+  <arg column="tenant_id" javaType="java.lang.String"/><arg column="project_id" javaType="java.lang.String"/><arg column="document_id" javaType="java.lang.String"/>
+  <arg column="current_document_revision" javaType="java.lang.String"/><arg column="revision" javaType="java.math.BigInteger"/>
+ </constructor></resultMap>
+ <resultMap id="Row" type="com.ruoyi.medical.persistence.mapper.DocumentRevisionDirectoryMapper$Row"><constructor>
+  <arg column="document_revision" javaType="java.lang.String"/><arg column="body_sha256" javaType="java.lang.String"/>
+  <arg column="created_by" javaType="java.lang.String"/><arg column="created_at" javaType="java.time.LocalDateTime"/>
+  <arg column="based_on_document_revision" javaType="java.lang.String"/><arg column="content_sha256" javaType="java.lang.String"/>
+ </constructor></resultMap>
+ <select id="head" resultMap="Head" useCache="false" flushCache="true">
+  SELECT d.tenant_id,d.project_id,d.document_id,d.current_document_revision,d.revision FROM document_head d
+  JOIN project p ON p.tenant_id=d.tenant_id AND p.project_id=d.project_id
+  WHERE d.project_id=#{projectId} AND d.document_id=#{documentId} FOR UPDATE
+ </select>
+ <!-- Return integrity failures as null digest for the service to reject, not invisible filtered entries. -->
+ <select id="scan" resultMap="Row" useCache="false" flushCache="true">
+  SELECT m.document_revision,m.body_sha256,m.created_by,m.created_at,m.based_on_document_revision,
+   CASE WHEN r.document_id=m.document_id AND r.snapshot_id=m.snapshot_id AND r.body_sha256=m.body_sha256
+     AND m.content_sha256=m.body_sha256 AND v.owner_project_id=m.project_id AND v.entity_kind='DOCUMENT_REVISION'
+     THEN v.content_sha256 ELSE NULL END AS content_sha256
+  FROM document_revision_meta m
+  LEFT JOIN document_revision r ON r.tenant_id=m.tenant_id AND r.project_id=m.project_id AND r.document_revision=m.document_revision
+  LEFT JOIN version_registry v ON v.tenant_id=m.tenant_id AND v.version_id=m.document_revision
+  WHERE m.project_id=#{projectId} AND m.document_id=#{documentId}
+  <choose>
+   <when test="afterCreatedAt != null and afterDocumentRevision != null">
+    AND (m.created_at &lt; #{afterCreatedAt} OR (m.created_at=#{afterCreatedAt} AND m.document_revision &lt; #{afterDocumentRevision}))
+   </when>
+   <when test="afterCreatedAt != null or afterDocumentRevision != null">AND 1=0</when>
+  </choose>
+  ORDER BY m.created_at DESC,m.document_revision DESC LIMIT #{limit}
+ </select>
+ <select id="checks" resultType="java.lang.String" useCache="false" flushCache="true">
+  SELECT c.check_id FROM check_run c WHERE c.project_id=#{projectId} AND c.target_kind='DOCUMENT'
+   AND c.target_id=#{documentId} AND c.target_revision=#{documentRevision} ORDER BY c.check_id LIMIT #{limit}
+ </select>
+ <select id="reviews" resultType="java.lang.String" useCache="false" flushCache="true">
+  SELECT r.review_id FROM review_decision r
+  JOIN document_revision_meta m ON m.tenant_id=r.tenant_id AND m.project_id=r.project_id AND m.document_revision=r.document_revision
+  WHERE r.project_id=#{projectId} AND m.document_id=#{documentId} AND r.document_revision=#{documentRevision}
+  ORDER BY r.review_id LIMIT #{limit}
+ </select>
+ <select id="signatures" resultType="java.lang.String" useCache="false" flushCache="true">
+  SELECT s.signature_id FROM signature_record s WHERE s.project_id=#{projectId} AND s.document_id=#{documentId}
+   AND s.document_revision=#{documentRevision} ORDER BY s.signature_id LIMIT #{limit}
+ </select>
+</mapper>

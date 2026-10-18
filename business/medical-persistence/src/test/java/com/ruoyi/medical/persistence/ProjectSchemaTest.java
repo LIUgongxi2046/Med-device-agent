@@ -56,7 +56,7 @@ class ProjectSchemaTest {
         }
         var output = root.resolve(".implementation-work/project-query-columns.json");
         java.nio.file.Files.write(output, new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsBytes(statements));
-        var process = new ProcessBuilder(root.resolve(".lld-data-work/venv/bin/python").toString(), root.resolve("tests/check_project_sql_columns.py").toString(), output.toString())
+        var process = new ProcessBuilder(System.getProperty("medical.test.python", root.resolve(".lld-data-work/venv/bin/python").toString()), root.resolve("tests/check_project_sql_columns.py").toString(), output.toString())
                 .directory(root.toFile()).redirectErrorStream(true)
                 .redirectOutput(root.resolve(".implementation-work/project-query-columns-output.log").toFile()).start();
         assertEquals(0, process.waitFor());

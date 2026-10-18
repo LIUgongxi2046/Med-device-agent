@@ -1,6 +1,22 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.ruoyi.medical.persistence.mapper.DocumentReadMapper">
+  <resultMap id="artifactOwner" type="com.ruoyi.medical.persistence.DocumentReadProtocol$ArtifactOwner">
+    <constructor>
+      <arg column="tenant_id" javaType="java.lang.String"/><arg column="project_id" javaType="java.lang.String"/>
+      <arg column="artifact_id" javaType="java.lang.String"/><arg column="document_id" javaType="java.lang.String"/>
+      <arg column="document_revision" javaType="java.lang.String"/><arg column="artifact_kind" javaType="java.lang.String"/>
+    </constructor>
+  </resultMap>
+  <select id="artifactOwner" resultMap="artifactOwner" useCache="false" flushCache="true">
+    SELECT a.tenant_id,a.project_id,a.artifact_id,m.document_id,m.document_revision,a.artifact_kind
+    FROM artifact a JOIN document_revision_meta m ON m.tenant_id=a.tenant_id AND m.project_id=a.project_id
+      AND m.document_revision=a.document_revision
+    JOIN artifact_content_binding b ON b.tenant_id=a.tenant_id AND b.project_id=a.project_id AND b.artifact_id=a.artifact_id
+      AND b.resource_kind='DOCUMENT' AND b.resource_id=m.document_id
+    WHERE a.artifact_id=#{artifactId} AND (a.artifact_kind IN ('DOCUMENT_FIELDS','DOCUMENT_EVIDENCE')
+      OR (a.artifact_kind='DOCUMENT_BODY' AND m.body_artifact_id=a.artifact_id)) FOR UPDATE
+  </select>
   <resultMap id="header" type="com.ruoyi.medical.persistence.DocumentReadProtocol$Header">
     <constructor>
       <arg column="tenant_id" javaType="java.lang.String"/><arg column="project_id" javaType="java.lang.String"/>
@@ -76,5 +92,46 @@
   </select>
   <select id="sourceCount" resultType="java.lang.Long" useCache="false" flushCache="true">
     SELECT COUNT(*) FROM scope_member m WHERE project_id=#{projectId} AND snapshot_id=#{snapshotId}
+  </select>
+  <select id="metadataHeader" resultMap="header" useCache="false" flushCache="true" timeout="5">
+    SELECT d.tenant_id,d.project_id,d.document_id,m.document_revision,d.current_document_revision,d.revision,d.status,p.status AS project_status,
+        m.task_id,m.task_revision,m.snapshot_id,t.profile_revision,m.body_artifact_id,m.body_sha256,r.body_object_key,
+        m.body_object_version,m.body_schema_revision,m.plan_revision,m.template_version,m.dependency_access_set_id,
+        m.issue_watermark,m.content_sha256,m.created_by,m.created_at,m.classification
+    FROM document_head d JOIN document_revision_meta m ON m.tenant_id=d.tenant_id AND m.project_id=d.project_id AND m.document_id=d.document_id
+    JOIN project p ON p.tenant_id=d.tenant_id AND p.project_id=d.project_id
+    JOIN document_revision r ON r.tenant_id=m.tenant_id AND r.project_id=m.project_id AND r.document_revision=m.document_revision
+    JOIN task_revision t ON t.tenant_id=m.tenant_id AND t.project_id=m.project_id AND t.task_id=m.task_id AND t.task_revision=m.task_revision
+    WHERE d.document_id=#{documentId} AND d.project_id=#{projectId}
+    <choose><when test="documentRevision != null">AND m.document_revision=#{documentRevision}</when>
+      <otherwise>AND m.document_revision=d.current_document_revision</otherwise></choose> LIMIT 2 FOR UPDATE
+  </select>
+  <select id="metadataProjections" resultMap="projection" useCache="false" flushCache="true" timeout="5">
+    SELECT artifact_id,artifact_kind FROM artifact a WHERE project_id=#{projectId} AND document_revision=#{documentRevision}
+      AND artifact_kind IN ('DOCUMENT_FIELDS','DOCUMENT_EVIDENCE') ORDER BY artifact_kind,artifact_id LIMIT 3 FOR UPDATE
+  </select>
+  <select id="metadataWatermarks" resultMap="watermarks" useCache="false" flushCache="true" timeout="5">
+    SELECT issue_watermark,evidence_watermark FROM document_revision_state s
+    WHERE project_id=#{projectId} AND document_revision=#{documentRevision} LIMIT 2 FOR UPDATE
+  </select>
+  <select id="metadataSnapshot" resultMap="com.ruoyi.medical.persistence.mapper.TaskMapper.snapshot" useCache="false" flushCache="true" timeout="5">
+    SELECT s.tenant_id,s.project_id,s.snapshot_id,CASE WHEN OCTET_LENGTH(s.manifest) &lt;= #{maximumMetadataBytes} THEN s.manifest ELSE NULL END AS manifest,s.manifest_sha256,s.auth_epoch,s.governance_epoch,s.created_at,
+      v.content_sha256 AS registry_hash FROM scope_snapshot s LEFT JOIN version_registry v
+      ON v.tenant_id=s.tenant_id AND v.version_id=s.snapshot_id AND v.owner_project_id=s.project_id
+    WHERE s.project_id=#{projectId} AND s.snapshot_id=#{snapshotId}
+   LIMIT 2
+  </select>
+  <select id="metadataMembers" resultMap="com.ruoyi.medical.persistence.mapper.DocumentUploadBasisMapper.memberRow" useCache="false" flushCache="true" timeout="5">
+    SELECT m.tenant_id,m.project_id,m.snapshot_id,m.source_id,m.source_version,m.parse_version,m.index_version,m.approval_revision,m.binding_revision
+    FROM scope_member m WHERE m.project_id=#{projectId} AND m.snapshot_id=#{snapshotId}
+    ORDER BY m.source_version,m.parse_version
+   LIMIT #{metadataLimit}
+  </select>
+  <select id="metadataSourceCount" resultType="java.lang.Long" useCache="false" flushCache="true" timeout="5">
+    SELECT COUNT(*) FROM (SELECT m.source_version FROM scope_member m
+      WHERE m.project_id=#{projectId} AND m.snapshot_id=#{snapshotId} LIMIT #{metadataLimit}) bounded_members
+  </select>
+  <select id="metadataSnapshotBytes" resultType="java.math.BigInteger" useCache="false" flushCache="true" timeout="5">
+    SELECT OCTET_LENGTH(s.manifest) FROM scope_snapshot s WHERE s.project_id=#{projectId} AND s.snapshot_id=#{snapshotId} LIMIT 2
   </select>
 </mapper>

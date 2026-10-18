@@ -1,3 +1,5 @@
+import { readExecutionPolicyJson } from '@/api/medical/execution-policy-json'
+import { readRetentionJson } from '@/api/medical/retention-json'
 import axios from 'axios'
 import { ElNotification , ElMessageBox, ElMessage, ElLoading } from 'element-plus'
 import { getToken } from '@/utils/auth'
@@ -8,6 +10,9 @@ import { saveAs } from 'file-saver'
 import useUserStore from '@/store/modules/user'
 import { fail, MedicalFailure } from '@/api/medical/protocol'
 import { readProjectJson, readBoundedJson, writeProjectJson } from '@/api/medical/project-json'
+import { readGruExportJson } from '@/api/medical/gru-export-json'
+import { readComparisonJson } from '@/api/medical/document-comparison-json'
+import { readCapabilityJson } from '@/api/medical/formal-capability-json'
 import { prepareFrameworkRequest, verifyFrameworkResponse } from '@/api/medical/framework-request'
 
 let downloadLoadingInstance
@@ -36,7 +41,88 @@ service.interceptors.request.use(config => {
     config.withCredentials = true
     config.validateStatus = () => true
     if (config.medical === 'envelope') {
-      if (target.pathname === '/api/uploads' || target.pathname.startsWith('/api/uploads/')) {
+      if (/^\/api\/gru-record-exports\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/content$/.test(target.pathname)) {
+        config.responseType = 'arraybuffer'
+        config.transformResponse = []
+      } else if (/^\/api\/gru-conversations\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/(export-basis|exports|export-operations)$/.test(target.pathname)
+          || /^\/api\/gru-record-exports\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(target.pathname)
+          || target.pathname === '/api/gru-record-export-feature-availability') {
+        config.responseType = 'text'
+        config.transformResponse = [readGruExportJson]
+        config.transformRequest = [writeProjectJson]
+        config.headers.setContentType('application/json;charset=utf-8', true)
+      } else if (target.pathname === '/api/document-comparisons'
+          || /^\/api\/document-comparisons\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(target.pathname)
+          || target.pathname === '/api/document-comparison-operations'
+          || target.pathname === '/api/document-comparison-feature-availability') {
+        config.responseType = 'text'
+        config.transformResponse = [readComparisonJson]
+        config.transformRequest = [writeProjectJson]
+        config.headers.setContentType('application/json;charset=utf-8', true)
+      } else if (['/api/runtime-retention-availability', '/api/runtime-retention-policies', '/api/runtime-retention-retirements', '/api/runtime-retention-policy-operations', '/api/runtime-retention-retirement-operations', '/api/runtime-retention-cancellations', '/api/runtime-retention-cancellation-operations'].includes(target.pathname)
+          || /^\/api\/runtime-retention-policies\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(target.pathname)) {
+        config.responseType = 'text'
+        config.transformResponse = [readRetentionJson]
+        config.transformRequest = [writeProjectJson]
+        config.headers.setContentType('application/json;charset=utf-8', true)
+      } else if (['/api/agent-execution-policy-feature-availability', '/api/agent-execution-policies', '/api/agent-execution-policies/query', '/api/agent-execution-policy-decisions'].includes(target.pathname)
+          || /^\/api\/agent-execution-policies\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:\/records\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/operation-receipts\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$/.test(target.pathname)
+          || /^\/api\/agent-execution-policy-records\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(target.pathname)) {
+        config.responseType = 'text'
+        config.transformResponse = [readExecutionPolicyJson]
+        config.transformRequest = [writeProjectJson]
+        config.headers.setContentType('application/json;charset=utf-8', true)
+      } else if (['/api/formal-agent-publication-feature-availability', '/api/formal-agent-publications', '/api/formal-agent-publications/disable', '/api/formal-agent-acceptance-decisions', '/api/formal-evaluation-score-bindings', '/api/formal-evaluation-score-bindings/recovery'].includes(target.pathname)
+          || /^\/api\/formal-agent-publication-operations\/(?:[A-Za-z0-9._:-]|%3[Aa]){16,128}$/.test(target.pathname)
+          || /^\/api\/formal-agent-acceptance-records\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:\/operation-receipts\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$/.test(target.pathname)) {
+        config.responseType = 'text'
+        config.transformResponse = [readCapabilityJson]
+        config.transformRequest = [writeProjectJson]
+        config.headers.setContentType('application/json;charset=utf-8', true)
+      } else if (target.pathname === '/api/source-versions'
+          || /^\/api\/source-versions\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(target.pathname)) {
+        config.responseType = 'text'
+        config.transformResponse = [readBoundedJson]
+        config.transformRequest = [writeProjectJson]
+        config.headers.setContentType('application/json;charset=utf-8', true)
+      } else if (/^\/api\/model-verification-tokenizer-candidates\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(target.pathname)
+          || target.pathname === '/api/model-enablement-policy-preparations'
+          || /^\/api\/model-enablement-policy-preparations\/(?:operations\/)?[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(target.pathname)
+          || /^\/api\/model-enablement-policy-preparation-candidates\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(target.pathname)
+          || /^\/api\/formal-evaluation-input-source-candidates\/[A-Z][A-Z0-9_]{0,63}\/(?:0|[1-9][0-9]{0,5})$/.test(target.pathname)
+          || target.pathname === '/api/formal-evaluation-input-feature-availability'
+          || target.pathname === '/api/formal-evaluation-inputs'
+          || /^\/api\/formal-evaluation-inputs\/(?:operations\/)?[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(target.pathname)
+          || target.pathname === '/api/model-verification-inputs'
+          || /^\/api\/model-verification-inputs\/(?:operations\/)?[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(target.pathname)
+          || /^\/api\/model-verification-input-candidates\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/(?:DOCUMENT_BODY|MODEL_VERIFICATION)$/.test(target.pathname)) {
+        config.responseType = 'text'
+        config.transformResponse = [readCapabilityJson]
+        config.transformRequest = [writeProjectJson]
+        config.headers.setContentType('application/json;charset=utf-8', true)
+      } else if (['/api/formal-invocation-cancellations','/api/formal-invocation-cancellation-operations','/api/model-runtime-availability','/api/model-connection-verifications','/api/model-connection-verification-operations','/api/model-connection-verification-completions','/api/model-eligibilities','/api/model-eligibility-operations'].includes(target.pathname)) {
+        config.responseType = 'text'
+        config.transformResponse = [readCapabilityJson]
+        config.transformRequest = [writeProjectJson]
+        config.headers.setContentType('application/json;charset=utf-8', true)
+      } else if (['/api/formal-agents', '/api/formal-runtime-capabilities', '/api/formal-agent-drafts/query', '/api/formal-agent-authoring-feature-availability'].includes(target.pathname)
+          || /^\/api\/formal-(?:agent|runtime-capability)-records\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:\/operation-receipts\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$/.test(target.pathname)) {
+        config.responseType = 'text'
+        config.transformResponse = [readCapabilityJson]
+        config.transformRequest = [writeProjectJson]
+        config.headers.setContentType('application/json;charset=utf-8', true)
+      } else if (target.pathname === '/api/agent-authoring/capabilities'
+          || target.pathname === '/api/agent-authoring/capability-cancellations'
+          || target.pathname === '/api/agent-authoring/capability-cancellation-operations'
+          || target.pathname === '/api/agent-authoring/records/query'
+          || /^\/api\/agent-authoring\/records\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(target.pathname)
+          || /^\/api\/agent-authoring\/records\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/operation-receipts\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(target.pathname)
+          || target.pathname === '/api/agent-authoring-feature-availability') {
+        config.responseType = 'text'
+        config.transformResponse = [readCapabilityJson]
+        config.transformRequest = [writeProjectJson]
+        config.headers.setContentType('application/json;charset=utf-8', true)
+      } else if (target.pathname === '/api/uploads' || target.pathname.startsWith('/api/uploads/')) {
         config.responseType = 'text'
         config.transformResponse = [readBoundedJson]
         if (config.method === 'put' && /^\/api\/uploads\/[0-9a-f-]{36}\/parts\/[1-9][0-9]*$/.test(target.pathname)) {
@@ -61,8 +147,12 @@ service.interceptors.request.use(config => {
         config.transformRequest = [writeProjectJson]
         config.headers.setContentType('application/json;charset=utf-8', true)
       } else if (target.pathname === '/api/documents' || target.pathname.startsWith('/api/documents/')
+          || target.pathname.startsWith('/api/annotation-threads/')
           || target.pathname.startsWith('/api/runs/')
           || target.pathname === '/api/artifact-upload-grants' || target.pathname.startsWith('/api/artifact-upload-grants/')
+          || target.pathname === '/api/rule-versions' || target.pathname.startsWith('/api/rule-versions/')
+          || target.pathname === '/api/model-config-revisions' || target.pathname.startsWith('/api/model-config-revisions/')
+          || target.pathname === '/api/simulation-model-config-revisions' || target.pathname.startsWith('/api/simulation-model-config-revisions/')
           || target.pathname === '/api/template-versions' || target.pathname.startsWith('/api/template-versions/')
           || target.pathname === '/api/enterprise-registration-reviews' || target.pathname.startsWith('/api/enterprise-registration-reviews/')
           || target.pathname === '/api/enterprise-registrations' || target.pathname.startsWith('/api/enterprise-registrations/')) {

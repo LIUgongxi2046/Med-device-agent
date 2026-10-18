@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.medical.persistence.mapper.RunCreateMapper">
+  <select id="operation" resultMap="com.ruoyi.medical.persistence.mapper.TaskPlanWriteMapper.operation" useCache="false" flushCache="true">
+    SELECT operation_id,request_sha256,state,http_status,response_ref,target_id,schema_version,schema_manifest_sha256
+    FROM operation_record WHERE subject_id=#{userId} AND operation_name='RN-01' AND idempotency_key=#{key} FOR UPDATE
+  </select>
+  <select id="activeRun" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT run_id FROM task_active_run WHERE project_id=#{projectId} AND task_id=#{taskId} FOR UPDATE
+  </select>
+  <select id="attempts" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT CAST(attempt_no AS CHAR) FROM task_run WHERE project_id=#{projectId} AND task_id=#{taskId}
+      ORDER BY created_at DESC,run_id LIMIT 1 FOR UPDATE
+  </select>
+  <select id="budget" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT JSON_OBJECT('tenant_id',b.tenant_id,'project_id',b.project_id,'budget_id',b.budget_id,
+      'budget_revision',r.budget_revision,'current_budget_revision',b.current_budget_revision,'currency',r.currency,'account_currency',b.currency,
+      'spent',CAST(b.spent AS CHAR),'reserved',CAST(b.reserved AS CHAR),'spent_tokens',CAST(b.spent_tokens AS CHAR),
+      'reserved_tokens',CAST(b.reserved_tokens AS CHAR),'spent_calls',CAST(b.spent_calls AS CHAR),'reserved_calls',CAST(b.reserved_calls AS CHAR),
+      'approval',r.limits,'approver_id',r.approver_id,'reason',r.reason,'content_sha256',r.content_sha256,'registry_sha256',v.content_sha256,
+      'schema_version',r.schema_version,'schema_manifest',r.schema_manifest_sha256)
+    FROM budget_revision r JOIN budget_account b ON b.tenant_id=r.tenant_id AND b.budget_id=r.budget_id
+      AND b.project_id &lt;=&gt; r.project_id
+    JOIN version_registry v ON v.tenant_id=r.tenant_id AND v.version_id=r.budget_revision AND v.entity_kind='BUDGET'
+      AND v.owner_project_id &lt;=&gt; r.project_id
+    WHERE r.budget_revision=#{budgetRevision} FOR UPDATE
+  </select>
+  <select id="created" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT JSON_OBJECT('run_id',r.run_id,'task_id',r.task_id,'task_revision',r.task_revision,'budget_revision',r.budget_revision,
+      'plan_revision',tr.plan_revision,'snapshot_id',tr.snapshot_id,'agent_release_id',tr.agent_release_id,
+      'replay_manifest',r.replay_manifest,'scope_manifest',e.scope_manifest,'principal_manifest',p.capability_manifest,
+      'created_by',r.created_by,'schema_manifest',r.schema_manifest_sha256,
+      'command',o.payload,'retention_policy_revision',s.retention_policy_revision)
+    FROM task_run r JOIN task_revision tr ON tr.tenant_id=r.tenant_id AND tr.project_id=r.project_id
+      AND tr.task_id=r.task_id AND tr.task_revision=r.task_revision
+    JOIN execution_registry e ON e.tenant_id=r.tenant_id AND e.project_id=r.project_id AND e.run_id=r.run_id
+    JOIN run_principal p ON p.tenant_id=r.tenant_id AND p.project_id=r.project_id AND p.run_id=r.run_id AND p.initiator_id=r.created_by
+    JOIN stream_registry s ON s.tenant_id=r.tenant_id AND s.project_id=r.project_id AND s.kind='RUN' AND s.owner_resource_id=r.run_id
+    JOIN outbox_event o ON o.tenant_id=r.tenant_id AND o.aggregate_id=r.run_id AND o.event_type='run.start.requested'
+      AND o.payload-&gt;&gt;'$.command.command_id'=#{commandId}
+    WHERE r.project_id=#{projectId} AND r.task_id=#{taskId} AND r.run_id=#{runId} AND r.execution_kind='TASK'
+      AND e.execution_kind='TASK' AND r.workflow_id=CONCAT(r.tenant_id,'/',r.run_id) FOR UPDATE
+  </select>
+  <insert id="insertRegistry">
+    INSERT INTO execution_registry(run_id,project_id,execution_kind,scope_manifest,schema_version,schema_manifest_sha256,created_by,created_at,classification)
+    VALUES(#{runId},#{projectId},'TASK',CAST(#{scopeManifest} AS JSON),'1.0.0',#{authorityManifest},#{userId},#{now},#{classification})
+  </insert>
+  <insert id="insertRun">
+    INSERT INTO task_run(project_id,run_id,execution_kind,task_id,task_revision,attempt_no,parent_run_id,superseded_by_run_id,
+      dispatch_closed_at,workflow_id,status,reason_code,replay_manifest,budget_revision,started_at,ended_at,schema_version,schema_manifest_sha256,
+      created_by,created_at,classification,revision,updated_at)
+    VALUES(#{projectId},#{runId},'TASK',#{taskId},#{taskRevision},#{attempt},NULL,NULL,NULL,#{workflowId},'QUEUED',NULL,
+      CAST(#{replayManifest} AS JSON),#{budgetRevision},NULL,NULL,'1.0.0',#{authorityManifest},#{userId},#{now},#{classification},1,#{now})
+  </insert>
+  <insert id="insertPrincipal">
+    INSERT INTO run_principal(principal_id,project_id,initiator_id,run_id,capability_manifest,status,schema_version,schema_manifest_sha256,
+      created_by,created_at,classification,revision,updated_at)
+    VALUES(#{principalId},#{projectId},#{userId},#{runId},CAST(#{principalManifest} AS JSON),'ACTIVE','1.0.0',#{authorityManifest},
+      #{userId},#{now},#{classification},1,#{now})
+  </insert>
+  <insert id="insertActiveRun">
+    INSERT INTO task_active_run(project_id,task_id,run_id,created_by,created_at,classification,revision,updated_at)
+    VALUES(#{projectId},#{taskId},#{runId},#{userId},#{now},#{classification},1,#{now})
+  </insert>
+  <update id="advanceTask">
+    UPDATE task_head SET revision=revision+1,updated_at=#{now}
+    WHERE project_id=#{projectId} AND task_id=#{taskId} AND current_revision=#{taskRevision} AND revision=#{expectedRevision} AND status='READY'
+  </update>
+  <insert id="insertStream">
+    INSERT INTO stream_registry(project_id,stream_id,kind,owner_resource_id,last_sequence,retention_policy_revision,
+      created_by,created_at,classification,revision,updated_at)
+    VALUES(#{projectId},#{streamId},'RUN',#{runId},0,#{retentionRevision},#{userId},#{now},#{classification},1,#{now})
+  </insert>
+  <insert id="saveCommand">
+    INSERT INTO outbox_event(event_id,aggregate_id,aggregate_revision,event_type,payload,occurred_at,published_at)
+    VALUES(#{commandEventId},#{runId},1,'run.start.requested',CAST(#{commandPayload} AS JSON),#{now},NULL)
+  </insert>
+  <insert id="saveOperation">
+    INSERT INTO operation_record(operation_id,subject_id,operation_name,idempotency_key,request_sha256,state,http_status,response_ref,
+      target_id,error_code,schema_version,schema_manifest_sha256,created_by,created_at,classification,revision,updated_at)
+    VALUES(#{operationId},#{userId},'RN-01',#{key},#{requestHash},'PROCESSING',202,CAST(#{response} AS JSON),
+      #{runId},NULL,'1.0.0',#{manifest},#{userId},#{now},#{classification},1,#{now})
+  </insert>
+</mapper>

@@ -1,0 +1,128 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:document-comparison-feature-availability:1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "current_context",
+    "features",
+    "maximum_request_bytes",
+    "maximum_result_bytes",
+    "maximum_records"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "current_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tenant_id",
+        "context_revision",
+        "auth_epoch",
+        "governance_epoch"
+      ],
+      "properties": {
+        "tenant_id": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "context_revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "auth_epoch": {
+          "$ref": "#/$defs/Revision"
+        },
+        "governance_epoch": {
+          "$ref": "#/$defs/Revision"
+        }
+      }
+    },
+    "features": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "document_comparison"
+      ],
+      "properties": {
+        "document_comparison": {
+          "type": "boolean"
+        }
+      }
+    },
+    "maximum_request_bytes": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 1,
+      "maximum": 2147483646
+    },
+    "maximum_result_bytes": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 1,
+      "maximum": 2147483646
+    },
+    "maximum_records": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 1,
+      "maximum": 2147483646
+    }
+  },
+  "$defs": {
+    "Revision": {
+      "type": "string",
+      "pattern": "^[1-9][0-9]{0,19}$"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "features": {
+            "properties": {
+              "document_comparison": {
+                "const": true
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "maximum_request_bytes": {
+            "type": "integer"
+          },
+          "maximum_result_bytes": {
+            "type": "integer"
+          },
+          "maximum_records": {
+            "type": "integer"
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "maximum_request_bytes": {
+            "type": "null"
+          },
+          "maximum_result_bytes": {
+            "type": "null"
+          },
+          "maximum_records": {
+            "type": "null"
+          }
+        }
+      }
+    }
+  ]
+}

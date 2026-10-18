@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:local-simulation-provenance:1.0.0",
+  "title": "Local simulation component provenance, not a backend approval or receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "input_data_kind", "execution_scope", "tenant_id", "project_id", "run_id", "step_id", "action_id", "invocation_id", "context_manifest_id", "model_config_revision", "case_id", "receipt_id", "request_sha256", "case_sha256", "settings_sha256", "input_sha256", "parameters_sha256", "model_result_schema_ref", "model_result_schema_sha256", "model_result_sha256", "external_request_sent", "provider_charge_amount", "charge_basis", "usage_origin", "production_eligible"],
+  "$defs": {
+    "Id": {"type": "string", "format": "uuid"},
+    "Hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+  },
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "input_data_kind": {"const": "SIMULATION"},
+    "execution_scope": {"const": "LOCAL_COMPONENT"},
+    "tenant_id": {"$ref": "#/$defs/Id"},
+    "project_id": {"anyOf": [{"$ref": "#/$defs/Id"}, {"type": "null"}]},
+    "run_id": {"$ref": "#/$defs/Id"},
+    "step_id": {"$ref": "#/$defs/Id"},
+    "action_id": {"$ref": "#/$defs/Id"},
+    "invocation_id": {"$ref": "#/$defs/Id"},
+    "context_manifest_id": {"$ref": "#/$defs/Id"},
+    "model_config_revision": {"$ref": "#/$defs/Id"},
+    "case_id": {"$ref": "#/$defs/Id"},
+    "receipt_id": {"$ref": "#/$defs/Id"},
+    "request_sha256": {"$ref": "#/$defs/Hash"},
+    "case_sha256": {"$ref": "#/$defs/Hash"},
+    "settings_sha256": {"$ref": "#/$defs/Hash"},
+    "input_sha256": {"$ref": "#/$defs/Hash"},
+    "parameters_sha256": {"$ref": "#/$defs/Hash"},
+    "model_result_schema_ref": {"type": "string", "minLength": 1},
+    "model_result_schema_sha256": {"$ref": "#/$defs/Hash"},
+    "model_result_sha256": {"$ref": "#/$defs/Hash"},
+    "external_request_sent": {"const": false},
+    "provider_charge_amount": {"const": "0.00000000"},
+    "charge_basis": {"const": "LOCAL_SIMULATION_NO_PROVIDER_REQUEST"},
+    "usage_origin": {"enum": ["UNKNOWN", "SIMULATION_FIXTURE"]},
+    "production_eligible": {"const": false}
+  }
+}

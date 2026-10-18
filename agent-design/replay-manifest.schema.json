@@ -1,0 +1,469 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:replay-manifest:1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "tenant_id",
+    "project_id",
+    "initiator_id",
+    "task_id",
+    "run_id",
+    "principal_id",
+    "agent_release_id",
+    "task_revision",
+    "plan_revision",
+    "snapshot_id",
+    "budget_revision",
+    "schema_version",
+    "phase",
+    "task_input",
+    "plan",
+    "scope_snapshot",
+    "scope_snapshot_sha256",
+    "agent_release",
+    "agent_release_sha256",
+    "publication_approval_sha256",
+    "execution_policy",
+    "execution_policy_version",
+    "project_profile",
+    "template",
+    "budget_approval",
+    "model_bindings",
+    "dependency_versions",
+    "dependency_edges",
+    "scope_manifest",
+    "principal_manifest",
+    "retention",
+    "authorizations",
+    "prior_inputs",
+    "future_execution_records",
+    "locale",
+    "timezone",
+    "training_allowed",
+    "provider_reexecution"
+  ],
+  "properties": {
+    "tenant_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "project_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "initiator_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "task_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "run_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "principal_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "agent_release_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "task_revision": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "plan_revision": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "snapshot_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "budget_revision": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "phase": {
+      "const": "RUN_ADMISSION"
+    },
+    "task_input": {
+      "$ref": "urn:medical:tasks:1.0.0#/$defs/Create"
+    },
+    "plan": {
+      "$ref": "urn:medical:task-plan-view:1.0.0#/$defs/View"
+    },
+    "scope_snapshot": {
+      "$ref": "urn:medical:tasks:1.0.0#/$defs/ScopeSnapshotManifest"
+    },
+    "scope_snapshot_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "agent_release": {
+      "$ref": "urn:medical:agent-release:1.0.0#/$defs/AgentReleaseManifest"
+    },
+    "agent_release_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "publication_approval_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "execution_policy": {
+      "$ref": "urn:medical:agent-execution-policy:1.0.0#/$defs/Definition"
+    },
+    "execution_policy_version": {
+      "$ref": "#/$defs/Version"
+    },
+    "project_profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "profile_revision",
+        "content_sha256",
+        "attributes",
+        "authority_refs"
+      ],
+      "properties": {
+        "profile_revision": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "content_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "attributes": {
+          "$ref": "urn:medical:projects:1.0.0#/$defs/Attributes"
+        },
+        "authority_refs": {
+          "$ref": "urn:medical:projects:1.0.0#/$defs/Bases"
+        }
+      }
+    },
+    "template": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "template_version",
+        "content_sha256",
+        "content"
+      ],
+      "properties": {
+        "template_version": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "content_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "content": {
+          "$ref": "urn:medical:templates:1.0.0#/$defs/Content"
+        }
+      }
+    },
+    "budget_approval": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "budget_revision",
+        "content_sha256",
+        "approval"
+      ],
+      "properties": {
+        "budget_revision": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "content_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "approval": {
+          "$ref": "urn:medical:budgets:1.0.0#/$defs/Approval"
+        }
+      }
+    },
+    "model_bindings": {
+      "type": "array",
+      "items": {
+        "$ref": "urn:medical:runtime-governance:1.0.0#/$defs/ModelEligibilityBinding"
+      },
+      "minItems": 1,
+      "maxItems": 10000
+    },
+    "dependency_versions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Dependency"
+      },
+      "minItems": 1,
+      "maxItems": 10000
+    },
+    "dependency_edges": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "consumer_version_id",
+          "upstream_version_id",
+          "relation_kind"
+        ],
+        "properties": {
+          "consumer_version_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "upstream_version_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "relation_kind": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          }
+        }
+      },
+      "minItems": 0,
+      "maxItems": 10000
+    },
+    "scope_manifest": {
+      "$ref": "urn:medical:run-token-authority:1.0.0#/$defs/ScopeManifest"
+    },
+    "principal_manifest": {
+      "$ref": "urn:medical:run-token-authority:1.0.0#/$defs/PrincipalManifest"
+    },
+    "retention": {
+      "$ref": "#/$defs/Retention"
+    },
+    "authorizations": {
+      "$ref": "#/$defs/Authorization"
+    },
+    "prior_inputs": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/PriorInput"
+      },
+      "minItems": 0,
+      "maxItems": 10000
+    },
+    "future_execution_records": {
+      "const": "NOT_YET_PRODUCED"
+    },
+    "locale": {
+      "type": "string",
+      "minLength": 2,
+      "maxLength": 128
+    },
+    "timezone": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "training_allowed": {
+      "const": false
+    },
+    "provider_reexecution": {
+      "enum": [
+        "EXACT_VERSION_AVAILABLE",
+        "ORIGINAL_VERSION_UNAVAILABLE"
+      ]
+    }
+  },
+  "$defs": {
+    "Id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "Hash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "Version": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version_id",
+        "content_sha256"
+      ],
+      "properties": {
+        "version_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "content_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      }
+    },
+    "SerializedInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_ref",
+        "schema_sha256",
+        "content_sha256",
+        "canonical_json"
+      ],
+      "properties": {
+        "schema_ref": {
+          "type": "string",
+          "format": "uri",
+          "maxLength": 2048
+        },
+        "schema_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "content_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "canonical_json": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 16777216
+        }
+      }
+    },
+    "Dependency": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version_id",
+        "content_sha256",
+        "entity_kind",
+        "project_id"
+      ],
+      "properties": {
+        "version_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "content_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "entity_kind": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9_]{0,63}$"
+        },
+        "project_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "uuid"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "Authorization": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "context_revision",
+        "auth_epoch",
+        "governance_epoch",
+        "purpose",
+        "canonical_witnesses",
+        "witnesses_sha256"
+      ],
+      "properties": {
+        "context_revision": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]{0,19})$"
+        },
+        "auth_epoch": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]{0,19})$"
+        },
+        "governance_epoch": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]{0,19})$"
+        },
+        "purpose": {
+          "const": "RUN_CREATION"
+        },
+        "canonical_witnesses": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 16777216
+        },
+        "witnesses_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      }
+    },
+    "PriorInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "version",
+        "input"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "QUERY",
+            "EVIDENCE_PACK",
+            "DEPENDENT_SECTION",
+            "WRITING_CONVENTION",
+            "ADOPTED_PREFERENCE"
+          ]
+        },
+        "version": {
+          "$ref": "#/$defs/Version"
+        },
+        "input": {
+          "$ref": "#/$defs/SerializedInput"
+        }
+      }
+    },
+    "Retention": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "policy_revision",
+        "content_sha256",
+        "terms"
+      ],
+      "properties": {
+        "policy_revision": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "content_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "terms": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {
+            "$ref": "urn:medical:runtime-retention:1.0.0#/$defs/Term"
+          }
+        }
+      }
+    }
+  }
+}

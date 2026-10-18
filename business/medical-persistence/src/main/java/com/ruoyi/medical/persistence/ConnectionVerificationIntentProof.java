@@ -1,0 +1,10 @@
+package com.ruoyi.medical.persistence;
+import com.fasterxml.jackson.databind.JsonNode;import java.io.IOException;import java.util.Objects;
+/** Only built after reading immutable B intent and exact current model/credential/grant evidence. */
+public final class ConnectionVerificationIntentProof {
+ @FunctionalInterface interface Recheck{void require(EnterpriseAccess.Admission admission)throws IOException;}
+ private final String tenant,project,actor,verification,model,credential,credentialVersion,requestHash,operation,key;private final JsonNode request;private final Recheck current;
+ ConnectionVerificationIntentProof(String tenant,String project,String actor,String verification,String model,String credential,String credentialVersion,String requestHash,String operation,String key,JsonNode request,Recheck current){this.tenant=Objects.requireNonNull(tenant);this.project=project;this.actor=Objects.requireNonNull(actor);this.verification=Objects.requireNonNull(verification);this.model=Objects.requireNonNull(model);this.credential=Objects.requireNonNull(credential);this.credentialVersion=Objects.requireNonNull(credentialVersion);this.requestHash=Objects.requireNonNull(requestHash);this.operation=Objects.requireNonNull(operation);this.key=Objects.requireNonNull(key);this.request=request.deepCopy();this.current=Objects.requireNonNull(current);}
+ public String operationId(){return operation;}public String idempotencyKey(){return key;}public String tenantId(){return tenant;}public String projectId(){return project;}public String actorId(){return actor;}public String verificationId(){return verification;}public String modelRevision(){return model;}public String credentialReferenceId(){return credential;}public String credentialRevision(){return credentialVersion;}public String requestBodySha256(){return requestHash;}public JsonNode approvedRequest(){return request.deepCopy();}
+ public void requireCurrent(EnterpriseAccess.Admission admission)throws IOException{current.require(admission);}
+}

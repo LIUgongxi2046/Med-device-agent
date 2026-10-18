@@ -24,7 +24,7 @@ class LocalAccountInputTest {
 
     @Test
     void actualDatasetCannotBeTruncatedIntoABcryptPassword() throws Exception {
-        String actual = Files.readString(Path.of("../../data-design/sample_dataset.json"));
+        String actual = Files.readString(Path.of(System.getProperty("medical.projectRoot")).resolve("data-design/sample_dataset.json"));
         var method = requireType("LocalAccountInputs").getDeclaredMethod("requirePassword", String.class);
         var failure = assertThrows(InvocationTargetException.class, () -> method.invoke(null, actual));
         assertEquals("LOCAL_PASSWORD_INVALID", failure.getCause().getMessage());

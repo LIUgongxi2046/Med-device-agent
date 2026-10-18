@@ -64,7 +64,7 @@ class TenantAccessTest {
                 checked++;
             }
         }
-        assertEquals(178, checked);
+        assertEquals(281, checked);
         RuntimeException failure = assertThrows(RuntimeException.class, () -> interceptor.getTenantLineHandler().getTenantId());
         assertEquals("ACCESS_DENIED", failure.getMessage());
     }

@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.medical.persistence.mapper.ConnectionVerificationMapper">
+<resultMap id="Intent" type="com.ruoyi.medical.persistence.mapper.ConnectionVerificationMapper$Intent"><constructor>
+<arg column="tenant_id" javaType="java.lang.String"/>
+<arg column="project_id" javaType="java.lang.String"/>
+<arg column="verification_id" javaType="java.lang.String"/>
+<arg column="created_by" javaType="java.lang.String"/>
+<arg column="model_revision" javaType="java.lang.String"/>
+<arg column="config_id" javaType="java.lang.String"/>
+<arg column="model_sha256" javaType="java.lang.String"/>
+<arg column="credential_reference_id" javaType="java.lang.String"/>
+<arg column="credential_revision" javaType="java.lang.String"/>
+<arg column="request_json" javaType="java.lang.String"/>
+<arg column="request_sha256" javaType="java.lang.String"/>
+<arg column="idempotency_key" javaType="java.lang.String"/>
+<arg column="operation_id" javaType="java.lang.String"/>
+<arg column="schema_version" javaType="java.lang.String"/>
+<arg column="schema_manifest_sha256" javaType="java.lang.String"/>
+<arg column="classification" javaType="java.lang.String"/>
+<arg column="created_at" javaType="java.lang.String"/>
+<arg column="grant_id" javaType="java.lang.String"/>
+<arg column="grant_revision" javaType="java.lang.String"/>
+<arg column="audit_id" javaType="java.lang.String"/>
+<arg column="event_id" javaType="java.lang.String"/>
+</constructor></resultMap>
+<select id="intent" resultMap="Intent" timeout="5" useCache="false" flushCache="true">SELECT tenant_id,project_id,verification_id,created_by,model_revision,config_id,model_sha256,credential_reference_id,credential_revision,request_json,request_sha256,idempotency_key,operation_id,schema_version,schema_manifest_sha256,classification,DATE_FORMAT(created_at,'%Y-%m-%dT%H:%i:%s.%fZ') AS created_at,grant_id,grant_revision,audit_id,event_id FROM runtime_connection_intent WHERE verification_id=#{verificationId} LIMIT 2</select>
+<select id="byKey" resultMap="Intent" timeout="5" useCache="false" flushCache="true">SELECT tenant_id,project_id,verification_id,created_by,model_revision,config_id,model_sha256,credential_reference_id,credential_revision,request_json,request_sha256,idempotency_key,operation_id,schema_version,schema_manifest_sha256,classification,DATE_FORMAT(created_at,'%Y-%m-%dT%H:%i:%s.%fZ') AS created_at,grant_id,grant_revision,audit_id,event_id FROM runtime_connection_intent WHERE created_by=#{userId} AND idempotency_key=#{key} LIMIT 2</select>
+<insert id="insertIntent">INSERT INTO runtime_connection_intent(project_id,verification_id,created_by,model_revision,config_id,model_sha256,credential_reference_id,credential_revision,request_json,request_sha256,idempotency_key,operation_id,schema_version,schema_manifest_sha256,classification,created_at,grant_id,grant_revision,audit_id,event_id) VALUES(#{projectId},#{verificationId},#{userId},#{modelRevision},#{configId},#{modelHash},#{credentialReferenceId},#{credentialRevision},#{requestJson},#{requestHash},#{key},#{operationId},'1.0.0',#{manifest},#{classification},#{now},#{grantId},#{grantRevision},#{auditId},#{eventId})</insert>
+<resultMap id="Binding" type="com.ruoyi.medical.persistence.mapper.ConnectionVerificationMapper$Binding"><constructor>
+<arg column="tenant_id" javaType="java.lang.String"/>
+<arg column="project_id" javaType="java.lang.String"/>
+<arg column="verification_id" javaType="java.lang.String"/>
+<arg column="run_id" javaType="java.lang.String"/>
+<arg column="step_id" javaType="java.lang.String"/>
+<arg column="action_id" javaType="java.lang.String"/>
+<arg column="invocation_id" javaType="java.lang.String"/>
+<arg column="request_sha256" javaType="java.lang.String"/>
+<arg column="input_sha256" javaType="java.lang.String"/>
+<arg column="model_revision" javaType="java.lang.String"/>
+<arg column="credential_reference_id" javaType="java.lang.String"/>
+<arg column="credential_revision" javaType="java.lang.String"/>
+<arg column="receipt_json" javaType="java.lang.String"/>
+<arg column="created_by" javaType="java.lang.String"/>
+<arg column="created_at" javaType="java.lang.String"/>
+<arg column="schema_version" javaType="java.lang.String"/>
+<arg column="schema_manifest_sha256" javaType="java.lang.String"/>
+<arg column="classification" javaType="java.lang.String"/>
+</constructor></resultMap>
+<select id="binding" resultMap="Binding" timeout="5" useCache="false" flushCache="true">SELECT tenant_id,project_id,verification_id,run_id,step_id,action_id,invocation_id,request_sha256,input_sha256,model_revision,credential_reference_id,credential_revision,receipt_json,created_by,DATE_FORMAT(created_at,'%Y-%m-%dT%H:%i:%s.%fZ') AS created_at,schema_version,schema_manifest_sha256,classification FROM runtime_connection_start WHERE verification_id=#{verificationId} LIMIT 2</select>
+<insert id="insertBinding">INSERT INTO runtime_connection_start(project_id,verification_id,run_id,step_id,action_id,invocation_id,request_sha256,input_sha256,model_revision,credential_reference_id,credential_revision,receipt_json,created_by,created_at,schema_version,schema_manifest_sha256,classification) VALUES(#{projectId},#{verificationId},#{runId},#{stepId},#{actionId},#{invocationId},#{requestHash},#{inputHash},#{modelRevision},#{credentialReferenceId},#{credentialRevision},#{receiptJson},#{userId},#{now},'1.0.0',#{manifest},#{classification})</insert>
+<resultMap id="Completed" type="com.ruoyi.medical.persistence.mapper.ConnectionVerificationMapper$Completed"><constructor>
+<arg column="tenant_id" javaType="java.lang.String"/>
+<arg column="project_id" javaType="java.lang.String"/>
+<arg column="verification_id" javaType="java.lang.String"/>
+<arg column="invocation_id" javaType="java.lang.String"/>
+<arg column="artifact_json" javaType="java.lang.String"/>
+<arg column="receipt_sha256" javaType="java.lang.String"/>
+<arg column="price_version" javaType="java.lang.String"/>
+<arg column="currency" javaType="java.lang.String"/>
+<arg column="settled_amount" javaType="java.lang.String"/>
+<arg column="usage_receipt_id" javaType="java.lang.String"/>
+<arg column="audit_id" javaType="java.lang.String"/>
+<arg column="event_id" javaType="java.lang.String"/>
+<arg column="created_by" javaType="java.lang.String"/>
+<arg column="created_at" javaType="java.lang.String"/>
+<arg column="schema_version" javaType="java.lang.String"/>
+<arg column="schema_manifest_sha256" javaType="java.lang.String"/>
+<arg column="classification" javaType="java.lang.String"/>
+</constructor></resultMap>
+<select id="completed" resultMap="Completed" timeout="5" useCache="false" flushCache="true">SELECT tenant_id,project_id,verification_id,invocation_id,artifact_json,receipt_sha256,price_version,currency,settled_amount,usage_receipt_id,audit_id,event_id,created_by,DATE_FORMAT(created_at,'%Y-%m-%dT%H:%i:%s.%fZ') AS created_at,schema_version,schema_manifest_sha256,classification FROM runtime_connection_completed WHERE verification_id=#{verificationId} LIMIT 2</select>
+<insert id="insertCompleted">INSERT INTO runtime_connection_completed(project_id,verification_id,invocation_id,artifact_json,receipt_sha256,price_version,currency,settled_amount,usage_receipt_id,audit_id,event_id,created_by,created_at,schema_version,schema_manifest_sha256,classification) VALUES(#{projectId},#{verificationId},#{invocationId},#{artifactJson},#{receiptHash},#{priceVersion},#{currency},#{settledAmount},#{usageReceiptId},#{auditId},#{eventId},#{userId},#{now},'1.0.0',#{manifest},#{classification})</insert>
+<insert id="insertVerification">INSERT INTO connection_verification(project_id,verification_id,config_id,configuration_kind,config_revision,credential_reference_id,credential_revision,status,receipt_ref,receipt_artifact_id,endpoint_identity,verified_at,error_code,schema_version,schema_manifest_sha256,created_by,created_at,classification,revision,updated_at) VALUES(#{configurationProjectId},#{verificationId},#{configId},'MODEL',#{modelRevision},#{credentialReferenceId},#{credentialRevision},'PENDING',NULL,NULL,NULL,NULL,NULL,'1.0.0',#{manifest},#{userId},#{now},#{classification},1,#{now})</insert>
+<update id="markRunning">UPDATE connection_verification SET status='RUNNING',revision=revision+1,updated_at=#{now} WHERE verification_id=#{verificationId} AND config_id=#{configId} AND configuration_kind='MODEL' AND config_revision=#{modelRevision} AND credential_reference_id=#{credentialReferenceId} AND credential_revision=#{credentialRevision} AND created_by=#{userId} AND status='PENDING' AND revision=1</update>
+<update id="markPassed">UPDATE connection_verification SET status='PASSED',receipt_ref=#{artifactJson},receipt_artifact_id=#{artifactId},endpoint_identity=#{endpoint},verified_at=#{verifiedAt},revision=revision+1,updated_at=#{now} WHERE verification_id=#{verificationId} AND config_id=#{configId} AND configuration_kind='MODEL' AND config_revision=#{modelRevision} AND credential_reference_id=#{credentialReferenceId} AND credential_revision=#{credentialRevision} AND created_by=#{userId} AND status='RUNNING' AND revision=2</update>
+<select id="audit" resultType="java.lang.String" timeout="5" useCache="false" flushCache="true">SELECT resource_ref FROM audit_event WHERE audit_id=#{auditId} AND subject_id=#{actorId} AND created_by=#{actorId} AND project_id &lt;=> #{projectId} AND action='model.connection.verified' AND request_id=#{operationId} AND trace_id=#{operationId} AND result='SUCCESS' AND reason_code IS NULL AND schema_version='1.0.0' AND schema_manifest_sha256=#{manifest} AND classification=#{classification} LIMIT 2</select>
+<select id="event" resultType="java.lang.String" timeout="5" useCache="false" flushCache="true">SELECT payload FROM outbox_event WHERE event_id=#{eventId} AND aggregate_id=#{verificationId} AND aggregate_revision=3 AND event_type='model.connection.verified' LIMIT 2</select>
+<select id="verification" resultType="java.lang.String" timeout="5" useCache="false" flushCache="true">SELECT JSON_OBJECT('project_id',project_id,'verification_id',verification_id,'config_id',config_id,'model_revision',config_revision,'credential_reference_id',credential_reference_id,'credential_revision',credential_revision,'status',status,'receipt_ref',receipt_ref,'receipt_artifact_id',receipt_artifact_id,'endpoint_identity',endpoint_identity,'verified_at',IF(verified_at IS NULL,NULL,DATE_FORMAT(verified_at,'%Y-%m-%dT%H:%i:%s.%fZ')),'error_code',error_code,'schema_version',schema_version,'schema_manifest_sha256',schema_manifest_sha256,'created_by',created_by,'created_at',DATE_FORMAT(created_at,'%Y-%m-%dT%H:%i:%s.%fZ'),'updated_at',DATE_FORMAT(updated_at,'%Y-%m-%dT%H:%i:%s.%fZ'),'configuration_kind',configuration_kind,'classification',classification,'revision',CAST(revision AS CHAR)) FROM connection_verification WHERE verification_id=#{verificationId} LIMIT 2</select>
+<insert id="insertOperation">INSERT INTO operation_record(operation_id,subject_id,operation_name,idempotency_key,request_sha256,state,response_ref,target_id,schema_version,schema_manifest_sha256,created_by,created_at,classification,revision,updated_at) VALUES(#{operationId},#{userId},'MODEL-CONNECTION-VERIFICATION',#{key},#{requestHash},'PROCESSING',#{requestJson},#{verificationId},'1.0.0',#{manifest},#{userId},#{now},#{classification},1,#{now})</insert>
+<select id="operation" resultType="java.lang.String" timeout="5" useCache="false" flushCache="true">SELECT JSON_OBJECT('state',state,'http_status',http_status,'response_ref',response_ref,'error_code',error_code,'revision',CAST(revision AS CHAR),'created_at',DATE_FORMAT(created_at,'%Y-%m-%dT%H:%i:%s.%fZ'),'updated_at',DATE_FORMAT(updated_at,'%Y-%m-%dT%H:%i:%s.%fZ')) FROM operation_record WHERE operation_id=#{operationId} AND subject_id=#{actorId} AND created_by=#{actorId} AND operation_name='MODEL-CONNECTION-VERIFICATION' AND idempotency_key=#{key} AND request_sha256=#{requestHash} AND target_id=#{verificationId} AND schema_version='1.0.0' AND schema_manifest_sha256=#{manifest} AND classification=#{classification} LIMIT 2</select>
+<update id="completeOperation">UPDATE operation_record SET state='COMPLETED',http_status=200,response_ref=#{receiptJson},revision=revision+1,updated_at=#{now} WHERE operation_id=#{operationId} AND subject_id=#{userId} AND created_by=#{userId} AND target_id=#{verificationId} AND idempotency_key=#{key} AND operation_name='MODEL-CONNECTION-VERIFICATION' AND request_sha256=#{requestHash} AND error_code IS NULL AND state='PROCESSING' AND revision=1</update>
+<select id="intentAudit" resultType="java.lang.String" timeout="5" useCache="false" flushCache="true">SELECT resource_ref FROM audit_event WHERE audit_id=#{auditId} AND subject_id=#{actorId} AND created_by=#{actorId} AND project_id &lt;=> #{projectId} AND action='model.connection.requested' AND request_id=#{operationId} AND trace_id=#{operationId} AND result='SUCCESS' AND reason_code IS NULL AND schema_version='1.0.0' AND schema_manifest_sha256=#{manifest} AND classification=#{classification} LIMIT 2</select>
+<select id="intentEvent" resultType="java.lang.String" timeout="5" useCache="false" flushCache="true">SELECT payload FROM outbox_event WHERE event_id=#{eventId} AND aggregate_id=#{verificationId} AND aggregate_revision=1 AND event_type='model.connection.requested' LIMIT 2</select>
+</mapper>

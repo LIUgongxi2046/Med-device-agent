@@ -5,6 +5,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import platform
 import re
 import secrets
 import shutil
@@ -15,14 +16,19 @@ import tarfile
 import time
 import uuid
 
-import boto3
-from botocore.config import Config
-
-
 ROOT = Path(__file__).resolve().parents[1]
 TOOLCHAIN = ROOT / ".implementation-work/toolchains/seaweedfs-4.48"
 DIRECTORY = ROOT / ".implementation-work/runtime/object-storage"
 ARCHIVE_SHA256 = "425ef61d2ee773d5d5175003f38bd6cc891070ae6319370354aaf5378c45d5b3"
+# Fixed pins verified against the official 4.48 release API, never caller input.
+# https://api.github.com/repos/seaweedfs/seaweedfs/releases/tags/4.48
+OFFICIAL_ARCHIVES = {
+    ("Darwin", "x86_64"): {"name": "darwin_amd64.tar.gz", "sha256": ARCHIVE_SHA256,
+        "source": "https://api.github.com/repos/seaweedfs/seaweedfs/releases/assets/595824418"},
+    ("Linux", "x86_64"): {"name": "linux_amd64.tar.gz",
+        "sha256": "4a7d108384d044d95212d1342cdda9533fa55842c1c9b41f606ca3c8a9561124",
+        "source": "https://api.github.com/repos/seaweedfs/seaweedfs/releases/assets/595905333"},
+}
 LICENSE_SHA256 = "d789d433cc11da163273d1e39be2e8fa67642f9a58ef220d3f258fa9c14ef613"
 BUCKET = "medical-local-artifacts"
 ENDPOINT = "http://127.0.0.1:18333"
@@ -52,19 +58,27 @@ def save_private(path, value):
         os.fsync(output.fileno())
 
 
+def official_archive():
+    try:
+        return OFFICIAL_ARCHIVES[(platform.system(), platform.machine())]
+    except KeyError as error:
+        raise ValueError("OBJECT_STORAGE_PLATFORM_UNSUPPORTED") from error
+
+
 def install():
-    archive = TOOLCHAIN / "darwin_amd64.tar.gz"
-    if archive.is_symlink() or digest(archive) != ARCHIVE_SHA256:
+    release = official_archive()
+    archive = TOOLCHAIN / release["name"]
+    if archive.is_symlink() or not archive.is_file() or digest(archive) != release["sha256"]:
         raise ValueError("OBJECT_STORAGE_OFFICIAL_ARCHIVE_MISMATCH")
     license_file = TOOLCHAIN / "LICENSE"
-    if license_file.is_symlink() or digest(license_file) != LICENSE_SHA256:
+    if license_file.is_symlink() or not license_file.is_file() or digest(license_file) != LICENSE_SHA256:
         raise ValueError("OBJECT_STORAGE_OFFICIAL_LICENSE_MISMATCH")
     target = TOOLCHAIN / "weed"
-    if target.exists():
+    if target.exists() or target.is_symlink():
         raise ValueError("OBJECT_STORAGE_BINARY_ALREADY_PRESENT")
     with tarfile.open(archive, "r:gz") as source:
         members = [member for member in source.getmembers() if Path(member.name).name == "weed"]
-        if len(members) != 1 or not members[0].isfile():
+        if len(members) != 1 or members[0].name not in ("weed", "./weed") or not members[0].isfile():
             raise ValueError("OBJECT_STORAGE_ARCHIVE_BINARY_INVALID")
         with source.extractfile(members[0]) as original, target.open("xb") as output:
             shutil.copyfileobj(original, output)
@@ -72,12 +86,12 @@ def install():
             os.fsync(output.fileno())
     target.chmod(0o500)
     version = subprocess.run([str(target), "version"], capture_output=True, text=True, check=True, timeout=15).stdout.strip()
-    if "4.48" not in version:
+    if re.search(r"(?<![\d.])4\.48(?![\d.])", version) is None:
         raise ValueError("OBJECT_STORAGE_BINARY_VERSION_INVALID")
     save_private(TOOLCHAIN / "installation.json", {"scope": "OFFICIAL_LOCAL_TOOLCHAIN", "version": version,
-        "archive_sha256": ARCHIVE_SHA256, "binary_sha256": digest(target), "os_uid": os.getuid(),
+        "archive_sha256": release["sha256"], "binary_sha256": digest(target), "os_uid": os.getuid(),
         "license": "Apache-2.0", "license_sha256": LICENSE_SHA256,
-        "source": "https://api.github.com/repos/seaweedfs/seaweedfs/releases/assets/595824418"})
+        "source": release["source"], "platform": platform.system(), "architecture": platform.machine()})
     print("OBJECT_STORAGE_TOOLCHAIN_INSTALLED " + version)
 
 
@@ -122,14 +136,16 @@ def command():
 def start():
     values = settings()
     installation = json.loads(private_file(TOOLCHAIN / "installation.json"))
+    release = official_archive()
     binary = TOOLCHAIN / "weed"
-    if binary.is_symlink() or digest(binary) != installation["binary_sha256"] or installation["os_uid"] != os.getuid():
+    if binary.is_symlink() or digest(binary) != installation["binary_sha256"] or installation["os_uid"] != os.getuid() \
+            or installation["archive_sha256"] != release["sha256"] or installation["source"] != release["source"]:
         raise ValueError("OBJECT_STORAGE_TOOLCHAIN_IDENTITY_CHANGED")
     if IDENTITY.exists():
         raise ValueError("OBJECT_STORAGE_DEPLOYMENT_ALREADY_PRESENT")
     environment = os.environ.copy()
     environment.update({"TMPDIR": str(DIRECTORY / "tmp"), "AWS_ACCESS_KEY_ID": values["access_key"],
-        "AWS_SECRET_ACCESS_KEY": values["secret_key"], "WEED_S3_SSE_KEK": values["sse_kek"], "LC_ALL": "en_US.UTF-8"})
+        "AWS_SECRET_ACCESS_KEY": values["secret_key"], "WEED_S3_SSE_KEK": values["sse_kek"], "LC_ALL": "C"})
     mask = os.umask(0o077)
     try:
         with (DIRECTORY / "service.log").open("ab") as output:
@@ -139,7 +155,7 @@ def start():
         os.umask(mask)
     deployment = {"scope": "LOCAL_PRIVATE_OBJECT_STORAGE", "deployment_id": str(uuid.uuid4()),
         "service_id": values["service_id"], "pid": process.pid, "os_uid": os.getuid(), "endpoint": ENDPOINT,
-        "bucket": BUCKET, "binary_sha256": installation["binary_sha256"], "archive_sha256": ARCHIVE_SHA256,
+        "bucket": BUCKET, "binary_sha256": installation["binary_sha256"], "archive_sha256": release["sha256"],
         "command": command(), "started_at": time.time()}
     save_private(DIRECTORY / ("deployment-" + deployment["deployment_id"] + ".json"), deployment)
     save_private(IDENTITY, deployment)
@@ -152,17 +168,46 @@ def verify_identity():
         raise ValueError("OBJECT_STORAGE_DEPLOYMENT_IDENTITY_INVALID")
     if value["service_id"] != settings()["service_id"] or value["command"] != command():
         raise ValueError("OBJECT_STORAGE_DEPLOYMENT_CONFIG_CHANGED")
-    if value["archive_sha256"] != ARCHIVE_SHA256 or digest(TOOLCHAIN / "weed") != value["binary_sha256"]:
+    if value["archive_sha256"] != official_archive()["sha256"] or (TOOLCHAIN / "weed").is_symlink() \
+            or digest(TOOLCHAIN / "weed") != value["binary_sha256"]:
         raise ValueError("OBJECT_STORAGE_DEPLOYMENT_BINARY_CHANGED")
     pid = value["pid"]
     if type(pid) is not int or pid <= 1:
         raise ValueError("OBJECT_STORAGE_PID_INVALID")
-    for field, expected in (("uid", str(os.getuid())), ("comm", str(TOOLCHAIN / "weed")), ("args", " ".join(command()))):
-        observed = subprocess.run(["/bin/ps", "-ww", "-p", str(pid), "-o", field + "="],
-            capture_output=True, text=True, check=True, timeout=10, env={**os.environ, "LC_ALL": "en_US.UTF-8"}).stdout.strip()
-        if observed != expected:
-            raise ValueError("OBJECT_STORAGE_PROCESS_IDENTITY_CHANGED")
+    verify_process_identity(pid, value["binary_sha256"])
     return value
+
+
+def verify_process_identity(pid, binary_sha256):
+    if type(pid) is not int or pid <= 1:
+        raise ValueError("OBJECT_STORAGE_PID_INVALID")
+    system = platform.system()
+    if system == "Linux":
+        # Linux ps comm is only a short process name. Verify the actual executable
+        # and NUL-delimited argv instead, including the running executable bytes.
+        process = Path("/proc") / str(pid)
+        try:
+            executable = os.readlink(process / "exe")
+            arguments = (process / "cmdline").read_bytes()
+            status = (process / "status").read_text(encoding="ascii")
+            uid_lines = [line.split()[1:] for line in status.splitlines() if line.startswith("Uid:")]
+            if executable != str(TOOLCHAIN / "weed") \
+                    or uid_lines != [[str(os.getuid())] * 4] \
+                    or arguments != b"\0".join(os.fsencode(value) for value in command()) + b"\0" \
+                    or digest(process / "exe") != binary_sha256:
+                raise ValueError("OBJECT_STORAGE_PROCESS_IDENTITY_CHANGED")
+        except (OSError, UnicodeError) as error:
+            raise ValueError("OBJECT_STORAGE_PROCESS_IDENTITY_CHANGED") from error
+    elif system == "Darwin":
+        for field, expected in (("uid", str(os.getuid())), ("comm", str(TOOLCHAIN / "weed")),
+                ("args", " ".join(command()))):
+            observed = subprocess.run(["/bin/ps", "-ww", "-p", str(pid), "-o", field + "="],
+                capture_output=True, text=True, check=True, timeout=10,
+                env={**os.environ, "LC_ALL": "C"}).stdout.strip()
+            if observed != expected:
+                raise ValueError("OBJECT_STORAGE_PROCESS_IDENTITY_CHANGED")
+    else:
+        raise ValueError("OBJECT_STORAGE_PLATFORM_UNSUPPORTED")
 
 
 def archive_terminated():
@@ -173,7 +218,7 @@ def archive_terminated():
     if type(pid) is not int or pid <= 1:
         raise ValueError("OBJECT_STORAGE_PID_INVALID")
     process = subprocess.run(["/bin/ps", "-p", str(pid), "-o", "pid="], capture_output=True,
-        text=True, check=False, timeout=10, env={**os.environ, "LC_ALL": "en_US.UTF-8"})
+        text=True, check=False, timeout=10, env={**os.environ, "LC_ALL": "C"})
     if process.returncode != 1 or process.stdout.strip():
         raise ValueError("OBJECT_STORAGE_PROCESS_STILL_PRESENT")
     destination = DIRECTORY / ("terminated-" + value["deployment_id"] + ".json")
@@ -184,6 +229,10 @@ def archive_terminated():
 
 
 def client():
+    # Toolchain installation and identity checks do not need the S3 SDK.
+    import boto3
+    from botocore.config import Config
+
     values = settings()
     return boto3.client("s3", endpoint_url=ENDPOINT, region_name="us-east-1", aws_access_key_id=values["access_key"],
         aws_secret_access_key=values["secret_key"], config=Config(signature_version="s3v4", connect_timeout=5,
@@ -222,15 +271,16 @@ def stop():
     os.kill(value["pid"], signal.SIGTERM)
     deadline = time.monotonic() + 30
     while time.monotonic() < deadline:
-        process = subprocess.run(["/bin/ps", "-ww", "-p", str(value["pid"]), "-o", "comm="],
-            capture_output=True, text=True, check=False, timeout=5, env={**os.environ, "LC_ALL": "en_US.UTF-8"})
+        process = subprocess.run(["/bin/ps", "-ww", "-p", str(value["pid"]), "-o", "pid="],
+            capture_output=True, text=True, check=False, timeout=5, env={**os.environ, "LC_ALL": "C"})
         if process.returncode == 1 and not process.stdout.strip():
             save_private(DIRECTORY / ("stopped-" + value["deployment_id"] + ".json"), value)
             IDENTITY.unlink()
             print("OBJECT_STORAGE_PROCESS_STOPPED " + value["deployment_id"])
             return
-        if process.returncode != 0 or process.stdout.strip() != str(TOOLCHAIN / "weed"):
+        if process.returncode != 0 or process.stdout.strip() != str(value["pid"]):
             raise ValueError("OBJECT_STORAGE_STOP_PROCESS_IDENTITY_CHANGED")
+        verify_process_identity(value["pid"], value["binary_sha256"])
         time.sleep(0.2)
     raise TimeoutError("OBJECT_STORAGE_PROCESS_STOP_TIMEOUT")
 

@@ -86,7 +86,7 @@ public final class SimulationSourceRightsData implements AutoCloseable {
             PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------")));
         var input=directory.resolve("original.txt"); var output=directory.resolve("parsed.json");
         Files.write(input,bytes,java.nio.file.StandardOpenOption.CREATE_NEW); Files.setPosixFilePermissions(input,PosixFilePermissions.fromString("rw-------"));
-        var builder=new ProcessBuilder(root.resolve(".implementation-work/document-venv/bin/python").toString(),root.resolve("scripts/prepare_source_exact_simulation.py").toString(),
+        var builder=new ProcessBuilder(System.getProperty("medical.test.python", root.resolve(".implementation-work/document-venv/bin/python").toString()),root.resolve("scripts/prepare_source_exact_simulation.py").toString(),
             "--root",root.toString(),"--source",input.toString(),"--source-version",documents.sourceVersion,"--parse-version",documents.parse,"--sha256",hash,"--output",output.toString());
         builder.directory(root.toFile()); builder.environment().put("TMPDIR",directory.toString()); builder.environment().put("PYTHONPATH",
             root.resolve("document/src")+java.io.File.pathSeparator+root.resolve("contracts/python/src"));

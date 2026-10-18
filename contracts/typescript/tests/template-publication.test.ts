@@ -12,13 +12,13 @@ const catalogue = await loadProject(root)
 const dataset = decodeDataset(catalogue, JSON.parse(await readFile(resolve(root, 'data-design/sample_dataset.json'), 'utf-8')))
 
 test('业务全部定义使用各自固定URN身份', async () => {
-  for (const [name, file] of [['templates', 'templates.schema.json'], ['template-operations', 'template-operations.schema.json'], ['tasks', 'tasks.schema.json'], ['collections', 'collections.schema.json'], ['rule-expressions', 'rule-expressions.schema.json'], ['template-applicability', 'template-applicability.schema.json'], ['agent-release', 'agent-release.schema.json'], ['task-plan-view', 'task-plan-view.schema.json']] as const) {
+  for (const [name, file] of [['templates', 'templates.schema.json'], ['template-operations', 'template-operations.schema.json'], ['tasks', 'tasks.schema.json'], ['collections', 'collections.schema.json'], ['rule-expressions', 'rule-expressions.schema.json'], ['template-applicability', 'template-applicability.schema.json'], ['agent-release', 'agent-release.schema.json'], ['task-plan-view', 'task-plan-view.schema.json'], ['evaluation-results', 'evaluation-results.schema.json']] as const) {
     const bytes = await readFile(resolve(root, 'business/medical-persistence/src/main/resources', file))
     const document = JSON.parse(bytes.toString('utf-8')) as { $id: string; $defs: Record<string, unknown> }
     assert.equal(catalogue.schemaRef(name), document.$id)
     for (const definition of Object.keys(document.$defs)) assert.equal(catalogue.schemaRef(name, definition), `${document.$id}#/$defs/${definition}`)
   }
-  assert.equal(catalogue.definitionCount, 307)
+  assert.equal(catalogue.definitionCount, 503)
 })
 
 test('获授权原件摘要通过模板Schema校验并保持固定摘要', async () => {

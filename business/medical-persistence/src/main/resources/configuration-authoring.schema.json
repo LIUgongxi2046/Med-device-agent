@@ -1,0 +1,594 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:configuration-authoring:1.0.0",
+  "$defs": {
+    "Id": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "Hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "Count": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]{0,19})$"
+    },
+    "PositiveCount": {
+      "type": "string",
+      "pattern": "^[1-9][0-9]{0,19}$"
+    },
+    "Seconds": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 2147483647
+    },
+    "Limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "activity_start_to_close_seconds",
+        "heartbeat_interval_seconds",
+        "heartbeat_timeout_seconds",
+        "sdk_initialize_timeout_seconds",
+        "sdk_request_timeout_seconds",
+        "model_request_timeout_seconds",
+        "paid_request_extra_retries",
+        "model_spawned_subagents",
+        "max_wall_time_seconds",
+        "max_model_requests",
+        "max_tool_calls",
+        "max_research_questions",
+        "max_research_rounds",
+        "max_revision_rounds",
+        "max_parallel_steps",
+        "max_input_tokens",
+        "max_output_tokens",
+        "max_total_tokens",
+        "max_cost_amount",
+        "currency",
+        "max_consecutive_no_progress",
+        "max_repeated_failure_signature"
+      ],
+      "properties": {
+        "activity_start_to_close_seconds": {
+          "$ref": "#/$defs/Seconds"
+        },
+        "heartbeat_interval_seconds": {
+          "$ref": "#/$defs/Seconds"
+        },
+        "heartbeat_timeout_seconds": {
+          "$ref": "#/$defs/Seconds"
+        },
+        "sdk_initialize_timeout_seconds": {
+          "$ref": "#/$defs/Seconds"
+        },
+        "sdk_request_timeout_seconds": {
+          "$ref": "#/$defs/Seconds"
+        },
+        "model_request_timeout_seconds": {
+          "$ref": "#/$defs/Seconds"
+        },
+        "paid_request_extra_retries": {
+          "const": 0
+        },
+        "model_spawned_subagents": {
+          "const": 0
+        },
+        "max_wall_time_seconds": {
+          "$ref": "#/$defs/Seconds"
+        },
+        "max_model_requests": {
+          "$ref": "#/$defs/Count"
+        },
+        "max_tool_calls": {
+          "const": "0"
+        },
+        "max_research_questions": {
+          "$ref": "#/$defs/Count"
+        },
+        "max_research_rounds": {
+          "$ref": "#/$defs/Count"
+        },
+        "max_revision_rounds": {
+          "$ref": "#/$defs/Count"
+        },
+        "max_parallel_steps": {
+          "$ref": "#/$defs/PositiveCount"
+        },
+        "max_input_tokens": {
+          "$ref": "#/$defs/Count"
+        },
+        "max_output_tokens": {
+          "$ref": "#/$defs/Count"
+        },
+        "max_total_tokens": {
+          "$ref": "#/$defs/Count"
+        },
+        "max_cost_amount": {
+          "const": "0"
+        },
+        "currency": {
+          "type": "string",
+          "pattern": "^[A-Z]{3}$"
+        },
+        "max_consecutive_no_progress": {
+          "$ref": "#/$defs/PositiveCount"
+        },
+        "max_repeated_failure_signature": {
+          "$ref": "#/$defs/PositiveCount"
+        }
+      }
+    },
+    "VersionRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version_id",
+        "content_sha256"
+      ],
+      "properties": {
+        "version_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "content_sha256": {
+          "$ref": "#/$defs/Hash"
+        }
+      }
+    },
+    "PublishedSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_ref",
+        "schema_sha256"
+      ],
+      "properties": {
+        "schema_ref": {
+          "type": "string",
+          "format": "uri",
+          "minLength": 1
+        },
+        "schema_sha256": {
+          "$ref": "#/$defs/Hash"
+        }
+      }
+    },
+    "Capability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "project_id",
+        "kind",
+        "source_artifact",
+        "input_schema_ref",
+        "output_schema_ref",
+        "tool_scope",
+        "execution_mode"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "project_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "kind": {
+          "enum": [
+            "ROLE",
+            "PROMPT"
+          ]
+        },
+        "source_artifact": {
+          "$ref": "#/$defs/VersionRef"
+        },
+        "input_schema_ref": {
+          "$ref": "#/$defs/PublishedSchema"
+        },
+        "output_schema_ref": {
+          "$ref": "#/$defs/PublishedSchema"
+        },
+        "tool_scope": {
+          "type": "array",
+          "maxItems": 0
+        },
+        "execution_mode": {
+          "const": "SIMULATION"
+        }
+      }
+    },
+    "Agent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "project_id",
+        "name",
+        "role_version",
+        "prompt_revision",
+        "model_config_revision",
+        "limits",
+        "execution_mode"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "project_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "role_version": {
+          "$ref": "#/$defs/VersionRef"
+        },
+        "prompt_revision": {
+          "$ref": "#/$defs/VersionRef"
+        },
+        "model_config_revision": {
+          "$ref": "#/$defs/VersionRef"
+        },
+        "limits": {
+          "$ref": "#/$defs/Limits"
+        },
+        "execution_mode": {
+          "const": "SIMULATION"
+        }
+      }
+    },
+    "Revision": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]{0,19})$"
+    },
+    "Context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tenant_id",
+        "context_revision",
+        "auth_epoch",
+        "governance_epoch"
+      ],
+      "properties": {
+        "tenant_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "context_revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "auth_epoch": {
+          "$ref": "#/$defs/Revision"
+        },
+        "governance_epoch": {
+          "$ref": "#/$defs/Revision"
+        }
+      }
+    },
+    "DependencyManifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "manifest_kind",
+        "dependencies"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "manifest_kind": {
+          "const": "SIMULATION_CANDIDATE_DEPENDENCIES"
+        },
+        "dependencies": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 1024,
+          "uniqueItems": true,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "version_id",
+              "content_sha256"
+            ],
+            "properties": {
+              "version_id": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+              },
+              "content_sha256": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              }
+            }
+          }
+        }
+      }
+    },
+    "FixedCapability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "tenant_id",
+        "config_id",
+        "version_id",
+        "request",
+        "created_by",
+        "created_at"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "tenant_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "config_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "version_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "request": {
+          "$ref": "#/$defs/Capability"
+        },
+        "created_by": {
+          "$ref": "#/$defs/Id"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "CapabilityView": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "definition",
+        "content_sha256",
+        "status",
+        "revision",
+        "production_eligible"
+      ],
+      "properties": {
+        "definition": {
+          "$ref": "#/$defs/FixedCapability"
+        },
+        "content_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "status": {
+          "const": "DRAFT"
+        },
+        "revision": {
+          "const": "1"
+        },
+        "production_eligible": {
+          "const": false
+        }
+      }
+    },
+    "FixedAgent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "tenant_id",
+        "config_id",
+        "version_id",
+        "request",
+        "created_by",
+        "created_at",
+        "dependency_manifest"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "tenant_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "config_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "version_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "request": {
+          "$ref": "#/$defs/Agent"
+        },
+        "created_by": {
+          "$ref": "#/$defs/Id"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "dependency_manifest": {
+          "$ref": "#/$defs/DependencyManifest"
+        }
+      }
+    },
+    "AgentView": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "definition",
+        "content_sha256",
+        "status",
+        "revision",
+        "production_eligible"
+      ],
+      "properties": {
+        "definition": {
+          "$ref": "#/$defs/FixedAgent"
+        },
+        "content_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "status": {
+          "const": "DRAFT"
+        },
+        "revision": {
+          "const": "1"
+        },
+        "production_eligible": {
+          "const": false
+        }
+      }
+    },
+    "Receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "operation_id",
+        "tenant_id",
+        "project_id",
+        "config_id",
+        "version_id",
+        "content_sha256",
+        "status",
+        "revision",
+        "production_eligible",
+        "current_context"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "operation_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "tenant_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "project_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "config_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "version_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "content_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "status": {
+          "const": "DRAFT"
+        },
+        "revision": {
+          "const": "1"
+        },
+        "production_eligible": {
+          "const": false
+        },
+        "current_context": {
+          "$ref": "#/$defs/Context"
+        }
+      }
+    },
+    "ReceiptEnvelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "request_id",
+        "resource_revision",
+        "data"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "request_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "resource_revision": {
+          "const": "1"
+        },
+        "data": {
+          "$ref": "#/$defs/Receipt"
+        }
+      }
+    },
+    "AgentViewEnvelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "request_id",
+        "resource_revision",
+        "data"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "request_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "resource_revision": {
+          "const": "1"
+        },
+        "data": {
+          "$ref": "#/$defs/AgentView"
+        }
+      }
+    },
+    "CapabilityViewEnvelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "request_id",
+        "resource_revision",
+        "data"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "request_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "resource_revision": {
+          "const": "1"
+        },
+        "data": {
+          "$ref": "#/$defs/CapabilityView"
+        }
+      }
+    }
+  }
+}

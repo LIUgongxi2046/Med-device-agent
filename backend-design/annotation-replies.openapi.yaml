@@ -1,0 +1,69 @@
+openapi: 3.1.0
+info:
+  title: 固定文稿标注回复扩展
+  version: 1.0.0
+  description: >-
+    IMP-23 RV-05/BX-12 的独立回复扩展，只操作已有 annotation。
+    不替换 interfaces.openapi.yaml 中冻结的 BX-12 RecordPage/ArtifactRef 契约。
+    不创建标注、重新定位、解决标注、确认文稿或签发。
+jsonSchemaDialect: https://json-schema.org/draft/2020-12/schema
+security: [{Session: []}]
+components:
+  securitySchemes:
+    Session: {type: apiKey, in: cookie, name: SESSION}
+  parameters:
+    Id: &id {name: id, in: path, required: true, schema: {$ref: '../business/medical-persistence/src/main/resources/annotation-replies.schema.json#/$defs/Id'}}
+    Version: &version {name: X-Schema-Version, in: header, required: true, schema: {const: 1.0.0}}
+    Context: &context {name: X-Context-Revision, in: header, required: true, schema: {$ref: '../business/medical-persistence/src/main/resources/annotation-replies.schema.json#/$defs/Revision'}}
+    Idempotency: &idem {name: Idempotency-Key, in: header, required: true, schema: {type: string, minLength: 16, maxLength: 128, pattern: '^[\x21-\x7e]+$'}}
+    CSRF: &csrf {name: X-CSRF-Token, in: header, required: true, schema: {type: string, minLength: 1}}
+  responses:
+    Error: &error
+      description: 当前身份、许可、来源、上下文、版本、容量或内容核验拒绝；错误不包含原文、SQL 或对象路径。
+      content: {application/json: {schema: {$ref: './interfaces.schema.yaml#/$defs/Error'}}}
+paths:
+  /api/annotation-threads/{id}/replies:
+    get:
+      operationId: listAnnotationRepliesV1
+      description: >-
+        annotation.read 的 DOCUMENT 范围、DOCUMENT_REVIEW 用途许可，加上原 DocumentReadService 的
+        DOCUMENT_BODY 用途文稿/制品/全部上游来源读取许可。读取完整且最多 1000 条回复；没有查询参数、分页或截断。
+        同一短事务读取父标注与完整回复，输出固定版本和当前/原版本位置状态、完整数量与 RFC8785 集合摘要。
+        超过容量返回 422 CONTEXT_LIMIT。REANCHOR_REQUIRED 保持原样。当前源许可与时间有效性在返回前重查。
+      parameters: [*id, *version, *context]
+      responses:
+        '200':
+          description: Envelope.resource_revision 为当前 annotation.revision；Listing.complete 恒为 true。
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - {$ref: './interfaces.schema.yaml#/$defs/Envelope'}
+                  - properties:
+                      data: {$ref: '../business/medical-persistence/src/main/resources/annotation-replies.schema.json#/$defs/Listing'}
+        default: *error
+    post:
+      operationId: appendAnnotationReplyV1
+      description: >-
+        当前 annotation.write 的 DOCUMENT 范围、DOCUMENT_REVIEW 用途许可，且有全部原文稿来源读取许可。
+        只追加回复并 CAS 增加父 annotation.revision；不改变 status、selection、正文、问题、检查或审查决定。
+        expected_revision 是父标注修订，document_revision 是标注的原固定正文版本；新写入必须匹配两者。
+        content 最多 16000 Unicode code points，原 Unicode、空格、换行保持不变，空白内容和非法 Unicode 拒绝。
+        servlet 在读取前校验身份；声明长度及实际流均以 65536 字节为限，超限返回 413。
+        同一标注最多 1000 条回复，达到容量后拒绝新增。原幂等键返回经过当前授权及存储核验的原回执；不同请求返回 409。
+        回复、父 CAS、操作回执、审计与 Outbox 在同一企业事务提交。审计及 Outbox 只含身份、修订、状态和摘要，不包含回复原文。
+      parameters: [*id, *version, *context, *idem, *csrf]
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: '../business/medical-persistence/src/main/resources/annotation-replies.schema.json#/$defs/Create'}}}
+      responses:
+        '201':
+          description: 固定原回执；重放仍为 201，并返回原 request_id、operation_id、reply_id、时间、内容和修订。
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - {$ref: './interfaces.schema.yaml#/$defs/Envelope'}
+                  - properties:
+                      data: {$ref: '../business/medical-persistence/src/main/resources/annotation-replies.schema.json#/$defs/Receipt'}
+        default: *error

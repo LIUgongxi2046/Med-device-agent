@@ -46,7 +46,7 @@ def main():
     if not args.execution or Path(args.execution).name != args.execution or args.execution in (".", ".."):
         raise ValueError("执行身份必须使用单一目录名称")
     output = ROOT / ".implementation-work" / ("IC-08-SOURCE-INPUT-" + args.execution)
-    inputs = {"scripts/check_source_upload_schema.py", "contracts/catalogue.json", "data-design/sample_dataset.json",
+    inputs = {"scripts/check_source_upload_schema.py", "contracts/catalogue.json", "contracts/extensions/evaluation-results.catalogue.json", "business/medical-persistence/src/main/resources/evaluation-results.schema.json", "data-design/sample_dataset.json",
         "LLD-后端.md", "LLD-数据.md", "PRD.md", "backend-design/接口补充设计.md",
         "business/medical-persistence/src/main/resources/source-rights.schema.json"}
     dataset = json.loads((ROOT / "data-design/sample_dataset.json").read_bytes())

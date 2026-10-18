@@ -1,0 +1,756 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:document-return-for-revision:1.0.0",
+  "description": "Independent whole-document return for revision. Does not implement formal ReviewBaseline/ReviewBatch, confirmation, check currentness or signing.",
+  "$defs": {
+    "Check": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_sha256",
+        "check_id",
+        "status",
+        "record_complete",
+        "input_sha256",
+        "rule_manifest_id",
+        "evidence_watermark",
+        "issue_watermark",
+        "invalidation_reason",
+        "coverage_artifact_id",
+        "findings_artifact_id"
+      ],
+      "properties": {
+        "record_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "check_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "status": {
+          "enum": [
+            "QUEUED",
+            "RUNNING",
+            "SUCCEEDED",
+            "WAITING_INPUT",
+            "FAILED",
+            "CANCELLED"
+          ]
+        },
+        "record_complete": {
+          "type": "boolean"
+        },
+        "input_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "rule_manifest_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "evidence_watermark": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]{0,19})$"
+        },
+        "issue_watermark": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]{0,19})$"
+        },
+        "invalidation_reason": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "coverage_artifact_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "uuid"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "findings_artifact_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "uuid"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "Basis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "tenant_id",
+        "project_id",
+        "document_id",
+        "document_revision",
+        "body_sha256",
+        "task_id",
+        "task_revision",
+        "task_head_revision",
+        "task_status",
+        "revision",
+        "context_revision",
+        "auth_epoch",
+        "governance_epoch",
+        "document_read_sha256",
+        "checks",
+        "formal_review_available",
+        "formal_check_currentness",
+        "return_available",
+        "blockers",
+        "basis_sha256"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "tenant_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "project_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "document_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "document_revision": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "body_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "task_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "task_revision": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "task_head_revision": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]{0,19}$"
+        },
+        "task_status": {
+          "enum": [
+            "NEEDS_MATERIALS",
+            "PLAN_PENDING",
+            "READY",
+            "RUNNING",
+            "REVIEW_PENDING",
+            "SIGN_PENDING",
+            "SIGNED",
+            "FAILED",
+            "RETURNED",
+            "CANCEL_REQUESTED",
+            "CANCELLED"
+          ]
+        },
+        "revision": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]{0,19}$"
+        },
+        "context_revision": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]{0,19}$"
+        },
+        "auth_epoch": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]{0,19})$"
+        },
+        "governance_epoch": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]{0,19})$"
+        },
+        "document_read_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "checks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Check"
+          },
+          "maxItems": 100
+        },
+        "formal_review_available": {
+          "const": false
+        },
+        "formal_check_currentness": {
+          "const": "NOT_VERIFIED"
+        },
+        "return_available": {
+          "type": "boolean"
+        },
+        "blockers": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "DOCUMENT_NOT_CURRENT",
+              "PROJECT_NOT_ACTIVE",
+              "DOCUMENT_SIGNED",
+              "TASK_NOT_REVIEW_PENDING",
+              "TASK_REVISION_CHANGED"
+            ]
+          },
+          "maxItems": 100
+        },
+        "basis_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      }
+    },
+    "Request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "document_revision",
+        "expected_revision",
+        "expected_task_revision",
+        "reason",
+        "assignee_id",
+        "basis"
+      ],
+      "properties": {
+        "document_revision": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "expected_revision": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]{0,19}$"
+        },
+        "expected_task_revision": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]{0,19}$"
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 16000
+        },
+        "assignee_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "basis": {
+          "$ref": "#/$defs/Basis"
+        }
+      }
+    },
+    "Assignee": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "member_id",
+        "user_id",
+        "member_revision",
+        "display_name"
+      ],
+      "properties": {
+        "member_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "user_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "member_revision": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]{0,19}$"
+        },
+        "display_name": {
+          "type": "null"
+        }
+      }
+    },
+    "Assignees": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "document_id",
+        "document_revision",
+        "revision",
+        "total",
+        "complete",
+        "items",
+        "listing_sha256"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "document_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "document_revision": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "revision": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]{0,19}$"
+        },
+        "total": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]{0,19})$"
+        },
+        "complete": {
+          "const": true
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Assignee"
+          },
+          "maxItems": 100
+        },
+        "listing_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      }
+    },
+    "Availability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "current_context",
+        "review_return_enabled"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "current_context": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "tenant_id",
+            "context_revision",
+            "auth_epoch",
+            "governance_epoch"
+          ],
+          "properties": {
+            "tenant_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "context_revision": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]{0,19}$"
+            },
+            "auth_epoch": {
+              "type": "string",
+              "pattern": "^(0|[1-9][0-9]{0,19})$"
+            },
+            "governance_epoch": {
+              "type": "string",
+              "pattern": "^(0|[1-9][0-9]{0,19})$"
+            }
+          }
+        },
+        "review_return_enabled": {
+          "type": "boolean"
+        }
+      }
+    },
+    "Assignment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "assignment_id",
+        "kind",
+        "return_id",
+        "document_id",
+        "document_revision",
+        "task_id",
+        "task_revision",
+        "assignee_id",
+        "reason",
+        "status",
+        "revision",
+        "created_at"
+      ],
+      "properties": {
+        "assignment_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "kind": {
+          "const": "DOCUMENT_RETURN_FOR_REVISION"
+        },
+        "return_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "document_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "document_revision": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "task_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "task_revision": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "assignee_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "const": "WAITING_INPUT"
+        },
+        "revision": {
+          "const": "1"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "Decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "return_id",
+        "document_id",
+        "document_revision",
+        "decision",
+        "reason",
+        "actor_id",
+        "assignee_id",
+        "decided_at",
+        "baseline_manifest",
+        "assignment"
+      ],
+      "properties": {
+        "return_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "document_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "document_revision": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "decision": {
+          "const": "RETURN_FOR_REVISION"
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        },
+        "actor_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "assignee_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "decided_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "baseline_manifest": {
+          "$ref": "#/$defs/Basis"
+        },
+        "assignment": {
+          "$ref": "#/$defs/Assignment"
+        }
+      }
+    },
+    "Receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "operation_id",
+        "document_id",
+        "document_revision",
+        "previous_revision",
+        "revision",
+        "previous_task_revision",
+        "task_head_revision",
+        "task_status",
+        "request_sha256",
+        "decision",
+        "decision_sha256",
+        "invalidated_review_ids"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "operation_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "document_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "document_revision": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "previous_revision": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]{0,19}$"
+        },
+        "revision": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]{0,19}$"
+        },
+        "previous_task_revision": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]{0,19}$"
+        },
+        "task_head_revision": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]{0,19}$"
+        },
+        "task_status": {
+          "const": "RETURNED"
+        },
+        "request_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "decision": {
+          "$ref": "#/$defs/Decision"
+        },
+        "decision_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "invalidated_review_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "maxItems": 100,
+          "uniqueItems": true
+        }
+      }
+    },
+    "HistoryItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "decision",
+        "invalidated_review_ids"
+      ],
+      "properties": {
+        "decision": {
+          "$ref": "#/$defs/Decision"
+        },
+        "invalidated_review_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "maxItems": 100,
+          "uniqueItems": true
+        }
+      }
+    },
+    "History": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "document_id",
+        "document_revision",
+        "revision",
+        "total",
+        "complete",
+        "items",
+        "listing_sha256"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "document_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "document_revision": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "revision": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]{0,19}$"
+        },
+        "total": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]{0,19})$"
+        },
+        "complete": {
+          "const": true
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/HistoryItem"
+          },
+          "maxItems": 100
+        },
+        "listing_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      }
+    },
+    "AssignmentView": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "assignment",
+        "effective_state",
+        "resubmission_available",
+        "resubmission_blocker",
+        "current_document_revision",
+        "current_task_revision",
+        "task_status"
+      ],
+      "properties": {
+        "assignment": {
+          "$ref": "#/$defs/Assignment"
+        },
+        "effective_state": {
+          "enum": [
+            "OPEN",
+            "REVISION_AVAILABLE",
+            "INACTIVE"
+          ]
+        },
+        "resubmission_available": {
+          "const": false
+        },
+        "resubmission_blocker": {
+          "const": "CURRENT_CHECK_VERIFIER_UNAVAILABLE"
+        },
+        "current_document_revision": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "current_task_revision": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "task_status": {
+          "enum": [
+            "NEEDS_MATERIALS",
+            "PLAN_PENDING",
+            "READY",
+            "RUNNING",
+            "REVIEW_PENDING",
+            "SIGN_PENDING",
+            "SIGNED",
+            "FAILED",
+            "RETURNED",
+            "CANCEL_REQUESTED",
+            "CANCELLED"
+          ]
+        }
+      }
+    },
+    "Assignments": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "document_id",
+        "document_revision",
+        "revision",
+        "total",
+        "complete",
+        "items",
+        "listing_sha256"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "document_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "document_revision": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "revision": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]{0,19}$"
+        },
+        "total": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]{0,19})$"
+        },
+        "complete": {
+          "const": true
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/AssignmentView"
+          },
+          "maxItems": 100
+        },
+        "listing_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      }
+    }
+  }
+}

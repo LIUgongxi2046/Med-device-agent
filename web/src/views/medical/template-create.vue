@@ -2,6 +2,7 @@
   <main class="medical-page">
     <h1>创建模板草稿</h1>
     <session-panel />
+    <el-alert v-if="errors.import" :title="errors.import" type="error" :closable="false" role="alert" />
     <p v-if="!permitted">创建模板需要当前企业的明确维护权限</p>
     <el-alert v-if="pending" title="原模板创建请求待核查" type="warning" :closable="false" data-template-create-pending>
       <p>请求标识：{{ pending.key }}；原上下文修订：{{ pending.context.context_revision }}</p>
@@ -93,7 +94,8 @@ import TemplateDefinitionEditor from './template-definition-editor.vue'
 import useUserStore from '@/store/modules/user'
 import { fail, schemaIssues } from '@/api/medical/protocol'
 import type { MedicalSession } from '@/api/medical/protocol'
-import { projectJsonIssue, readBoundedJson } from '@/api/medical/project-json'
+import { readBoundedJson } from '@/api/medical/project-json'
+import { draftJsonIssue, templateCreateInputIssue } from './template-collection-input'
 import { projectTextIssue } from '@/api/medical/project-write'
 import { canonicalTemplateValue, templateApprovalAllowed } from '@/api/medical/template-approval'
 import { confirmTemplateCreate, prepareTemplateCreate, readPendingTemplateCreate, submitTemplateCreate, templateCreateAllowed, validateTemplateCreate } from '@/api/medical/template-create'
@@ -159,7 +161,7 @@ async function body(): Promise<TemplateCreateBody | null> {
   const base = form.base_mode === 'REVISION' ? { version_id: form.base_id, content_sha256: form.base_hash } : null
   errors.base_version = base && schemaIssues('urn:medical:templates:1.0.0#/$defs/Basis', base).length ? '请填写原模板固定版本和完整摘要' : ''
   errors.reason = projectTextIssue(form.reason, 2000)
-  for (const section of sections) errors[section.key] = projectJsonIssue(form.sections[section.key])
+  for (const section of sections) errors[section.key] = draftJsonIssue(form.sections[section.key])
   if (Object.values(errors).some(Boolean)) { await focusError(); return null }
   const value = { schema_version: '1.0.0', base_version: base, schema_ref: 'urn:medical:templates:1.0.0#/$defs/Content', reason: form.reason,
     content: { schema_version: '1.0.0', document_type: form.document_type, application_path: form.application_path, ivd: form.ivd === 'IVD',
@@ -171,14 +173,24 @@ async function body(): Promise<TemplateCreateBody | null> {
     if (section) errors[section.key] = '请核查完整定义：' + issue.path + '（' + issue.code + '）'
   }
   if (issues.length) { errors.schema = '完整模板定义未通过字段规范，请核查全部错误位置和必需内容'; await focusError(); return null }
+  const inputIssue = templateCreateInputIssue(value)
+  if (inputIssue) { errors.schema = inputIssue; await focusError(); return null }
   const validated = validateTemplateCreate(value); candidate.value = validated; return validated
 }
 async function review(): Promise<void> { if (!disabled.value) await body() }
 async function importDefinition(file: UploadFile): Promise<void> {
   const session = user.medicalSession; const current = generation
   if (disabled.value || !session || document.hidden) return
-  if (!file.raw) fail('SCHEMA_INVALID', '导入模板缺少实际文件')
-  const value = validateTemplateCreate(readBoundedJson(await file.raw.text()))
+  errors.import = ''
+  if (!file.raw) { errors.import = '导入模板缺少实际文件'; return }
+  let text: string
+  try { text = await file.raw.text() } catch { if (current === generation && user.medicalSession === session && !document.hidden) errors.import = '文件读取失败，请重新选择；现有输入已保留'; return }
+  if (current !== generation || user.medicalSession !== session || document.hidden) return
+  const syntax = draftJsonIssue(text)
+  if (syntax) { errors.import = syntax; return }
+  const input = readBoundedJson(text), issue = templateCreateInputIssue(input)
+  if (issue) { errors.import = issue; return }
+  const value = validateTemplateCreate(input)
   if (current !== generation || user.medicalSession !== session || document.hidden) return
   clearForm(); form.document_type = value.content.document_type; form.application_path = value.content.application_path
   form.ivd = value.content.ivd ? 'IVD' : 'NON_IVD'; form.directory_profile = value.content.directory_profile ?? 'TYPE_SPECIFIC'

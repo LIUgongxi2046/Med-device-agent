@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:configuration-discovery:1.0.0",
+  "$defs": {
+    "Cursor": {"type": "string", "minLength": 1, "maxLength": 2048, "pattern": "^[A-Za-z0-9_-]+$"},
+    "Query": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "limit": {"type": "integer", "minimum": 1, "maximum": 100},
+        "after": {"$ref": "#/$defs/Cursor"},
+        "q": {"type": "string", "minLength": 1, "maxLength": 256}
+      }
+    },
+    "Context": {
+      "type": "object", "additionalProperties": false,
+      "required": ["tenant_id", "context_revision", "auth_epoch", "governance_epoch"],
+      "properties": {
+        "tenant_id": {"$ref": "urn:medical:model-configuration:1.0.0#/$defs/Id"},
+        "context_revision": {"$ref": "urn:medical:model-configuration:1.0.0#/$defs/Positive"},
+        "auth_epoch": {"$ref": "urn:medical:model-configuration:1.0.0#/$defs/Positive"},
+        "governance_epoch": {"$ref": "urn:medical:model-configuration:1.0.0#/$defs/Positive"}
+      }
+    },
+    "ModelList": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "tenant_id", "current_context", "items", "next_after"],
+      "properties": {
+        "schema_version": {"const": "1.0.0"},
+        "tenant_id": {"$ref": "urn:medical:model-configuration:1.0.0#/$defs/Id"},
+        "current_context": {"$ref": "#/$defs/Context"},
+        "items": {"type": "array", "maxItems": 100, "items": {"$ref": "urn:medical:model-configuration:1.0.0#/$defs/View"}},
+        "next_after": {"anyOf": [{"$ref": "#/$defs/Cursor"}, {"type": "null"}]}
+      }
+    },
+    "RuleList": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "tenant_id", "current_context", "items", "next_after"],
+      "properties": {
+        "schema_version": {"const": "1.0.0"},
+        "tenant_id": {"$ref": "urn:medical:model-configuration:1.0.0#/$defs/Id"},
+        "current_context": {"$ref": "#/$defs/Context"},
+        "items": {"type": "array", "maxItems": 100, "items": {"$ref": "urn:medical:rule-version-workflow:1.0.0#/$defs/Read"}},
+        "next_after": {"anyOf": [{"$ref": "#/$defs/Cursor"}, {"type": "null"}]}
+      }
+    }
+  }
+}

@@ -196,7 +196,7 @@ public final class TemplateApprovalService {
         };
     }
     private static void current(EnterpriseAccess.Admission admission, String context) { if (!admission.context().context_revision().equals(context)) throw new TenantAccessException(ErrorCode.CONTEXT_CHANGED); }
-    private static String time(LocalDateTime value) { return value.atOffset(ZoneOffset.UTC).toString(); }
+    private static String time(LocalDateTime value) { return DatabaseTimestamp.format(value); }
     private static void one(int count) { if (count != 1) mismatch(); }
     private static <T> T single(List<T> rows) { if (rows.size() != 1) mismatch(); return rows.get(0); }
     private static void mismatch() { throw new TenantAccessException(ErrorCode.CONTENT_MISMATCH); }

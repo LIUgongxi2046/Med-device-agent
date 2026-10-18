@@ -20,7 +20,8 @@ import org.springframework.stereotype.Component;
 @Component
 public final class TemplateApplicabilitySchema {
     private final JsonMapper reader = JsonMapper.builder().enable(StreamReadFeature.STRICT_DUPLICATE_DETECTION)
-            .enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS, DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES).build();
+            .enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS, DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES,
+                    DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS, DeserializationFeature.USE_BIG_INTEGER_FOR_INTS).build();
     private final SchemaCatalogue shared;
     private final PermissionSchema json;
     private final String ruleManifest;
@@ -47,9 +48,16 @@ public final class TemplateApplicabilitySchema {
     TemplateApplicabilityProtocol.RuleContent rule(TemplateApplicabilityProtocol.RuleRow row) throws IOException {
         var value = json.object(); value.put("schema_version", row.schemaVersion()); value.put("engine_revision", row.engineRevision());
         value.set("expression", reader.readTree(row.expression())); value.set("basis_manifest", reader.readTree(row.basisManifest()));
-        shared.validate("rule-expressions", value, "Content");
-        var result = reader.treeToValue(value, TemplateApplicabilityProtocol.RuleContent.class);
-        expression(value.required("expression"));
+        var result = content(value);
+        if (!DigestUtils.sha256Hex(json.canonical(value)).equals(row.contentHash()) || !row.contentHash().equals(row.registryHash())
+                || !ruleManifest.equals(row.manifest())) throw new TenantAccessException(ErrorCode.CONTENT_MISMATCH);
+        return result;
+    }
+
+    TemplateApplicabilityProtocol.RuleContent content(JsonNode node) throws IOException {
+        shared.validate("rule-expressions", node, "Content");
+        var result = reader.treeToValue(node, TemplateApplicabilityProtocol.RuleContent.class);
+        expression(node.required("expression"));
         var bases = new HashMap<String,PermissionProtocol.Basis>();
         for (var basis : result.basis_manifest()) if (bases.putIfAbsent(basis.version_id(), basis) != null) invalid();
         var constants = new java.util.HashSet<String>();
@@ -57,8 +65,6 @@ public final class TemplateApplicabilitySchema {
             if (!constants.add(constant.key())) invalid();
             for (var basis : constant.basis_refs()) if (!basis.equals(bases.get(basis.version_id()))) invalid();
         }
-        if (!DigestUtils.sha256Hex(json.canonical(value)).equals(row.contentHash()) || !row.contentHash().equals(row.registryHash())
-                || !ruleManifest.equals(row.manifest())) throw new TenantAccessException(ErrorCode.CONTENT_MISMATCH);
         return result;
     }
 

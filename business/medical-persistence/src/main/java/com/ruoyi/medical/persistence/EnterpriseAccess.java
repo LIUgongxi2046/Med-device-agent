@@ -84,7 +84,36 @@ public final class EnterpriseAccess {
     }
 
     static void denied(ErrorCode code) { throw new TenantAccessException(code); }
-    record Admission(ApplicationSessionIdentity.Verified subject, String contextId, BusinessSessionProtocol.Context context,
-                     TenantWatermarks watermarks) { }
+    static final class Admission {
+        private final ApplicationSessionIdentity.Verified subject;
+        private final String contextId;
+        private final BusinessSessionProtocol.Context context;
+        private final TenantWatermarks watermarks;
+        private final SimulationWorkerAccess.Proof worker;
+        private final FormalWorkerAccess.Proof formal;
+        Admission(ApplicationSessionIdentity.Verified subject,String contextId,BusinessSessionProtocol.Context context,TenantWatermarks watermarks) {
+            this.subject=Objects.requireNonNull(subject); this.contextId=contextId; this.context=context; this.watermarks=watermarks; this.worker=null; this.formal=null;
+        }
+        Admission(SimulationWorkerAccess.Proof worker,BusinessSessionProtocol.Context context,TenantWatermarks watermarks) {
+            this.formal=null; this.worker=Objects.requireNonNull(worker); this.subject=null; this.contextId=null; this.context=context; this.watermarks=watermarks;
+        }
+        Admission(FormalWorkerAccess.Proof formal,BusinessSessionProtocol.Context context,TenantWatermarks watermarks) {
+            this.formal=Objects.requireNonNull(formal); formal.requireActive(); this.worker=null; this.subject=null;this.contextId=null;this.context=context;this.watermarks=watermarks;
+        }
+        ApplicationSessionIdentity.Verified subject() {
+            if(subject==null) denied(ErrorCode.ACCESS_DENIED);
+            return subject;
+        }
+        String contextId(){if(formal!=null)formal.requireActive();return contextId;}
+        BusinessSessionProtocol.Context context(){if(formal!=null)formal.requireActive();return context;}
+        TenantWatermarks watermarks(){if(formal!=null)formal.requireActive();return watermarks;}
+        String actorId(){return formal!=null?formal.actorId():worker==null?subject.user().user_id():worker.actorId();}
+        AuthenticatedIdentityBinding.View bindingView(){return formal!=null?formal.bindingView():worker==null?subject.binding().view():worker.bindingView();}
+        Object actorProof(){return formal!=null?formal.identity():worker==null?subject:worker.identity();}
+        boolean formalWorker(){return formal!=null;}
+        FormalWorkerAccess.Proof formalProof(){if(formal==null)denied(ErrorCode.ACCESS_DENIED);formal.requireActive();return formal;}
+        boolean simulationWorker(){return worker!=null;}
+        SimulationWorkerAccess.Proof workerProof(){if(worker==null) denied(ErrorCode.ACCESS_DENIED);return worker;}
+    }
     private record Locked(String id, BusinessSessionProtocol.Context context) { }
 }

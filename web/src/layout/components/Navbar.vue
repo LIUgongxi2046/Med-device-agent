@@ -1,15 +1,21 @@
 <template>
   <div class="navbar" :class="['nav' + navType, { 'medical-navbar': userStore.medicalMode }]">
     <hamburger v-if="!(userStore.medicalMode && appStore.device === 'mobile')" id="hamburger-container" :is-active="appStore.sidebar.opened" class="hamburger-container" @toggleClick="toggleSideBar" />
+    <medical-mobile-navigation v-if="userStore.medicalMode && appStore.device === 'mobile'" />
     <breadcrumb v-if="navType == 1" id="breadcrumb-container" class="breadcrumb-container" />
-    <top-nav v-if="navType == 2" id="topmenu-container" class="topmenu-container" />
-    <template v-if="settingsStore.navType == 3">
+    <top-nav v-if="navType == 2 && !userStore.medicalMode" id="topmenu-container" class="topmenu-container" />
+    <template v-if="settingsStore.navType == 3 && !userStore.medicalMode">
       <logo v-show="settingsStore.sidebarLogo" :collapse="false"></logo>
       <top-bar id="topbar-container" class="topbar-container" />
     </template>
 
     <div class="right-menu">
       <template v-if="userStore.medicalMode">
+        <el-popover v-if="userStore.medicalSession" placement="bottom-end" :width="360" trigger="click">
+          <template #reference><el-button text :disabled="userStore.medicalWriting">企业空间</el-button></template>
+          <session-panel />
+        </el-popover>
+        <router-link v-if="userStore.medicalSession && route.params.projectId" :to="'/projects/' + route.params.projectId" class="medical-current-project">当前项目</router-link>
         <span v-if="userStore.medicalSession" data-medical-user>{{ userStore.name }}</span>
         <router-link v-if="userStore.medicalSession" to="/account">本人账户</router-link>
         <el-button v-if="userStore.medicalSession" :disabled="userStore.medicalWriting" @click="logoutBusiness">退出业务账户</el-button>
@@ -71,6 +77,8 @@
 
 <script setup>
 import { ElMessageBox } from 'element-plus'
+import MedicalMobileNavigation from '@/components/Medical/MobileNavigation.vue'
+import SessionPanel from '@/views/medical/session-panel.vue'
 import Breadcrumb from '@/components/Breadcrumb'
 import TopNav from './TopNav'
 import TopBar from './TopBar'
@@ -93,7 +101,7 @@ const appStore = useAppStore()
 const userStore = useUserStore()
 const lockStore = useLockStore()
 const settingsStore = useSettingsStore()
-const navType = computed(() => userStore.medicalMode && appStore.device === 'mobile' ? 2 : settingsStore.navType)
+const navType = computed(() => userStore.medicalMode ? (appStore.device === 'mobile' ? 2 : 1) : settingsStore.navType)
 
 function toggleSideBar() {
   appStore.toggleSideBar()
@@ -190,6 +198,14 @@ async function toggleTheme(event) {
   padding-right: 16px;
   .right-menu { gap: 16px; }
   .topmenu-container { position: static; flex: 1; }
+  .right-menu { min-width: 0; }
+  [data-medical-user] { max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  @media (max-width: 650px) {
+    padding-right: 8px;
+    .right-menu { gap: 8px; }
+    [data-medical-user], .medical-current-project { display: none; }
+    .right-menu .el-button { margin-left: 0; padding: 8px; }
+  }
 }
 .navbar.nav3 {
   .hamburger-container {

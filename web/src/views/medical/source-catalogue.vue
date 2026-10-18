@@ -1,15 +1,13 @@
 <template>
   <main class="medical-page source-catalogue">
-    <h1>资料中心</h1>
+    <h1>资料库</h1>
     <p v-if="loading" role="status">正在读取当前资料目录</p>
     <session-panel />
-    <nav class="actions" aria-label="资料操作">
-      <router-link to="/library/search"><el-button>全文检索</el-button></router-link>
-      <router-link to="/library/processing"><el-button>处理队列</el-button></router-link>
-      <router-link to="/library/artifacts"><el-button>任务成果</el-button></router-link>
-      <router-link to="/library/collections"><el-button>资料集</el-button></router-link>
-      <router-link to="/library/collections/new"><el-button>创建资料集</el-button></router-link>
-    </nav>
+    <div class="actions">
+      <router-link :to="{ path: '/library/collections/new', query: route.query.project_id ? { project_id: route.query.project_id } : {} }"><el-button>创建资料集</el-button></router-link>
+      <router-link v-if="filters.project_id && sourceUploadAllowed(user.medicalSession, filters.project_id)" :to="'/projects/' + filters.project_id + '/uploads'"><el-button type="primary">上传项目资料</el-button></router-link>
+      <router-link v-else-if="!filters.project_id" to="/projects"><el-button>选择项目上传资料</el-button></router-link>
+    </div>
     <section class="catalogue-layout">
       <aside class="folder-panel" aria-label="资料文件夹">
         <h2>常用视图</h2>
@@ -39,7 +37,7 @@
       </aside>
       <div class="catalogue-main">
     <el-form :inline="true" aria-label="资料筛选" @submit.prevent="applyFilters">
-      <el-form-item label="项目编号"><el-input v-model="filters.project_id" clearable /></el-form-item>
+      <el-form-item label="项目范围"><project-scope-select v-model="filters.project_id" /></el-form-item>
       <el-form-item label="归属">
         <el-select v-model="filters.ownership" clearable><el-option label="企业" value="ENTERPRISE" /><el-option label="项目" value="PROJECT" /><el-option label="会话" value="SESSION" /></el-select>
       </el-form-item>
@@ -96,6 +94,9 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import { ElMessageBox } from 'element-plus'
+import { useRoute } from 'vue-router'
+import { sourceUploadAllowed } from '@/api/medical/source-uploads'
+import ProjectScopeSelect from '@/components/Medical/ProjectScopeSelect.vue'
 import SessionPanel from './session-panel.vue'
 import useUserStore from '@/store/modules/user'
 import { createSourceFolder, decideSourceFolder, organizeSources, readSourceCatalogue, readSourceFolders, sourceApprovalAllowed } from '@/api/medical/source-governance'
@@ -105,7 +106,7 @@ import type { MedicalSession } from '@/api/medical/protocol'
 import { fail } from '@/api/medical/protocol'
 import { useMedicalRouteRead } from '@/api/medical/route-read'
 
-const user = useUserStore(); const page = ref<SourceCataloguePage | null>(null); const loading = ref(false); const writing = ref(false)
+const route = useRoute(); const user = useUserStore(); const page = ref<SourceCataloguePage | null>(null); const loading = ref(false); const writing = ref(false)
 const filters = reactive({ project_id: '', ownership: '', approval_status: '', lifecycle: '', bookmarked: '',
   category: '', tag: '', collection_version: '' })
 const folders = ref<SourceFolder[]>([]); const selectedFolder = ref<string | null>(null); const selected = ref<SourceCatalogueItem[]>([])
@@ -242,7 +243,7 @@ async function organize(decision: SourceOrganizationItemInput['decision']): Prom
     selected.value = []; await read()
   } finally { if (version === contextGeneration) writing.value = false }
 }
-watch(() => [user.medicalSession, active.value], () => { clear(); if (active.value) return readCurrent() }, { immediate: true, flush: 'sync' })
+watch(() => [user.medicalSession, active.value, route.query.project_id], () => { clear(); filters.project_id = typeof route.query.project_id === 'string' ? route.query.project_id : ''; if (active.value) return readCurrent() }, { immediate: true, flush: 'sync' })
 onBeforeUnmount(clear)
 </script>
 

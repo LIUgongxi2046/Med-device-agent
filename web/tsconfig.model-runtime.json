@@ -1,0 +1,1 @@
+{"extends":"./tsconfig.medical.json","include":["src/api/medical/model-runtime*.ts","src/views/medical/model-runtime.vue","src/medical.d.ts","node_modules/vue-cropper/shims-vue.d.ts"]}

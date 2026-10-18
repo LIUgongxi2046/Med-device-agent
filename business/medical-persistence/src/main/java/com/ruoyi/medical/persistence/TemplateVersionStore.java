@@ -267,7 +267,7 @@ public final class TemplateVersionStore {
         TenantScope.requireSubjectParameter(STATEMENT, values); return values;
     }
     private JsonNode tree(String value) throws IOException { return reader.readTree(value); }
-    private static String time(LocalDateTime value) { return value.atOffset(ZoneOffset.UTC).toString(); }
+    private static String time(LocalDateTime value) { return DatabaseTimestamp.format(value); }
     private static void one(int count) { if (count != 1) mismatch(); }
     private static void denied() { throw new TenantAccessException(ErrorCode.ACCESS_DENIED); }
     private static void mismatch() { throw new TenantAccessException(ErrorCode.CONTENT_MISMATCH); }

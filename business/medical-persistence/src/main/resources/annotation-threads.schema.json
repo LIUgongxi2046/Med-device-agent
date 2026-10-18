@@ -1,0 +1,445 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:annotation-threads:1.0.0",
+  "description": "Additive complete annotation threads. Original RV-04/BX-11 Record/ArtifactRef endpoints are unchanged. Maximum request/selection 1048576 bytes; maximum 100 annotations and 8388608 response bytes. Selection must also pass the published shared schema and fixed-body semantic verification. Each created annotation reserves at most 65536 canonical response bytes including worst-case future mutable fields; this guarantees 100-item complete readability.",
+  "$defs": {
+    "Id": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "Revision": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]{0,19})$"
+    },
+    "Hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "Content": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 16000
+    },
+    "Status": {
+      "enum": [
+        "OPEN",
+        "RESOLVED",
+        "RETURNED",
+        "REANCHOR_REQUIRED"
+      ]
+    },
+    "Selection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "document_revision",
+        "segments"
+      ],
+      "properties": {
+        "document_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "segments": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "oneOf": [
+              {
+                "$ref": "#/$defs/TextSelection"
+              },
+              {
+                "$ref": "#/$defs/ImageSelection"
+              },
+              {
+                "$ref": "#/$defs/TableSelection"
+              }
+            ]
+          }
+        }
+      }
+    },
+    "Create": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "document_revision",
+        "selection",
+        "content",
+        "expected_revision"
+      ],
+      "properties": {
+        "document_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "selection": {
+          "$ref": "#/$defs/Selection"
+        },
+        "content": {
+          "$ref": "#/$defs/Content"
+        },
+        "expected_revision": {
+          "$ref": "#/$defs/Revision"
+        }
+      }
+    },
+    "Annotation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "annotation_id",
+        "document_revision",
+        "revision",
+        "selection",
+        "selection_artifact_id",
+        "selection_sha256",
+        "content",
+        "actor_id",
+        "created_at",
+        "status",
+        "location_status",
+        "reply_count"
+      ],
+      "properties": {
+        "annotation_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "document_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "selection": {
+          "$ref": "#/$defs/Selection"
+        },
+        "selection_artifact_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "selection_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "content": {
+          "$ref": "#/$defs/Content"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "status": {
+          "$ref": "#/$defs/Status"
+        },
+        "location_status": {
+          "enum": [
+            "CURRENT_VERSION",
+            "ORIGINAL_VERSION"
+          ]
+        },
+        "reply_count": {
+          "$ref": "#/$defs/Revision"
+        }
+      }
+    },
+    "Listing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "document_id",
+        "document_revision",
+        "revision",
+        "issue_watermark",
+        "evidence_watermark",
+        "status_filter",
+        "total",
+        "complete",
+        "items",
+        "listing_sha256"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "document_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "document_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "issue_watermark": {
+          "$ref": "#/$defs/Revision"
+        },
+        "evidence_watermark": {
+          "$ref": "#/$defs/Revision"
+        },
+        "status_filter": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Status"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "total": {
+          "$ref": "#/$defs/Revision"
+        },
+        "complete": {
+          "const": true
+        },
+        "items": {
+          "type": "array",
+          "maxItems": 100,
+          "items": {
+            "$ref": "#/$defs/Annotation"
+          }
+        },
+        "listing_sha256": {
+          "$ref": "#/$defs/Hash"
+        }
+      }
+    },
+    "Receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "document_id",
+        "document_revision",
+        "revision",
+        "issue_watermark",
+        "evidence_watermark",
+        "operation_id",
+        "previous_revision",
+        "annotation",
+        "annotation_sha256",
+        "invalidated_review_ids"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "document_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "document_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "issue_watermark": {
+          "$ref": "#/$defs/Revision"
+        },
+        "evidence_watermark": {
+          "$ref": "#/$defs/Revision"
+        },
+        "operation_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "previous_revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "annotation": {
+          "$ref": "#/$defs/Annotation"
+        },
+        "annotation_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "invalidated_review_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/Id"
+          }
+        }
+      }
+    },
+    "Event": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "document_id",
+        "document_revision",
+        "revision",
+        "issue_watermark",
+        "evidence_watermark",
+        "operation_id",
+        "previous_revision",
+        "annotation_id",
+        "annotation_revision",
+        "selection_artifact_id",
+        "selection_sha256",
+        "annotation_sha256",
+        "actor_id",
+        "created_at",
+        "invalidated_review_ids"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "document_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "document_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "issue_watermark": {
+          "$ref": "#/$defs/Revision"
+        },
+        "evidence_watermark": {
+          "$ref": "#/$defs/Revision"
+        },
+        "operation_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "previous_revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "annotation_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "annotation_revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "selection_artifact_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "selection_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "annotation_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "invalidated_review_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/Id"
+          }
+        }
+      }
+    },
+    "TextSelection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "node_id",
+        "node_sha256",
+        "start_cp",
+        "end_cp",
+        "quote_sha256"
+      ],
+      "properties": {
+        "kind": {
+          "const": "TEXT"
+        },
+        "node_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "node_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "start_cp": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "end_cp": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "quote_sha256": {
+          "$ref": "#/$defs/Hash"
+        }
+      }
+    },
+    "ImageSelection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "node_id",
+        "image_artifact_id",
+        "image_sha256"
+      ],
+      "properties": {
+        "kind": {
+          "const": "IMAGE"
+        },
+        "node_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "image_artifact_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "image_sha256": {
+          "$ref": "#/$defs/Hash"
+        }
+      }
+    },
+    "TableSelection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "node_id",
+        "row_ids",
+        "column_ids",
+        "cell_ids",
+        "table_sha256"
+      ],
+      "properties": {
+        "kind": {
+          "const": "TABLE"
+        },
+        "node_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "row_ids": {
+          "$ref": "#/$defs/Ids",
+          "minItems": 1
+        },
+        "column_ids": {
+          "$ref": "#/$defs/Ids",
+          "minItems": 1
+        },
+        "cell_ids": {
+          "$ref": "#/$defs/Ids",
+          "minItems": 1
+        },
+        "table_sha256": {
+          "$ref": "#/$defs/Hash"
+        }
+      }
+    },
+    "Ids": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/Id"
+      }
+    }
+  }
+}

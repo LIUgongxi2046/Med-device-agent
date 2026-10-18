@@ -18,13 +18,30 @@ const isWhiteList = (path) => {
   return whiteList.some(pattern => isPathMatch(pattern, path))
 }
 
+const medicalFrameworkPath = (path) => ['/system', '/monitor', '/tool'].some(prefix => path === prefix || path.startsWith(prefix + '/'))
+
 router.beforeEach(async (to, from) => {
   NProgress.start()
+  // On a direct management link, install only routes returned for the current medical identity.
+  // A path prefix alone never grants access; the refreshed named route must exist in that exact registry.
+  if (import.meta.env.VITE_APP_ENV === 'medical' && medicalFrameworkPath(to.path) && !to.meta.medicalFramework) {
+    await useUserStore().readMedical()
+    const current = router.resolve(to.fullPath)
+    if (!current.meta.medicalFramework || !usePermissionStore().isMedicalFrameworkRoute(current.name)) {
+      NProgress.done()
+      return { path: '/access/denied' }
+    }
+    return { path: to.fullPath, replace: true }
+  }
   if (to.meta.medical) {
     useUserStore().medicalMode = true
     to.meta.title && useSettingsStore().setTitle(to.meta.title)
     if (to.meta.public) { NProgress.done(); return true }
     await useUserStore().readMedical()
+    if (to.meta.medicalFramework && !usePermissionStore().isMedicalFrameworkRoute(to.name)) {
+      NProgress.done()
+      return { path: '/access/denied' }
+    }
     useUserStore().medicalPendingNavigation = null
     return true
   }

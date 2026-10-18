@@ -129,12 +129,21 @@ export async function readExport(session: MedicalSession, exportId: string, sign
   return result
 }
 export async function readExportHistory(session: MedicalSession, documentId: string, documentRevision: string,
-  signal: AbortSignal): Promise<ExportHistory> {
+  signal: AbortSignal, page = 1, size = 20): Promise<ExportHistory> {
+  if (!Number.isInteger(page) || page < 1 || page > 1000000 || !Number.isInteger(size) || size < 1 || size > 50) {
+    fail('SCHEMA_INVALID', '导出历史页码或每页数量超出接口范围')
+  }
   const response = envelope(await request.get('/api/documents/' + documentId + '/exports', { medical: 'envelope', signal,
-    params: { document_revision: documentRevision, page: 1, size: 20 }, headers: headers(session) }))
+    params: { document_revision: documentRevision, page, size }, headers: headers(session) }))
   if (response.resource_revision !== null) fail('CONTENT_MISMATCH', '导出记录返回了未定义的修订')
   const result = validate<ExportHistory>(reference + 'History', response.data)
-  if (result.document_id !== documentId || result.document_revision !== documentRevision) fail('CONTENT_MISMATCH', '导出记录与当前文稿不一致')
+  if (result.document_id !== documentId || result.document_revision !== documentRevision
+      || result.page !== String(page) || result.size !== String(size)
+      || result.items.length > size || new Set(result.items.map(item => item.export_id)).size !== result.items.length
+      || result.items.some(item => item.document_id !== documentId || item.document_revision !== documentRevision)
+      || result.has_more !== (BigInt(page) * BigInt(size) < BigInt(result.total))) {
+    fail('CONTENT_MISMATCH', '导出记录与当前文稿或请求分页不一致')
+  }
   return result
 }
 export async function retryExportItem(session: MedicalSession, parent: ExportView, item: ExportItem, reason: string, signal: AbortSignal): Promise<ExportView> {

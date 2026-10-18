@@ -1,0 +1,38 @@
+{
+  "integrated_at": "2026-10-18T21:54:00Z",
+  "route": "/agents/drafts",
+  "files": [
+    "business/medical-persistence/src/main/java/com/ruoyi/medical/persistence/FormalAgentAuthoringOperations.java",
+    "business/medical-persistence/src/main/java/com/ruoyi/medical/persistence/mapper/FormalAgentCandidateMapper.java",
+    "business/medical-persistence/src/main/java/com/ruoyi/medical/persistence/FormalAgentDraftDirectoryController.java",
+    "business/medical-persistence/src/main/java/com/ruoyi/medical/persistence/FormalAgentDraftDirectory.java",
+    "business/medical-persistence/src/main/java/com/ruoyi/medical/persistence/FormalAgentDraftDirectorySchema.java",
+    "business/medical-persistence/src/main/resources/medical-mappers/FormalAgentCandidateMapper.xml",
+    "business/medical-persistence/src/main/resources/formal-agent-draft-directory.schema.json",
+    "business/medical-persistence/src/test/java/com/ruoyi/medical/persistence/FormalAgentDraftDirectoryMapperTest.java",
+    "business/medical-persistence/src/test/java/com/ruoyi/medical/persistence/FormalAgentDraftDirectoryTest.java",
+    "web/src/api/medical/formal-agent-manifest-form.ts",
+    "web/src/api/medical/formal-agent-draft-directory.schema.json",
+    "web/src/api/medical/formal-agent-drafts.ts",
+    "web/src/views/medical/formal-agent-drafts.vue",
+    "web/src/views/medical/formal-agent-manifest-field.vue",
+    "web/tests/formal-agent-drafts/helpers.mjs",
+    "web/tests/formal-agent-drafts/transport.test.mjs",
+    "web/tests/formal-agent-drafts/components.test.mjs",
+    "web/tests/formal-agent-drafts/api.test.mjs",
+    "web/src/utils/request.js",
+    "docs/frontend/formal-agent-draft-authoring-20261018.md",
+    "web/src/router/index.js",
+    "web/src/views/medical/agents.vue",
+    "business/medical-identity/src/main/java/com/ruoyi/medical/identity/FrameworkFrontendConfiguration.java",
+    "web/tests/formal-agent-drafts/integration.test.mjs",
+    "docs/frontend/formal-agent-draft-integration-files-20261018.json"
+  ],
+  "focused_test_log": ".implementation-work/logs/part22-formal-agent-drafts-focused.log",
+  "focused_tests": {
+    "passed": 31,
+    "failed": 0,
+    "skipped": 0
+  },
+  "global_gates": "ROOT_PENDING"
+}
