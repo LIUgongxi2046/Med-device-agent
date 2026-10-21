@@ -1,0 +1,128 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:version-change-impact:1.0.0",
+  "$defs": {
+    "Proposal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "project_id",
+        "kind",
+        "old_version",
+        "new_version",
+        "reviewer_id",
+        "reason"
+      ],
+      "properties": {
+        "project_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "kind": {
+          "enum": [
+            "SOURCE",
+            "RULE",
+            "FACT"
+          ]
+        },
+        "old_version": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "new_version": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "reviewer_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 8192
+        }
+      }
+    },
+    "Scan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "expected_revision"
+      ],
+      "properties": {
+        "expected_revision": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]*$"
+        }
+      }
+    },
+    "Decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "expected_revision",
+        "impact_id",
+        "impact_sha256",
+        "decision",
+        "reason",
+        "targets"
+      ],
+      "properties": {
+        "expected_revision": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]*$"
+        },
+        "impact_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "impact_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "decision": {
+          "enum": [
+            "ACCEPT",
+            "REJECT"
+          ]
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 8192
+        },
+        "targets": {
+          "type": "array",
+          "maxItems": 10000,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "document_revision",
+              "action",
+              "reason"
+            ],
+            "properties": {
+              "document_revision": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "action": {
+                "enum": [
+                  "NEW_REVISION",
+                  "REVALIDATE"
+                ]
+              },
+              "reason": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 8192
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

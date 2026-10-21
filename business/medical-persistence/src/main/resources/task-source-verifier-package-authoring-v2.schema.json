@@ -1,0 +1,926 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:task-source-verifier-package-authoring:2.0.0",
+  "$defs": {
+    "Id": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "Hash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "Revision": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]{0,19})$"
+    },
+    "Key": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9._:-]{16,128}$"
+    },
+    "Kind": {
+      "enum": [
+        "PROMPT",
+        "PROFILE",
+        "ROLE"
+      ]
+    },
+    "Basis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version_id",
+        "content_sha256"
+      ],
+      "properties": {
+        "version_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "content_sha256": {
+          "$ref": "#/$defs/Hash"
+        }
+      }
+    },
+    "Schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_ref",
+        "schema_sha256"
+      ],
+      "properties": {
+        "schema_ref": {
+          "type": "string",
+          "format": "uri",
+          "minLength": 1,
+          "maxLength": 1024
+        },
+        "schema_sha256": {
+          "$ref": "#/$defs/Hash"
+        }
+      }
+    },
+    "AnyArtifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact_id",
+        "sha256",
+        "size_bytes",
+        "media_type"
+      ],
+      "properties": {
+        "artifact_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "size_bytes": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]{0,18}$"
+        },
+        "media_type": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        }
+      }
+    },
+    "Artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact_id",
+        "sha256",
+        "size_bytes",
+        "media_type"
+      ],
+      "properties": {
+        "artifact_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "size_bytes": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]{0,18}$"
+        },
+        "media_type": {
+          "const": "application/json"
+        }
+      }
+    },
+    "PromptPackage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "node_kind",
+        "system_instructions",
+        "input_encoding"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "2.0.0"
+        },
+        "node_kind": {
+          "const": "N05"
+        },
+        "system_instructions": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 262144
+        },
+        "input_encoding": {
+          "const": "SOURCE_VERIFIER_INPUT_CANONICAL_JSON"
+        }
+      }
+    },
+    "ProfilePackage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "node_kind",
+        "profile_name",
+        "projection",
+        "system_prefix",
+        "files",
+        "adapter_artifact",
+        "model_tool_mode"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "2.0.0"
+        },
+        "node_kind": {
+          "const": "N05"
+        },
+        "profile_name": {
+          "const": "medical-agent"
+        },
+        "projection": {
+          "const": "TEXT_SYSTEM_USER_V1"
+        },
+        "system_prefix": {
+          "type": "string",
+          "maxLength": 262144
+        },
+        "files": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 256,
+          "uniqueItems": true,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "relative",
+              "sha256",
+              "size_bytes"
+            ],
+            "properties": {
+              "relative": {
+                "type": "string",
+                "pattern": "^profiles/[^\\\\]+$",
+                "maxLength": 1024
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "size_bytes": {
+                "type": "string",
+                "pattern": "^[1-9][0-9]{0,7}$"
+              }
+            }
+          }
+        },
+        "adapter_artifact": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "artifact_id",
+            "sha256",
+            "size_bytes",
+            "media_type"
+          ],
+          "properties": {
+            "artifact_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "size_bytes": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]{0,7}$"
+            },
+            "media_type": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          }
+        },
+        "model_tool_mode": {
+          "const": "SOURCE_VERIFIER_N05_V1"
+        }
+      }
+    },
+    "RolePackage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "node_kind",
+        "role_name",
+        "prompt_basis",
+        "profile_artifact"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "2.0.0"
+        },
+        "node_kind": {
+          "const": "N05"
+        },
+        "role_name": {
+          "const": "SourceVerifier"
+        },
+        "prompt_basis": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "version_id",
+            "content_sha256"
+          ],
+          "properties": {
+            "version_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "content_sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          }
+        },
+        "profile_artifact": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "artifact_id",
+            "sha256",
+            "size_bytes",
+            "media_type"
+          ],
+          "properties": {
+            "artifact_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "size_bytes": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]{0,7}$"
+            },
+            "media_type": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          }
+        }
+      }
+    },
+    "Request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "kind",
+        "preparation_sha256",
+        "package",
+        "content_sources"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "2.0.0"
+        },
+        "kind": {
+          "$ref": "#/$defs/Kind"
+        },
+        "preparation_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "package": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/PromptPackage"
+            },
+            {
+              "$ref": "#/$defs/ProfilePackage"
+            },
+            {
+              "$ref": "#/$defs/RolePackage"
+            }
+          ]
+        },
+        "content_sources": {
+          "type": "array",
+          "minItems": 0,
+          "maxItems": 256,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/Basis"
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "PROMPT"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "properties": {
+              "package": {
+                "$ref": "#/$defs/PromptPackage"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "PROFILE"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "properties": {
+              "package": {
+                "$ref": "#/$defs/ProfilePackage"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "ROLE"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "properties": {
+              "package": {
+                "$ref": "#/$defs/RolePackage"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "KindChoice": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "schema"
+      ],
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/Kind"
+        },
+        "schema": {
+          "$ref": "#/$defs/Schema"
+        }
+      }
+    },
+    "PromptChoice": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "config_id",
+        "status",
+        "source_artifact",
+        "schema"
+      ],
+      "properties": {
+        "version": {
+          "$ref": "#/$defs/Basis"
+        },
+        "config_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "status": {
+          "const": "DRAFT"
+        },
+        "source_artifact": {
+          "$ref": "#/$defs/Artifact"
+        },
+        "schema": {
+          "$ref": "#/$defs/Schema"
+        }
+      }
+    },
+    "ProfileChoice": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact",
+        "schema"
+      ],
+      "properties": {
+        "artifact": {
+          "$ref": "#/$defs/Artifact"
+        },
+        "schema": {
+          "$ref": "#/$defs/Schema"
+        }
+      }
+    },
+    "AdapterCandidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "status"
+      ],
+      "properties": {
+        "version": {
+          "$ref": "#/$defs/Basis"
+        },
+        "status": {
+          "enum": [
+            "DRAFT",
+            "VALIDATING",
+            "EVALUATING",
+            "REVIEW_PENDING",
+            "PUBLISHED"
+          ]
+        }
+      }
+    },
+    "AdapterChoice": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact",
+        "schema",
+        "component",
+        "candidates"
+      ],
+      "properties": {
+        "artifact": {
+          "$ref": "#/$defs/AnyArtifact"
+        },
+        "schema": {
+          "$ref": "#/$defs/Schema"
+        },
+        "component": {
+          "const": "C07"
+        },
+        "candidates": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 256,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/AdapterCandidate"
+          }
+        }
+      }
+    },
+    "SourceChoice": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "rights",
+        "source_id",
+        "classification"
+      ],
+      "properties": {
+        "version": {
+          "$ref": "#/$defs/Basis"
+        },
+        "rights": {
+          "$ref": "#/$defs/Basis"
+        },
+        "source_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "classification": {
+          "enum": [
+            "PUBLIC",
+            "INTERNAL",
+            "RESTRICTED",
+            "PERSONAL_HEALTH"
+          ]
+        }
+      }
+    },
+    "Prerequisite": {
+      "enum": [
+        "MANAGED_ADAPTER_IMPORT_REQUIRED",
+        "PHYSICAL_PROFILE_DEPLOYMENT_REQUIRED",
+        "INDEPENDENT_CAPABILITY_AUTHORING_REQUIRED",
+        "INDEPENDENT_RELEASE_APPROVAL_REQUIRED"
+      ]
+    },
+    "Preparation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "project_id",
+        "context_revision",
+        "preparation_sha256",
+        "maximum_package_bytes",
+        "maximum_choices",
+        "recovery_mode",
+        "kinds",
+        "prompts",
+        "profiles",
+        "adapters",
+        "sources",
+        "prerequisites"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "2.0.0"
+        },
+        "project_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "context_revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "preparation_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "maximum_package_bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1048576
+        },
+        "maximum_choices": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 256
+        },
+        "recovery_mode": {
+          "const": "ORIGINAL_ONLY_MAY_REGISTER"
+        },
+        "kinds": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/KindChoice"
+          }
+        },
+        "prompts": {
+          "type": "array",
+          "minItems": 0,
+          "maxItems": 256,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/PromptChoice"
+          }
+        },
+        "profiles": {
+          "type": "array",
+          "minItems": 0,
+          "maxItems": 256,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/ProfileChoice"
+          }
+        },
+        "adapters": {
+          "type": "array",
+          "minItems": 0,
+          "maxItems": 256,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/AdapterChoice"
+          }
+        },
+        "sources": {
+          "type": "array",
+          "minItems": 0,
+          "maxItems": 256,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/SourceChoice"
+          }
+        },
+        "prerequisites": {
+          "type": "array",
+          "minItems": 0,
+          "maxItems": 4,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/Prerequisite"
+          }
+        }
+      }
+    },
+    "Status": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "state",
+        "operation_id",
+        "kind",
+        "artifact",
+        "schema",
+        "object_version",
+        "production_eligible",
+        "tenant_id",
+        "project_id",
+        "created_by",
+        "operation_name",
+        "target_id",
+        "original_key_sha256",
+        "request_body_sha256",
+        "request_sha256"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "2.0.0"
+        },
+        "state": {
+          "enum": [
+            "NOT_FOUND",
+            "PROCESSING",
+            "REGISTERED"
+          ]
+        },
+        "operation_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "kind": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Kind"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "artifact": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Artifact"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "schema": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Schema"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "object_version": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1024
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "production_eligible": {
+          "const": false
+        },
+        "tenant_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "project_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "created_by": {
+          "$ref": "#/$defs/Id"
+        },
+        "operation_name": {
+          "const": "TASK-PROFESSIONAL-PACKAGE"
+        },
+        "target_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "original_key_sha256": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Hash"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "request_body_sha256": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Hash"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "request_sha256": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Hash"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "oneOf": [
+        {
+          "properties": {
+            "state": {
+              "const": "NOT_FOUND"
+            },
+            "operation_id": {
+              "type": "null"
+            },
+            "kind": {
+              "type": "null"
+            },
+            "schema": {
+              "type": "null"
+            },
+            "target_id": {
+              "type": "null"
+            },
+            "original_key_sha256": {
+              "type": "null"
+            },
+            "request_body_sha256": {
+              "type": "null"
+            },
+            "request_sha256": {
+              "type": "null"
+            },
+            "artifact": {
+              "type": "null"
+            },
+            "object_version": {
+              "type": "null"
+            }
+          }
+        },
+        {
+          "properties": {
+            "state": {
+              "const": "PROCESSING"
+            },
+            "operation_id": {
+              "$ref": "#/$defs/Id"
+            },
+            "kind": {
+              "$ref": "#/$defs/Kind"
+            },
+            "schema": {
+              "$ref": "#/$defs/Schema"
+            },
+            "target_id": {
+              "$ref": "#/$defs/Id"
+            },
+            "original_key_sha256": {
+              "$ref": "#/$defs/Hash"
+            },
+            "request_body_sha256": {
+              "$ref": "#/$defs/Hash"
+            },
+            "request_sha256": {
+              "$ref": "#/$defs/Hash"
+            },
+            "artifact": {
+              "type": "null"
+            },
+            "object_version": {
+              "type": "null"
+            }
+          }
+        },
+        {
+          "properties": {
+            "state": {
+              "const": "REGISTERED"
+            },
+            "operation_id": {
+              "$ref": "#/$defs/Id"
+            },
+            "kind": {
+              "$ref": "#/$defs/Kind"
+            },
+            "schema": {
+              "$ref": "#/$defs/Schema"
+            },
+            "target_id": {
+              "$ref": "#/$defs/Id"
+            },
+            "original_key_sha256": {
+              "$ref": "#/$defs/Hash"
+            },
+            "request_body_sha256": {
+              "$ref": "#/$defs/Hash"
+            },
+            "request_sha256": {
+              "$ref": "#/$defs/Hash"
+            },
+            "artifact": {
+              "$ref": "#/$defs/Artifact"
+            },
+            "object_version": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1024
+            }
+          }
+        }
+      ]
+    },
+    "Recovery": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "original_key",
+        "original_request"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "2.0.0"
+        },
+        "original_key": {
+          "$ref": "#/$defs/Key"
+        },
+        "original_request": {
+          "$ref": "#/$defs/Request"
+        }
+      }
+    }
+  },
+  "$comment": "Explicit N05 package authoring route using the original immutable B02 pipeline, physical package reads and current grants. It does not approve a capability, release, or deployment."
+}

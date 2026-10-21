@@ -26,6 +26,9 @@ import org.springframework.util.function.ThrowingSupplier;
 
 @Service
 public final class RunCancellationService {
+    private org.springframework.beans.factory.ObjectProvider<TaskRunPreRuntimeCancellation> preRuntime;
+    @org.springframework.beans.factory.annotation.Autowired
+    void preRuntime(org.springframework.beans.factory.ObjectProvider<TaskRunPreRuntimeCancellation> value){preRuntime=value;}
     private static final BigInteger MAX = BigInteger.ONE.shiftLeft(64).subtract(BigInteger.ONE);
     private final EnterpriseAccess access;
     private final RunControlMapper writes;
@@ -55,7 +58,7 @@ public final class RunCancellationService {
 
     public JsonNode cancel(ApplicationSessionIdentity.Verified subject, String context, String key, String runId, byte[] body) {
         json.requireId(runId); json.headers(context, key);
-        return access.execute(subject, admission -> ThrowingSupplier.of(() -> {
+        var result = access.execute(subject, admission -> ThrowingSupplier.of(() -> {
             if (!context.equals(admission.context().context_revision())) fail(ErrorCode.CONTEXT_CHANGED);
             var input = reader.readTree(body); if (input == null) throw new SchemaRejection(ErrorCode.SCHEMA_INVALID);
             shared.validate("interfaces", input, "CancelMessage");
@@ -142,6 +145,10 @@ public final class RunCancellationService {
             if (!operationId.equals(saved.operationId()) || !requestHash.equals(saved.requestSha256()) || !response.equals(reader.readTree(saved.responseRef()))) mismatch();
             return response;
         }).get());
+        // RN-04 remains the immutable request receipt. The independent terminal
+        // transition is observable through the normal run read, never a fake start.
+        if(preRuntime!=null)preRuntime.getObject().finishIfNeverStarted(subject,context,runId);
+        return result;
     }
 
     private void appendEvent(EnterpriseAccess.Admission admission, HashMap<String,Object> values, String revision, java.time.LocalDateTime now) throws IOException {

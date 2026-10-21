@@ -55,3 +55,13 @@ npm --prefix web run build:prod -- --mode medical --outDir ../.implementation-wo
 固定制品通过以后由后端部署责任人员执行已批准发布，核对实际应用和HTTP资源身份。当前前端工程回执不能独立证明目标部署、专业资料生成、正式签发或客户接收完成。
 
 私有化环境保留全部产品功能。维护人员需要获准访问地址、资源基础路径、浏览器矩阵、模型出口、维护权限及升级恢复要求；每项参数由客户环境提供。服务岗位按[前端操作说明](frontend-operation-guide.md)和实际授予职责完成接收，各自保存请求及成果记录。
+
+## 增量打包时的静态资源边界
+
+`ruoyi-admin` 的 `generate-resources` 阶段使用固定版本 `maven-clean-plugin:3.4.1`，只清理 `${project.build.outputDirectory}/static`。该执行设置 `excludeDefaultDirectories=true`，不清理其余 `target` 内容，不跟随符号链接，也不触碰 `src/main/resources`。随后正常 `process-resources` 从 `medical.frontendDirectory`（默认 `web/dist`）复制当前资源，避免前一次构建的旧哈希文件被继续打入 JAR。不得在此生成目录对应的 `src/main/resources/static` 中混入手工资源；需要变更所有权时先修改并验证构建约定。
+
+配置约束检查：`python -m unittest tests.test_frontend_build_cleanup`。
+
+离线增量回归：`python tests/check_frontend_package_refresh.py --maven <mvn路径> --settings <settings.xml路径> --repository <已填充Maven缓存> --evidence <新的证据目录>`。先准备真实 `web/dist`；脚本在临时资源副本上连续执行两次普通 `package`，验证删除和重命名的资源不会残留，验证生成目录以外的哨兵及所有手工资源保持不变，然后用真实 `web/dist` 再次打包并核对 dist、生成目录和 JAR 的完整文件集合及哈希。它不执行数据库迁移或启动应用，不替代实际环境验收。
+
+插件参数参考：[Apache Maven Clean Plugin](https://maven.apache.org/plugins/maven-clean-plugin/clean-mojo.html)。

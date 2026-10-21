@@ -1,0 +1,127 @@
+{
+  "format": "evaluation-node-input-sql-fixture-provenance-v1",
+  "fixture_path": "tests/fixtures/evaluation-node-input-object/actual-sql.json",
+  "fixture_sha256": "1ae9656bebb715511fc74e86a52d934d2b7398dff403ca9fd0c037efe114bf41",
+  "producer_test": "com.ruoyi.medical.persistence.FormalEvaluationNodeInputObjectRegistrationTest#actualEmittedSqlParsesAndCanBeCheckedAgainstTheCompleteMigrationColumns",
+  "system_property": "medical.nodeInputSqlEvidence",
+  "generator_scope": "Production SQL emitted via explicit in-memory JDBC fixture, no live database execution; current authority and S3 boundaries mocked.",
+  "sources": [
+    {
+      "path": "business/medical-data/src/main/resources/db/migration/091-formal-evaluation-node-input-object.sql",
+      "sha256": "aed682353664ae7ef26b0e6107ae48ea2751022d0227672081be9b066b9b246e"
+    },
+    {
+      "path": "business/medical-persistence/src/main/java/com/ruoyi/medical/persistence/FormalEvaluationNodeInputArtifactBoundary.java",
+      "sha256": "512bb34568361db7aaf0cb59f5fbdb6b865276c45b6a32f14bb25e91b64a247d"
+    },
+    {
+      "path": "business/medical-persistence/src/main/java/com/ruoyi/medical/persistence/FormalEvaluationNodeInputAvailabilityController.java",
+      "sha256": "2978e94b0995dddae5a0ce65140c21c0645aebccd9430a705850239501bbf2ce"
+    },
+    {
+      "path": "business/medical-persistence/src/main/java/com/ruoyi/medical/persistence/FormalEvaluationNodeInputConfiguration.java",
+      "sha256": "c92ba5cb5b15e485c99ac5b9045ec8872fe1b22e70df3a8ff83498436d5fd74d"
+    },
+    {
+      "path": "business/medical-persistence/src/main/java/com/ruoyi/medical/persistence/FormalEvaluationNodeInputController.java",
+      "sha256": "3163702fcd0d9c8154816680812bfc06b8971b5ed390547bf34bc4539768b3c2"
+    },
+    {
+      "path": "business/medical-persistence/src/main/java/com/ruoyi/medical/persistence/FormalEvaluationNodeInputObjectAuthority.java",
+      "sha256": "06b14951ba8e60a3eb95e188e617132d100784b9520ac0e2145d8b534daa1b5b"
+    },
+    {
+      "path": "business/medical-persistence/src/main/java/com/ruoyi/medical/persistence/FormalEvaluationNodeInputObjectDependencies.java",
+      "sha256": "feb22c40b7f78b74846745a663d10432df2d630b85f4d47a4d140320293f851a"
+    },
+    {
+      "path": "business/medical-persistence/src/main/java/com/ruoyi/medical/persistence/FormalEvaluationNodeInputObjectLedger.java",
+      "sha256": "6572999e7efd16f857cca00d42284ae4efa7e940d98d3ea3b2622c3989a37742"
+    },
+    {
+      "path": "business/medical-persistence/src/main/java/com/ruoyi/medical/persistence/FormalEvaluationNodeInputObjectRegistration.java",
+      "sha256": "a3afa4bf313817ed9f69c4f3c818d310c99502ef237fc57e2acba51f1fcbf80d"
+    },
+    {
+      "path": "business/medical-persistence/src/main/java/com/ruoyi/medical/persistence/FormalEvaluationNodeInputObjectSchema.java",
+      "sha256": "bf9167082d1754a702b31247c3fb83af741fa14e8124006ca2ce5e4ddd626cfb"
+    },
+    {
+      "path": "business/medical-persistence/src/main/java/com/ruoyi/medical/persistence/FormalEvaluationNodeInputObjectService.java",
+      "sha256": "a4b72766a1d9dbf184a2760ceada58434ee2fe57d8e11adb1e54840e12509203"
+    },
+    {
+      "path": "business/medical-persistence/src/main/java/com/ruoyi/medical/persistence/FormalEvaluationNodeInputReadService.java",
+      "sha256": "0a172612d3195cfbea8ae7918266d9d21d76f4068eaba3103d6cc4a5f79f2c53"
+    },
+    {
+      "path": "business/medical-persistence/src/main/java/com/ruoyi/medical/persistence/FormalEvaluationPlanningInputPreparation.java",
+      "sha256": "56ea9aff135ee74ed9536035b0afbc23caae6c92b8984b7aa2d1f5ba479e96e3"
+    },
+    {
+      "path": "business/medical-persistence/src/main/java/com/ruoyi/medical/persistence/FormalEvaluationPlanningSource.java",
+      "sha256": "e35c0ff5321191f594f5458e304adb7ef6336eb92527b8afd6f2860177a03821"
+    },
+    {
+      "path": "business/medical-persistence/src/test/java/com/ruoyi/medical/persistence/FormalEvaluationNodeInputArtifactBoundaryTest.java",
+      "sha256": "94f4aa6f5fed7e3ec6bcbd6323b555b71b6ec7beb38f13e6580df57cf3913bf6"
+    },
+    {
+      "path": "business/medical-persistence/src/test/java/com/ruoyi/medical/persistence/FormalEvaluationNodeInputControllerTest.java",
+      "sha256": "7e4ee2291ff01366a689200810b3b9bce9b5cf89eb5e97ffa5942ef76f7c098b"
+    },
+    {
+      "path": "business/medical-persistence/src/test/java/com/ruoyi/medical/persistence/FormalEvaluationNodeInputObjectDependenciesTest.java",
+      "sha256": "60409e9e7b43159982da6be3aad1ee51712915952026ea43d0b14be5b5882cd1"
+    },
+    {
+      "path": "business/medical-persistence/src/test/java/com/ruoyi/medical/persistence/FormalEvaluationNodeInputObjectLedgerTest.java",
+      "sha256": "4cd3650d5f22bb87d964eb17cc67077ce4024d3fb1a97eeb9a99b21829ce436d"
+    },
+    {
+      "path": "business/medical-persistence/src/test/java/com/ruoyi/medical/persistence/FormalEvaluationNodeInputObjectRegistrationTest.java",
+      "sha256": "93a050cedc3ecdd43d0d60b49fd38ef80eaab6dca5464e574b4cedbb2735cea6"
+    },
+    {
+      "path": "business/medical-persistence/src/test/java/com/ruoyi/medical/persistence/FormalEvaluationNodeInputObjectSchemaTest.java",
+      "sha256": "85099999a4f0bcd493506c091068dd19df5df446efac75cdd0da3c2ddb0e3229"
+    },
+    {
+      "path": "business/medical-persistence/src/test/java/com/ruoyi/medical/persistence/FormalEvaluationNodeInputObjectServiceTest.java",
+      "sha256": "acd2fa4802f1c7b1bbc95c57005bec7d316b43bf3d5bfc369f3612a36d186d0b"
+    },
+    {
+      "path": "business/medical-persistence/src/test/java/com/ruoyi/medical/persistence/FormalEvaluationNodeInputReadServiceTest.java",
+      "sha256": "e2e4ff7e33d2c16b8e77ccb022c673f3a08abd65cf4e1791ea896d84032c105a"
+    },
+    {
+      "path": "business/medical-persistence/src/test/java/com/ruoyi/medical/persistence/FormalEvaluationNodeInputWiringTest.java",
+      "sha256": "4ce6f70698de1f80e8c62f53b1c28696748f8ba96a59729cad17a646788842ed"
+    },
+    {
+      "path": "business/medical-persistence/src/test/java/com/ruoyi/medical/persistence/FormalEvaluationPlanningInputPreparationTest.java",
+      "sha256": "be8331ba2a19c05283688aad7467ce54483fc220beb953c919a344f20d37fbf7"
+    },
+    {
+      "path": "business/medical-persistence/src/test/java/com/ruoyi/medical/persistence/FormalEvaluationPlanningSourceTest.java",
+      "sha256": "76fdf3ebd4178b87d6ca7da47a6b7729de557c29f036781509a2b22ece1c0fe3"
+    },
+    {
+      "path": "business/medical-persistence/src/test/java/com/ruoyi/medical/persistence/NodeInputObjectFixture.java",
+      "sha256": "360fbf794c67139e08f7ef8a5f006abb3c3c3abb66556a4b85419610dddb7a0d"
+    }
+  ],
+  "verified_execution": {
+    "log_source": "../test-results-20261021-0332/java/attempt-25-new-features/build.log",
+    "log_sha256": "982996ba65a11de78501f79413d3e04d061bd9db368c736055f0315d3f62a873",
+    "producer_test_succeeded": 1,
+    "producer_failures": 0,
+    "producer_errors": 0,
+    "fresh_output_path": "../test-results-20261021-0332/java/attempt-25-new-features/node-input-sql.json",
+    "fresh_output_sha256": "1ae9656bebb715511fc74e86a52d934d2b7398dff403ca9fd0c037efe114bf41",
+    "junit_summary_path": "../test-results-20261021-0332/java/attempt-25-new-features/junit-summary.json",
+    "junit_summary_sha256": "cd4a186661db858d93c262340acdcd890a039aa4ccca82e02452b8a1b6f90c50",
+    "scope": "This producer passed; unrelated admin test in the wider invocation failed. Not whole-reactor acceptance."
+  },
+  "regenerated_note": "Regenerated from actual passing Java producer on 2026-10-21. One bounded operation_record integrity read added; all previous SQL statements retained unchanged. Original fixture/provenance preserved in test-results migration/original-fixture-provenance."
+}

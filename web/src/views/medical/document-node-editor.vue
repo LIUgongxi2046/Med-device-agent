@@ -9,7 +9,9 @@
           <el-option v-for="image in images" :key="image.node_id" :label="image.content.kind === 'IMAGE' ? image.content.alt_text : image.node_id" :value="image.node_id" />
         </el-select>
       </div>
-      <document-node-editor v-for="child in children" :key="child.node_id" :node="child" :body="body" :readonly="readonly" :selection-mode="selectionMode" @changed="emit('changed', $event)" @selected="emit('selected', $event)" />
+      <document-node-editor v-for="child in children" :key="child.node_id" :node="child" :body="body" :readonly="readonly" :selection-mode="selectionMode" @changed="emit('changed', $event)" @selected="emit('selected', $event)">
+        <template #chapter-end="scope: { node: Node }"><slot name="chapter-end" v-bind="scope" /></template>
+      </document-node-editor>
     </template>
     <span v-else-if="node.content.kind === 'TEXT' && selectionMode" :data-selection-text="node.node_id" :style="textStyle(node.content)" class="selection-text">{{ node.content.text }}</span>
     <document-text-editor v-else-if="node.content.kind === 'TEXT'" :content="node.content" :readonly="readonly" @changed="text" />
@@ -37,7 +39,9 @@
           <template #default="{ row }">
             <template v-if="anchor(row.row_id, column)">
               <el-checkbox v-if="!readonly || selectionMode" :data-selection-cell="cell(row.row_id, column).cell_id" :model-value="selected.includes(cell(row.row_id, column).cell_id)" @change="select(cell(row.row_id, column).cell_id, $event)">选择单元格</el-checkbox>
-              <document-node-editor v-for="id in cell(row.row_id, column).node_ids" :key="id" :node="child(id)" :body="body" :readonly="readonly" :selection-mode="selectionMode" @changed="emit('changed', $event)" @selected="emit('selected', $event)" />
+              <document-node-editor v-for="id in cell(row.row_id, column).node_ids" :key="id" :node="child(id)" :body="body" :readonly="readonly" :selection-mode="selectionMode" @changed="emit('changed', $event)" @selected="emit('selected', $event)">
+                <template #chapter-end="scope: { node: Node }"><slot name="chapter-end" v-bind="scope" /></template>
+              </document-node-editor>
               <el-button v-if="!readonly" @click="apply(appendTableText(body, node.node_id, cell(row.row_id, column).cell_id))">新增单元格文本</el-button>
             </template>
           </template>
@@ -57,6 +61,7 @@
         </el-select>
       </div>
     </section>
+    <slot v-if="node.content.kind === 'SECTION' || node.content.kind === 'DOCUMENT'" name="chapter-end" :node="node" />
   </article>
 </template>
 
@@ -73,6 +78,7 @@ import 'katex/dist/katex.min.css'
 import DocumentTextEditor from './document-text-editor.vue'
 
 defineOptions({ name: 'DocumentNodeEditor' })
+defineSlots<{ 'chapter-end': (props: { node: Node }) => unknown }>()
 const props = withDefaults(defineProps<{ node: Node; body: DocumentBody; readonly: boolean; selectionMode?: boolean }>(), { selectionMode: false })
 const emit = defineEmits<{ changed: [body: DocumentBody]; selected: [request: SelectionRequest] }>()
 const labels = { DOCUMENT: '文稿目录', SECTION: '章节内容', PARAGRAPH: '段落内容', TEXT: '文本内容', IMAGE: '图片内容', TABLE: '表格内容', FORMULA: '公式内容' }

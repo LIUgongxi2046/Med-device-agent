@@ -27,8 +27,19 @@ public final class TemplateApplicabilityProtocol {
             List<String> input_keys, String status, List<String> unknown_input_keys) {
         public ConditionResult { input_keys = List.copyOf(input_keys); unknown_input_keys = List.copyOf(unknown_input_keys); }
     }
-    public record TemplateView(TemplateProtocol.Stored template, String applicability, List<ConditionResult> conditions,
+    public record LegacyTemplateView(TemplateProtocol.Stored template, String applicability, List<ConditionResult> conditions,
             List<ResourceProtocol.Requirement> missing_requirements, String dependency_authorizations_sha256) {
-        public TemplateView { conditions = List.copyOf(conditions); missing_requirements = List.copyOf(missing_requirements); }
+        public LegacyTemplateView { conditions=List.copyOf(conditions); missing_requirements=List.copyOf(missing_requirements); }
+    }
+    /** Internal/application projection, never emitted directly by the legacy list endpoint. */
+    public record TemplateView(TemplateProtocol.Stored template, String applicability, List<ConditionResult> conditions,
+            List<ResourceProtocol.Requirement> missing_requirements, String dependency_authorizations_sha256,
+            List<ConditionResult> machine_conditions, List<JsonNode> human_decisions) {
+        public TemplateView { conditions = List.copyOf(conditions); missing_requirements = List.copyOf(missing_requirements);
+            machine_conditions = List.copyOf(machine_conditions); human_decisions = human_decisions.stream().map(n -> (JsonNode)n.deepCopy()).toList(); }
+        public TemplateView(TemplateProtocol.Stored template,String applicability,List<ConditionResult> conditions,
+                List<ResourceProtocol.Requirement> missing,String authorization) {
+            this(template,applicability,conditions,missing,authorization,conditions,List.of());
+        }
     }
 }

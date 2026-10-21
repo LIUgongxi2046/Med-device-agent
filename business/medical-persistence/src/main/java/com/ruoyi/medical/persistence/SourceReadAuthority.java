@@ -22,25 +22,34 @@ public final class SourceReadAuthority {
     }
 
     SourceReadProtocol.VerifiedSource require(EnterpriseAccess.Admission admission, SourceReadProtocol.ReadRequirement requirement) throws IOException {
+        return requireInternal(admission,requirement,null);
+    }
+    SourceReadProtocol.VerifiedSource requireAssemblyOriginal(EnterpriseAccess.Admission admission,SourceReadProtocol.ReadRequirement requirement,TaskCandidateAssemblyOriginalReader.ReadAuthority proof)throws IOException {
+        proof.requireRequirement(admission,requirement);return requireInternal(admission,requirement,proof);
+    }
+    private SourceReadProtocol.VerifiedSource requireInternal(EnterpriseAccess.Admission admission,SourceReadProtocol.ReadRequirement requirement,TaskCandidateAssemblyOriginalReader.ReadAuthority proof)throws IOException {
         Objects.requireNonNull(admission); Objects.requireNonNull(requirement);
+        if(admission.recoveryWorker()&&proof==null)denied();
         if(admission.formalWorker())admission.formalProof().requireActive();
+        if(admission.controlWorker())admission.controlProof().requireActive();
         TenantScope.requireSqlAccess("com.ruoyi.medical.persistence.mapper.SourceReadMapper.source");
         var source = single(mapper.source(requirement.sourceVersion()));
         if (!admission.context().tenant_id().equals(source.tenantId()) || !source.sourceVersion().equals(requirement.sourceVersion())) denied();
         if (!source.originalSha256().equals(source.registeredSha256())
                 || !Objects.equals(source.ownerProjectId(), source.registeredProjectId())) mismatch();
+        if(admission.controlWorker())admission.controlProof().requireVersion(source.sourceVersion(),source.originalSha256());
         // A formal run is not the initiator's private conversation session, including REVIEW/HISTORY.
-        if(admission.formalWorker() && "SESSION".equals(source.ownership()))denied();
+        if((admission.formalWorker() || admission.controlWorker()) && "SESSION".equals(source.ownership()))denied();
         var scope = new PermissionProtocol.Scope(source.tenantId(), source.ownerProjectId(), "SOURCE", source.sourceId());
-        var sourceGrant = authority.require(admission, scope, "source.read", requirement.purpose());
+        var sourceGrant = proof==null?authority.require(admission, scope, "source.read", requirement.purpose()):authority.requireAssemblyOriginal(admission,scope,"source.read",requirement.purpose(),proof);
         PermissionProtocol.GrantRow projectGrant = null;
-        if (requirement.projectId() != null) projectGrant = authority.require(admission,
-            new PermissionProtocol.Scope(source.tenantId(), requirement.projectId(), "PROJECT", requirement.projectId()), "project.read", requirement.purpose());
+        if (requirement.projectId() != null) {var projectScope=new PermissionProtocol.Scope(source.tenantId(), requirement.projectId(), "PROJECT", requirement.projectId());projectGrant=proof==null?authority.require(admission,projectScope,"project.read",requirement.purpose()):authority.requireAssemblyOriginal(admission,projectScope,"project.read",requirement.purpose(),proof);}
         if (!Set.of("ENTERPRISE", "PROJECT", "SESSION").contains(source.ownership())
                 || "ENTERPRISE".equals(source.ownership()) != (source.ownerProjectId() == null)) mismatch();
         if (!"ENTERPRISE".equals(source.ownership()) && !Objects.equals(source.ownerProjectId(), requirement.projectId())) denied();
         if (requirement.use() == SourceReadProtocol.Use.TEMPLATE && !"ENTERPRISE".equals(source.ownership())) denied();
         var currentRights = single(mapper.rights(requirement.rightsRevision()));
+        if(admission.controlWorker())admission.controlProof().requireVersion(currentRights.rightsRevision(),currentRights.contentSha256());
         rights.require(currentRights, source, requirement, permissions.databaseTime());
         var gates = mapper.gates(source.sourceVersion());
         if (gates.isEmpty()) throw new TenantAccessException(ErrorCode.SOURCE_NOT_READY);

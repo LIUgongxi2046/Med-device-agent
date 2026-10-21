@@ -1,6 +1,8 @@
 <template>
   <section class="source-file-preview" aria-label="固定原件预览" :aria-busy="loading">
     <p v-if="loading" role="status">正在准备固定原件预览</p>
+    <img v-if="imageUrl" :src="imageUrl" alt="已核验固定图片原件" class="original-image" />
+    <p v-if="imageNotice" role="status">{{ imageNotice }}</p>
     <iframe v-if="pdfUrl" :src="pdfUrl" title="固定PDF原件" class="file-frame" />
     <iframe v-if="officeDocument" :srcdoc="officeDocument" sandbox="" title="Office原件转换预览" class="file-frame" />
     <div v-if="markdownHtml" class="markdown-content" v-html="markdownHtml" />
@@ -30,12 +32,15 @@ import { renderSourceMarkdown, sourcePreviewDocument } from '@/api/medical/conte
 const props = defineProps<{ blob: Blob; active: boolean }>()
 type Cell = { text: string; formula: string | null }
 type Sheet = { name: string; rows: Cell[][] }
+const imageUrl = ref(''); const imageNotice = ref('')
 const loading = ref(false); const pdfUrl = ref(''); const officeDocument = ref('')
 const markdownHtml = ref(''); const text = ref<string | null>(null); const sheets = ref<Sheet[]>([]); const sheetIndex = ref(0)
 const selectedSheet = computed(() => sheets.value[sheetIndex.value])
 let generation = 0
 function clear(): void {
-  generation++; if (pdfUrl.value) URL.revokeObjectURL(pdfUrl.value)
+  generation++; if (imageUrl.value) URL.revokeObjectURL(imageUrl.value)
+  imageUrl.value = ''; imageNotice.value = ''
+  if (pdfUrl.value) URL.revokeObjectURL(pdfUrl.value)
   pdfUrl.value = ''; officeDocument.value = ''; markdownHtml.value = ''; text.value = null
   sheets.value = []; sheetIndex.value = 0; loading.value = false
 }
@@ -45,6 +50,8 @@ async function read(): Promise<void> {
   const valid = () => current === generation && props.active && props.blob === blob && !document.hidden
   try {
     const type = blob.type.toLowerCase()
+    if (['image/png', 'image/jpeg'].includes(type)) { imageUrl.value = URL.createObjectURL(blob); return }
+    if (type === 'image/tiff') { imageNotice.value = 'TIFF 原件已核验，可下载查看；解析文字与原件坐标见解析内容。'; return }
     if (type === 'application/pdf') { pdfUrl.value = URL.createObjectURL(blob); return }
     if (['text/plain', 'text/markdown', 'text/x-markdown', 'text/csv'].includes(type)) {
       const original = new TextDecoder('utf-8', { fatal: true }).decode(await blob.arrayBuffer())
@@ -95,6 +102,7 @@ onBeforeUnmount(clear)
 </script>
 
 <style scoped>
+.original-image { max-width: 100%; max-height: 70vh; object-fit: contain; }
 .source-file-preview { min-width: 0; }
 .file-frame { display: block; background: var(--el-fill-color-light); border-radius: 6px; width: 100%; height: 65vh; min-height: 360px; border: 1px solid var(--el-border-color); }
 .text-content { margin: 0; padding: 24px; max-height: 70vh; overflow: auto; border: 1px solid var(--el-border-color-light); border-radius: 6px; background: var(--el-bg-color); white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; line-height: 1.8; }

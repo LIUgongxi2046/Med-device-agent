@@ -1,0 +1,134 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:professional-issue-decision:1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "decision",
+    "document_revision",
+    "issue_revision",
+    "evidence_watermark",
+    "issue_watermark",
+    "assignee_id",
+    "new_check_id",
+    "reason"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "decision": {
+      "enum": [
+        "ASSIGN",
+        "RESOLVE",
+        "REOPEN"
+      ]
+    },
+    "document_revision": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "issue_revision": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)$"
+    },
+    "evidence_watermark": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)$"
+    },
+    "issue_watermark": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)$"
+    },
+    "assignee_id": {
+      "oneOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "new_check_id": {
+      "oneOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "reason": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4000,
+      "pattern": ".*\\S.*"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "decision": {
+            "const": "ASSIGN"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "assignee_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "new_check_id": {
+            "type": "null"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "decision": {
+            "const": "RESOLVE"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "assignee_id": {
+            "type": "null"
+          },
+          "new_check_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "decision": {
+            "const": "REOPEN"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "assignee_id": {
+            "type": "null"
+          },
+          "new_check_id": {
+            "type": "null"
+          }
+        }
+      }
+    }
+  ]
+}

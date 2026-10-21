@@ -1,0 +1,18 @@
+# B09 code-first validation queue
+
+Production implementation: `DocumentReviewConfirmationService`, controller/configuration, additive schema and migration 137. No tests, database migration, runtime, provider call or full build were executed during implementation. Narrow production `javac` is only a compile check, not behavioral acceptance.
+
+## Deferred acceptance cases
+
+1. Submit authentic BX13 chapter CONFIRM with current whole-body N07, exact watermarks, current B08 and strict-field human decisions. Read original batch, item, decision, audit/outbox and recovery; no generated role or fake approval is permitted.
+2. Exercise RV07 one target through the same service. Reject multiple targets, duplicate targets, chapter/full-document mixtures, wrong section revision, foreign selection segments, missing return assignee or reason.
+3. Whole CONFIRM requires every actual document section's current CONFIRM against identical semantic check/evidence/strict/issues basis. It advances REVIEW_PENDING to SIGN_PENDING. Missing/stale/returned chapters roll back the whole transaction.
+4. Return chapter and whole-document selections to real eligible assignees. Verify append-only assignments and old confirmation invalidation (same target and dependent total); unrelated chapter confirmations remain untouched. Task becomes RETURNED.
+5. Same idempotency key and same bytes recover the original response after head/state changes. Changed request conflicts. Tampered request, receipt, original operation, batch, target, decision, assignment/resolution, audit or event must reject. Cross-document, actor and tenant recovery must reject.
+6. Change body, professional baseline, rules, sources/rights, issue/evidence watermark, strict decision, relevant chapter confirmation or authority epochs. The private current-confirmation consumer must reject; historical records remain immutable and never claim signing readiness.
+7. N07→B08→B09 accepts only the exact persisted B08 +1 transition verified by B07's full remaining validity checks. Old unrelated checks, multiple watermark jumps, changed issue or rule baselines reject. A fresh current check still uses strict normal validity.
+8. No-link document uses no invented empty evidence batch: actual complete N07 claims must be NOT_APPLICABLE without read receipts; every rule must be NOT_APPLICABLE or independently deterministic PASS without evidence references. Otherwise missing evidence blocks. Added unit cases cover this pure guard and are deferred.
+9. RETURN modification requires a different real saved body, current recheck on that revision, current human evidence/strict decisions and actual assignment ownership. Original-body resubmission, stale checks, wrong assignee, missing assignment and mixed tenant reject.
+10. Multiple assignees may resolve their own selected assignments. Task remains RETURNED until all assignments have real append-only resubmission receipts. A failed document/task CAS must roll back every operation, resolution, audit and outbox row. Legacy return assignments use the same resubmission path and real legacy foreign keys.
+11. Whole-confirmation consumer physically reloads current N07 artifacts and strict sources before acquiring its private proof; commit transaction rechecks all semantic baselines, current chapter coverage, current task status and immutable receipts. Never use history's REVALIDATION_REQUIRED views as signing authority.
+12. Migration real FKs and immutable triggers reject cross-project rows and UPDATE/DELETE; mutable document/task heads remain CAS-controlled, not protected with immutable triggers. CSRF/security chain must enforce actual token verification, not just presence of the header.

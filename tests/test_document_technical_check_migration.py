@@ -17,23 +17,23 @@ class DocumentTechnicalCheckMigrationTests(unittest.TestCase):
   self.assertEqual({MANIFEST,CHECK},set(self.tables))
   coverage=json.loads((RESOURCES/'db/migration/coverage.json').read_text())
   self.assertEqual({MANIFEST,CHECK},set(coverage['required_tables']['document_technical_check']))
-  self.assertEqual(281,sum(map(len,coverage['required_tables'].values())))
-  self.assertEqual(318,sum(map(len,coverage['required_tables'].values()))+len(coverage['platform_tables'])+len(coverage['framework_tables']))
+  self.assertEqual(526,sum(map(len,coverage['required_tables'].values())))
+  self.assertEqual(565,sum(map(len,coverage['required_tables'].values()))+len(coverage['platform_tables'])+len(coverage['framework_tables']))
   self.assertNotRegex(self.sql,r'(?im)^\s*(INSERT|UPDATE|DELETE|REPLACE|TRUNCATE|GRANT|REVOKE)\b')
  def test_001_through_067_frozen_against_part15(self):
   paths=sorted(p for p in (RESOURCES/'db/migration').iterdir() if p.suffix in ('.sql','.xml') and p.name[:3].isdigit() and int(p.name[:3])<=67)
   self.assertEqual(66,len(paths))
   self.assertEqual('6a793fe61e80a1583b019478b2764ce12ab879c8c860ff5855e774f2ef20d1cf',hashlib.sha256(b''.join(p.name.encode()+b'\0'+p.read_bytes()+b'\0' for p in paths)).hexdigest())
  def test_exact_workflow_constraint_preserves_all_other_job_requirements(self):
-  # Parse executable ALTER directly after removing only complete Liquibase metadata comments.
-  from test_migration_bundle import normalize_liquibase_comments
-  statements=sqlglot.parse(normalize_liquibase_comments(self.sql),read='mysql')
+  # The bounded compatibility parser pins original bytes and validates both ALTER actions.
+  from test_migration_bundle import parse_068_native_statements
+  statements=parse_068_native_statements(RESOURCES/MIGRATION)
   alters=[s for s in statements if isinstance(s,exp.Alter)]
   self.assertEqual(1,len(alters));alter=alters[0]
   self.assertEqual('system_job_run',alter.this.name)
   self.assertEqual(2,len(alter.args['actions']))
   drop=alter.args['actions'][0];self.assertIsInstance(drop,exp.Drop)
-  self.assertEqual('CHECK',drop.kind);self.assertEqual(['ck_system_simulation_workflow'],[table.name for table in drop.args['tables']])
+  self.assertEqual('CHECK',drop.kind);self.assertEqual('ck_system_simulation_workflow',drop.this.name)
   checks=list(alter.find_all(exp.CheckColumnConstraint));self.assertEqual(1,len(checks))
   expected=sqlglot.parse_one("SELECT 1 WHERE (job_type IN ('SIMULATION_EVALUATION','DOCUMENT_TECHNICAL_CHECK') AND workflow_id IS NULL) OR (job_type NOT IN ('SIMULATION_EVALUATION','DOCUMENT_TECHNICAL_CHECK') AND workflow_id IS NOT NULL)",read='mysql').args['where'].this
   self.assertEqual(expected,checks[0].this)

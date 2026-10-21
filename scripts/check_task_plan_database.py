@@ -10,7 +10,8 @@ from local_runtime import mysql, settings
 
 
 ROOT = Path(__file__).resolve().parents[1]
-CAPTURE = Path("/Users/liuhaoxian/.agents/skills/haonan-s000-pmp/scripts/capture_check.py")
+from check_support import capture_check_path
+CAPTURE = capture_check_path()
 MIGRATION = "business/medical-data/src/main/resources/db/migration/036-task-plan-relations.xml"
 
 

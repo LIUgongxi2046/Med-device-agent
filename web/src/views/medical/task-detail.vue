@@ -22,8 +22,9 @@
         <template v-if="stage === 'config'">
           <div class="panel-heading"><div><span class="workspace-eyebrow">STEP 01</span><h2>任务与章节计划</h2><p>确认固定版本与待补条件后，维护章节目标和研究问题。</p></div></div>
           <task-plan-editor v-if="session" :session="session" :current="current" :active="routeActive" @saved="reload" />
+          <p><router-link :to="'/projects/' + projectId + '/tasks/' + taskId + '/field-targets'">准备严格字段目标与来源映射</router-link> · 提议值不代表确认事实，也不会启动任务。</p>
           <task-run-create v-if="session" :session="session" :current="current" :active="routeActive" @accepted="reload" />
-          <details class="workspace-details" :open="current.detail.missing_requirements.length > 0"><summary>输入缺项 · {{ current.detail.missing_requirements.length }} 项</summary>
+          <details id="task-input-requirements" ref="inputRequirementsPanel" tabindex="-1" class="workspace-details" :open="current.detail.missing_requirements.length > 0"><summary>输入缺项 · {{ current.detail.missing_requirements.length }} 项</summary>
             <el-table :data="current.detail.missing_requirements" row-key="requirement_id" empty-text="当前任务没有输入缺项">
               <el-table-column prop="requirement_id" label="缺项标识" min-width="180" />
               <el-table-column label="关联目录节点" min-width="180"><template #default="scope">{{ scope.row.node_id ?? '未关联目录节点' }}</template></el-table-column>
@@ -38,14 +39,24 @@
           <div class="panel-heading"><div><span class="workspace-eyebrow">{{ stage === 'review' ? 'STEP 03 · READ ONLY' : 'STEP 02' }}</span><h2>{{ stage === 'review' ? '审查全文' : '撰写与核验' }}</h2><p>{{ stage === 'review' ? '仅审查服务端已保存正文。未保存的编辑保留在撰写阶段。' : '修改正文并核验引用；保存后再进入审查。' }}</p></div><router-link v-if="stage === 'review' && selectedDocument" :to="documentPath('write')">返回修改正文</router-link></div>
           <nav v-if="current.detail.document_ids.length > 1" class="workspace-documents" aria-label="获授权文稿"><router-link v-for="(id, index) in current.detail.document_ids" :key="id" :to="documentPath(stage === 'review' ? 'review' : 'write', id)" :aria-current="selectedDocument === id ? 'page' : undefined">文稿 {{ index + 1 }}</router-link></nav>
           <p v-if="!selectedDocument" role="alert">该文稿不在本次任务获授权清单中，无法读取。请返回任务计划核查。</p>
-          <document-editor v-else-if="session" :key="selectedDocument + ':' + stage" :session="session" :project-id="current.detail.project_id" :document-id="selectedDocument" :active="routeActive" :review-mode="stage === 'review'" :task-id="current.detail.task_id" :history-revision-request="route.query.history_revision" @returned="reload" />
+          <document-editor v-else-if="session" :key="selectedDocument + ':' + stage" :session="session" :project-id="current.detail.project_id" :document-id="selectedDocument" :active="routeActive" :review-mode="stage === 'review'" :task-id="current.detail.task_id" :history-revision-request="route.query.history_revision" @returned="reload" @navigate-write="navigateWrite" />
           <details v-if="stage === 'review'" class="workspace-details"><summary>审查与签发条件</summary><p>选区标注、回复与处理使用当前正文权限。签发操作尚未接入本工作区，不会产生签发结果。</p></details>
         </template>
       </section>
       <aside class="workspace-aside" aria-label="来源与任务运行">
+        <section class="workspace-card workspace-next-actions" aria-label="当前任务处理入口">
+          <span class="workspace-eyebrow">TASK CONTEXT</span><h2>当前任务待办</h2>
+          <p v-if="current.detail.missing_requirements.length" class="workspace-attention">{{ current.detail.missing_requirements.length }} 项输入待补，先核对缺项再继续。</p>
+          <p v-else>当前任务没有输入缺项；这不表示专业核验或审查已经通过。</p>
+          <ul v-if="current.detail.missing_requirements.length" class="workspace-requirements"><li v-for="item in current.detail.missing_requirements.slice(0, 5)" :key="item.requirement_id"><strong>{{ item.reason_code }}</strong><span>{{ item.field_id ? '关联字段：' + item.field_id : item.node_id ? '关联章节：' + item.node_id : '任务级输入要求' }}</span></li></ul>
+          <router-link :to="configPath + '#task-input-requirements'" @click="focusInputRequirements">查看全部输入缺项与处理权限</router-link>
+          <router-link :to="`/projects/${projectId}/tasks/${taskId}/field-targets`">字段目标与来源映射</router-link>
+          <details class="workspace-advanced"><summary>研究运行设置</summary><router-link :to="`/projects/${projectId}/tasks/${taskId}/node-producer-rules`">研究节点生产授权</router-link></details>
+        </section>
         <section class="workspace-card"><h2>固定版本与来源</h2><dl><dt>任务版本</dt><dd>{{ current.detail.task_revision }}</dd><dt>已确认计划</dt><dd>{{ current.detail.plan_revision ?? '尚未确认计划' }}</dd><dt>来源快照</dt><dd>{{ current.detail.snapshot_id ?? '尚未形成来源快照' }}</dd></dl><p>文稿引用及原文定位在正文的来源核验区域查看；来源权限按当前会话核查。</p></section>
         <section class="workspace-card"><h2>任务与运行</h2><p>{{ current.detail.active_run_ids.length }} 项获授权活动运行</p><p v-if="!current.detail.active_run_ids.length">当前没有获授权活动运行。运行状态以服务端记录为准。</p><details v-for="(id, index) in current.detail.active_run_ids" :key="id" class="workspace-details"><summary>运行 {{ index + 1 }} · 状态与恢复</summary><run-detail v-if="session" :session="session" :project-id="current.detail.project_id" :task-id="current.detail.task_id" :run-id="id" :active="routeActive" /></details></section>
         <section class="workspace-card"><h2>待处理事项</h2><p v-if="!current.detail.waiting_item_ids.length">当前没有获授权待办</p><ul v-else><li v-for="id in current.detail.waiting_item_ids" :key="id">{{ id }}</li></ul></section>
+        <details class="workspace-card"><summary>候选资料读取</summary><p>当前任务记录尚未提供已授权的候选引用，暂不能读取候选资料。</p><candidate-read-panel v-if="session" :session="session" :project-id="projectId" :candidate-id="null" :active="routeActive" /></details>
         <details class="workspace-card"><summary>任务身份与记录</summary><dl><dt>项目标识</dt><dd>{{ current.detail.project_id }}</dd><dt>任务标识</dt><dd>{{ current.detail.task_id }}</dd><dt>当前记录修订</dt><dd>{{ current.revision }}</dd><dt>责任人员</dt><dd>{{ current.detail.owner_id }}</dd></dl></details>
       </aside>
     </section>
@@ -53,8 +64,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import useUserStore from '@/store/modules/user'
 import { schemaIssues } from '@/api/medical/protocol'
 import type { MedicalSession } from '@/api/medical/protocol'
@@ -69,8 +80,9 @@ import TaskRunCreate from './task-run-create.vue'
 import TaskPlanEditor from './task-plan-editor.vue'
 import DocumentEditor from './document-editor.vue'
 import RunDetail from './run-detail.vue'
+import CandidateReadPanel from './candidate-read-panel.vue'
 
-const route = useRoute(); const user = useUserStore()
+const route = useRoute(); const router = useRouter(); const user = useUserStore()
 const session = computed<MedicalSession | null>(() => user.medicalSession)
 const projectId = computed(() => typeof route.params.projectId === 'string' ? route.params.projectId : '')
 const taskId = computed(() => typeof route.params.taskId === 'string' ? route.params.taskId : '')
@@ -84,6 +96,14 @@ const selectedDocument = computed(() => authorizedWorkspaceDocument(current.valu
 function documentPath(mode: 'write' | 'review', id = selectedDocument.value): string {
   return id ? workspaceDocumentPath(projectId.value, taskId.value, id, mode) : configPath.value
 }
+function navigateWrite(): void { if (permitted.value && selectedDocument.value) void router.push(documentPath('write')) }
+const inputRequirementsPanel = ref<HTMLDetailsElement>()
+function focusInputRequirements(): void {
+  if (route.hash !== '#task-input-requirements' || stage.value !== 'config' || !current.value || !permitted.value || document.hidden) return
+  const target = inputRequirementsPanel.value
+  if (!target) return
+  target.open = true; target.scrollIntoView({ block: 'start' }); target.focus({ preventScroll: true })
+}
 let generation = 0; let controller: AbortController | null = null
 function clear(): void { generation += 1; controller?.abort(); controller = null; current.value = null; loading.value = false }
 const routeActive = useMedicalRouteRead(['MedicalTaskDetail', 'MedicalTaskWrite', 'MedicalTaskReview'], clear)
@@ -94,10 +114,10 @@ async function reload(): Promise<void> {
   const reading = new AbortController(); const requested = generation; controller = reading; loading.value = true
   try {
     const result = await readCurrentTask(actual, project, task, reading.signal)
-    if (generation === requested && session.value === actual && route.fullPath === path && !document.hidden) current.value = result
+    if (generation === requested && session.value === actual && route.fullPath === path && !document.hidden) { current.value = result; await nextTick(); if (generation === requested && session.value === actual && route.fullPath === path) focusInputRequirements() }
   } finally { if (generation === requested) { loading.value = false; controller = null } }
 }
-watch(() => [session.value, route.fullPath, routeActive.value], () => {
+watch(() => [session.value, JSON.stringify(session.value?.current_context), JSON.stringify(session.value?.action_summary), route.fullPath, routeActive.value], () => {
   clear()
   if (permitted.value && !document.hidden) void reload()
 }, { immediate: true, flush: 'sync' })
@@ -121,6 +141,7 @@ onBeforeUnmount(() => {
 .workspace-steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 20px 0; }
 .workspace-step { display: flex; align-items: center; gap: 12px; padding: 16px; background: #fff; border: 1px solid #dce3ec; border-radius: 8px; color: #526279; text-decoration: none; }
 .workspace-step[aria-current="step"] { color: #175fae; border-color: #1768c4; background: #edf4ff; }.workspace-step small { display: block; font-size: 12px; margin-top: 2px; }.step-number { display: grid; place-items: center; flex: 0 0 32px; height: 32px; border-radius: 50%; background: #f4f6fa; font-weight: 600; }.workspace-step[aria-current="step"] .step-number { background: #1768c4; color: #fff; }.unavailable { color: #738096; }
+.workspace-next-actions a { display: block; margin-top: 12px; color: #175fae; }.workspace-requirements { padding-left: 18px; font-size: 12px; }.workspace-requirements li { margin: 10px 0; }.workspace-requirements span { display: block; color: #66758b; }.workspace-card .workspace-attention { color: #975a16; }.workspace-advanced { margin-top: 16px; border-top: 1px solid #e9edf3; padding-top: 8px; }.workspace-advanced summary { cursor: pointer; padding: 6px 0; }
 .workspace-session { margin: 16px 0; }.workspace-grid { display: grid; grid-template-columns: minmax(0, 1fr) 290px; gap: 24px; align-items: start; }.workspace-main, .workspace-card { padding: 22px; background: #fff; border: 1px solid #dce3ec; border-radius: 8px; min-width: 0; }.workspace-main { box-shadow: 0 3px 18px #24324708; }.workspace-aside { display: grid; gap: 16px; min-width: 0; }.workspace-card h2, .panel-heading h2 { font-size: 17px; margin: 0 0 8px; }.workspace-card p { color: #526279; font-size: 13px; }.workspace-card dt { color: #5c6d82; font-size: 12px; margin-top: 12px; }.workspace-card dd { margin: 4px 0 0; overflow-wrap: anywhere; }.workspace-card li { overflow-wrap: anywhere; }.panel-heading { display: flex; justify-content: space-between; gap: 16px; padding-bottom: 20px; margin-bottom: 20px; border-bottom: 1px solid #e9edf3; }.workspace-details { margin-top: 20px; }.workspace-details > summary, .workspace-card > summary, .workspace-session > summary { cursor: pointer; min-height: 38px; padding: 8px 0; font-weight: 600; }.workspace-next { display: flex; justify-content: space-between; gap: 16px; margin-top: 24px; padding-top: 20px; border-top: 1px solid #e9edf3; }.workspace-documents { display: flex; gap: 8px; overflow-x: auto; margin-bottom: 20px; }.workspace-documents a { padding: 8px 16px; border: 1px solid #dce3ec; border-radius: 6px; white-space: nowrap; }.workspace-documents [aria-current] { background: #edf4ff; color: #175fae; }.task-workspace a:focus-visible, summary:focus-visible { outline: 2px solid #1768c4; outline-offset: 3px; }
 @media (max-width: 1060px) { .workspace-grid { grid-template-columns: minmax(0, 1fr); }.workspace-aside { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 650px) { .workspace-hero, .panel-heading, .workspace-next { flex-direction: column; }.workspace-hero-status { align-items: flex-start; }.workspace-steps { gap: 6px; }.workspace-step { flex-direction: column; align-items: flex-start; padding: 12px 8px; gap: 8px; }.workspace-step small { display: none; }.workspace-main, .workspace-card, .workspace-hero { padding: 16px; }.workspace-aside { grid-template-columns: minmax(0, 1fr); }.workspace-details > summary, .workspace-card > summary, .workspace-session > summary { min-height: 44px; } }

@@ -25,6 +25,46 @@
     </resultMap>
     <sql id="ownerSelection">
         <choose>
+            <when test="domain == 'STRICT_COMPARISON_POLICY'">
+                SELECT v.tenant_id,v.revision_id AS version_id,v.project_id AS version_project_id,v.project_id AS resource_project_id,
+                    'PROJECT' AS resource_kind,v.project_id AS resource_id,v.content_sha256,<include refid="noSourceOrConversation"/>
+                FROM strict_comparison_policy_revision v WHERE v.revision_id IN (<include refid="versionIdentities"/>)
+            </when>
+            <when test="domain == 'STRICT_COMPARISON_DECISION'">
+                SELECT v.tenant_id,v.revision_id AS version_id,v.project_id AS version_project_id,v.project_id AS resource_project_id,
+                    'PROJECT' AS resource_kind,v.project_id AS resource_id,v.content_sha256,<include refid="noSourceOrConversation"/>
+                FROM strict_comparison_policy_decision v WHERE v.revision_id IN (<include refid="versionIdentities"/>)
+            </when>
+            <when test="domain == 'STRICT_DECIMAL_EVIDENCE'">
+                SELECT v.tenant_id,v.revision_id AS version_id,v.project_id AS version_project_id,v.project_id AS resource_project_id,
+                    'PROJECT' AS resource_kind,v.project_id AS resource_id,v.content_sha256,<include refid="noSourceOrConversation"/>
+                FROM strict_decimal_evidence_revision v WHERE v.revision_id IN (<include refid="versionIdentities"/>)
+            </when>
+            <when test="domain == 'STRICT_FIELD_CONTEXT'">
+                SELECT v.tenant_id,v.revision_id AS version_id,v.project_id AS version_project_id,v.project_id AS resource_project_id,
+                    'PROJECT' AS resource_kind,v.project_id AS resource_id,v.content_sha256,<include refid="noSourceOrConversation"/>
+                FROM task_strict_field_context_revision v WHERE v.revision_id IN (<include refid="versionIdentities"/>)
+            </when>
+            <when test="domain == 'STRICT_FIELD_CONTEXT_DECISION'">
+                SELECT v.tenant_id,v.revision_id AS version_id,v.project_id AS version_project_id,v.project_id AS resource_project_id,
+                    'PROJECT' AS resource_kind,v.project_id AS resource_id,v.content_sha256,<include refid="noSourceOrConversation"/>
+                FROM task_strict_field_context_decision v WHERE v.revision_id IN (<include refid="versionIdentities"/>)
+            </when>
+            <when test="domain == 'STRICT_FIELD_TYPED_TARGET'">
+                SELECT v.tenant_id,v.revision_id AS version_id,v.project_id AS version_project_id,v.project_id AS resource_project_id,
+                    'PROJECT' AS resource_kind,v.project_id AS resource_id,v.content_sha256,<include refid="noSourceOrConversation"/>
+                FROM task_strict_field_typed_revision v WHERE v.revision_id IN (<include refid="versionIdentities"/>)
+            </when>
+            <when test="domain == 'STRICT_FIELD_TYPED_TARGET_DECISION'">
+                SELECT v.tenant_id,v.revision_id AS version_id,v.project_id AS version_project_id,v.project_id AS resource_project_id,
+                    'PROJECT' AS resource_kind,v.project_id AS resource_id,v.content_sha256,<include refid="noSourceOrConversation"/>
+                FROM task_strict_field_typed_decision v WHERE v.revision_id IN (<include refid="versionIdentities"/>)
+            </when>
+            <when test="domain == 'STRICT_FIELD_RULE_SET'">
+                SELECT v.tenant_id,v.revision_id AS version_id,v.project_id AS version_project_id,v.project_id AS resource_project_id,
+                    'PROJECT' AS resource_kind,v.project_id AS resource_id,v.content_sha256,<include refid="noSourceOrConversation"/>
+                FROM task_strict_field_rule_set v WHERE v.revision_id IN (<include refid="versionIdentities"/>)
+            </when>
 <!-- Insert inside the real ownerSelection choose. No CAPABILITY_VERSION alias. -->
 <when test="domain == 'AGENT_EXECUTION_POLICY'">
  SELECT p.tenant_id,p.version_id,p.project_id AS version_project_id,p.project_id AS resource_project_id,
@@ -163,6 +203,30 @@
                 SELECT v.tenant_id,v.candidate_id AS version_id,v.project_id AS version_project_id,v.project_id AS resource_project_id,
                     'TASK' AS resource_kind,v.task_id AS resource_id,v.content_sha256,<include refid="noSourceOrConversation"/>
                 FROM candidate v WHERE v.candidate_id IN (<include refid="versionIdentities"/>)
+            </when>
+            <when test="domain == 'SCENARIO_SPECIFICATION'">
+                SELECT v.tenant_id,v.record_id AS version_id,v.project_id AS version_project_id,c.project_id AS resource_project_id,
+                    'CONFIGURATION' AS resource_kind,v.config_id AS resource_id,v.content_sha256,<include refid="noSourceOrConversation"/>
+                FROM scenario_record v JOIN configuration_head c ON c.tenant_id=v.tenant_id AND c.config_id=v.config_id
+                WHERE v.kind='Author' AND v.record_id IN (<include refid="versionIdentities"/>)
+            </when>
+            <when test="domain == 'SCENARIO_REVIEW'">
+                SELECT v.tenant_id,v.record_id AS version_id,v.project_id AS version_project_id,c.project_id AS resource_project_id,
+                    'CONFIGURATION' AS resource_kind,v.config_id AS resource_id,v.content_sha256,<include refid="noSourceOrConversation"/>
+                FROM scenario_record v JOIN configuration_head c ON c.tenant_id=v.tenant_id AND c.config_id=v.config_id
+                WHERE v.kind='Review' AND v.record_id IN (<include refid="versionIdentities"/>)
+            </when>
+            <when test="domain == 'SCENARIO_PUBLICATION'">
+                SELECT v.tenant_id,v.record_id AS version_id,v.project_id AS version_project_id,c.project_id AS resource_project_id,
+                    'CONFIGURATION' AS resource_kind,v.config_id AS resource_id,v.content_sha256,<include refid="noSourceOrConversation"/>
+                FROM scenario_record v JOIN configuration_head c ON c.tenant_id=v.tenant_id AND c.config_id=v.config_id
+                WHERE v.kind='Publish' AND v.record_id IN (<include refid="versionIdentities"/>)
+            </when>
+            <when test="domain == 'SCENARIO_DISABLE'">
+                SELECT v.tenant_id,v.record_id AS version_id,v.project_id AS version_project_id,c.project_id AS resource_project_id,
+                    'CONFIGURATION' AS resource_kind,v.config_id AS resource_id,v.content_sha256,<include refid="noSourceOrConversation"/>
+                FROM scenario_record v JOIN configuration_head c ON c.tenant_id=v.tenant_id AND c.config_id=v.config_id
+                WHERE v.kind='Disable' AND v.record_id IN (<include refid="versionIdentities"/>)
             </when>
             <when test="domain == 'CAPABILITY_VERSION'">
                 SELECT v.tenant_id,v.capability_version AS version_id,v.project_id AS version_project_id,v.project_id AS resource_project_id,

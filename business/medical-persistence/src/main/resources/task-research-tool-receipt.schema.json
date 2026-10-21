@@ -1,0 +1,168 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:task-tool-read-receipt:1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "body",
+    "receipt_sha256"
+  ],
+  "properties": {
+    "receipt_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "body": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/Started"
+        },
+        {
+          "$ref": "#/$defs/Result"
+        }
+      ]
+    }
+  },
+  "$defs": {
+    "Started": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "kind",
+        "receipt_id",
+        "session_id",
+        "input_id",
+        "input_sha256",
+        "input_receipt_sha256",
+        "tool_version",
+        "tool_version_sha256",
+        "binding",
+        "tool_call",
+        "request"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "kind": {
+          "const": "TASK_TOOL_READ_STARTED"
+        },
+        "receipt_id": {
+          "type": "string"
+        },
+        "session_id": {
+          "type": "string"
+        },
+        "input_id": {
+          "type": "string"
+        },
+        "input_sha256": {
+          "type": "string"
+        },
+        "input_receipt_sha256": {
+          "type": "string"
+        },
+        "tool_version": {
+          "type": "string"
+        },
+        "tool_version_sha256": {
+          "type": "string"
+        },
+        "binding": {
+          "type": "object"
+        },
+        "tool_call": {
+          "type": "object"
+        },
+        "request": {
+          "type": "object"
+        }
+      }
+    },
+    "Result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "kind",
+        "receipt_id",
+        "session_id",
+        "input_id",
+        "input_sha256",
+        "input_receipt_sha256",
+        "tool_version",
+        "tool_version_sha256",
+        "binding",
+        "tool_call",
+        "request",
+        "response_sha256",
+        "response",
+        "source_receipts",
+        "retrieval_receipts",
+        "read_receipt_ids",
+        "retrieval_ids",
+        "selected_refs"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "kind": {
+          "const": "TASK_TOOL_READ_RECEIPT"
+        },
+        "receipt_id": {
+          "type": "string"
+        },
+        "session_id": {
+          "type": "string"
+        },
+        "input_id": {
+          "type": "string"
+        },
+        "input_sha256": {
+          "type": "string"
+        },
+        "input_receipt_sha256": {
+          "type": "string"
+        },
+        "tool_version": {
+          "type": "string"
+        },
+        "tool_version_sha256": {
+          "type": "string"
+        },
+        "binding": {
+          "type": "object"
+        },
+        "tool_call": {
+          "type": "object"
+        },
+        "request": {
+          "type": "object"
+        },
+        "response_sha256": {
+          "type": "string"
+        },
+        "response": {
+          "type": "object"
+        },
+        "source_receipts": {
+          "type": "array"
+        },
+        "retrieval_receipts": {
+          "type": "array"
+        },
+        "read_receipt_ids": {
+          "type": "array"
+        },
+        "retrieval_ids": {
+          "type": "array"
+        },
+        "selected_refs": {
+          "type": "array"
+        }
+      }
+    }
+  }
+}

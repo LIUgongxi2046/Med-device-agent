@@ -23,7 +23,37 @@ public final class ResourceReadAuthority {
 
     java.util.Optional<PermissionProtocol.GrantRow> find(EnterpriseAccess.Admission admission, PermissionProtocol.Scope scope,
             String action, String purpose) throws IOException {
+        return findCurrent(admission,scope,action,purpose,null,null,null,null);
+    }
+    PermissionProtocol.GrantRow requireStartRun(EnterpriseAccess.Admission admission,PermissionProtocol.Scope scope,
+            FormalRunControlAccess.StartRun start)throws IOException {
+        Objects.requireNonNull(start).require(admission,scope,"RUN_CREATION");
+        return findCurrent(admission,scope,"task.run","RUN_CREATION",start,null,null,null).orElseThrow(()->new TenantAccessException(ErrorCode.ACCESS_DENIED));
+    }
+    /** Exact committed N03 artifact only; still performs the normal current owner/grant lookup. */
+    PermissionProtocol.GrantRow requireStrictFieldOutput(EnterpriseAccess.Admission admission,PermissionProtocol.Scope scope,
+            String action,String purpose,TaskStrictFieldWriterReadAuthority.CommittedRead proof)throws IOException {
+        Objects.requireNonNull(proof).requireResource(admission,scope,action,purpose);
+        return findCurrent(admission,scope,action,purpose,null,proof,null,null).orElseThrow(()->new TenantAccessException(ErrorCode.ACCESS_DENIED));
+    }
+    /** Exact genuine N05 committed outputs only, with unchanged current owner/grant checks. */
+    PermissionProtocol.GrantRow requireSourceVerifierOutput(EnterpriseAccess.Admission admission,PermissionProtocol.Scope scope,
+            String action,String purpose,TaskSourceVerifierCommittedReviewAuthority.CommittedRead proof)throws IOException {
+        Objects.requireNonNull(proof).requireResource(admission,scope,action,purpose);
+        return findCurrent(admission,scope,action,purpose,null,null,proof,null).orElseThrow(()->new TenantAccessException(ErrorCode.ACCESS_DENIED));
+    }
+    PermissionProtocol.GrantRow requireAssemblyOriginal(EnterpriseAccess.Admission admission,PermissionProtocol.Scope scope,String action,String purpose,TaskCandidateAssemblyOriginalReader.ReadAuthority proof)throws IOException {
+        proof.requireResource(admission,scope,action,purpose);
+        return findCurrent(admission,scope,action,purpose,null,null,null,proof).orElseThrow(()->new TenantAccessException(ErrorCode.ACCESS_DENIED));
+    }
+    private java.util.Optional<PermissionProtocol.GrantRow> findCurrent(EnterpriseAccess.Admission admission,PermissionProtocol.Scope scope,
+            String action,String purpose,FormalRunControlAccess.StartRun start,TaskStrictFieldWriterReadAuthority.CommittedRead strict,TaskSourceVerifierCommittedReviewAuthority.CommittedRead review,TaskCandidateAssemblyOriginalReader.ReadAuthority assembly)throws IOException {
         Objects.requireNonNull(admission); schema.scope(schema.tree(scope));
+        if(admission.evaluationWorker())admission.evaluationProof().require(scope,action,purpose);
+        if(admission.documentReviewWorker())admission.documentReviewProof().require(scope,action,purpose);
+        if(admission.planDraftWorker())admission.planDraftProof().require(scope,action,purpose);
+        if(admission.recoveryWorker()){if(assembly==null)admission.recoveryProof().require(scope,action,purpose);else assembly.requireResource(admission,scope,action,purpose);}
+        if(admission.controlWorker()) {if(review!=null)review.requireResource(admission,scope,action,purpose);else if(strict!=null)strict.requireResource(admission,scope,action,purpose);else if(start==null)admission.controlProof().require(scope,action,purpose);else start.require(admission,scope,purpose);}
         if(admission.formalWorker()) admission.formalProof().require(scope,action,purpose);
         if(admission.simulationWorker() && !("SIMULATION_EVALUATION".equals(purpose)
                 || "MODEL_CONFIGURATION".equals(purpose) && "configuration.read".equals(action))) denied();

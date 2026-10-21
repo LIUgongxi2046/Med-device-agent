@@ -21,6 +21,7 @@ import org.springframework.stereotype.Component;
 @Component
 public final class ExportSchema {
     private final JsonMapper json = JsonMapper.builder().enable(StreamReadFeature.STRICT_DUPLICATE_DETECTION)
+            .enable(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
             .propertyNamingStrategy(com.fasterxml.jackson.databind.PropertyNamingStrategies.SNAKE_CASE).build();
     private final JsonSchema schema;
     private final SchemaCatalogue shared;
@@ -65,6 +66,10 @@ public final class ExportSchema {
     JsonNode tree(Object value) { return json.valueToTree(value); }
     JsonNode read(String value) throws IOException { return json.readTree(value); }
     String manifestSha256() { return manifest; }
+    boolean legacyBody(String ref, String digest) { return shared.schemaRef("interfaces", "DocumentBody").equals(ref) && shared.schemaDigest("interfaces").equals(digest); }
+    String bodyV2Ref() { return shared.schemaRef("document-body-v2", "DocumentBody"); }
+    String bodyV2Digest() { return shared.schemaDigest("document-body-v2"); }
+    void verifyCommandV2(JsonNode value) { shared.validate("document-export-command-v2", value, null); }
     private JsonSchema definition(String name) { return schema.getSubSchema(new JsonNodePath(PathType.JSON_POINTER).append("$defs").append(name)); }
     private byte[] resource(String name) throws IOException { try (var input = Objects.requireNonNull(getClass().getClassLoader().getResourceAsStream(name))) { return input.readAllBytes(); } }
 }

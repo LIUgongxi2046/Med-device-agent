@@ -1,0 +1,59 @@
+package com.ruoyi.medical.persistence;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.*;
+import com.ruoyi.medical.contracts.*;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
+import java.util.*;
+import static com.ruoyi.medical.persistence.RegistrationDossierSchema.*;
+
+/** DEFERRED. Entirely synthetic schema fixtures, never real regulatory approvals or quality records. */
+final class RegistrationDossierTest {
+ private final RegistrationDossierSchema schema=new RegistrationDossierSchema();
+ private static String id(int n){return "00000000-0000-4000-8000-%012d".formatted(n);}
+ private static PermissionProtocol.Basis basis(int n){return new PermissionProtocol.Basis(id(n),"a".repeat(64));}
+ private final List<Source> sources=new ArrayList<>();
+ private String source(String key,String literal,String nature){int n=100+sources.size()*10;sources.add(new Source(key,basis(n),id(n+3),new DatasetProtocol.EvidenceRef("1.0.0",id(1),id(2),id(n+4),id(n),id(n+1),"synthetic-chunk",DatasetProtocol.LocatorKind.TXT,new DatasetProtocol.TextLocator("TXT","UTF-8","PRESERVE",0,1,1,1),"a".repeat(64),id(n+2)),literal,nature));return key;}
+ private Decision decision(String key,String value){return new Decision(value,source(key,value,"APPROVED_DECISION"));}
+ private Source get(String key){return sources.stream().filter(s->s.key().equals(key)).findFirst().orElseThrow();}
+ private ObjectNode fixture()throws Exception{
+  sources.clear();var application=decision("application","FIRST");var device=decision("device","NON_IVD");var classification=decision("class","SYNTHETIC_CLASS");var code=decision("code","SYNTHETIC_CODE");var jurisdiction=decision("authority","SYNTHETIC_AUTHORITY");var edition=new Decision("SYNTHETIC_REGULATION",source("regulation","SYNTHETIC_REGULATION","REGULATION"));
+  var nodes=new ArrayList<TemplateNode>();var directories=new ArrayList<Directory>();var documents=new ArrayList<Document>();var fields=new ArrayList<Field>();var procedures=new ArrayList<Procedure>();var bodies=new ArrayList<Body>();var usages=new ArrayList<EvidenceUsage>();var conditions=new ArrayList<Condition>();var templateConditions=new ArrayList<TemplateCondition>();
+  for(var entry:RegistrationDossierRequirements.firstDirectory().entrySet()){
+   String c=entry.getKey(),title=entry.getValue(),parent=c.contains(".")?c.substring(0,c.lastIndexOf('.')):"";boolean doc=c.contains(".")&&!"章节目录".equals(title);boolean procedure=RegistrationDossierRequirements.procedure(c);boolean attachment="6.10".equals(c);
+   nodes.add(new TemplateNode(c,title,parent,List.of(),doc,procedure,attachment));var keys=new ArrayList<String>();var docKeys=new ArrayList<String>();var sourceKeys=new ArrayList<String>();var text=new StringBuilder(title);
+   for(String f:RegistrationDossierRequirements.FIELDS.getOrDefault(c,List.of())){String value="SYNTHETIC "+c+" "+f;String key=source("field-"+c+"-"+f,value,"REGISTERED_DOCUMENT");fields.add(new Field(f,c,schema.tree(value),key));keys.add(f);sourceKeys.add(key);text.append(" ").append(value);}
+   if(doc){
+    String key="document-"+c;String original=source(key,"SYNTHETIC subject version scope responsibility workflow","REGISTERED_DOCUMENT");var records=new ArrayList<String>();var attachments=new ArrayList<String>();
+    if(procedure||attachment){String evidence=source("evidence-"+c,"SYNTHETIC original only",procedure?"ORIGINAL_RECORD":"ORIGINAL_ATTACHMENT");if(procedure)records.add(evidence);else attachments.add(evidence);var metadata=new PermissionSchema().object().put("status","APPLICABLE").put("source_version_id",get(evidence).source().version_id()).put("content_sha256","a".repeat(64)).put("document_version_id",get(original).source().version_id()).put("project_id",id(2)).put("subject","SYNTHETIC subject").put("recorded_at","2025-12-01").put("valid_through","2026-12-31");String approval=source("usage-"+c,metadata.toString(),"APPROVED_DECISION");usages.add(new EvidenceUsage(evidence,key,"SYNTHETIC subject","2025-12-01","2026-12-31",approval));}
+    var approvalJson=new PermissionSchema().object().put("version_id",get(original).source().version_id()).put("content_sha256","a".repeat(64)).put("project_id",id(2)).put("subject","SYNTHETIC subject").put("number",key).put("version","version").put("valid_through","2026-12-31").put("status","APPROVED");String approval=source("approval-"+c,approvalJson.toString(),"APPROVED_DECISION");
+    documents.add(new Document(key,c,original,key,"version","APPROVED","SYNTHETIC subject","2026-12-31",approval,records,attachments));docKeys.add(key);sourceKeys.add(original);text.append(" ").append(key).append(" SYNTHETIC subject version scope responsibility workflow");if(procedure)procedures.add(new Procedure(key,"scope","responsibility","workflow",records));
+   }
+   if(sourceKeys.isEmpty())sourceKeys.add("regulation");directories.add(new Directory(c,title,parent,id(3),"SYNTHETIC responsible","REQUIRED","",List.of(),docKeys,"1","HUMAN_REVIEW_REQUIRED"));var content=new PermissionSchema().object().put("kind","TEXT").put("text",text.toString());bodies.add(new Body("body-"+c,id(50000+bodies.size()),c,content,sourceKeys,keys,docKeys));
+  }
+  int i=0;for(String key:new TreeSet<>(RegistrationDossierRequirements.CONDITIONS)){
+   String c="6.10.c"+(++i);var decision=new PermissionSchema().object().put("condition",key).put("applicability","NOT_APPLICABLE").put("rationale","SYNTHETIC rationale");decision.putArray("directory_codes").add(c);String source=source("condition-"+key,decision.toString(),"APPROVED_DECISION");
+   nodes.add(new TemplateNode(c,key,"6.10",List.of(),false,false,false));templateConditions.add(new TemplateCondition(key,List.of(c)));conditions.add(new Condition(key,"NOT_APPLICABLE","SYNTHETIC rationale",List.of(source)));directories.add(new Directory(c,key,"6.10",id(3),"SYNTHETIC responsible","NOT_APPLICABLE","SYNTHETIC rationale",List.of(source),List.of(),"","HUMAN_REVIEW_REQUIRED"));
+  }
+  source("template",schema.tree(new Template("FIRST","NON_IVD","SYNTHETIC_REGULATION",basis(8),nodes,templateConditions)).toString(),"APPROVED_TEMPLATE");var path=new Path(application,device,classification,code,jurisdiction,edition,basis(8),"template",List.of(),List.of());
+  var selection=new Selection("1.0.0",KIND,List.of(id(3)),"2026-01-01",path,List.copyOf(sources),directories,documents,usages,fields,procedures,conditions,bodies);var fixed=new PermissionSchema().object();fixed.set("selection",schema.tree(selection));fixed.set("specification",schema.tree(basis(9)));return fixed;
+ }
+ private boolean reason(JsonNode plan,String reason){for(var r:plan.required("unknown_reasons"))if(r.asText().startsWith(reason))return true;return false;}
+ @Test void completeSyntheticDirectoryIsRepresentableWithoutModelApproval()throws Exception{var f=fixture();var original=f.deepCopy();var plan=RegistrationDossierPipeline.plan(f);assertFalse(plan.required("blocked").asBoolean(),plan.toString());assertFalse(plan.required("legal_approval").asBoolean());assertTrue(plan.required("human_review_required").asBoolean());assertEquals(original,f);}
+ @Test void exactCoreDirectoryRetainsCorrectQualityChapterNumbers()throws Exception{var d=RegistrationDossierRequirements.firstDirectory();assertEquals(48,d.size());assertEquals("综述",d.get("6.1"));assertEquals("章节目录",d.get("6.2"));assertEquals("设计开发",d.get("6.7.1"));}
+ @Test void incompleteDirectoryCannotPass()throws Exception{var f=fixture();((ArrayNode)f.required("selection").required("directory")).remove(f.required("selection").required("directory").size()-1);
+ ((ArrayNode)f.required("selection").required("conditions")).remove(f.required("selection").required("conditions").size()-1);assertTrue(reason(RegistrationDossierPipeline.plan(f),"DIRECTORY_COMPLETE_NODE_SET_MISMATCH"));}
+ @Test void wrongPathCannotReuseFirstNonIvdTemplate()throws Exception{var f=fixture();((ObjectNode)f.required("selection").required("path").required("device_type")).put("value","IVD");assertTrue(reason(RegistrationDossierPipeline.plan(f),"DIRECTORY_TEMPLATE_PATH_MISMATCH"));}
+ @Test void unknownConditionNeverDefaultsToNotApplicable()throws Exception{var f=fixture();((ObjectNode)f.required("selection").required("conditions").get(0)).put("applicability","UNKNOWN");assertTrue(reason(RegistrationDossierPipeline.plan(f),"CONDITION_UNRESOLVED"));}
+ @Test void draftedProcedureCannotCountAsApproved()throws Exception{var f=fixture();for(var d:f.required("selection").required("documents"))if("6.4".equals(d.required("directory_code").asText()))((ObjectNode)d).put("status","DRAFT");assertTrue(reason(RegistrationDossierPipeline.plan(f),"SUBDOCUMENT_NOT_REAL_APPROVED_VERSION"));}
+ @Test void missingActualRecordCannotBeReplacedByProcedureText()throws Exception{var f=fixture();for(var d:f.required("selection").required("documents"))if("6.4".equals(d.required("directory_code").asText()))((ObjectNode)d).putArray("record_source_keys");assertTrue(reason(RegistrationDossierPipeline.plan(f),"ACTUAL_RECORD_MISSING"));}
+ @Test void expiredRecordAndWrongProjectApprovalAreBlocked()throws Exception{var f=fixture();((ObjectNode)f.required("selection").required("evidence_usage").get(0)).put("valid_through","2025-12-31");var p=RegistrationDossierPipeline.plan(f);assertTrue(reason(p,"RECORD_ATTACHMENT_DATE_INVALID"));assertTrue(reason(p,"RECORD_ATTACHMENT_PROJECT_VERSION_APPLICABILITY_CONFLICT"));}
+ @Test void missingStructuredFieldBindingIsVisible()throws Exception{var f=fixture();for(var b:f.required("selection").required("body"))if("2.3".equals(b.required("directory_code").asText()))((ObjectNode)b).putArray("field_keys");assertTrue(reason(RegistrationDossierPipeline.plan(f),"BODY_FIELD_NOT_COVERED:2.3"));}
+ @Test void tablesRequireStructureNotFlattenedCoincidence()throws Exception{var a=schema.parse("{\"rows\":[[\"a\",\"b\"]]}");var b=schema.parse("{\"rows\":[[\"b\",\"a\"]]}");assertFalse(RegistrationDossierSchema.contains(a,b));assertTrue(RegistrationDossierSchema.contains(a,a));}
+ @Test void pinnedTemplateBasisCannotBeSubstituted()throws Exception{var f=fixture();((ObjectNode)f.required("selection").required("path").required("template_version")).put("version_id",id(9999));assertTrue(reason(RegistrationDossierPipeline.plan(f),"DIRECTORY_TEMPLATE_PATH_MISMATCH"));}
+ @Test void invalidRecordDateIsRejectedAtAuthorBoundary()throws Exception{var f=fixture();((ObjectNode)f.required("selection").required("evidence_usage").get(0)).put("recorded_at","2026-02-30");assertThrows(SchemaRejection.class,()->schema.read(f.required("selection")));}
+ @Test void duplicateBodyNodeIdsAreRejected()throws Exception{var f=fixture();((ObjectNode)f.required("selection").required("body").get(1)).put("node_id",f.required("selection").required("body").get(0).required("node_id").asText());assertThrows(SchemaRejection.class,()->schema.read(f.required("selection")));}
+ @Test void extraApprovalClaimIsRejected()throws Exception{var f=fixture();((ObjectNode)f.required("selection")).put("regulatory_approved",true);assertThrows(Exception.class,()->schema.read(f.required("selection")));}
+ @Test void blockingTypedResultClearsNormalCoverageWithoutMutatingInput()throws Exception{var f=new ArtifactProtocol.ReviewFindings(ArtifactProtocol.TargetKind.CANDIDATE,id(60),"a".repeat(64),id(70),List.of(),List.of(),List.of(),List.of(),List.of(),true);var original=new TaskSourceVerifierNormalizer.Normalized(f,new PermissionSchema().object().put("coverage_complete",true));var result=RegistrationDossierPipeline.attach(original,new PermissionSchema().object().put("blocked",true));assertFalse(result.findings().coverageComplete());assertFalse(result.pins().required("coverage_complete").asBoolean());assertTrue(original.findings().coverageComplete());assertFalse(original.pins().has("registration_dossier"));}
+}

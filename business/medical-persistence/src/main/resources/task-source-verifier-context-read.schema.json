@@ -1,0 +1,258 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:task-source-verifier-context-read:1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "kind",
+    "session_id",
+    "input_id",
+    "input_sha256",
+    "input_receipt_sha256",
+    "content_sha256",
+    "rules_sha256",
+    "rule_authorizations_sha256",
+    "rule_ids",
+    "rule_reads",
+    "objects",
+    "sources"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "kind": {
+      "const": "N05_PHYSICAL_CONTEXT"
+    },
+    "session_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "input_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "input_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "input_receipt_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "content_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "rules_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "rule_authorizations_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "rule_ids": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "maxItems": 10000
+    },
+    "rule_reads": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "rule_id",
+          "sha256",
+          "receipt_id",
+          "complete"
+        ],
+        "properties": {
+          "rule_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "receipt_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "complete": {
+            "const": true
+          }
+        }
+      },
+      "maxItems": 10000
+    },
+    "objects": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "artifact_id",
+          "object_ref"
+        ],
+        "properties": {
+          "artifact_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "object_ref": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "object_key",
+              "object_version",
+              "sha256",
+              "size_bytes",
+              "media_type"
+            ],
+            "properties": {
+              "object_key": {
+                "type": "string",
+                "minLength": 1
+              },
+              "object_version": {
+                "type": "string",
+                "minLength": 1
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "size_bytes": {
+                "type": "string",
+                "pattern": "^[1-9][0-9]*$"
+              },
+              "media_type": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      },
+      "maxItems": 514
+    },
+    "sources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "receipt_id",
+          "access",
+          "located",
+          "complete",
+          "literal_sha256",
+          "evidence_ref",
+          "processing_sha256",
+          "original_object",
+          "parsed_object"
+        ],
+        "properties": {
+          "receipt_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "access": {
+            "const": true
+          },
+          "located": {
+            "type": "boolean"
+          },
+          "complete": {
+            "type": "boolean"
+          },
+          "literal_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "evidence_ref": {
+            "type": "object"
+          },
+          "processing_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "original_object": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "object_key",
+              "object_version",
+              "sha256",
+              "size_bytes",
+              "media_type"
+            ],
+            "properties": {
+              "object_key": {
+                "type": "string",
+                "minLength": 1
+              },
+              "object_version": {
+                "type": "string",
+                "minLength": 1
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "size_bytes": {
+                "type": "string",
+                "pattern": "^[1-9][0-9]*$"
+              },
+              "media_type": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          },
+          "parsed_object": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "object_key",
+              "object_version",
+              "sha256",
+              "size_bytes",
+              "media_type"
+            ],
+            "properties": {
+              "object_key": {
+                "type": "string",
+                "minLength": 1
+              },
+              "object_version": {
+                "type": "string",
+                "minLength": 1
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "size_bytes": {
+                "type": "string",
+                "pattern": "^[1-9][0-9]*$"
+              },
+              "media_type": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      },
+      "maxItems": 512
+    }
+  }
+}

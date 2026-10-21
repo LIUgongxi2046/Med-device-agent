@@ -1,0 +1,14 @@
+package com.ruoyi.medical.persistence;
+import com.ruoyi.medical.workflow.*;
+import javax.sql.DataSource;
+import org.springframework.beans.factory.annotation.*;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.context.annotation.*;
+@Configuration(proxyBeanMethods=false)
+@ConditionalOnProperty(name={"medical.task-run.waiting-v2.server-enabled","medical.task-run.source-verifier-v1.enabled","medical.professional-runtime.source-verifier-enabled"},havingValue="true",matchIfMissing=false)
+class TaskSourceVerifierStageConfiguration {
+    @Bean(name="taskSourceVerifierStageSchemaV1")TaskSourceVerifierStageSchemaV1 schema(){return new TaskSourceVerifierStageSchemaV1();}
+    @Bean TaskSourceVerifierLifecycleFacts taskSourceVerifierLifecycleFacts(@Qualifier("masterDataSource")DataSource data,TaskSourceVerifierDispatchJournal dispatches,TaskSourceVerifierInvocationRecords invocations,TaskSourceVerifierSupervisor supervisor,TaskSourceVerifierSchema json,TaskRunSourceVerifierProtocolBinding protocols){return new TaskSourceVerifierLifecycleFacts(data,dispatches,invocations,supervisor,json,protocols);}
+    @Bean TaskSourceVerifierStageCommitService taskSourceVerifierStageCommitService(@Qualifier("masterDataSource")DataSource data,TaskSourceVerifierSchema json,PermissionSchema permission,TaskRunGraphService graphs,TaskSourceVerifierReviewRecovery reviews,TaskSourceVerifierDispatchJournal dispatches,TaskRunSourceVerifierProtocolBinding protocols){return new TaskSourceVerifierStageCommitService(data,json,permission,graphs,reviews,dispatches,protocols);}
+    @Bean TaskSourceVerifierStageEndpointFactory taskSourceVerifierStageEndpointFactory(TaskSourceVerifierPreparation materializer,TaskRunActivityPreparation current,FormalRunRecoveryAccess recovery,TaskRunLaunchRecoveryAuthority launches,TaskRunWorkflowLedger workflow,TaskRunWorkflowProtocolBinding protocols,TaskRunSourceVerifierProtocolBinding verifierProtocols,FormalTaskNodeAuthority nodes,TaskSourceVerifierDispatchJournal dispatches,TaskSourceVerifierReviewRecovery reviews,TaskSourceVerifierStageCommitService commits,WaitingWorkflowDeploymentV2 base,SourceVerifierWorkflowExtensionV1 extension,SectionWriterWorkflowExtensionV1 writerExtension,TaskSectionWriterStageCommitService writerStages,TaskRunSectionWriterProtocolBinding writerProtocols){return new TaskSourceVerifierStageEndpointFactory(materializer,current,recovery,launches,workflow,protocols,verifierProtocols,nodes,dispatches,reviews,commits,base,extension,writerExtension,writerStages,writerProtocols);}
+}

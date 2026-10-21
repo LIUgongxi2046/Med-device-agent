@@ -19,9 +19,12 @@ class RunTokenAuthorityConfiguration {
     @Bean RunTokenAuthority runTokenAuthority(@Qualifier("masterDataSource") DataSource data,TenantTransaction transactions,
             PermissionMapper permissions,PermissionAuthority authorization,RunTokenAuthoritySchema schema,
             org.springframework.beans.factory.ObjectProvider<FormalModelVerificationBootstrap> bootstrap,
+            org.springframework.beans.factory.ObjectProvider<FormalTaskNodeAuthority> taskNodes,
+            org.springframework.beans.factory.ObjectProvider<TaskPlanDraftTokenAuthority> planDraft,
+            org.springframework.beans.factory.ObjectProvider<DocumentReviewTokenAuthority> documentReview,
             RunTokenPolicyStore policy,RunTokenSigningKeyStore signing,
             @Qualifier("formalRunServiceIdentity") ServiceCertificateIdentity services) {
-        return new RunTokenAuthority(data,transactions,permissions,authorization,schema,policy,signing,services,bootstrap.getIfAvailable());
+        return new RunTokenAuthority(data,transactions,permissions,authorization,schema,policy,signing,services,bootstrap.getIfAvailable(),taskNodes.getIfAvailable(),planDraft.getIfAvailable(),documentReview.getIfAvailable());
     }
     @Bean RunTokenPolicyStore runTokenPolicyStore(
             @Value("${medical.run-authority.configuration-directory}") Path directory,

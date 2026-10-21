@@ -22,6 +22,8 @@ import rfc8785
 
 from medical_contracts.catalogue import SchemaCatalogue
 from medical_contracts.interfaces import DocumentBody, InterfaceBindings
+from medical_contracts.document_evidence import DocumentEvidenceBindings
+from .export_contract import AuthenticatedBodyContract
 from medical_contracts.wire import uuid_value
 
 
@@ -79,6 +81,8 @@ class ExportInput:
     input_data_kind: Literal['SIMULATION', 'REGISTERED']
     font: FontBinding
     converter: ConverterBinding
+    layout_profile: dict | None = None
+    body_contract: AuthenticatedBodyContract | None = None
 
 
 @dataclass(frozen=True)
@@ -91,13 +95,17 @@ class ExportFile:
     verified_node_ids: tuple[str, ...]
     required_text: tuple[str, ...]
     plan_sha256: str
-    channel_check: str = 'PENDING_REVIEW'
+    channel_check: str = 'UNKNOWN'
     visual_check: str = 'NOT_RUN'
+    pagination_check: str = 'FIELDS_AUTHORED'
+    attachment_node_ids: tuple[str, ...] = ()
+    layout_profile_sha256: str | None = None
 
 
 class ExportRenderer:
     def __init__(self, catalogue: SchemaCatalogue):
         self.bindings = InterfaceBindings(catalogue)
+        self.catalogue = catalogue
 
     def _prepare(self, plan: ExportInput, body_bytes: bytes, assets: tuple[FixedAsset, ...]):
         for value in (plan.tenant_id, plan.project_id, plan.document_revision, plan.attempt_id,
@@ -109,7 +117,15 @@ class ExportRenderer:
             raise ValueError('导出资料身份无效')
         if digest(body_bytes) != plan.body_sha256:
             raise ValueError('完整正文摘要不一致')
-        bound = self.bindings.bind(json.loads(body_bytes), 'DocumentBody')
+        contract = plan.body_contract
+        if contract is None:
+            bound = self.bindings.bind(json.loads(body_bytes), 'DocumentBody')
+        else:
+            if contract.body_sha256 != plan.body_sha256 or contract.attempt_id != plan.attempt_id:
+                raise ValueError('正文与认证导出命令不一致')
+            bound = DocumentEvidenceBindings(self.catalogue).bind(json.loads(body_bytes), 'DocumentBody')
+            if bound.schema_ref != contract.schema_ref or bound.schema_sha256 != contract.schema_sha256:
+                raise ValueError('正文 Schema 与认证导出命令不一致')
         if bound.canonical_bytes != body_bytes:
             raise ValueError('正文必须使用固定规范字节')
         body = bound.read()
@@ -144,6 +160,29 @@ class ExportRenderer:
             pending.extend(children[current.node_id])
         if reached != nodes.keys():
             raise ValueError('正文包含无法读取的节点')
+        if plan.layout_profile is not None:
+            layout = plan.layout_profile
+            if set(layout) != {'schema_version', 'document_revision', 'format_profile_revision', 'numbering_rule_revision',
+                    'channel_name', 'channel_specification_artifact_id', 'channel_specification_sha256', 'toc_title',
+                    'toc_depth', 'page_number_start', 'attachment_node_ids'} or layout['schema_version'] != '1.0.0':
+                raise ValueError('版式配置字段无效')
+            if type(layout['toc_depth']) is not int or not 1 <= layout['toc_depth'] <= 9 \
+                    or type(layout['page_number_start']) is not int or not 1 <= layout['page_number_start'] <= 9999 \
+                    or not isinstance(layout['toc_title'], str) or not layout['toc_title'].strip():
+                raise ValueError('目录层级或起始页码无效')
+            for name in ('document_revision', 'format_profile_revision', 'numbering_rule_revision'):
+                uuid_value(layout[name])
+            if layout['document_revision'] != plan.document_revision or layout['format_profile_revision'] != plan.font.manifest_revision:
+                raise ValueError('版式规则与固定正文不一致')
+            attachments = layout['attachment_node_ids']
+            if not isinstance(attachments, list) or len(attachments) > 1000:
+                raise ValueError('附件顺序清单无效')
+            for attachment in attachments:
+                uuid_value(attachment)
+            if len(set(attachments)) != len(attachments) or any(value not in nodes or nodes[value].parent_id != roots[0].node_id
+                    or nodes[value].content.kind != 'SECTION' for value in attachments):
+                raise ValueError('附件必须是本版正文唯一的顶层章节')
+            children[roots[0].node_id] = [node for node in children[roots[0].node_id] if node.node_id not in attachments] + [nodes[value] for value in attachments]
         fields = {field.field_id: field for field in body.fields}
         links = {link.evidence_link_id: link for link in body.evidence_links}
         if len(fields) != len(body.fields) or len(links) != len(body.evidence_links):
@@ -220,6 +259,8 @@ class ExportRenderer:
         if requested_assets != images.keys():
             raise ValueError('导出图片清单与正文不一致')
         strings = self._texts(body)
+        if plan.layout_profile is not None:
+            self._font(plan.font, [plan.layout_profile['toc_title'], '0123456789?'])
         if plan.input_data_kind == 'SIMULATION':
             strings.insert(0, SIMULATION_LABEL)
         self._font(plan.font, strings)
@@ -231,6 +272,8 @@ class ExportRenderer:
             'additional_fonts': [{'sha256': font.sha256, 'family': font.family} for font in plan.font.additional_fonts],
             'converter_sha256': plan.converter.sha256,
             'converter_version': plan.converter.version, 'purpose': plan.purpose, 'input_data_kind': plan.input_data_kind,
+            'layout_profile': plan.layout_profile,
+            **self._contract_identity(plan),
             'assets': [{'artifact_id': asset.artifact_id, 'sha256': asset.sha256, 'media_type': asset.media_type} for asset in assets],
         }))
         return body, nodes, children, roots[0], images, tuple(strings), identity
@@ -288,6 +331,50 @@ class ExportRenderer:
         paragraph._p.append(start)
         paragraph._p.append(end)
 
+    @staticmethod
+    def _field(paragraph, instruction, cached='?'):
+        start = OxmlElement('w:fldChar'); start.set(qn('w:fldCharType'), 'begin'); start.set(qn('w:dirty'), 'true')
+        paragraph.add_run()._r.append(start)
+        text = OxmlElement('w:instrText'); text.set(qn('xml:space'), 'preserve'); text.text = ' ' + instruction + ' '
+        paragraph.add_run()._r.append(text)
+        separator = OxmlElement('w:fldChar'); separator.set(qn('w:fldCharType'), 'separate'); paragraph.add_run()._r.append(separator)
+        paragraph.add_run(cached)
+        end = OxmlElement('w:fldChar'); end.set(qn('w:fldCharType'), 'end'); paragraph.add_run()._r.append(end)
+
+    def _navigation(self, document, plan, root, children):
+        layout = plan.layout_profile
+        if layout is None:
+            return
+        update = OxmlElement('w:updateFields'); update.set(qn('w:val'), 'true'); document.settings.element.append(update)
+        footers = set()
+        for index, section in enumerate(document.sections):
+            number = section._sectPr.find(qn('w:pgNumType'))
+            if number is None:
+                number = OxmlElement('w:pgNumType'); section._sectPr.append(number)
+            if index == 0:
+                number.set(qn('w:start'), str(layout['page_number_start']))
+            else:
+                number.attrib.pop(qn('w:start'), None)
+            number.set(qn('w:fmt'), 'decimal')
+            if section.footer.part.partname not in footers:
+                footers.add(section.footer.part.partname)
+                footer = section.footer.add_paragraph()
+                self._field(footer, 'PAGE')
+        document.add_paragraph(layout['toc_title'])
+        # Real bookmark-backed PAGEREF fields, not invented page-number strings.
+        def entry(node, level):
+            if node.content.kind == 'SECTION' and level <= layout['toc_depth']:
+                paragraph = document.add_paragraph()
+                link = OxmlElement('w:hyperlink'); link.set(qn('w:anchor'), 'medical_' + node.node_id.replace('-', '_'))
+                run = OxmlElement('w:r'); text = OxmlElement('w:t'); text.text = node.content.title; run.append(text); link.append(run); paragraph._p.append(link)
+                paragraph.add_run('\t')
+                self._field(paragraph, 'PAGEREF medical_' + node.node_id.replace('-', '_') + ' \\h')
+            for child in children[node.node_id]:
+                entry(child, level + (node.content.kind == 'SECTION'))
+        for node in children[root.node_id]:
+            entry(node, 1)
+        document.add_page_break()
+
     def docx(self, plan: ExportInput, body_bytes: bytes, template_bytes: bytes, assets: tuple[FixedAsset, ...], directory: Path) -> ExportFile:
         body, nodes, children, root, images, texts, identity = self._prepare(plan, body_bytes, assets)
         if digest(template_bytes) != plan.template_sha256:
@@ -321,6 +408,7 @@ class ExportRenderer:
         math_font.set(qn('m:val'), plan.font.family)
         if plan.input_data_kind == 'SIMULATION':
             document.add_paragraph(SIMULATION_LABEL)
+        self._navigation(document, plan, root, children)
         processed = []
         def render(node, target, level, paragraph=None):
             processed.append(node.node_id)
@@ -398,7 +486,7 @@ class ExportRenderer:
             if sum(node.content.kind == kind for node in body.nodes) != len(actual.element.xpath(query)):
                 raise ValueError('DOCX结构重读与正文不一致')
         self._projections(plan, body, output)
-        return self._file('DOCX', path, identity, tuple(processed), texts, self._plan_digest(plan))
+        return self._file('DOCX', path, identity, tuple(processed), texts, self._plan_digest(plan), plan)
 
     @staticmethod
     def _require_text(required, actual):
@@ -408,11 +496,14 @@ class ExportRenderer:
                 raise ValueError('成品未完整保留固定正文')
 
     @staticmethod
-    def _file(format_name, path, identity, nodes, texts, plan_sha256):
+    def _file(format_name, path, identity, nodes, texts, plan_sha256, plan, pagination=None):
         content = path.read_bytes()
         if not content:
             raise ValueError('成品文件不能为空')
-        return ExportFile(format_name, path, digest(content), len(content), identity, nodes, texts, plan_sha256)
+        return ExportFile(format_name, path, digest(content), len(content), identity, nodes, texts, plan_sha256,
+            pagination_check=pagination or ('NOT_APPLICABLE' if format_name == 'MARKDOWN' else 'UNKNOWN' if plan.layout_profile is None else 'FIELDS_AUTHORED'),
+            attachment_node_ids=tuple(plan.layout_profile['attachment_node_ids']) if plan.layout_profile else (),
+            layout_profile_sha256=digest(rfc8785.dumps(plan.layout_profile)) if plan.layout_profile else None)
 
     @staticmethod
     def _plan_digest(plan):
@@ -423,14 +514,23 @@ class ExportRenderer:
             'font_sha256': plan.font.sha256, 'font_family': plan.font.family,
             'additional_fonts': [{'sha256': font.sha256, 'family': font.family} for font in plan.font.additional_fonts],
             'converter_revision': plan.converter.revision, 'converter_version': plan.converter.version,
-            'converter_sha256': plan.converter.sha256, 'converter_timeout_seconds': plan.converter.timeout_seconds}))
+            'converter_sha256': plan.converter.sha256, 'converter_timeout_seconds': plan.converter.timeout_seconds, 'layout_profile': plan.layout_profile,
+            **ExportRenderer._contract_identity(plan)}))
+
+    @staticmethod
+    def _contract_identity(plan):
+        if plan.body_contract is None:
+            return {}
+        return {'body_schema_ref': plan.body_contract.schema_ref,
+            'body_schema_sha256': plan.body_contract.schema_sha256,
+            'command_sha256': plan.body_contract.command_sha256}
 
     @staticmethod
     def _projections(plan, body, directory):
         if plan.purpose == 'FORMAL_BODY':
             return
         with (directory / 'internal-projections.json').open('xb') as stream:
-            stream.write(rfc8785.dumps({'schema_version': '1.0.0', 'document_revision': plan.document_revision,
+            stream.write(rfc8785.dumps({'schema_version': '2.0.0' if plan.body_contract is not None else '1.0.0', 'document_revision': plan.document_revision,
                 'body_sha256': plan.body_sha256, 'input_data_kind': plan.input_data_kind,
                 'fields': [value.model_dump(mode='json') for value in body.fields],
                 'evidence_links': [value.model_dump(mode='json') for value in body.evidence_links],
@@ -500,7 +600,43 @@ class ExportRenderer:
                 if not any(name == '/' + expected or name.endswith('+' + expected) for expected in postscript_names):
                     raise ValueError('PDF实际字体不在固定清单中')
         self._require_text(document.required_text, ''.join(page.extract_text() for page in actual.pages))
-        return self._file('PDF', path, document.input_sha256, document.verified_node_ids, document.required_text, document.plan_sha256)
+        pagination = 'UNKNOWN'
+        if plan.layout_profile is not None:
+            text = '\n'.join(page.extract_text() or '' for page in actual.pages)
+            if not actual.outline:
+                raise ValueError('转换程序未产生可核验的目录页码')
+            # Verify the converter's actual PDF outline destinations against rendered TOC entries.
+            entries = []
+            def walk(values, depth=1):
+                for value in values:
+                    if isinstance(value, list):
+                        walk(value, depth + 1)
+                    elif depth <= plan.layout_profile['toc_depth']:
+                        entries.append((value.title, actual.get_destination_page_number(value) + plan.layout_profile['page_number_start']))
+            walk(actual.outline)
+            source = Document(document.path)
+            # Read only w:t; itertext can duplicate XML wrapper text in python-docx elements.
+            targets = [''.join(value.text or '' for value in link.xpath('.//w:t')) for link in source.element.xpath('.//w:hyperlink[@w:anchor]')]
+            if targets != [title for title, _ in entries]:
+                raise ValueError('PDF目录未覆盖全部固定目录项')
+            # TOC ends at an explicit page break before the first body heading. Only actual
+            # preceding pages can satisfy a page reference, never a coincidental body number.
+            if not entries:
+                raise ValueError('PDF目录没有真实目标页')
+            first_body_page = min(number - plan.layout_profile['page_number_start'] for _, number in entries)
+            compact = ''.join(''.join((page.extract_text() or '').split()) for page in actual.pages[:first_body_page])
+            heading = ''.join(plan.layout_profile['toc_title'].split())
+            start = compact.find(heading)
+            if start < 0:
+                raise ValueError('PDF目录区域不能被真实定位')
+            compact = compact[start + len(heading):]
+            for title, number in entries:
+                if ''.join(title.split()) + str(number) not in compact:
+                    raise ValueError('PDF目录页码与实际目标页不一致')
+            if not entries:
+                raise ValueError('PDF目录没有真实目标页')
+            pagination = 'CONVERTER_RESOLVED'
+        return self._file('PDF', path, document.input_sha256, document.verified_node_ids, document.required_text, document.plan_sha256, plan, pagination)
 
     def markdown(self, plan: ExportInput, body_bytes: bytes, assets: tuple[FixedAsset, ...], directory: Path) -> ExportFile:
         if plan.purpose != 'INTERNAL_EXCHANGE':
@@ -558,4 +694,4 @@ class ExportRenderer:
             with (output / (asset.artifact_id + MEDIA_EXTENSIONS[asset.media_type])).open('xb') as stream:
                 stream.write(asset.content)
         self._projections(plan, body, output)
-        return self._file('MARKDOWN', path, identity, tuple(processed), texts, self._plan_digest(plan))
+        return self._file('MARKDOWN', path, identity, tuple(processed), texts, self._plan_digest(plan), plan)

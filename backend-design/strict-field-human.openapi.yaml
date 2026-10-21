@@ -1,0 +1,51 @@
+openapi: 3.1.0
+info:
+  title: DC05 strict saved-field human decisions
+  version: 1.0.0
+paths:
+  /api/documents/{document}/field-decisions:
+    parameters:
+      - {name: document, in: path, required: true, schema: {type: string, format: uuid}}
+    post:
+      operationId: decideSavedStrictField
+      description: Additive closed DC05 contract. Requires current human session, field.confirm on actual DOCUMENT, X-Schema-Version 1.0.0, X-Context-Revision, Idempotency-Key and normal CSRF/Origin protections. No query parameters. Never accepts machine outcomes or client approval proofs.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: './strict-field-human.schema.json#/$defs/Request'}
+      responses:
+        '201':
+          description: Original immutable decision receipt, including on identical idempotent recovery.
+          content:
+            application/json:
+              schema: {$ref: './strict-field-human.schema.json#/$defs/Receipt'}
+  /api/documents/{document}/fields/{field}/decision-basis:
+    parameters:
+      - {name: document, in: path, required: true, schema: {type: string, format: uuid}}
+      - {name: field, in: path, required: true, schema: {type: string, format: uuid}}
+    get:
+      operationId: readSavedStrictFieldBasis
+      description: Reads actual saved body, exact field and optional row, current N07 and optional physically read N03 output. Query accepts only document_revision, check_id, row_id and strict_artifact_id. Returns current per-field expected_revision (initial 0), canonical baseline and baseline_sha256. Basis is not approval.
+      responses:
+        '200': {description: Current authority-bound decision basis; unavailable coverage does not become PASS.}
+  /api/documents/{document}/field-decisions/{decision}:
+    parameters:
+      - {name: document, in: path, required: true, schema: {type: string, format: uuid}}
+      - {name: decision, in: path, required: true, schema: {type: string, format: uuid}}
+    get:
+      operationId: readSavedStrictFieldDecision
+      responses:
+        '200':
+          description: Immutable original receipt and separately recomputed current validity.
+          content:
+            application/json:
+              schema: {$ref: './strict-field-human.schema.json#/$defs/History'}
+  /api/documents/{document}/field-evidence-questions:
+    parameters:
+      - {name: document, in: path, required: true, schema: {type: string, format: uuid}}
+    get:
+      operationId: readSavedStrictFieldEvidenceQuestions
+      description: document_revision required. Returns actual requester-assigned questions, OPEN or SUPERSEDED from latest field head. These are not evidence links or support approvals. More than 1000 records fails closed instead of truncating.
+      responses:
+        '200': {description: Actual immutable question work queue.}

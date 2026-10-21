@@ -1,3 +1,4 @@
+import { publicationFixture } from './publication-fixture.js'
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
@@ -11,12 +12,13 @@ import { bindModelStream, decodeModelStream, MODEL_STREAM_DEFINITIONS } from '..
 import { codePointQuote, decimalValue, unsignedRevision, utcTime, uuidValue } from '../src/wire.js'
 
 const root = resolve('../..')
+const currentPublication = await publicationFixture(root)
 const catalogue: SchemaCatalogue = await loadProject(root)
 const dataset = decodeDataset(catalogue, JSON.parse(await readFile(resolve(root, 'data-design/sample_dataset.json'), 'utf-8')))
 
 test('实际登记包与全部共享定义使用相同发布集合', () => {
   catalogue.validate('dataset', dataset)
-  assert.equal(catalogue.definitionCount, 503)
+  assert.equal(catalogue.definitionCount, currentPublication.definitionCount)
   const bound = catalogue.bind('dataset', dataset)
   assert.deepEqual(JSON.parse(bound.canonicalJson), dataset)
 })

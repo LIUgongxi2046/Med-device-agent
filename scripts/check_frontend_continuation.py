@@ -11,7 +11,8 @@ from check_local_browser import browser_identity
 
 
 ROOT = Path(__file__).resolve().parents[1]
-CAPTURE = Path('/Users/liuhaoxian/.agents/skills/haonan-s000-pmp/scripts/capture_check.py')
+from check_support import capture_check_path
+CAPTURE = capture_check_path()
 SUITES = {
     'document-selection': ('tests/browser/document-selection-checks.js', 'FRONT-DOCUMENT-SELECTION-20261013'),
     'template-fields': ('tests/browser/template-fields-checks.js', 'FRONT-TEMPLATE-FIELDS-20261013'),

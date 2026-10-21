@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:task-invocation-recovery:1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "tenant_id", "original_actor_id", "run_id", "step_id", "dispatch_attempt_id"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "tenant_id": {"$ref": "#/$defs/Id"},
+    "original_actor_id": {"$ref": "#/$defs/Id"},
+    "run_id": {"$ref": "#/$defs/Id"},
+    "step_id": {"$ref": "#/$defs/Id"},
+    "dispatch_attempt_id": {"$ref": "#/$defs/Id"}
+  },
+  "$defs": {
+    "Id": {"type": "string", "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"}
+  }
+}

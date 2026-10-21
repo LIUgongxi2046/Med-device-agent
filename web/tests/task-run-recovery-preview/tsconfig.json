@@ -1,0 +1,4 @@
+{
+  "extends": "../../tsconfig.medical.json",
+  "include": ["./*.ts", "./*.vue", "../../src/views/medical/task-run-recovery.vue", "../../src/api/medical/task-run-recovery.ts", "../../src/medical.d.ts", "../../node_modules/vue-cropper/shims-vue.d.ts"]
+}

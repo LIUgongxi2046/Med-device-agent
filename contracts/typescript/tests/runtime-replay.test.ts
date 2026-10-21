@@ -1,3 +1,4 @@
+import { publicationFixture } from './publication-fixture.js'
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
@@ -6,6 +7,7 @@ import { loadProject } from '../src/load-project.js'
 import { mergePublishedCatalogue } from '../src/catalogue.js'
 
 const root = resolve('../..')
+const currentPublication = await publicationFixture(root)
 const fixturePath = 'business/medical-persistence/src/test/resources/fixtures/runtime-replay.synthetic.json'
 
 test('fixed Replay schema accepts complete synthetic saved inputs', async () => {
@@ -13,7 +15,7 @@ test('fixed Replay schema accepts complete synthetic saved inputs', async () => 
   const fixture = JSON.parse(await readFile(resolve(root, fixturePath), 'utf8'))
   const bound = catalogue.bind('replay-manifest', fixture)
   assert.equal(bound.schemaRef, 'urn:medical:replay-manifest:1.0.0')
-  assert.equal(catalogue.definitionCount, 503)
+  assert.equal(catalogue.definitionCount, currentPublication.definitionCount)
 })
 
 test('Replay schema refuses incomplete inputs and invented approvals', async () => {

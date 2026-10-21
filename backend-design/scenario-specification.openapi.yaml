@@ -1,0 +1,72 @@
+openapi: 3.1.0
+info:
+  title: Fixed scenario specification governance
+  version: 1.0.0
+  description: Additive B14 contract. Existing task/publication request schemas and digests are unchanged. Read receipts and catalogue metadata never grant execution eligibility.
+paths:
+  /api/scenario-specifications:
+    post:
+      operationId: authorScenarioSpecification
+      parameters: &headers
+        - {name: X-Schema-Version, in: header, required: true, schema: {const: 1.0.0}}
+        - {name: X-Context-Revision, in: header, required: true, schema: {type: string}}
+        - {name: Idempotency-Key, in: header, required: true, schema: {type: string, minLength: 16, maxLength: 128}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '../business/medical-persistence/src/main/resources/scenario-specification-v1.schema.json#/$defs/Author'}
+      responses: &responses
+        '200': {description: Immutable operation receipt inside the standard envelope; execution_eligible remains false.}
+        '403': {description: Missing current configuration/governance/dependency permission or author is reviewer.}
+        '409': {description: Content mismatch, context change, idempotency conflict or stale CAS.}
+        '422': {description: Contract rejected or real dependencies unavailable; no executable entry is manufactured.}
+  /api/scenario-specifications/reviews:
+    post:
+      operationId: independentlyReviewScenarioSpecification
+      parameters: *headers
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '../business/medical-persistence/src/main/resources/scenario-specification-v1.schema.json#/$defs/Review'}
+      responses: *responses
+  /api/scenario-specifications/publications:
+    post:
+      operationId: publishScenarioTaskEntry
+      parameters: *headers
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '../business/medical-persistence/src/main/resources/scenario-specification-v1.schema.json#/$defs/Publish'}
+      responses: *responses
+  /api/scenario-specifications/disable:
+    post:
+      operationId: disableScenarioTaskEntry
+      parameters: *headers
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '../business/medical-persistence/src/main/resources/scenario-specification-v1.schema.json#/$defs/Disable'}
+      responses: *responses
+  /api/scenario-specifications/records/{recordId}:
+    get:
+      operationId: readFixedScenarioRecord
+      parameters:
+        - {name: recordId, in: path, required: true, schema: {type: string, format: uuid}}
+        - {name: X-Schema-Version, in: header, required: true, schema: {const: 1.0.0}}
+        - {name: X-Context-Revision, in: header, required: true, schema: {type: string}}
+      responses: *responses
+  /api/scenario-specifications/projects/{projectId}/releases/{releaseId}/document-types/{documentType}:
+    get:
+      operationId: readCurrentScenarioBinding
+      description: Returns current CAS revision and immutable specification/review references. ACTIVE is configuration state, not execution permission. Actual TaskCreate admission revalidates genuine publication/evaluation, scope, all evidence, selected knowledge and template.
+      parameters:
+        - {name: projectId, in: path, required: true, schema: {type: string, format: uuid}}
+        - {name: releaseId, in: path, required: true, schema: {type: string, format: uuid}}
+        - {name: documentType, in: path, required: true, schema: {type: string, maxLength: 128}}
+        - {name: X-Schema-Version, in: header, required: true, schema: {const: 1.0.0}}
+        - {name: X-Context-Revision, in: header, required: true, schema: {type: string}}
+      responses: *responses

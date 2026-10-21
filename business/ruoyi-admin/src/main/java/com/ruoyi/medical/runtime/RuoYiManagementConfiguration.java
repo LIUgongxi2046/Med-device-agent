@@ -1,6 +1,7 @@
 package com.ruoyi.medical.runtime;
 
 import com.ruoyi.framework.aspectj.LogAspect;
+import com.ruoyi.generator.controller.GenController;
 import com.ruoyi.framework.config.ThreadPoolConfig;
 import com.ruoyi.framework.web.service.PermissionService;
 import com.ruoyi.framework.web.service.TokenService;
@@ -41,12 +42,13 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
         SysConfigController.class, SysNoticeController.class, SysOperlogController.class,
         SysLogininforController.class, SysRoleController.class, TokenService.class, LogAspect.class, ThreadPoolConfig.class})
 public class RuoYiManagementConfiguration implements WebMvcConfigurer {
-    private static final Set<Class<?>> CONTROLLERS = Set.of(SysUserController.class, SysDeptController.class,
+    static final Set<Class<?>> CONTROLLERS = Set.of(SysUserController.class, SysDeptController.class,
             SysMenuController.class, SysPostController.class, SysDictTypeController.class, SysDictDataController.class,
             SysConfigController.class, SysNoticeController.class, SysOperlogController.class, SysLogininforController.class,
-            SysRoleController.class);
-    private static final Map<String, String> AUXILIARY_PERMISSIONS = Map.ofEntries(
+            SysRoleController.class, GenController.class);
+    static final Map<String, String> AUXILIARY_PERMISSIONS = Map.ofEntries(
             Map.entry("SysUserController#importTemplate", "system:user:import"),
+            Map.entry("SysPostController#optionselect", "system:post:query"),
             Map.entry("SysMenuController#treeselect", "system:menu:query"),
             Map.entry("SysMenuController#roleMenuTreeselect", "system:role:query"),
             Map.entry("SysDictTypeController#optionselect", "system:dict:query"),
@@ -82,6 +84,23 @@ public class RuoYiManagementConfiguration implements WebMvcConfigurer {
                 // 全局框架管理表由平台管理身份使用，企业成员不能经此入口读取其他企业资料。
                 if (!"PLATFORM_ADMIN".equals(subject.user().platform_role())) denied();
                 response.setHeader("Cache-Control", "no-store");
+                if (type == GenController.class) {
+                    // Native permissions remain mandatory. No production or ordinary admin fallback.
+                    if (!permissions.hasRole("developer")) denied();
+                    // SQL creation and filesystem writes are not a deployable medical capability.
+                    if (Set.of("createTableSave", "genCode").contains(method.getMethod().getName())) denied();
+                }
+                // Native historical GET mutations still require the current CSRF token.
+                if ((type == GenController.class && Set.of("genCode", "synchDb").contains(method.getMethod().getName()))
+                        || (type == SysLogininforController.class && method.getMethod().getName().equals("unlock"))) {
+                    Object attribute = request.getAttribute(org.springframework.security.web.csrf.CsrfToken.class.getName());
+                    if (!(attribute instanceof org.springframework.security.web.csrf.CsrfToken)) denied();
+                    var token = (org.springframework.security.web.csrf.CsrfToken) attribute;
+                    String supplied = request.getHeader(token.getHeaderName());
+                    if (supplied == null || !java.security.MessageDigest.isEqual(
+                            supplied.getBytes(java.nio.charset.StandardCharsets.UTF_8),
+                            token.getToken().getBytes(java.nio.charset.StandardCharsets.UTF_8))) denied();
+                }
                 if (AnnotatedElementUtils.hasAnnotation(method.getMethod(), PreAuthorize.class)) return true;
                 String permission = AUXILIARY_PERMISSIONS.get(type.getSimpleName() + "#" + method.getMethod().getName());
                 if (permission == null) throw new IllegalStateException("FRAMEWORK_OPERATION_PERMISSION_REQUIRED");

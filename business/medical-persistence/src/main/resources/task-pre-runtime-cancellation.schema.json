@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:task-pre-runtime-cancellation:1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "receipt_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "run_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "decision_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "command_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "authority_grant_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "kind": {
+      "const": "TASK_PRE_RUNTIME_CANCELLED"
+    },
+    "status": {
+      "const": "CANCELLED"
+    },
+    "started": {
+      "const": false
+    },
+    "revision": {
+      "type": "string",
+      "pattern": "^[1-9][0-9]{0,19}$"
+    },
+    "authority_revision": {
+      "type": "string",
+      "pattern": "^[1-9][0-9]{0,19}$"
+    },
+    "ended_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "decision_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    }
+  },
+  "required": [
+    "receipt_id",
+    "run_id",
+    "decision_id",
+    "command_id",
+    "authority_grant_id",
+    "schema_version",
+    "kind",
+    "status",
+    "started",
+    "revision",
+    "authority_revision",
+    "ended_at",
+    "decision_sha256"
+  ]
+}

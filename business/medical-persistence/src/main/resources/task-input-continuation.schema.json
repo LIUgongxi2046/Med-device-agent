@@ -1,0 +1,142 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:task-input-continuation:1.0.0",
+  "$defs": {
+    "Proposal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "expected_revision",
+        "basis_task_revision",
+        "input",
+        "reason"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "expected_revision": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]*$"
+        },
+        "basis_task_revision": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "input": {
+          "type": "object"
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+        }
+      }
+    },
+    "Decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "expected_revision",
+        "proposal_id",
+        "impact_confirmation_sha256",
+        "reason"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "expected_revision": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]*$"
+        },
+        "proposal_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "impact_confirmation_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+        }
+      }
+    },
+    "Receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "operation_id",
+        "task_id",
+        "proposal_id",
+        "basis_task_revision",
+        "resulting_task_revision",
+        "status",
+        "impact_sha256",
+        "impact",
+        "input_sha256",
+        "resource_revision"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "operation_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "task_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "proposal_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "basis_task_revision": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "resulting_task_revision": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "uuid"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "status": {
+          "enum": [
+            "PENDING",
+            "PLAN_PENDING",
+            "NEEDS_MATERIALS"
+          ]
+        },
+        "impact_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "impact": {
+          "type": "object"
+        },
+        "input_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "resource_revision": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]*$"
+        }
+      }
+    }
+  }
+}

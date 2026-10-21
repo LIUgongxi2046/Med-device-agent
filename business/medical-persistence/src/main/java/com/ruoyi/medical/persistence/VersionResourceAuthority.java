@@ -43,6 +43,20 @@ public final class VersionResourceAuthority {
     Map<String, VerifiedVersion> requireWithPurposes(EnterpriseAccess.Admission admission, DependencyLineage.VerifiedLineage lineage,
             Map<String,String> purposes, VersionResourceProtocol.ReadContext context,
             Map<String,ArtifactRegistryProtocol.ReadRequirement> artifactRequirements)throws IOException {
+        return requireWithPurposes(admission,lineage,purposes,context,artifactRequirements,null);
+    }
+
+    /** Typed N03 committed rule-set and its individually authenticated policy/decision pins only. */
+    Map<String,VerifiedVersion> requireStrictFieldOutput(EnterpriseAccess.Admission admission,DependencyLineage.VerifiedLineage lineage,
+            String purpose,VersionResourceProtocol.ReadContext context,Map<String,ArtifactRegistryProtocol.ReadRequirement> artifactRequirements,
+            TaskStrictFieldWriterReadAuthority.CommittedRead proof)throws IOException {
+        Objects.requireNonNull(proof).requireGovernanceRoot(admission,lineage,purpose);
+        var purposes=new LinkedHashMap<String,String>();lineage.versions().keySet().forEach(id->purposes.put(id,purpose));
+        return requireWithPurposes(admission,lineage,purposes,context,artifactRequirements,proof);
+    }
+    private Map<String,VerifiedVersion> requireWithPurposes(EnterpriseAccess.Admission admission,DependencyLineage.VerifiedLineage lineage,
+            Map<String,String> purposes,VersionResourceProtocol.ReadContext context,
+            Map<String,ArtifactRegistryProtocol.ReadRequirement> artifactRequirements,TaskStrictFieldWriterReadAuthority.CommittedRead strict)throws IOException {
         TenantScope.requireSqlAccess("com.ruoyi.medical.persistence.mapper.VersionResourceMapper.owners");
         Objects.requireNonNull(admission);Objects.requireNonNull(lineage);Objects.requireNonNull(context);Objects.requireNonNull(artifactRequirements);
         if(purposes==null||!purposes.keySet().equals(lineage.versions().keySet()))mismatch();
@@ -56,6 +70,9 @@ public final class VersionResourceAuthority {
         for (var row : domainOwners) if (!lineage.versions().containsKey(row.owner().versionId())) mismatch();
         var ownersByVersion = domainOwners.stream().collect(java.util.stream.Collectors.groupingBy(row -> row.owner().versionId()));
         for (var version : lineage.versions().values()) {
+            if(admission.controlWorker()){if(strict==null)admission.controlProof().requireVersion(version.id(),version.contentSha256());else strict.requireVersion(admission,version);}
+            if(admission.documentReviewWorker())admission.documentReviewProof().requireVersion(version.id(),version.contentSha256());
+            if(admission.planDraftWorker())admission.planDraftProof().requireVersion(version.id(),version.contentSha256());
             String purpose=purposes.get(version.id());
             // 全部领域在同一次企业查询中核查，继续要求版本具有唯一实际身份。
             var actualOwners = ownersByVersion.getOrDefault(version.id(), List.of());
@@ -108,8 +125,13 @@ public final class VersionResourceAuthority {
         } else if (owner.conversationOwnerId() != null || owner.conversationStatus() != null) mismatch();
     }
 
-    private static String action(VersionResourceProtocol.Domain domain, String kind) {
+    static String action(VersionResourceProtocol.Domain domain, String kind) {
         return switch (domain) {
+            case STRICT_COMPARISON_POLICY, STRICT_COMPARISON_DECISION -> StrictComparisonPolicyService.READ;
+            case STRICT_DECIMAL_EVIDENCE -> StrictDecimalEvidenceService.READ;
+            case STRICT_FIELD_RULE_SET -> "task.strict_field_rule_set.read";
+            case STRICT_FIELD_CONTEXT, STRICT_FIELD_CONTEXT_DECISION -> TaskStrictFieldContextService.READ;
+            case STRICT_FIELD_TYPED_TARGET, STRICT_FIELD_TYPED_TARGET_DECISION -> TaskStrictFieldTypedTargetService.READ;
             case COLLECTION_VERSION -> "collection.read";
             case SHARED_FACT -> "fact.read";
             case DEPENDENCY_ACCESS_SET -> "dependency.read";

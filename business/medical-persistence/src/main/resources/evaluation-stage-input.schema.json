@@ -1,0 +1,3476 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:evaluation-stage-input:1.0.0",
+  "$defs": {
+    "Id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "Hash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "Basis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version_id",
+        "content_sha256"
+      ],
+      "properties": {
+        "version_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "content_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      }
+    },
+    "Version": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "revision",
+        "sha256"
+      ],
+      "properties": {
+        "revision": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      }
+    },
+    "StrictId": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+      "format": "uuid"
+    },
+    "StrictHash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "StrictLabel": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "StrictIds": {
+      "type": "array",
+      "minItems": 0,
+      "maxItems": 1024,
+      "items": {
+        "$ref": "#/$defs/StrictId"
+      },
+      "uniqueItems": true
+    },
+    "StrictContextState": {
+      "enum": [
+        "KNOWN_SCOPED",
+        "KNOWN_GLOBAL",
+        "UNRESOLVED"
+      ]
+    },
+    "StrictApplicability": {
+      "enum": [
+        "APPLICABLE",
+        "UNKNOWN"
+      ]
+    },
+    "StrictFieldValue": {
+      "$ref": "https://schemas.medical-agent.invalid/1.0.0/agent-design/artifacts.schema.json#/$defs/FieldValue"
+    },
+    "StrictEvidenceRef": {
+      "$ref": "https://schemas.medical-agent.invalid/1.0.0/agent-design/artifacts.schema.json#/$defs/EvidenceRef"
+    },
+    "StrictFieldComparison": {
+      "$ref": "https://schemas.medical-agent.invalid/1.0.0/agent-design/artifacts.schema.json#/$defs/FieldComparison"
+    },
+    "StrictIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tenant_id",
+        "project_id",
+        "task_id",
+        "task_revision",
+        "plan_revision",
+        "template_version",
+        "template_sha256",
+        "assignment_id",
+        "assignment_sha256"
+      ],
+      "properties": {
+        "tenant_id": {
+          "$ref": "#/$defs/StrictId"
+        },
+        "project_id": {
+          "$ref": "#/$defs/StrictId"
+        },
+        "task_id": {
+          "$ref": "#/$defs/StrictId"
+        },
+        "task_revision": {
+          "$ref": "#/$defs/StrictId"
+        },
+        "plan_revision": {
+          "$ref": "#/$defs/StrictId"
+        },
+        "template_version": {
+          "$ref": "#/$defs/StrictId"
+        },
+        "template_sha256": {
+          "$ref": "#/$defs/StrictHash"
+        },
+        "assignment_id": {
+          "$ref": "#/$defs/StrictId"
+        },
+        "assignment_sha256": {
+          "$ref": "#/$defs/StrictHash"
+        }
+      }
+    },
+    "StrictSection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "section_id",
+        "requirement_node_ids"
+      ],
+      "properties": {
+        "section_id": {
+          "$ref": "#/$defs/StrictId"
+        },
+        "requirement_node_ids": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1024,
+          "items": {
+            "$ref": "#/$defs/StrictId"
+          },
+          "uniqueItems": true
+        }
+      }
+    },
+    "StrictSourceExactReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "field_revision",
+        "field_manifest_sha256",
+        "ordinal",
+        "field_kind"
+      ],
+      "properties": {
+        "field_revision": {
+          "$ref": "#/$defs/StrictId"
+        },
+        "field_manifest_sha256": {
+          "$ref": "#/$defs/StrictHash"
+        },
+        "ordinal": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2147483647
+        },
+        "field_kind": {
+          "enum": [
+            "MODEL",
+            "PTR_NUMBER",
+            "DOCUMENT_NUMBER",
+            "STANDARD_NUMBER",
+            "STANDARD_YEAR"
+          ]
+        }
+      }
+    },
+    "StrictParsedDecimalEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "evidence_revision",
+        "evidence_sha256",
+        "parser_revision",
+        "parser_sha256",
+        "parser_contract",
+        "raw_text_sha256",
+        "decimal_value",
+        "precision"
+      ],
+      "properties": {
+        "evidence_revision": {
+          "$ref": "#/$defs/StrictId"
+        },
+        "evidence_sha256": {
+          "$ref": "#/$defs/StrictHash"
+        },
+        "parser_revision": {
+          "$ref": "#/$defs/StrictId"
+        },
+        "parser_sha256": {
+          "$ref": "#/$defs/StrictHash"
+        },
+        "parser_contract": {
+          "$ref": "#/$defs/StrictLabel"
+        },
+        "raw_text_sha256": {
+          "$ref": "#/$defs/StrictHash"
+        },
+        "decimal_value": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "precision": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      }
+    },
+    "StrictSourceIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "evidence_ref",
+        "source_exact",
+        "parsed_decimal"
+      ],
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/StrictLabel"
+        },
+        "evidence_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StrictEvidenceRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "source_exact": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StrictSourceExactReference"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "parsed_decimal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StrictParsedDecimalEvidence"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "StrictProvenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source",
+        "read_receipt_ids",
+        "start_codepoint",
+        "end_codepoint",
+        "raw_text_sha256"
+      ],
+      "properties": {
+        "source": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StrictSourceIdentity"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "read_receipt_ids": {
+          "type": "array",
+          "minItems": 0,
+          "maxItems": 1024,
+          "items": {
+            "$ref": "#/$defs/StrictId"
+          },
+          "uniqueItems": true
+        },
+        "start_codepoint": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2147483647
+        },
+        "end_codepoint": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2147483647
+        },
+        "raw_text_sha256": {
+          "$ref": "#/$defs/StrictHash"
+        }
+      }
+    },
+    "StrictTargetEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entry_id",
+        "field_id",
+        "field_definition_id",
+        "section_id",
+        "node_id",
+        "row_id",
+        "model_ids",
+        "condition_ids",
+        "model_context",
+        "condition_context",
+        "applicability",
+        "candidate_value",
+        "provenance"
+      ],
+      "properties": {
+        "entry_id": {
+          "$ref": "#/$defs/StrictId"
+        },
+        "field_id": {
+          "$ref": "#/$defs/StrictId"
+        },
+        "field_definition_id": {
+          "$ref": "#/$defs/StrictId"
+        },
+        "section_id": {
+          "$ref": "#/$defs/StrictId"
+        },
+        "node_id": {
+          "$ref": "#/$defs/StrictId"
+        },
+        "row_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StrictId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "model_ids": {
+          "type": "array",
+          "minItems": 0,
+          "maxItems": 1024,
+          "items": {
+            "$ref": "#/$defs/StrictId"
+          },
+          "uniqueItems": true
+        },
+        "condition_ids": {
+          "type": "array",
+          "minItems": 0,
+          "maxItems": 1024,
+          "items": {
+            "$ref": "#/$defs/StrictId"
+          },
+          "uniqueItems": true
+        },
+        "model_context": {
+          "$ref": "#/$defs/StrictContextState"
+        },
+        "condition_context": {
+          "$ref": "#/$defs/StrictContextState"
+        },
+        "applicability": {
+          "$ref": "#/$defs/StrictApplicability"
+        },
+        "candidate_value": {
+          "$ref": "#/$defs/StrictFieldValue"
+        },
+        "provenance": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StrictProvenance"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "StrictTarget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "assessment",
+        "identity",
+        "sections",
+        "entries"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "assessment": {
+          "const": "PROPOSED"
+        },
+        "identity": {
+          "$ref": "#/$defs/StrictIdentity"
+        },
+        "sections": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1024,
+          "items": {
+            "$ref": "#/$defs/StrictSection"
+          }
+        },
+        "entries": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 10000,
+          "items": {
+            "$ref": "#/$defs/StrictTargetEntry"
+          }
+        }
+      }
+    },
+    "StrictRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rule_revision",
+        "rule_id",
+        "rule_sha256",
+        "operator"
+      ],
+      "properties": {
+        "rule_revision": {
+          "$ref": "#/$defs/StrictId"
+        },
+        "rule_id": {
+          "$ref": "#/$defs/StrictId"
+        },
+        "rule_sha256": {
+          "$ref": "#/$defs/StrictHash"
+        },
+        "operator": {
+          "$ref": "#/$defs/StrictLabel"
+        }
+      }
+    },
+    "StrictSourceObservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "model_ids",
+        "condition_ids",
+        "model_context",
+        "condition_context",
+        "applicability",
+        "value",
+        "provenance"
+      ],
+      "properties": {
+        "model_ids": {
+          "type": "array",
+          "minItems": 0,
+          "maxItems": 1024,
+          "items": {
+            "$ref": "#/$defs/StrictId"
+          },
+          "uniqueItems": true
+        },
+        "condition_ids": {
+          "type": "array",
+          "minItems": 0,
+          "maxItems": 1024,
+          "items": {
+            "$ref": "#/$defs/StrictId"
+          },
+          "uniqueItems": true
+        },
+        "model_context": {
+          "$ref": "#/$defs/StrictContextState"
+        },
+        "condition_context": {
+          "$ref": "#/$defs/StrictContextState"
+        },
+        "applicability": {
+          "$ref": "#/$defs/StrictApplicability"
+        },
+        "value": {
+          "$ref": "#/$defs/StrictFieldValue"
+        },
+        "provenance": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StrictProvenance"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "StrictEntryRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entry_id",
+        "target_entry_sha256",
+        "rule",
+        "expected_source",
+        "source_observation"
+      ],
+      "properties": {
+        "entry_id": {
+          "$ref": "#/$defs/StrictId"
+        },
+        "target_entry_sha256": {
+          "$ref": "#/$defs/StrictHash"
+        },
+        "rule": {
+          "$ref": "#/$defs/StrictRule"
+        },
+        "expected_source": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StrictSourceIdentity"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "source_observation": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StrictSourceObservation"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "StrictRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "target_sha256",
+        "expected_identity",
+        "entries"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "target_sha256": {
+          "$ref": "#/$defs/StrictHash"
+        },
+        "expected_identity": {
+          "$ref": "#/$defs/StrictIdentity"
+        },
+        "entries": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 10000,
+          "items": {
+            "$ref": "#/$defs/StrictEntryRequest"
+          }
+        }
+      }
+    },
+    "StrictEntryResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entry_id",
+        "field_id",
+        "field_definition_id",
+        "section_id",
+        "node_id",
+        "row_id",
+        "target_entry_sha256",
+        "rule",
+        "outcome",
+        "result",
+        "reason",
+        "comparison"
+      ],
+      "properties": {
+        "entry_id": {
+          "$ref": "#/$defs/StrictId"
+        },
+        "field_id": {
+          "$ref": "#/$defs/StrictId"
+        },
+        "field_definition_id": {
+          "$ref": "#/$defs/StrictId"
+        },
+        "section_id": {
+          "$ref": "#/$defs/StrictId"
+        },
+        "node_id": {
+          "$ref": "#/$defs/StrictId"
+        },
+        "row_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StrictId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "target_entry_sha256": {
+          "$ref": "#/$defs/StrictHash"
+        },
+        "rule": {
+          "$ref": "#/$defs/StrictRule"
+        },
+        "outcome": {
+          "enum": [
+            "COMPUTED",
+            "UNSUPPORTED"
+          ]
+        },
+        "result": {
+          "enum": [
+            "MATCH",
+            "CONFLICT",
+            "MISSING",
+            "UNKNOWN_CONDITION",
+            null
+          ]
+        },
+        "reason": {
+          "enum": [
+            "EXACT_EQUAL",
+            "VALUE_MISMATCH",
+            "MODEL_SET_MISMATCH",
+            "CONDITION_SET_MISMATCH",
+            "UNIT_MISMATCH",
+            "PRECISION_MISMATCH",
+            "SOURCE_IDENTITY_MISMATCH",
+            "EVIDENCE_SCOPE_MISMATCH",
+            "RAW_LEXICAL_EVIDENCE_MISMATCH",
+            "DECIMAL_LEXICAL_MISMATCH",
+            "UNKNOWN_APPLICABILITY",
+            "UNRESOLVED_MODEL_CONTEXT",
+            "UNRESOLVED_CONDITION_CONTEXT",
+            "SOURCE_OBSERVATION_MISSING",
+            "SOURCE_EXPECTATION_MISSING",
+            "CANDIDATE_PROVENANCE_MISSING",
+            "SOURCE_PROVENANCE_MISSING",
+            "ORIGINAL_EVIDENCE_MISSING",
+            "READ_RECEIPTS_MISSING",
+            "SOURCE_EXACT_REFERENCE_MISSING",
+            "PARSED_DECIMAL_EVIDENCE_MISSING",
+            "RAW_VALUE_MISSING",
+            "UNSUPPORTED_OPERATOR",
+            "UNSUPPORTED_VALUE_KIND",
+            "UNSUPPORTED_PROVENANCE",
+            "UNSUPPORTED_PARSER",
+            "UNSUPPORTED_DECIMAL_LEXICAL",
+            "UNSUPPORTED_VALUE_COMPONENTS"
+          ]
+        },
+        "comparison": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StrictFieldComparison"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "StrictResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "assessment",
+        "coverage",
+        "target_sha256",
+        "request_sha256",
+        "schema_sha256",
+        "identity",
+        "entries"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "assessment": {
+          "const": "COMPUTATION_ONLY"
+        },
+        "coverage": {
+          "const": "EXACT_SUPPLIED_TARGET_ENTRIES"
+        },
+        "target_sha256": {
+          "$ref": "#/$defs/StrictHash"
+        },
+        "request_sha256": {
+          "$ref": "#/$defs/StrictHash"
+        },
+        "schema_sha256": {
+          "$ref": "#/$defs/StrictHash"
+        },
+        "identity": {
+          "$ref": "#/$defs/StrictIdentity"
+        },
+        "entries": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 10000,
+          "items": {
+            "$ref": "#/$defs/StrictEntryResult"
+          }
+        }
+      }
+    },
+    "Context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mode",
+        "ids"
+      ],
+      "properties": {
+        "mode": {
+          "enum": [
+            "GLOBAL",
+            "SCOPED"
+          ]
+        },
+        "ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096
+          },
+          "minItems": 0,
+          "maxItems": 10000
+        }
+      }
+    },
+    "Policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "operator",
+        "precision",
+        "unit",
+        "applicability",
+        "coverage_mode",
+        "coverage",
+        "implementation",
+        "basis"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "operator": {
+          "enum": [
+            "TEXT_EXACT",
+            "DECIMAL_EXACT"
+          ]
+        },
+        "precision": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "mode",
+            "scale"
+          ],
+          "properties": {
+            "mode": {
+              "enum": [
+                "NOT_APPLICABLE",
+                "EXACT_SCALE"
+              ]
+            },
+            "scale": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0,
+              "maximum": 12
+            }
+          }
+        },
+        "unit": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "mode",
+            "literal"
+          ],
+          "properties": {
+            "mode": {
+              "const": "EXACT_DECLARED"
+            },
+            "literal": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "applicability": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "state",
+            "rule",
+            "scope"
+          ],
+          "properties": {
+            "state": {
+              "enum": [
+                "APPLICABLE",
+                "UNKNOWN"
+              ]
+            },
+            "rule": {
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/Version"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "scope": {
+              "$ref": "#/$defs/Version"
+            }
+          }
+        },
+        "coverage_mode": {
+          "const": "EXACT_DECLARED_COMBINATIONS"
+        },
+        "coverage": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "field_definition_id",
+              "models",
+              "conditions"
+            ],
+            "properties": {
+              "field_definition_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 4096
+              },
+              "models": {
+                "$ref": "#/$defs/Context"
+              },
+              "conditions": {
+                "$ref": "#/$defs/Context"
+              }
+            }
+          },
+          "minItems": 1,
+          "maxItems": 10000
+        },
+        "implementation": {
+          "$ref": "#/$defs/Version"
+        },
+        "basis": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Version"
+          },
+          "minItems": 1,
+          "maxItems": 10000
+        }
+      }
+    },
+    "Rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rule_id",
+        "target_node_ids",
+        "anchor",
+        "rule_revision"
+      ],
+      "properties": {
+        "rule_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "target_node_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "minItems": 0,
+          "maxItems": 10000,
+          "uniqueItems": true
+        },
+        "anchor": {
+          "$ref": "https://schemas.medical-agent.invalid/1.0.0/agent-design/artifacts.schema.json#/$defs/Anchor"
+        },
+        "rule_revision": {
+          "$ref": "#/$defs/Basis"
+        }
+      }
+    },
+    "N02": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "questions",
+        "completion_inputs"
+      ],
+      "properties": {
+        "questions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "question_id",
+              "requirement_ids",
+              "completion_rule_ids"
+            ],
+            "properties": {
+              "question_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "requirement_ids": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "minItems": 0,
+                "maxItems": 10000,
+                "uniqueItems": true
+              },
+              "completion_rule_ids": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "minItems": 0,
+                "maxItems": 10000,
+                "uniqueItems": true
+              }
+            }
+          },
+          "minItems": 1,
+          "maxItems": 10000
+        },
+        "completion_inputs": {
+          "type": "array",
+          "maxItems": 10000,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "question_id",
+              "rule_id",
+              "rule_revision",
+              "selectors"
+            ],
+            "properties": {
+              "question_id": {
+                "$ref": "#/$defs/Id"
+              },
+              "rule_id": {
+                "$ref": "#/$defs/Id"
+              },
+              "rule_revision": {
+                "$ref": "#/$defs/Basis"
+              },
+              "selectors": {
+                "type": "array",
+                "maxItems": 10000,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "input_key",
+                    "evidence_ref",
+                    "start",
+                    "end",
+                    "value_kind"
+                  ],
+                  "properties": {
+                    "input_key": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128
+                    },
+                    "evidence_ref": {
+                      "$ref": "https://schemas.medical-agent.invalid/1.0.0/data-design/dataset.schema.json#/$defs/EvidenceRef"
+                    },
+                    "start": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "end": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "value_kind": {
+                      "enum": [
+                        "TEXT",
+                        "DECIMAL",
+                        "BOOLEAN"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "N03": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target",
+        "request",
+        "policies",
+        "implementation",
+        "rule_revision",
+        "method_requirements",
+        "target_artifact_id"
+      ],
+      "properties": {
+        "target": {
+          "$ref": "#/$defs/StrictTarget"
+        },
+        "request": {
+          "$ref": "#/$defs/StrictRequest"
+        },
+        "policies": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "revision",
+              "sha256",
+              "definition"
+            ],
+            "properties": {
+              "revision": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 4096
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "definition": {
+                "$ref": "#/$defs/Policy"
+              }
+            }
+          },
+          "minItems": 1,
+          "maxItems": 10000
+        },
+        "implementation": {
+          "$ref": "#/$defs/Version"
+        },
+        "rule_revision": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "method_requirements": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "indicator_id",
+              "model_id",
+              "condition_id",
+              "method_ids",
+              "evidence_refs"
+            ],
+            "properties": {
+              "indicator_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "model_id": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "condition_id": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "method_ids": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "minItems": 0,
+                "maxItems": 10000,
+                "uniqueItems": true
+              },
+              "evidence_refs": {
+                "type": "array",
+                "items": {
+                  "$ref": "https://schemas.medical-agent.invalid/1.0.0/data-design/dataset.schema.json#/$defs/EvidenceRef"
+                },
+                "minItems": 0,
+                "maxItems": 10000
+              }
+            }
+          },
+          "minItems": 0,
+          "maxItems": 10000
+        },
+        "target_artifact_id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      }
+    },
+    "N04": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "baseline",
+        "body_schema_revision",
+        "target_sections",
+        "section_owners"
+      ],
+      "properties": {
+        "baseline": {
+          "$ref": "https://schemas.medical-agent.invalid/1.0.0/backend-design/interfaces.schema.yaml#/$defs/DocumentBody"
+        },
+        "body_schema_revision": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "target_sections": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "minItems": 0,
+          "maxItems": 10000,
+          "uniqueItems": true
+        },
+        "section_owners": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "additionalProperties": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      }
+    },
+    "N05": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rule_revision",
+        "rules"
+      ],
+      "properties": {
+        "rule_revision": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "rules": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Rule"
+          },
+          "minItems": 1,
+          "maxItems": 10000
+        }
+      }
+    },
+    "N06": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "base_revision",
+        "body_schema_revision",
+        "section_order",
+        "requirement_nodes",
+        "applicability",
+        "baseline",
+        "rule_revision",
+        "cross_file_inputs"
+      ],
+      "properties": {
+        "base_revision": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "body_schema_revision": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "section_order": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "minItems": 0,
+          "maxItems": 10000,
+          "uniqueItems": true
+        },
+        "requirement_nodes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "minItems": 0,
+          "maxItems": 10000,
+          "uniqueItems": true
+        },
+        "applicability": {
+          "$ref": "#/$defs/Domain_template_applicability___defs_TemplateView"
+        },
+        "baseline": {
+          "$ref": "https://schemas.medical-agent.invalid/1.0.0/backend-design/interfaces.schema.yaml#/$defs/DocumentBody"
+        },
+        "rule_revision": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "cross_file_inputs": {
+          "$ref": "#/$defs/CrossInput"
+        }
+      }
+    },
+    "N07": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "document_id",
+        "document_revision",
+        "body_sha256",
+        "rule_revision",
+        "rules",
+        "claim_records"
+      ],
+      "properties": {
+        "document_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "document_revision": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "body_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "rule_revision": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "rules": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Rule"
+          },
+          "minItems": 1,
+          "maxItems": 10000
+        },
+        "claim_records": {
+          "type": "array",
+          "items": {
+            "$ref": "https://schemas.medical-agent.invalid/1.0.0/agent-design/artifacts.schema.json#/$defs/ClaimRecord"
+          },
+          "minItems": 0,
+          "maxItems": 10000
+        }
+      }
+    },
+    "Case": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schema_version",
+            "purpose",
+            "tenant_id",
+            "project_id",
+            "run_id",
+            "step_id",
+            "node_sha256",
+            "sample_id",
+            "candidate",
+            "policy",
+            "node_kind",
+            "node_business_original",
+            "rule_originals"
+          ],
+          "properties": {
+            "schema_version": {
+              "const": "1.0.0"
+            },
+            "purpose": {
+              "const": "EVALUATION_VERIFICATION"
+            },
+            "tenant_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "project_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "run_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "step_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "node_sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "sample_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "candidate": {
+              "$ref": "#/$defs/Basis"
+            },
+            "policy": {
+              "$ref": "#/$defs/Basis"
+            },
+            "node_kind": {
+              "const": "N02"
+            },
+            "node_business_original": {
+              "$ref": "#/$defs/N02"
+            },
+            "rule_originals": {
+              "type": "array",
+              "maxItems": 10000,
+              "items": {
+                "$ref": "#/$defs/RuleOriginal"
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schema_version",
+            "purpose",
+            "tenant_id",
+            "project_id",
+            "run_id",
+            "step_id",
+            "node_sha256",
+            "sample_id",
+            "candidate",
+            "policy",
+            "node_kind",
+            "node_business_original",
+            "rule_originals"
+          ],
+          "properties": {
+            "schema_version": {
+              "const": "1.0.0"
+            },
+            "purpose": {
+              "const": "EVALUATION_VERIFICATION"
+            },
+            "tenant_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "project_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "run_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "step_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "node_sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "sample_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "candidate": {
+              "$ref": "#/$defs/Basis"
+            },
+            "policy": {
+              "$ref": "#/$defs/Basis"
+            },
+            "node_kind": {
+              "const": "N03"
+            },
+            "node_business_original": {
+              "$ref": "#/$defs/N03"
+            },
+            "rule_originals": {
+              "type": "array",
+              "maxItems": 10000,
+              "items": {
+                "$ref": "#/$defs/RuleOriginal"
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schema_version",
+            "purpose",
+            "tenant_id",
+            "project_id",
+            "run_id",
+            "step_id",
+            "node_sha256",
+            "sample_id",
+            "candidate",
+            "policy",
+            "node_kind",
+            "node_business_original",
+            "rule_originals"
+          ],
+          "properties": {
+            "schema_version": {
+              "const": "1.0.0"
+            },
+            "purpose": {
+              "const": "EVALUATION_VERIFICATION"
+            },
+            "tenant_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "project_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "run_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "step_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "node_sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "sample_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "candidate": {
+              "$ref": "#/$defs/Basis"
+            },
+            "policy": {
+              "$ref": "#/$defs/Basis"
+            },
+            "node_kind": {
+              "const": "N04"
+            },
+            "node_business_original": {
+              "$ref": "#/$defs/N04"
+            },
+            "rule_originals": {
+              "type": "array",
+              "maxItems": 10000,
+              "items": {
+                "$ref": "#/$defs/RuleOriginal"
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schema_version",
+            "purpose",
+            "tenant_id",
+            "project_id",
+            "run_id",
+            "step_id",
+            "node_sha256",
+            "sample_id",
+            "candidate",
+            "policy",
+            "node_kind",
+            "node_business_original",
+            "rule_originals"
+          ],
+          "properties": {
+            "schema_version": {
+              "const": "1.0.0"
+            },
+            "purpose": {
+              "const": "EVALUATION_VERIFICATION"
+            },
+            "tenant_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "project_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "run_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "step_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "node_sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "sample_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "candidate": {
+              "$ref": "#/$defs/Basis"
+            },
+            "policy": {
+              "$ref": "#/$defs/Basis"
+            },
+            "node_kind": {
+              "const": "N05"
+            },
+            "node_business_original": {
+              "$ref": "#/$defs/N05"
+            },
+            "rule_originals": {
+              "type": "array",
+              "maxItems": 10000,
+              "items": {
+                "$ref": "#/$defs/RuleOriginal"
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schema_version",
+            "purpose",
+            "tenant_id",
+            "project_id",
+            "run_id",
+            "step_id",
+            "node_sha256",
+            "sample_id",
+            "candidate",
+            "policy",
+            "node_kind",
+            "node_business_original",
+            "rule_originals"
+          ],
+          "properties": {
+            "schema_version": {
+              "const": "1.0.0"
+            },
+            "purpose": {
+              "const": "EVALUATION_VERIFICATION"
+            },
+            "tenant_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "project_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "run_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "step_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "node_sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "sample_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "candidate": {
+              "$ref": "#/$defs/Basis"
+            },
+            "policy": {
+              "$ref": "#/$defs/Basis"
+            },
+            "node_kind": {
+              "const": "N06"
+            },
+            "node_business_original": {
+              "$ref": "#/$defs/N06"
+            },
+            "rule_originals": {
+              "type": "array",
+              "maxItems": 10000,
+              "items": {
+                "$ref": "#/$defs/RuleOriginal"
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schema_version",
+            "purpose",
+            "tenant_id",
+            "project_id",
+            "run_id",
+            "step_id",
+            "node_sha256",
+            "sample_id",
+            "candidate",
+            "policy",
+            "node_kind",
+            "node_business_original",
+            "rule_originals"
+          ],
+          "properties": {
+            "schema_version": {
+              "const": "1.0.0"
+            },
+            "purpose": {
+              "const": "EVALUATION_VERIFICATION"
+            },
+            "tenant_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "project_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "run_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "step_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "node_sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "sample_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "candidate": {
+              "$ref": "#/$defs/Basis"
+            },
+            "policy": {
+              "$ref": "#/$defs/Basis"
+            },
+            "node_kind": {
+              "const": "N07"
+            },
+            "node_business_original": {
+              "$ref": "#/$defs/N07"
+            },
+            "rule_originals": {
+              "type": "array",
+              "maxItems": 10000,
+              "items": {
+                "$ref": "#/$defs/RuleOriginal"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "Register": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "run_id",
+        "step_id",
+        "artifact"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "run_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "step_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "artifact": {
+          "$ref": "#/$defs/Basis"
+        }
+      }
+    },
+    "Approve": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "registration_sha256",
+        "decision",
+        "reason"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "registration_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "decision": {
+          "const": "APPROVE"
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096
+        }
+      }
+    },
+    "PromptPackage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "node_kind",
+        "system_messages"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "node_kind": {
+          "enum": [
+            "N02",
+            "N03",
+            "N04",
+            "N05",
+            "N06",
+            "N07"
+          ]
+        },
+        "system_messages": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096
+          },
+          "minItems": 1,
+          "maxItems": 32
+        }
+      }
+    },
+    "ToolPackage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "implementation_id",
+        "implementation_version",
+        "implementation_class_sha256",
+        "tools"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "implementation_id": {
+          "const": "MEDICAL_EVALUATION_STAGE_CONTEXT_V1"
+        },
+        "implementation_version": {
+          "const": "1.0.0"
+        },
+        "implementation_class_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "tools": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 5,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "tool_id",
+              "version",
+              "description"
+            ],
+            "properties": {
+              "tool_id": {
+                "enum": [
+                  "AT-01",
+                  "AT-02",
+                  "AT-03",
+                  "AT-04",
+                  "AT-08"
+                ]
+              },
+              "version": {
+                "$ref": "#/$defs/Basis"
+              },
+              "description": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 4096
+              }
+            }
+          }
+        }
+      }
+    },
+    "CrossDocument": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "document_id",
+        "document_revision",
+        "document_type",
+        "body_artifact",
+        "template_version",
+        "fact_versions"
+      ],
+      "properties": {
+        "document_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "document_revision": {
+          "$ref": "#/$defs/Basis"
+        },
+        "document_type": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "body_artifact": {
+          "$ref": "#/$defs/Basis"
+        },
+        "template_version": {
+          "$ref": "#/$defs/Basis"
+        },
+        "fact_versions": {
+          "type": "array",
+          "maxItems": 10000,
+          "items": {
+            "$ref": "#/$defs/Basis"
+          }
+        }
+      }
+    },
+    "CrossSelector": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "input_key",
+        "source_kind",
+        "document_revision",
+        "field_id",
+        "value_slot",
+        "fact_version"
+      ],
+      "properties": {
+        "input_key": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "source_kind": {
+          "enum": [
+            "CANDIDATE",
+            "DOCUMENT"
+          ]
+        },
+        "document_revision": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "field_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "value_slot": {
+          "enum": [
+            "ORIGINAL_VALUE",
+            "DECIMAL_VALUE",
+            "UNIT",
+            "MODEL",
+            "CONDITION"
+          ]
+        },
+        "fact_version": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Basis"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "CrossRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rule_id",
+        "rule_revision",
+        "inputs"
+      ],
+      "properties": {
+        "rule_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "rule_revision": {
+          "$ref": "#/$defs/Basis"
+        },
+        "inputs": {
+          "type": "array",
+          "maxItems": 10000,
+          "items": {
+            "$ref": "#/$defs/CrossSelector"
+          }
+        }
+      }
+    },
+    "CrossInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "documents",
+        "rules"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "documents": {
+          "type": "array",
+          "maxItems": 10000,
+          "items": {
+            "$ref": "#/$defs/CrossDocument"
+          }
+        },
+        "rules": {
+          "type": "array",
+          "maxItems": 10000,
+          "items": {
+            "$ref": "#/$defs/CrossRule"
+          }
+        }
+      }
+    },
+    "Domain_templates___defs_Key": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z][A-Za-z0-9_.-]*$"
+    },
+    "Domain_templates___defs_Keys": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/Domain_templates___defs_Key"
+      }
+    },
+    "Domain_templates___defs_Id": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "Domain_templates___defs_Hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "Domain_templates___defs_Basis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version_id",
+        "content_sha256"
+      ],
+      "properties": {
+        "version_id": {
+          "$ref": "#/$defs/Domain_templates___defs_Id"
+        },
+        "content_sha256": {
+          "$ref": "#/$defs/Domain_templates___defs_Hash"
+        }
+      }
+    },
+    "Domain_templates___defs_Bases": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/Domain_templates___defs_Basis"
+      }
+    },
+    "Domain_rule_expressions___defs_Constant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "key",
+        "value",
+        "basis_refs"
+      ],
+      "properties": {
+        "key": {
+          "$ref": "#/$defs/Domain_templates___defs_Key"
+        },
+        "value": {
+          "type": [
+            "boolean",
+            "string",
+            "number",
+            "array",
+            "object"
+          ]
+        },
+        "basis_refs": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/Domain_templates___defs_Bases"
+            },
+            {
+              "minItems": 1
+            }
+          ]
+        }
+      }
+    },
+    "Domain_rule_expressions___defs_Expression": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "engine_revision",
+        "expression",
+        "input_keys",
+        "constants"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "engine_revision": {
+          "const": "spring-spel-6.2.19-boolean-v1"
+        },
+        "expression": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 10000
+        },
+        "input_keys": {
+          "$ref": "#/$defs/Domain_templates___defs_Keys"
+        },
+        "constants": {
+          "type": "array",
+          "maxItems": 1000,
+          "items": {
+            "$ref": "#/$defs/Domain_rule_expressions___defs_Constant"
+          }
+        }
+      }
+    },
+    "Domain_rule_expressions___defs_Content": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "engine_revision",
+        "expression",
+        "basis_manifest"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "engine_revision": {
+          "const": "spring-spel-6.2.19-boolean-v1"
+        },
+        "expression": {
+          "$ref": "#/$defs/Domain_rule_expressions___defs_Expression"
+        },
+        "basis_manifest": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/Domain_templates___defs_Bases"
+            },
+            {
+              "minItems": 1
+            }
+          ]
+        }
+      }
+    },
+    "Domain_template_operations___defs_Stored_properties_tenant_id": {
+      "$ref": "#/$defs/Domain_templates___defs_Id"
+    },
+    "Domain_template_operations___defs_Stored_properties_template_version": {
+      "$ref": "#/$defs/Domain_templates___defs_Id"
+    },
+    "Domain_templates___defs_Count": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]{0,19})$"
+    },
+    "Domain_templates___defs_DocumentType": {
+      "enum": [
+        "PRODUCT_TECHNICAL_REQUIREMENTS",
+        "REGISTRATION_DIRECTORY",
+        "OVERVIEW",
+        "INSTRUCTIONS_FOR_USE",
+        "LABEL",
+        "ESSENTIAL_PRINCIPLES",
+        "RISK_MANAGEMENT",
+        "RESEARCH_REPORT",
+        "CLINICAL_EVALUATION",
+        "QUALITY_SYSTEM",
+        "CHANGE_REGISTRATION",
+        "RENEWAL_REGISTRATION",
+        "REGISTRATION_DOSSIER"
+      ]
+    },
+    "Domain_templates___defs_ApplicationPath": {
+      "enum": [
+        "FIRST_REGISTRATION",
+        "CHANGE_REGISTRATION",
+        "RENEWAL_REGISTRATION"
+      ]
+    },
+    "Domain_templates___defs_NullableId": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Domain_templates___defs_Id"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "Domain_templates___defs_Ordinal": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 2147483647
+    },
+    "Domain_templates___defs_NullableBasis": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Domain_templates___defs_Basis"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "Domain_templates___defs_Text": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S"
+    },
+    "Domain_templates___defs_Condition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mode",
+        "rule_revision",
+        "engine_revision",
+        "input_keys"
+      ],
+      "properties": {
+        "mode": {
+          "enum": [
+            "ALWAYS",
+            "RULE"
+          ]
+        },
+        "rule_revision": {
+          "$ref": "#/$defs/Domain_templates___defs_NullableBasis"
+        },
+        "engine_revision": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Domain_templates___defs_Text"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "input_keys": {
+          "$ref": "#/$defs/Domain_templates___defs_Keys"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "mode": {
+                "const": "ALWAYS"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "rule_revision": {
+                "type": "null"
+              },
+              "engine_revision": {
+                "type": "null"
+              },
+              "input_keys": {
+                "maxItems": 0
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "mode": {
+                "const": "RULE"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "rule_revision": {
+                "$ref": "#/$defs/Domain_templates___defs_Basis"
+              },
+              "engine_revision": {
+                "$ref": "#/$defs/Domain_templates___defs_Text"
+              },
+              "input_keys": {
+                "minItems": 1
+              }
+            }
+          }
+        }
+      ]
+    },
+    "Domain_templates___defs_Ids": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/Domain_templates___defs_Id"
+      }
+    },
+    "Domain_templates___defs_EvidenceRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mode",
+        "authority_source_types",
+        "verification_rule_revisions",
+        "calculation_rule_revision",
+        "input_field_ids",
+        "require_original_locator",
+        "require_human_verification"
+      ],
+      "properties": {
+        "mode": {
+          "enum": [
+            "DIRECT_REFERENCE",
+            "APPROVED_CALCULATION",
+            "NARRATIVE",
+            "AUTHORIZED_ORIGINAL_ONLY"
+          ]
+        },
+        "authority_source_types": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/Domain_templates___defs_Key"
+          }
+        },
+        "verification_rule_revisions": {
+          "$ref": "#/$defs/Domain_templates___defs_Bases"
+        },
+        "calculation_rule_revision": {
+          "$ref": "#/$defs/Domain_templates___defs_NullableBasis"
+        },
+        "input_field_ids": {
+          "$ref": "#/$defs/Domain_templates___defs_Ids"
+        },
+        "require_original_locator": {
+          "const": true
+        },
+        "require_human_verification": {
+          "const": true
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "mode": {
+                "const": "APPROVED_CALCULATION"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "calculation_rule_revision": {
+                "$ref": "#/$defs/Domain_templates___defs_Basis"
+              },
+              "input_field_ids": {
+                "minItems": 1
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "calculation_rule_revision": {
+                "type": "null"
+              },
+              "input_field_ids": {
+                "maxItems": 0
+              }
+            }
+          }
+        }
+      ]
+    },
+    "Domain_templates___defs_Node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "node_id",
+        "parent_id",
+        "official_number",
+        "title",
+        "ordinal",
+        "condition",
+        "required",
+        "content_mode",
+        "evidence_rule",
+        "basis_refs",
+        "nature",
+        "content_requirements"
+      ],
+      "properties": {
+        "node_id": {
+          "$ref": "#/$defs/Domain_templates___defs_Id"
+        },
+        "parent_id": {
+          "$ref": "#/$defs/Domain_templates___defs_NullableId"
+        },
+        "official_number": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        },
+        "ordinal": {
+          "$ref": "#/$defs/Domain_templates___defs_Ordinal"
+        },
+        "condition": {
+          "$ref": "#/$defs/Domain_templates___defs_Condition"
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "content_mode": {
+          "enum": [
+            "DIRECT_REFERENCE",
+            "APPROVED_CALCULATION",
+            "NARRATIVE",
+            "AUTHORIZED_ORIGINAL_ONLY",
+            "DIRECTORY"
+          ]
+        },
+        "evidence_rule": {
+          "$ref": "#/$defs/Domain_templates___defs_EvidenceRule"
+        },
+        "basis_refs": {
+          "$ref": "#/$defs/Domain_templates___defs_Bases"
+        },
+        "nature": {
+          "enum": [
+            "OFFICIAL",
+            "ENTERPRISE_SUPPLEMENT"
+          ]
+        },
+        "content_requirements": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/Domain_templates___defs_Text"
+          }
+        }
+      }
+    },
+    "Domain_templates___defs_ValueType": {
+      "enum": [
+        "TEXT",
+        "LONG_TEXT",
+        "DATE",
+        "NUMBER",
+        "ENUM",
+        "MULTI_SELECT",
+        "RELATION",
+        "TABLE",
+        "IMAGE",
+        "FORMULA",
+        "FILE"
+      ]
+    },
+    "Domain_templates___defs_Decimal": {
+      "type": "string",
+      "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$"
+    },
+    "Domain_templates___defs_Option": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "value",
+        "label",
+        "basis_refs"
+      ],
+      "properties": {
+        "value": {
+          "$ref": "#/$defs/Domain_templates___defs_Key"
+        },
+        "label": {
+          "$ref": "#/$defs/Domain_templates___defs_Text"
+        },
+        "basis_refs": {
+          "$ref": "#/$defs/Domain_templates___defs_Bases"
+        }
+      }
+    },
+    "Domain_templates___defs_Constraints": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "max_length",
+        "precision",
+        "minimum",
+        "maximum",
+        "unit",
+        "range_basis",
+        "enum_options",
+        "nullable_reasons"
+      ],
+      "properties": {
+        "max_length": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "precision": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 2147483647
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "minimum": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Domain_templates___defs_Decimal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "maximum": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Domain_templates___defs_Decimal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "unit": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Domain_templates___defs_Text"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "range_basis": {
+          "$ref": "#/$defs/Domain_templates___defs_Bases"
+        },
+        "enum_options": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Domain_templates___defs_Option"
+          }
+        },
+        "nullable_reasons": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/Domain_templates___defs_Key"
+          }
+        }
+      }
+    },
+    "Domain_templates___defs_OutputMapping": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "node_id",
+        "repeat_id",
+        "column_key",
+        "internal_only",
+        "ordinal"
+      ],
+      "properties": {
+        "node_id": {
+          "$ref": "#/$defs/Domain_templates___defs_Id"
+        },
+        "repeat_id": {
+          "$ref": "#/$defs/Domain_templates___defs_NullableId"
+        },
+        "column_key": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Domain_templates___defs_Key"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "internal_only": {
+          "type": "boolean"
+        },
+        "ordinal": {
+          "$ref": "#/$defs/Domain_templates___defs_Ordinal"
+        }
+      }
+    },
+    "Domain_templates___defs_Field": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "field_id",
+        "node_id",
+        "key",
+        "name",
+        "description",
+        "value_type",
+        "constraints",
+        "condition",
+        "required",
+        "evidence_rule",
+        "output_mapping",
+        "repeat_id",
+        "attachment_requirement_id",
+        "basis_refs"
+      ],
+      "properties": {
+        "field_id": {
+          "$ref": "#/$defs/Domain_templates___defs_Id"
+        },
+        "node_id": {
+          "$ref": "#/$defs/Domain_templates___defs_Id"
+        },
+        "key": {
+          "$ref": "#/$defs/Domain_templates___defs_Key"
+        },
+        "name": {
+          "$ref": "#/$defs/Domain_templates___defs_Text"
+        },
+        "description": {
+          "$ref": "#/$defs/Domain_templates___defs_Text"
+        },
+        "value_type": {
+          "$ref": "#/$defs/Domain_templates___defs_ValueType"
+        },
+        "constraints": {
+          "$ref": "#/$defs/Domain_templates___defs_Constraints"
+        },
+        "condition": {
+          "$ref": "#/$defs/Domain_templates___defs_Condition"
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "evidence_rule": {
+          "$ref": "#/$defs/Domain_templates___defs_EvidenceRule"
+        },
+        "output_mapping": {
+          "$ref": "#/$defs/Domain_templates___defs_OutputMapping"
+        },
+        "repeat_id": {
+          "$ref": "#/$defs/Domain_templates___defs_NullableId"
+        },
+        "attachment_requirement_id": {
+          "$ref": "#/$defs/Domain_templates___defs_NullableId"
+        },
+        "basis_refs": {
+          "$ref": "#/$defs/Domain_templates___defs_Bases"
+        }
+      }
+    },
+    "Domain_templates___defs_Repeat": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "repeat_id",
+        "node_id",
+        "name",
+        "field_ids",
+        "min_count",
+        "max_count",
+        "count_basis",
+        "row_id_required"
+      ],
+      "properties": {
+        "repeat_id": {
+          "$ref": "#/$defs/Domain_templates___defs_Id"
+        },
+        "node_id": {
+          "$ref": "#/$defs/Domain_templates___defs_Id"
+        },
+        "name": {
+          "$ref": "#/$defs/Domain_templates___defs_Text"
+        },
+        "field_ids": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/Domain_templates___defs_Ids"
+            },
+            {
+              "minItems": 1
+            }
+          ]
+        },
+        "min_count": {
+          "$ref": "#/$defs/Domain_templates___defs_Count"
+        },
+        "max_count": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Domain_templates___defs_Count"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "count_basis": {
+          "$ref": "#/$defs/Domain_templates___defs_Bases"
+        },
+        "row_id_required": {
+          "const": true
+        }
+      }
+    },
+    "Domain_templates___defs_AttachmentMode": {
+      "const": "AUTHORIZED_ORIGINAL_ONLY"
+    },
+    "Domain_templates___defs_Attachment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "attachment_requirement_id",
+        "node_id",
+        "name",
+        "kind",
+        "mode",
+        "condition",
+        "required",
+        "min_count",
+        "max_count",
+        "count_basis",
+        "allowed_media_types",
+        "evidence_rule",
+        "ordinal"
+      ],
+      "properties": {
+        "attachment_requirement_id": {
+          "$ref": "#/$defs/Domain_templates___defs_Id"
+        },
+        "node_id": {
+          "$ref": "#/$defs/Domain_templates___defs_Id"
+        },
+        "name": {
+          "$ref": "#/$defs/Domain_templates___defs_Text"
+        },
+        "kind": {
+          "enum": [
+            "REPORT",
+            "CERTIFICATE",
+            "ETHICS_DOCUMENT",
+            "SIGNATURE",
+            "SEAL",
+            "RAW_DATA",
+            "OTHER"
+          ]
+        },
+        "mode": {
+          "$ref": "#/$defs/Domain_templates___defs_AttachmentMode"
+        },
+        "condition": {
+          "$ref": "#/$defs/Domain_templates___defs_Condition"
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "min_count": {
+          "$ref": "#/$defs/Domain_templates___defs_Count"
+        },
+        "max_count": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Domain_templates___defs_Count"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "count_basis": {
+          "$ref": "#/$defs/Domain_templates___defs_Bases"
+        },
+        "allowed_media_types": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9!#$&^_.+-]*/[a-z0-9][a-z0-9!#$&^_.+-]*$"
+          }
+        },
+        "evidence_rule": {
+          "$ref": "#/$defs/Domain_templates___defs_EvidenceRule"
+        },
+        "ordinal": {
+          "$ref": "#/$defs/Domain_templates___defs_Ordinal"
+        }
+      }
+    },
+    "Domain_templates___defs_CrossDocumentRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rule_id",
+        "rule_revision",
+        "field_ids",
+        "related_document_types",
+        "severity"
+      ],
+      "properties": {
+        "rule_id": {
+          "$ref": "#/$defs/Domain_templates___defs_Id"
+        },
+        "rule_revision": {
+          "$ref": "#/$defs/Domain_templates___defs_Basis"
+        },
+        "field_ids": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/Domain_templates___defs_Ids"
+            },
+            {
+              "minItems": 1
+            }
+          ]
+        },
+        "related_document_types": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/Domain_templates___defs_DocumentType"
+          }
+        },
+        "severity": {
+          "enum": [
+            "CRITICAL",
+            "MAJOR",
+            "MINOR"
+          ]
+        }
+      }
+    },
+    "Domain_templates___defs_ConditionSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "attribute_keys",
+        "applicability",
+        "unknown_result"
+      ],
+      "properties": {
+        "attribute_keys": {
+          "$ref": "#/$defs/Domain_templates___defs_Keys"
+        },
+        "applicability": {
+          "$ref": "#/$defs/Domain_templates___defs_Condition"
+        },
+        "unknown_result": {
+          "const": "UNKNOWN"
+        }
+      }
+    },
+    "Domain_templates___defs_NodeDisplay": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "node_id",
+        "not_applicable_display",
+        "rule_revision"
+      ],
+      "properties": {
+        "node_id": {
+          "$ref": "#/$defs/Domain_templates___defs_Id"
+        },
+        "not_applicable_display": {
+          "enum": [
+            "SHOW_DECISION",
+            "OMIT_BODY"
+          ]
+        },
+        "rule_revision": {
+          "$ref": "#/$defs/Domain_templates___defs_Basis"
+        }
+      }
+    },
+    "Domain_templates___defs_FormatProfile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "format_revision",
+        "output_types",
+        "numbering_rule_revision",
+        "font_artifacts",
+        "node_displays",
+        "attachment_order"
+      ],
+      "properties": {
+        "format_revision": {
+          "$ref": "#/$defs/Domain_templates___defs_Basis"
+        },
+        "output_types": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "DOCX",
+              "PDF"
+            ]
+          }
+        },
+        "numbering_rule_revision": {
+          "$ref": "#/$defs/Domain_templates___defs_Basis"
+        },
+        "font_artifacts": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/Domain_templates___defs_Bases"
+            },
+            {
+              "minItems": 1
+            }
+          ]
+        },
+        "node_displays": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Domain_templates___defs_NodeDisplay"
+          }
+        },
+        "attachment_order": {
+          "const": "DECLARED_ORDINAL"
+        }
+      }
+    },
+    "Domain_templates___defs_Content": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "document_type",
+        "application_path",
+        "ivd",
+        "directory_profile",
+        "nodes",
+        "field_definitions",
+        "repeat_definitions",
+        "attachment_requirements",
+        "cross_document_rules",
+        "condition_schema",
+        "basis_manifest",
+        "format_profile"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "document_type": {
+          "$ref": "#/$defs/Domain_templates___defs_DocumentType"
+        },
+        "application_path": {
+          "$ref": "#/$defs/Domain_templates___defs_ApplicationPath"
+        },
+        "ivd": {
+          "type": "boolean"
+        },
+        "directory_profile": {
+          "anyOf": [
+            {
+              "const": "NON_IVD_FIRST_REGISTRATION_2021_121"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "nodes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/Domain_templates___defs_Node"
+          }
+        },
+        "field_definitions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Domain_templates___defs_Field"
+          }
+        },
+        "repeat_definitions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Domain_templates___defs_Repeat"
+          }
+        },
+        "attachment_requirements": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Domain_templates___defs_Attachment"
+          }
+        },
+        "cross_document_rules": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Domain_templates___defs_CrossDocumentRule"
+          }
+        },
+        "condition_schema": {
+          "$ref": "#/$defs/Domain_templates___defs_ConditionSchema"
+        },
+        "basis_manifest": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/Domain_templates___defs_Bases"
+            },
+            {
+              "minItems": 1
+            }
+          ]
+        },
+        "format_profile": {
+          "$ref": "#/$defs/Domain_templates___defs_FormatProfile"
+        }
+      }
+    },
+    "Domain_template_operations___defs_Stored_properties_content": {
+      "$ref": "#/$defs/Domain_templates___defs_Content"
+    },
+    "Domain_template_operations___defs_Stored_properties_content_sha256": {
+      "$ref": "#/$defs/Domain_templates___defs_Hash"
+    },
+    "Domain_template_operations___defs_Stored_properties_base_version": {
+      "$ref": "#/$defs/Domain_templates___defs_NullableBasis"
+    },
+    "Domain_template_operations___defs_Stored_properties_reason": {
+      "$ref": "#/$defs/Domain_templates___defs_Text"
+    },
+    "Domain_template_operations___defs_Stored_properties_authority_grant_id": {
+      "$ref": "#/$defs/Domain_templates___defs_Id"
+    },
+    "Domain_template_operations___defs_Stored_properties_authority_revision": {
+      "$ref": "#/$defs/Domain_templates___defs_Count"
+    },
+    "Domain_template_operations___defs_Stored_properties_created_by": {
+      "$ref": "#/$defs/Domain_templates___defs_Id"
+    },
+    "Domain_template_operations___defs_Stored_properties_created_at": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "(?:Z|[+]00:00)$"
+    },
+    "Domain_template_operations___defs_Stored_properties_dependency_refs": {
+      "$ref": "#/$defs/Domain_templates___defs_Bases"
+    },
+    "Domain_templates___defs_Applicability": {
+      "enum": [
+        "APPLICABLE",
+        "NOT_APPLICABLE",
+        "UNKNOWN"
+      ]
+    },
+    "Domain_template_applicability___defs_ConditionResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scope",
+        "target_id",
+        "rule_revision",
+        "engine_revision",
+        "input_keys",
+        "status",
+        "unknown_input_keys"
+      ],
+      "properties": {
+        "scope": {
+          "enum": [
+            "PROFILE",
+            "TEMPLATE",
+            "NODE",
+            "FIELD",
+            "ATTACHMENT"
+          ]
+        },
+        "target_id": {
+          "$ref": "#/$defs/Domain_templates___defs_Id"
+        },
+        "rule_revision": {
+          "$ref": "#/$defs/Domain_templates___defs_NullableBasis"
+        },
+        "engine_revision": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "input_keys": {
+          "$ref": "#/$defs/Domain_templates___defs_Keys"
+        },
+        "status": {
+          "$ref": "#/$defs/Domain_templates___defs_Applicability"
+        },
+        "unknown_input_keys": {
+          "$ref": "#/$defs/Domain_templates___defs_Keys"
+        }
+      }
+    },
+    "Domain_template_applicability___defs_HumanDecisionInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "project_id",
+        "profile_revision",
+        "document_type",
+        "template_sha256",
+        "baseline_sha256",
+        "expected_revision",
+        "scope",
+        "target_id",
+        "applicability",
+        "required",
+        "reason"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "project_id": {
+          "$ref": "#/$defs/Domain_templates___defs_Id"
+        },
+        "profile_revision": {
+          "$ref": "#/$defs/Domain_templates___defs_Id"
+        },
+        "document_type": {
+          "$ref": "#/$defs/Domain_templates___defs_DocumentType"
+        },
+        "template_sha256": {
+          "$ref": "#/$defs/Domain_templates___defs_Hash"
+        },
+        "baseline_sha256": {
+          "$ref": "#/$defs/Domain_templates___defs_Hash"
+        },
+        "expected_revision": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        "scope": {
+          "enum": [
+            "TEMPLATE",
+            "NODE"
+          ]
+        },
+        "target_id": {
+          "$ref": "#/$defs/Domain_templates___defs_Id"
+        },
+        "applicability": {
+          "enum": [
+            "APPLICABLE",
+            "NOT_APPLICABLE"
+          ]
+        },
+        "required": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "scope": {
+                "const": "TEMPLATE"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "required": {
+                "type": "null"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "required": {
+                "type": "boolean"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "Domain_template_applicability___defs_HumanDecision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "decision_id",
+        "operation_id",
+        "template_version",
+        "request",
+        "resulting_revision",
+        "actor_id",
+        "created_at",
+        "authority_grant_id",
+        "authority_revision",
+        "baseline"
+      ],
+      "properties": {
+        "decision_id": {
+          "$ref": "#/$defs/Domain_templates___defs_Id"
+        },
+        "operation_id": {
+          "$ref": "#/$defs/Domain_templates___defs_Id"
+        },
+        "template_version": {
+          "$ref": "#/$defs/Domain_templates___defs_Id"
+        },
+        "request": {
+          "$ref": "#/$defs/Domain_template_applicability___defs_HumanDecisionInput"
+        },
+        "resulting_revision": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/Domain_templates___defs_Id"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "authority_grant_id": {
+          "$ref": "#/$defs/Domain_templates___defs_Id"
+        },
+        "authority_revision": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        "baseline": {
+          "$ref": "#/$defs/Domain_template_applicability___defs_TemplateView"
+        }
+      }
+    },
+    "Domain_template_applicability___defs_TemplateView": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "template",
+        "applicability",
+        "conditions",
+        "missing_requirements",
+        "dependency_authorizations_sha256",
+        "machine_conditions",
+        "human_decisions"
+      ],
+      "properties": {
+        "template": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "tenant_id",
+            "template_version",
+            "status",
+            "revision",
+            "content",
+            "content_sha256",
+            "base_version",
+            "reason",
+            "authority_grant_id",
+            "authority_revision",
+            "created_by",
+            "created_at",
+            "dependency_refs"
+          ],
+          "properties": {
+            "tenant_id": {
+              "$ref": "#/$defs/Domain_template_operations___defs_Stored_properties_tenant_id"
+            },
+            "template_version": {
+              "$ref": "#/$defs/Domain_template_operations___defs_Stored_properties_template_version"
+            },
+            "status": {
+              "const": "APPROVED"
+            },
+            "revision": {
+              "allOf": [
+                {
+                  "$ref": "#/$defs/Domain_templates___defs_Count"
+                },
+                {
+                  "pattern": "^[1-9][0-9]*$"
+                }
+              ]
+            },
+            "content": {
+              "$ref": "#/$defs/Domain_template_operations___defs_Stored_properties_content"
+            },
+            "content_sha256": {
+              "$ref": "#/$defs/Domain_template_operations___defs_Stored_properties_content_sha256"
+            },
+            "base_version": {
+              "$ref": "#/$defs/Domain_template_operations___defs_Stored_properties_base_version"
+            },
+            "reason": {
+              "$ref": "#/$defs/Domain_template_operations___defs_Stored_properties_reason"
+            },
+            "authority_grant_id": {
+              "$ref": "#/$defs/Domain_template_operations___defs_Stored_properties_authority_grant_id"
+            },
+            "authority_revision": {
+              "$ref": "#/$defs/Domain_template_operations___defs_Stored_properties_authority_revision"
+            },
+            "created_by": {
+              "$ref": "#/$defs/Domain_template_operations___defs_Stored_properties_created_by"
+            },
+            "created_at": {
+              "$ref": "#/$defs/Domain_template_operations___defs_Stored_properties_created_at"
+            },
+            "dependency_refs": {
+              "$ref": "#/$defs/Domain_template_operations___defs_Stored_properties_dependency_refs"
+            }
+          }
+        },
+        "applicability": {
+          "$ref": "#/$defs/Domain_templates___defs_Applicability"
+        },
+        "conditions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Domain_template_applicability___defs_ConditionResult"
+          }
+        },
+        "missing_requirements": {
+          "type": "array",
+          "items": {
+            "$ref": "https://schemas.medical-agent.invalid/1.0.0/backend-design/resource-details.schema.yaml#/$defs/Requirement"
+          }
+        },
+        "dependency_authorizations_sha256": {
+          "$ref": "#/$defs/Domain_templates___defs_Hash"
+        },
+        "machine_conditions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Domain_template_applicability___defs_ConditionResult"
+          }
+        },
+        "human_decisions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Domain_template_applicability___defs_HumanDecision"
+          }
+        }
+      }
+    },
+    "RuleOriginal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rule_id",
+        "rule_revision",
+        "content"
+      ],
+      "properties": {
+        "rule_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "rule_revision": {
+          "$ref": "#/$defs/Basis"
+        },
+        "content": {
+          "$ref": "#/$defs/Domain_rule_expressions___defs_Content"
+        }
+      }
+    },
+    "Author": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "case",
+        "content_sources"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "case": {
+          "$ref": "#/$defs/Case"
+        },
+        "content_sources": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 2048,
+          "items": {
+            "$ref": "#/$defs/Basis"
+          }
+        }
+      }
+    }
+  }
+}

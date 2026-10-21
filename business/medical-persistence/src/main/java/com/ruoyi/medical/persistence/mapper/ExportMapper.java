@@ -23,6 +23,7 @@ public interface ExportMapper {
     int saveManifest(Map<String,Object> values);
     int saveItem(Map<String,Object> values);
     int updateManifestForRetry(Map<String,Object> values);
+    int recoverItem(Map<String,Object> values);
     int claimItem(Map<String,Object> values);
     int markItemVerifying(Map<String,Object> values);
     int completeItem(Map<String,Object> values);

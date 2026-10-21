@@ -48,6 +48,9 @@
   <select id="workerReceipt" resultType="string" useCache="false" flushCache="true">
     SELECT worker_receipt FROM deletion_item WHERE item_id=#{itemId}
   </select>
+  <select id="executionEvidence" resultType="string" useCache="false" flushCache="true">
+    SELECT execution_evidence FROM deletion_item WHERE item_id=#{itemId}
+  </select>
   <update id="release">
     UPDATE deletion_item SET lease_owner=NULL,lease_expires_at=NULL,updated_at=#{now}
     WHERE item_id=#{itemId} AND lease_owner=#{workerId} AND lease_generation=#{generation}

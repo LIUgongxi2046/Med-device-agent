@@ -16,6 +16,7 @@ import static com.ruoyi.medical.workflow.WorkflowProtocol.*;
 
 public final class TaskWorkflowImpl implements TaskWorkflow {
     private Reference reference;
+    private Plan plan;
     private State state = State.QUEUED;
     private final ArrayDeque<Command> pendingCommands = new ArrayDeque<>();
     private final Map<String,Command> commands = new LinkedHashMap<>();
@@ -25,6 +26,7 @@ public final class TaskWorkflowImpl implements TaskWorkflow {
     private final Map<String,Receipt> receipts = new LinkedHashMap<>();
     private final Map<String,Running> active = new LinkedHashMap<>();
     private boolean cancelRequested;
+    private boolean materializedDuringDispatch;
     private String cancellationId;
     private String cancellationReason;
     private RunActivities control;
@@ -36,7 +38,7 @@ public final class TaskWorkflowImpl implements TaskWorkflow {
         control = Workflow.newActivityStub(RunActivities.class, options(reference.controlTaskQueue(), reference.readTimeoutMillis(), 3));
         professional = Workflow.newActivityStub(ProfessionalActivity.class, options(reference.professionalTaskQueue(), reference.stepTimeoutMillis(), 1)
             .toBuilder().setHeartbeatTimeout(Duration.ofSeconds(45)).build());
-        var plan = control.load(reference); steps.putAll(WorkflowPlan.require(reference, plan));
+        plan = control.load(reference); steps.putAll(WorkflowPlan.require(reference, plan));
         if (plan.completedReceipt() != null) {
             var complete = plan.completedReceipt(); if (!reference.runId().equals(complete.runId())) invalid("RUN_FINAL_RECEIPT_MISMATCH");
             state = complete.status(); return complete;
@@ -59,10 +61,11 @@ public final class TaskWorkflowImpl implements TaskWorkflow {
                 // 缺少外部终态或进程退出证明时，只接收持久Signal或既有Activity结果。
                 Workflow.await(() -> !pendingCommands.isEmpty() || completed()); continue;
             }
+            materializedDuringDispatch = false;
             dispatchReady();
-            if (cancelRequested || !pendingCommands.isEmpty()) continue;
+            if (cancelRequested || !pendingCommands.isEmpty() || materializedDuringDispatch) continue;
             if (active.isEmpty() && terminal()) {
-                boolean failed = steps.values().stream().anyMatch(step -> step.required() && step.status() != State.SUCCEEDED);
+                boolean failed = WorkflowPlan.failed(plan,steps);
                 return finish(failed ? State.FAILED : State.SUCCEEDED, failed ? "REQUIRED_STEP_FAILED" : "ALL_REQUIRED_STEPS_COMPLETE");
             }
             state = active.isEmpty() ? State.WAITING_INPUT : State.RUNNING;
@@ -80,7 +83,9 @@ public final class TaskWorkflowImpl implements TaskWorkflow {
             var command = pendingCommands.removeFirst(); var receipt = control.consume(reference, command);
             if (!command.commandId().equals(receipt.commandId()) || !command.commandSha256().equals(receipt.commandSha256())
                     || !reference.runId().equals(receipt.runId())) invalid("COMMAND_RECEIPT_MISMATCH");
+            if (receipt.steps().stream().anyMatch(step -> !steps.containsKey(step.stepId()))) refreshMaterialized();
             for (var step : receipt.steps()) accept(step, command.kind() == CommandKind.RESOLVE_WAITING);
+            refreshMaterialized();
             consumed.add(command.commandId());
             commandReceipts.put(command.commandId(), receipt);
             if (receipt.cancelRequested() && !cancelRequested) { cancelRequested = true; cancellationId = command.commandId(); cancellationReason = "RUN_CANCEL_REQUESTED"; }
@@ -90,10 +95,10 @@ public final class TaskWorkflowImpl implements TaskWorkflow {
         for (var original : List.copyOf(steps.values())) {
             var step = steps.get(original.stepId());
             if (step.status() != State.QUEUED || active.size() >= reference.maximumParallelSteps()) continue;
-            if (step.dependsOnStepIds().stream().anyMatch(id -> steps.get(id).status() == State.FAILED || steps.get(id).status() == State.CANCELLED)) {
-                accept(control.dependencyFailed(reference, step.stepId())); continue;
+            if (step.dependsOnStepIds().stream().anyMatch(id -> steps.containsKey(id) && (steps.get(id).status() == State.FAILED || steps.get(id).status() == State.CANCELLED))) {
+                accept(control.dependencyFailed(reference, step.stepId())); refreshMaterialized(); continue;
             }
-            if (step.dependsOnStepIds().stream().anyMatch(id -> steps.get(id).status() != State.SUCCEEDED)) continue;
+            if (step.dependsOnStepIds().stream().anyMatch(id -> !steps.containsKey(id) || steps.get(id).status() != State.SUCCEEDED)) continue;
             if (!pendingCommands.isEmpty() || Workflow.currentTimeMillis() >= reference.deadlineEpochMillis()) return;
             var dispatch = control.dispatch(reference, step.stepId(), Workflow.randomUUID().toString());
             if (!reference.runId().equals(dispatch.runId()) || !step.stepId().equals(dispatch.stepId())
@@ -111,13 +116,25 @@ public final class TaskWorkflowImpl implements TaskWorkflow {
         }
     }
     private void harvest() {
+        boolean harvested = false;
         for (var entry : List.copyOf(active.entrySet())) {
             var running = entry.getValue(); if (!running.promise().isCompleted()) continue;
             var result = running.promise().getFailure() == null ? running.promise().get()
                 : control.failure(reference, running.dispatch(), "ACTIVITY_FAILURE");
             if (result.leaseGeneration() != running.dispatch().leaseGeneration()) invalid("STEP_LEASE_MISMATCH");
-            accept(result); active.remove(entry.getKey());
+            accept(result); active.remove(entry.getKey()); harvested = true;
         }
+        if (harvested) refreshMaterialized();
+    }
+    private void refreshMaterialized() {
+        if (steps.size() == plan.plannedSteps().size() && plan.requiredStages().stream().allMatch(stage -> stage.fulfillmentReceiptId() != null)) return;
+        var refreshed = control.load(reference);
+        var added = WorkflowPlan.refresh(reference, plan, steps, refreshed);
+        plan = refreshed;
+        steps.putAll(added);
+        materializedDuringDispatch |= !added.isEmpty();
+        for (var step : added.values()) if (step.receiptId() != null) receipts.put(step.stepId(),
+            new Receipt(step.stepId(), step.inputSha256(), step.leaseGeneration(), step.status(), step.receiptId(), step.waitingItemId(), step.outputs()));
     }
     private void accept(Receipt receipt) { accept(receipt, false); }
     private void accept(Receipt receipt, boolean resolvedWaiting) {
@@ -141,7 +158,7 @@ public final class TaskWorkflowImpl implements TaskWorkflow {
         receipts.put(step.stepId(), receipt);
     }
     private boolean completed() { return active.values().stream().anyMatch(value -> value.promise().isCompleted()); }
-    private boolean terminal() { return steps.values().stream().allMatch(step -> step.status() == State.SUCCEEDED || step.status() == State.FAILED || step.status() == State.CANCELLED); }
+    private boolean terminal() { return WorkflowPlan.terminal(plan,steps); }
     private FinalReceipt finish(State requested, String reason) {
         var result = control.finish(reference, requested, reason, List.copyOf(receipts.values()), List.copyOf(consumed));
         if (!reference.runId().equals(result.runId()) || !reference.inputSha256().equals(result.inputSha256())
@@ -155,7 +172,10 @@ public final class TaskWorkflowImpl implements TaskWorkflow {
         if (commands.size() >= reference.maximumCommands()) invalid("COMMAND_CAPACITY_EXCEEDED");
         commands.put(command.commandId(), command); pendingCommands.addLast(command);
     }
-    @Override public View view() { return new View(reference == null ? null : reference.runId(), state, List.copyOf(receipts.values()), active.size(), consumed.size()); }
+    @Override public View view() { return new View(reference == null ? null : reference.runId(), state, List.copyOf(receipts.values()), active.size(), consumed.size(),
+        plan == null ? List.of() : plan.plannedSteps().stream().map(PlannedStep::stepId).filter(id -> !steps.containsKey(id)).toList(),
+        plan == null ? null : plan.graphReceiptId(), plan == null ? null : plan.graphSha256(),
+        plan == null ? List.of() : plan.requiredStages().stream().filter(stage -> stage.fulfillmentReceiptId() == null).toList()); }
     @Override public CommandReceipt commandReceipt(String commandId) {
         com.ruoyi.medical.contracts.WireValues.uuid(commandId); return commandReceipts.get(commandId);
     }

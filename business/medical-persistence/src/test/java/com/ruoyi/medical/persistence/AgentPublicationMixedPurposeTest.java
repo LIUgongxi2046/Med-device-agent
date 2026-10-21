@@ -57,6 +57,21 @@ final class AgentPublicationMixedPurposeTest {
  Map<String,String> purposeMap(){return new HashMap<>(Map.of(ROOT,ROOT_PURPOSE,PRIMARY,ROOT_PURPOSE,INPUT,INPUT_PURPOSE,INPUT_SOURCE,INPUT_PURPOSE,EXPECTED,EXPECTED_PURPOSE,EXPECTED_SOURCE,EXPECTED_PURPOSE));}
  Map<String,ArtifactRegistryProtocol.ReadRequirement> artifactRequirements(){var map=new HashMap<String,ArtifactRegistryProtocol.ReadRequirement>();for(String id:List.of(ROOT,INPUT,EXPECTED)){var b=bindings.get(id);map.put(id,new ArtifactRegistryProtocol.ReadRequirement(new PermissionProtocol.Scope(TENANT,PROJECT,b.resourceKind(),b.resourceId()),"source.read",purposeMap().get(id),b.schemaRef(),b.schemaDocumentSha256(),hash("artifact schema"),limits.limits()));}return map;}
  @Test void mixedPurposeAggregateUsesAllRealAuthoritiesAndExactPurposeWitnesses()throws Exception{var proof=check();assertEquals(new TreeSet<>(purposeMap().keySet()),new TreeSet<>(proof.versionIds()));for(var entry:purposeMap().entrySet())assertEquals(entry.getValue(),proof.authorizations().path(entry.getKey()).path("purpose").asText());for(String source:List.of(PRIMARY,INPUT_SOURCE,EXPECTED_SOURCE))assertEquals(purposeMap().get(source),proof.authorizations().path(source).path("source").path("rights").path("purpose").asText());assertFalse(proof.authorizations().path(ROOT).path("resource").isNull());}
+ @Test void rightsPinsAreExportedWithoutInventingLineageAncestors()throws Exception {
+  var proof=check();var expected=new TreeSet<String>(purposeMap().keySet());
+  var pins=new TreeMap<String,String>();for(var source:List.of(PRIMARY,INPUT_SOURCE,EXPECTED_SOURCE)){
+   var right=rightRows.get(rightsId(source));pins.put(right.rightsRevision(),right.contentSha256());expected.add(right.rightsRevision());
+   assertFalse(proof.versionIds().contains(right.rightsRevision()),"Rights are side dependencies, not lineage ancestors");
+  }
+  var actual=new TreeMap<String,String>();for(var right:proof.sourceRights())actual.put(right.version_id(),right.content_sha256());
+  assertEquals(pins,actual);assertEquals(expected,new TreeSet<>(proof.requiredVersionIds()));
+  assertThrows(UnsupportedOperationException.class,()->proof.sourceRights().clear());assertThrows(UnsupportedOperationException.class,()->proof.requiredVersionIds().clear());
+ }
+ @Test void independentTypedUsesAlsoExportEachExactVerifiedRightsHash()throws Exception {
+  var proof=transaction(()->dependencies.requireByUse(admission,PROJECT,List.of(new AgentPublicationDependencies.DependencyUse(basis(INPUT_SOURCE),INPUT_PURPOSE),new AgentPublicationDependencies.DependencyUse(basis(EXPECTED_SOURCE),EXPECTED_PURPOSE))));
+  assertEquals(2,proof.sourceRights().size());for(var right:proof.sourceRights())assertEquals(rightRows.get(right.version_id()).contentSha256(),right.content_sha256());
+  assertEquals(Set.of(INPUT_SOURCE,EXPECTED_SOURCE,rightsId(INPUT_SOURCE),rightsId(EXPECTED_SOURCE)),Set.copyOf(proof.requiredVersionIds()));
+ }
  @Test void oldUniformReadStillRejectsMixedBusinessRights(){assertThrows(TenantAccessException.class,()->transaction(()->dependencies.require(admission,PROJECT,List.of(basis(ROOT)),ROOT_PURPOSE)));}
  @Test void noAdmittedTransactionDeniesBeforeNullInputs(){assertEquals(ErrorCode.ACCESS_DENIED,assertThrows(TenantAccessException.class,()->versionAuthority.require(null,null,"ARTIFACT_READING",null,Map.of())).code());assertEquals(ErrorCode.ACCESS_DENIED,assertThrows(TenantAccessException.class,()->versionAuthority.requireWithPurposes(null,null,null,null,null)).code());}
  @Test void missingPurposeKeyIsRejectedBeforeReadingOwners(){assertThrows(TenantAccessException.class,()->transaction(()->{var map=purposeMap();map.remove(INPUT_SOURCE);return versionAuthority.requireWithPurposes(admission,lineage.inspect(ROOT,limits.limits()),map,new VersionResourceProtocol.ReadContext(SourceReadProtocol.Use.REVIEW,null),artifactRequirements());}));verifyNoInteractions(ownerRows);}

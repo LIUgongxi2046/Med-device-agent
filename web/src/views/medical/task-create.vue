@@ -15,21 +15,30 @@
         <el-button v-if="original" :disabled="disabled" @click="retry">继续原创建请求</el-button>
         <p v-if="unregistered" role="status">服务器尚未登记此操作。再次提交需要保留全部原参数及当前操作标识。</p>
         <p v-if="draftRestored" role="status">完整输入草稿已经恢复。继续提交时重新核验当前许可、模板、资料和发布版本。</p>
+        <section v-if="unregistered && !original" aria-label="重建完整原创建输入">
+          <p>原操作及服务器输入草稿均未找到。请在下方表单重新填写完整原参数并核验；只有与原请求摘要完全一致的输入才能恢复，之后仍需点击“继续原创建请求”。不会生成新键。</p>
+          <details><summary>高级恢复：使用完整原请求 JSON</summary>
+          <p>如果旧固定版本已无法在表单中选择，可以使用保留的完整原请求 JSON。内容仍须与原请求摘要完全一致。</p>
+          <el-input v-model="reconstructionText" type="textarea" :rows="8" :disabled="disabled" aria-label="完整原创建请求 JSON" />
+          <el-button :disabled="disabled || !reconstructionText" @click="reconstruct">核验并恢复完整原参数</el-button>
+          </details>
+          <p v-if="reconstructionError" role="alert">{{ reconstructionError }}</p>
+        </section>
       </section>
-      <el-form label-position="top" :disabled="disabled || Boolean(original)" @submit.prevent="submit">
+      <el-form label-position="top" :disabled="disabled || formLocked" @submit.prevent="submit">
         <el-form-item label="目标文档" :error="errors.document_type">
           <el-select v-model="documentType" placeholder="请选择目标文档" @change="clearTemplates">
             <el-option v-for="(label, value) in taskDocumentLabels" :key="value" :label="label" :value="value" />
           </el-select>
         </el-form-item>
-        <el-button :disabled="disabled || Boolean(original) || !documentType" @click="loadTemplates(1, null)">查询兼容的核准模板</el-button>
+        <el-button :disabled="disabled || formLocked || !documentType" @click="loadTemplates(1, null)">查询兼容的核准模板</el-button>
         <section v-if="templates">
           <el-table :data="templates.items" :row-key="(item: ApplicableTemplate) => item.template.template_version" empty-text="当前项目没有兼容的核准模板">
             <el-table-column prop="template.template_version" label="模板版本" min-width="260" />
             <el-table-column label="适用条件" min-width="140"><template #default="cell">{{ applicabilityLabels[cell.row.applicability as Applicability] }}</template></el-table-column>
             <el-table-column label="待确认要求" min-width="120"><template #default="cell">{{ cell.row.missing_requirements.length }}</template></el-table-column>
             <el-table-column label="模板选择" min-width="140"><template #default="cell">
-              <el-button :disabled="disabled || Boolean(original)" @click="selected = cell.row">选择此模板</el-button>
+              <el-button :disabled="disabled || formLocked" @click="selected = cell.row">选择此模板</el-button>
             </template></el-table-column>
           </el-table>
           <pagination :total="Number(templates.page_info.total)" :page="templates.page_info.page" :limit="templates.page_info.page_size"
@@ -45,13 +54,15 @@
             <el-option v-for="member in ownerOptions" :key="member.user_id" :value="member.user_id" :label="member.user_id" />
           </el-select>
           <p v-if="ownerOptions.length === 0">当前查询没有具备项目任务读取许可的责任人员。</p>
-          <el-button v-if="ownerPage?.next_after" :disabled="disabled || Boolean(original)" @click="loadMoreOwners">读取下一页责任人员</el-button>
+          <el-button v-if="ownerPage?.next_after" :disabled="disabled || formLocked" @click="loadMoreOwners">读取下一页责任人员</el-button>
         </el-form-item>
         <el-form-item label="任务目标" :error="errors.goal"><el-input v-model="goal" type="textarea" :autosize="{ minRows: 3, maxRows: 12 }" /></el-form-item>
         <el-form-item label="继续修订的签发文稿版本（可选）" :error="errors.based_on_document_revision">
           <el-input v-model="basedOn" clearable placeholder="原签发文稿版本的 UUID" />
         </el-form-item>
         <h2>来源范围</h2>
+        <p>资料候选按所选 Agent 发布版本的已批准用途筛选；变更发布版本后需重新选择资料。</p>
+        <p v-if="!validRelease">请先填写有效的 Agent 发布版本，再查询资料候选。</p>
         <el-form-item label="来源选择模式" :error="errors.scope_selection">
           <el-select v-model="mode" @change="changeMode">
             <el-option label="当前项目核准资料" value="PROJECT_APPROVED" />
@@ -61,25 +72,25 @@
           </el-select>
         </el-form-item>
         <el-form-item v-if="['COLLECTION_VERSIONS', 'COMBINED'].includes(mode)" label="资料集版本">
-          <el-button :disabled="disabled || Boolean(original)" @click="loadScope('COLLECTION', null)">查询当前获授权资料集</el-button>
+          <el-button :disabled="disabled || formLocked || !validRelease" @click="loadScope('COLLECTION', null)">查询当前获授权资料集</el-button>
           <el-select v-model="collectionVersions" multiple filterable placeholder="请选择固定资料集版本">
             <el-option v-for="item in collectionOptions" :key="item.version_id" :value="item.version_id" :label="scopeLabel(item)" />
           </el-select>
           <p v-if="collectionPage && collectionOptions.length === 0">当前查询没有可用于本项目任务的资料集。</p>
-          <el-button v-if="collectionPage?.next_after" :disabled="disabled || Boolean(original)" @click="loadScope('COLLECTION', collectionPage)">读取下一页资料集</el-button>
+          <el-button v-if="collectionPage?.next_after" :disabled="disabled || formLocked || !validRelease" @click="loadScope('COLLECTION', collectionPage)">读取下一页资料集</el-button>
         </el-form-item>
         <el-form-item v-if="['SOURCE_VERSIONS', 'COMBINED'].includes(mode)" label="资料版本">
-          <el-button :disabled="disabled || Boolean(original)" @click="loadScope('SOURCE', null)">查询当前项目核准资料</el-button>
+          <el-button :disabled="disabled || formLocked || !validRelease" @click="loadScope('SOURCE', null)">查询当前项目核准资料</el-button>
           <el-select v-model="sourceVersions" multiple filterable placeholder="请选择固定资料版本">
             <el-option v-for="item in sourceOptions" :key="item.version_id" :value="item.version_id" :label="scopeLabel(item)" />
           </el-select>
           <p v-if="sourcePage && sourceOptions.length === 0">当前查询没有可用于本项目任务的核准资料。</p>
-          <el-button v-if="sourcePage?.next_after" :disabled="disabled || Boolean(original)" @click="loadScope('SOURCE', sourcePage)">读取下一页资料</el-button>
+          <el-button v-if="sourcePage?.next_after" :disabled="disabled || formLocked || !validRelease" @click="loadScope('SOURCE', sourcePage)">读取下一页资料</el-button>
         </el-form-item>
         <el-collapse v-if="sourceOptions.length || collectionOptions.length"><el-collapse-item title="查询资料的固定版本与完整范围" name="scope">
           <pre class="task-definition">{{ JSON.stringify([...sourceOptions, ...collectionOptions], null, 2) }}</pre>
         </el-collapse-item></el-collapse>
-        <el-button :disabled="disabled || Boolean(original)" @click="clearScope">清空来源范围</el-button>
+        <el-button :disabled="disabled || formLocked" @click="clearScope">清空来源范围</el-button>
         <el-button disabled>恢复已发布配置的默认范围</el-button>
         <p>尚未取得已发布配置的默认资料范围；当前范围按照本次明确选择保存。</p>
         <p>清空范围将明确保存为空范围；资料缺少时任务保留补充要求。网络采集需要独立的批准版本。</p>
@@ -88,8 +99,8 @@
           <el-form-item label="网络策略批准版本"><el-input v-model="networkPolicy" /></el-form-item>
           <el-form-item label="实际检索词批准版本"><el-input v-model="approvedQuery" /></el-form-item>
         </template>
-        <el-button :disabled="disabled || Boolean(original)" @click="disableNetwork">关闭网络采集</el-button>
-        <el-button native-type="submit" type="primary" :disabled="disabled || Boolean(original) || project.status !== 'ACTIVE'">创建任务</el-button>
+        <el-button :disabled="disabled || formLocked" @click="disableNetwork">关闭网络采集</el-button>
+        <el-button native-type="submit" type="primary" :disabled="disabled || formLocked || project.status !== 'ACTIVE'">{{ canReconstruct ? '核对并恢复原创建参数' : '创建任务' }}</el-button>
       </el-form>
       <section v-if="created" aria-label="任务创建结果">
         <p role="status">任务已经保存。当前状态：{{ taskStatusLabels[created.detail.status] }}</p>
@@ -108,7 +119,7 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute } from 'vue-router'
 import useUserStore from '@/store/modules/user'
 import Pagination from '@/components/Pagination/index.vue'
 import { fail, schemaIssues } from '@/api/medical/protocol'
@@ -120,7 +131,7 @@ import { readCurrentTask } from '@/api/medical/task-detail'
 import type { CurrentTask } from '@/api/medical/task-detail'
 import { applicabilityLabels, listApplicableTemplates } from '@/api/medical/template-applicability'
 import type { Applicability, ApplicableTemplate, ApplicableTemplatePage, DocumentType, TemplateQuery } from '@/api/medical/template-applicability'
-import { clearTaskCreate, originalTaskCreate, originalTaskCreateDraft, pendingTaskCreate, prepareTaskCreate, submitTaskCreate, taskCreateReference } from '@/api/medical/task-create'
+import { reconstructTaskCreate, clearTaskCreate, originalTaskCreate, originalTaskCreateDraft, pendingTaskCreate, prepareTaskCreate, submitTaskCreate, taskCreateReference } from '@/api/medical/task-create'
 import type { PendingTaskCreate, SourceScope, TaskCreate } from '@/api/medical/task-create'
 import { listTaskCreationOwners } from '@/api/medical/task-creation-selection'
 import type { TaskCreationOwner, TaskCreationOwners } from '@/api/medical/task-creation-selection'
@@ -146,19 +157,57 @@ const networkEnabled = ref(false); const networkPolicy = ref(''); const approved
 const pending = ref<PendingTaskCreate | null>(null); const original = ref<TaskCreate | null>(null); const created = ref<CurrentTask | null>(null)
 const unregistered = ref(false); const errors = reactive<Record<string, string>>({})
 const draftRestored = ref(false)
+const canReconstruct = computed(() => !!pending.value && !original.value && unregistered.value)
+const formLocked = computed(() => !!pending.value && !canReconstruct.value)
+const reconstructionText = ref(''); const reconstructionError = ref('')
+const validRelease = computed(() => schemaIssues(taskIdReference, releaseId.value).length === 0)
+let scopeGeneration = 0; let scopeController: AbortController | null = null
+function invalidateScope(): void {
+  scopeGeneration++; scopeController?.abort()
+  if (scopeController && controller === scopeController) { controller = null; busy.value = false }
+  scopeController = null
+  sourcePage.value = null; collectionPage.value = null; sourceOptions.value = []; collectionOptions.value = []
+  sourceVersions.value = []; collectionVersions.value = []
+}
+watch(releaseId, invalidateScope, { flush: 'sync' })
 let generation = 0; let controller: AbortController | null = null
 function clearTemplates(): void { templates.value = null; selected.value = null }
 function disableNetwork(): void { networkEnabled.value = false; networkPolicy.value = ''; approvedQuery.value = '' }
 function changeNetwork(): void { if (!networkEnabled.value) disableNetwork() }
 function changeMode(): void { sourceVersions.value = []; collectionVersions.value = [] }
 function clearScope(): void { mode.value = 'SOURCE_VERSIONS'; changeMode() }
+// Drafts stay in this component only. Security invalidation must always clear them.
+function draftSignature(): string {
+  return JSON.stringify([documentType.value, selected.value?.template.template_version ?? null,
+    releaseId.value, ownerId.value, goal.value, basedOn.value, mode.value,
+    sourceVersions.value, collectionVersions.value, networkEnabled.value,
+    networkPolicy.value, approvedQuery.value, reconstructionText.value])
+}
+const cleanDraft = ref(draftSignature())
+const unsaved = computed(() => draftSignature() !== cleanDraft.value)
+function confirmNavigation(): boolean {
+  if (!unsaved.value && !pending.value && !user.medicalWriting) return true
+  return window.confirm(pending.value || user.medicalWriting
+    ? '原创建操作尚未确认完成。离开会清除本页输入，但不会取消已发出的请求；返回后请读取原创建结果，不要重复创建。确定离开？取消则留在此页。'
+    : '存在尚未提交的任务输入。确定丢弃输入并离开？取消则保留输入并留在此页。')
+}
+// Register before route-read: cancellation must precede its eager clear/invalidation.
+onBeforeRouteLeave(confirmNavigation)
+onBeforeRouteUpdate(confirmNavigation)
+function beforeUnload(event: BeforeUnloadEvent): void {
+  if (!unsaved.value && !pending.value && !user.medicalWriting) return
+  event.preventDefault(); event.returnValue = ''
+}
 function clear(): void {
+  reconstructionText.value = ''; reconstructionError.value = ''
+  invalidateScope()
   generation++; controller?.abort(); controller = null; busy.value = false; project.value = null; clearTemplates()
   documentType.value = ''; releaseId.value = ''; ownerId.value = ''; goal.value = ''; basedOn.value = ''; clearScope(); disableNetwork()
   ownerPage.value = null; ownerOptions.value = []
   sourcePage.value = null; collectionPage.value = null; sourceOptions.value = []; collectionOptions.value = []
   pending.value = null; original.value = null; created.value = null; unregistered.value = false; draftRestored.value = false
   for (const key of Object.keys(errors)) delete errors[key]
+  cleanDraft.value = draftSignature()
 }
 const active = useMedicalRouteRead('MedicalTaskCreate', clear)
 function current(actual: MedicalSession, version: number): boolean {
@@ -177,6 +226,7 @@ async function loadProject(): Promise<void> {
       if (!current(actual, version)) return
       ownerPage.value = owners; ownerOptions.value = owners.items
       if (owners.items.some(item => item.user_id === actual.user.user_id)) ownerId.value = actual.user.user_id
+      cleanDraft.value = draftSignature()
     }
   } finally { if (current(actual, version)) { busy.value = false; controller = null } }
 }
@@ -198,19 +248,24 @@ function scopeLabel(item: TaskScopeChoice): string {
 }
 async function loadScope(kind: TaskScopeKind, previous: TaskScopeChoices | null): Promise<void> {
   const actual = session.value; const version = generation; const target = projectId.value
-  if (!actual || disabled.value || original.value || project.value?.status !== 'ACTIVE') return
+  if (!actual || disabled.value || formLocked.value || !validRelease.value || project.value?.status !== 'ACTIVE') return
+  const selectedRelease = releaseId.value; const scopeVersion = scopeGeneration
   if (previous && !previous.next_after) return
-  const query = previous ? { limit: previous.limit, after: previous.next_after!, dataset_watermark: previous.dataset_watermark } : { limit: 20 }
+  const query = previous ? { agent_release_id: selectedRelease, limit: previous.limit, after: previous.next_after!, dataset_watermark: previous.dataset_watermark } : { agent_release_id: selectedRelease, limit: 20 }
   busy.value = true; controller = new AbortController(); const reading = controller
   try {
+    scopeController = reading
     const result = await listTaskScopeChoices(actual, target, kind, query, previous, reading.signal)
-    if (!current(actual, version)) return
+    if (!current(actual, version) || scopeVersion !== scopeGeneration || selectedRelease !== releaseId.value || reading.signal.aborted) return
     const options = kind === 'SOURCE' ? sourceOptions : collectionOptions
     if (previous && result.items.some(item => options.value.some(existing => existing.version_id === item.version_id)))
       fail('CONTENT_MISMATCH', '资料分页不能重复原固定版本')
     options.value = previous ? [...options.value, ...result.items] : result.items
     if (kind === 'SOURCE') sourcePage.value = result; else collectionPage.value = result
-  } finally { if (current(actual, version)) { busy.value = false; controller = null } }
+  } catch (error) {
+    if (!current(actual, version) || scopeVersion !== scopeGeneration || selectedRelease !== releaseId.value || reading.signal.aborted) return
+    throw error
+  } finally { if (scopeController === reading) { scopeController = null; if (current(actual, version)) { busy.value = false; controller = null } } }
 }
 async function loadTemplates(page: number, previous: ApplicableTemplatePage | null): Promise<void> {
   const actual = session.value; const value = project.value; const type = documentType.value; const version = generation
@@ -252,11 +307,13 @@ async function finish(actual: MedicalSession, version: number, operation: Pendin
   const latest = await readCurrentTask(actual, operation.project_id, saved.detail.task_id, new AbortController().signal)
   if (!current(actual, version)) return
   clearTaskCreate(actual, operation); pending.value = null; original.value = null; created.value = latest; unregistered.value = false; draftRestored.value = false
+  cleanDraft.value = draftSignature()
 }
 async function submit(): Promise<void> {
   const actual = session.value; const version = generation
-  if (!actual || disabled.value || original.value || project.value?.status !== 'ACTIVE') return
+  if (!actual || disabled.value || formLocked.value || project.value?.status !== 'ACTIVE') return
   const input = body(); if (!input) return
+  if (pending.value) { await reconstructInput(input); return }
   busy.value = true; user.medicalWriting = true
   try {
     const operation = await prepareTaskCreate(actual, input)
@@ -264,6 +321,23 @@ async function submit(): Promise<void> {
     pending.value = operation; original.value = input
     await finish(actual, version, operation, await submitTaskCreate(actual, operation, input))
   } finally { if (current(actual, version)) busy.value = false; user.medicalWriting = false }
+}
+async function reconstructInput(input: unknown): Promise<void> {
+  const actual = session.value; const operation = pending.value; const version = generation
+  if (!actual || !operation || !canReconstruct.value || disabled.value) return
+  busy.value = true; reconstructionError.value = ''
+  try {
+    const restored = await reconstructTaskCreate(actual, operation, input)
+    if (!current(actual, version) || pending.value !== operation) return
+    original.value = restored; reconstructionText.value = ''; draftRestored.value = true
+  } catch (error) {
+    if (current(actual, version)) reconstructionError.value = error instanceof Error ? error.message : '完整原参数无法核验'
+  } finally { if (current(actual, version)) busy.value = false }
+}
+async function reconstruct(): Promise<void> {
+  if (!canReconstruct.value || disabled.value) return
+  try { await reconstructInput(JSON.parse(reconstructionText.value)) }
+  catch { reconstructionError.value = '请输入有效的完整原请求 JSON' }
 }
 async function retry(): Promise<void> {
   const actual = session.value; const operation = pending.value; const input = original.value; const version = generation
@@ -296,8 +370,9 @@ async function recover(): Promise<void> {
 }
 watch(() => [session.value, route.fullPath, active.value], () => { clear(); if (permitted.value) void loadProject() }, { immediate: true, flush: 'sync' })
 function visibility(): void { if (document.hidden) clear(); else if (permitted.value) void loadProject() }
+window.addEventListener('beforeunload', beforeUnload)
 document.addEventListener('visibilitychange', visibility); window.addEventListener('pagehide', clear); window.addEventListener('offline', clear)
-onBeforeUnmount(() => { clear(); document.removeEventListener('visibilitychange', visibility); window.removeEventListener('pagehide', clear); window.removeEventListener('offline', clear) })
+onBeforeUnmount(() => { clear(); window.removeEventListener('beforeunload', beforeUnload); document.removeEventListener('visibilitychange', visibility); window.removeEventListener('pagehide', clear); window.removeEventListener('offline', clear) })
 </script>
 
 <style scoped>

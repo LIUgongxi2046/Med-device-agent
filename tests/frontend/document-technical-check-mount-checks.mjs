@@ -1,3 +1,6 @@
+import { loadModule as loadNavigationModule } from '../../web/tests/formal-capability/helpers.mjs'
+const sourceReturnApi = (await loadNavigationModule('source-return-navigation')).api
+const evidenceNavigationApi = (await loadNavigationModule('document-evidence-navigation')).api
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import vm from 'node:vm'
@@ -12,7 +15,7 @@ function mount(){
  const user=Vue.reactive({medicalWriting:false}),cache={}
  const stub={render:()=>null}
  function require(path){
-  if(path==='vue')return Vue
+  if(path.endsWith('/source-return-navigation'))return sourceReturnApi;if(path.endsWith('/document-evidence-navigation'))return evidenceNavigationApi;if(path==='vue-router')return {useRoute:()=>({path:'',query:{}}),useRouter:()=>({push(){}})};if(path==='vue')return Vue
   if(path==='@/store/modules/user')return {default:()=>user}
   if(path.endsWith('/protocol'))return {fail:code=>{throw Error(code)}}
   if(path.endsWith('/document-body'))return {canonicalDocumentValue:JSON.stringify,DocumentEditBuffer:class {constructor(body){this.body=body;this.dirty=false;drafts.push(this)}invalidate(){}}}

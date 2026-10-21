@@ -26,19 +26,18 @@ EXTENSION_PATH = "contracts/extensions/evaluation-results.catalogue.json"
 def copied_publication():
     with TemporaryDirectory() as directory:
         root = Path(directory) / "project"
-        base = json.loads((ROOT / "contracts/catalogue.json").read_bytes())
-        extension = json.loads((ROOT / EXTENSION_PATH).read_bytes())
-        simulation_path = "contracts/extensions/simulation-execution.catalogue.json"
-        simulation = json.loads((ROOT / simulation_path).read_bytes())
-        runtime_path = "contracts/extensions/task-runtime.catalogue.json"
-        runtime = json.loads((ROOT / runtime_path).read_bytes())
-        context_path = "contracts/extensions/evaluation-context-compiler.catalogue.json"
-        context = json.loads((ROOT / context_path).read_bytes())
-        paths = ["contracts/catalogue.json", EXTENSION_PATH, simulation_path, runtime_path, context_path]
-        paths.extend(entry["path"] for entry in runtime["schemas"])
-        paths.extend(entry["path"] for entry in context["schemas"])
-        paths.extend(entry["path"] for entry in simulation["schemas"])
-        paths.extend(entry["path"] for entry in [*base["schemas"], *extension["schemas"]])
+        # Explicit publication list: unknown extension files are never copied or trusted.
+        manifests = ["contracts/catalogue.json", *[
+            "contracts/extensions/" + name + ".catalogue.json" for name in (
+                "evaluation-results", "simulation-execution", "task-runtime",
+                "evaluation-context-compiler", "evaluation-planning-context-compiler",
+                "task-plan-draft-package", "professional-review-packages", "source-evidence-v2",
+                "document-evidence-v2", "template-application", "strict-field-evidence-v2",
+                "document-operations-v2", "evaluation-business-v2", "task-tool-read",
+                "task-professional-package", "task-professional-package-v2", "evaluation-stage-input")]]
+        paths = list(manifests)
+        for manifest in manifests:
+            paths.extend(entry["path"] for entry in json.loads((ROOT / manifest).read_bytes())["schemas"])
         for relative in paths:
             target = root / relative
             target.parent.mkdir(parents=True, exist_ok=True)
@@ -51,6 +50,11 @@ class SharedContractChecks(unittest.TestCase):
     def setUpClass(cls):
         cls.catalogue = SchemaCatalogue(ROOT)
         cls.dataset = json.loads((ROOT / "data-design/sample_dataset.json").read_bytes())
+
+    def test_n01_package_extension_is_present_in_copied_publication(self):
+        with copied_publication() as root:
+            catalogue = SchemaCatalogue(root)
+            self.assertEqual("urn:medical:task-plan-draft-package:1.0.0#/$defs/RolePackage", catalogue.schema_ref("task-plan-draft-package", "RolePackage"))
 
     def test_registered_actual_dataset_is_accepted(self):
         self.catalogue.validate("dataset", self.dataset)
@@ -83,10 +87,11 @@ class SharedContractChecks(unittest.TestCase):
                 )
 
     def test_all_registered_schema_references_resolve_offline(self):
-        self.assertEqual(set(self.catalogue.schemas), {"dataset", "interfaces", "resource-details", "artifacts", "model-stream", "templates", "template-operations", "tasks", "collections", "rule-expressions", "template-applicability", "agent-release", "task-plan-view", "evaluation-results", "simulation-execution", "local-simulation-provenance", "replay-manifest", "runtime-governance", "agent-execution-policy", "runtime-retention", "run-token-authority", "projects", "budgets", "formal-evaluation-input", "evaluation-context-compiler"})
+        self.assertEqual(set(self.catalogue.schemas), {"dataset", "interfaces", "resource-details", "artifacts", "model-stream", "templates", "template-operations", "tasks", "collections", "rule-expressions", "template-applicability", "agent-release", "task-plan-view", "evaluation-results", "simulation-execution", "local-simulation-provenance", "replay-manifest", "runtime-governance", "agent-execution-policy", "runtime-retention", "run-token-authority", "projects", "budgets", "formal-evaluation-input", "evaluation-context-compiler", "evaluation-planning-context-compiler", "strict-field-typed-v2", "task-section-writer-package-v2", "artifacts-v2", "document-review-package-v2", "task-source-verifier-package", "tool-inputs-v2", "template-application", "task-source-verifier-package-v2", "task-strict-field-input-v2", "task-plan-draft-package", "document-review-package", "task-tool-read-success-v2", "source-evidence-v2", "tool-success-v2", "evaluation-stage-input-v2", "document-body-v2", "task-section-writer-package", "strict-field-comparison-v2", "document-export-command-v2", "tool-inputs", "task-tool-read-success", "task-professional-package", "task-professional-package-v2", "evaluation-stage-input", "evaluation-business-output"})
         self.assertGreater(self.catalogue.reference_count, 0)
         for name, schema in self.catalogue.schemas.items():
-            for definition in schema["$defs"]:
+            self.catalogue.registry.resolver().lookup(self.catalogue.schema_ref(name))
+            for definition in schema.get("$defs", {}):
                 self.catalogue.registry.resolver().lookup(
                     self.catalogue.schema_ref(name, definition)
                 )
@@ -109,7 +114,7 @@ class SharedContractChecks(unittest.TestCase):
                                  document.get("$id", urljoin(base["base_uri"], entry["path"])))
                 self.assertEqual(self.catalogue.digests[entry["name"]], entry["sha256"])
         self.assertEqual(self.catalogue.schema_ref("evaluation-results"), "urn:medical:evaluation-results:1.0.0")
-        self.assertEqual(sum(len(schema["$defs"]) for schema in self.catalogue.schemas.values()), 503)
+        self.assertEqual(sum(len(self.catalogue.schemas[entry["name"]].get("$defs", {})) for entry in self.catalogue.manifest["schemas"][:26]), 522)
 
     def test_pinned_extension_rejects_changed_raw_bytes_and_wrong_base(self):
         base = (ROOT / "contracts/catalogue.json").read_bytes()
@@ -150,7 +155,7 @@ class SharedContractChecks(unittest.TestCase):
             self.assertEqual(SchemaCatalogue(root).schema_ref("evaluation-results"),
                              self.catalogue.schema_ref("evaluation-results"))
         extension = json.loads((ROOT / EXTENSION_PATH).read_bytes())
-        for relative in ("contracts/catalogue.json", EXTENSION_PATH, extension["schemas"][0]["path"]):
+        for relative in ("contracts/catalogue.json", EXTENSION_PATH, extension["schemas"][0]["path"], "contracts/extensions/task-plan-draft-package.catalogue.json", "business/medical-persistence/src/main/resources/task-plan-draft-package.schema.json"):
             with self.subTest(path=relative), copied_publication() as root:
                 path = root / relative
                 outside = root.parent / "outside.json"
@@ -258,8 +263,9 @@ class EvaluationContextCatalogueParityTests(unittest.TestCase):
         manifest = _merge_published_catalogue(*self.parts())
         self.assertEqual(25, len(manifest['schemas']))
         catalogue = SchemaCatalogue(ROOT)
-        self.assertEqual(503, sum(len(s['$defs']) for s in catalogue.schemas.values()))
-        self.assertEqual(528, sum(1 + len(s['$defs']) for s in catalogue.schemas.values()))
+        legacy = [catalogue.schemas[entry['name']] for entry in catalogue.manifest['schemas'][:26]]
+        self.assertEqual(522, sum(len(s.get('$defs', {})) for s in legacy))
+        self.assertEqual(548, sum(1 + len(s.get('$defs', {})) for s in legacy))
         self.assertEqual('urn:medical:evaluation-context-compiler:1.0.0', catalogue.uris['evaluation-context-compiler'])
         self.assertEqual('urn:medical:formal-evaluation-input:1.0.0', catalogue.uris['formal-evaluation-input'])
 
@@ -268,3 +274,50 @@ class EvaluationContextCatalogueParityTests(unittest.TestCase):
         parts[-1] += b'\n'
         with self.assertRaises(ValueError):
             _merge_published_catalogue(*parts)
+
+class EvaluationPlanningCatalogueParityTests(unittest.TestCase):
+    def test_sixth_planning_extension_preserves_fifth_and_rejects_raw_tampering(self):
+        parts = EvaluationContextCatalogueParityTests().parts()
+        planning = (ROOT / 'contracts/extensions/evaluation-planning-context-compiler.catalogue.json').read_bytes()
+        original = _merge_published_catalogue(*parts)
+        full = _merge_published_catalogue(*parts, planning)
+        self.assertEqual(original['schemas'], full['schemas'][:25])
+        self.assertEqual(26, len(full['schemas']))
+        self.assertEqual('urn:medical:evaluation-planning-context-compiler:1.0.0', SchemaCatalogue(ROOT).uris['evaluation-planning-context-compiler'])
+        with self.assertRaises(ValueError):
+            _merge_published_catalogue(*parts, planning + b'\n')
+
+
+class FullPublicationParityTests(unittest.TestCase):
+    extensions = ("task-tool-read", "task-professional-package", "task-professional-package-v2", "evaluation-stage-input")
+
+    def test_all_added_publications_keep_pinned_bytes_and_resolve_offline(self):
+        catalogue = SchemaCatalogue(ROOT)
+        self.assertEqual(51, len(catalogue.schemas))
+        self.assertEqual(919, sum(len(schema.get("$defs", {})) for schema in catalogue.schemas.values()))
+        for name in self.extensions:
+            manifest = json.loads((ROOT / ("contracts/extensions/" + name + ".catalogue.json")).read_bytes())
+            for entry in manifest["schemas"]:
+                self.assertEqual(entry["sha256"], catalogue.digests[entry["name"]])
+                self.assertEqual(json.loads((ROOT / entry["path"]).read_bytes()), catalogue.schemas[entry["name"]])
+                catalogue.registry.resolver().lookup(catalogue.schema_ref(entry["name"]))
+                for definition in catalogue.schemas[entry["name"]].get("$defs", {}):
+                    catalogue.registry.resolver().lookup(catalogue.schema_ref(entry["name"], definition))
+
+    def test_each_added_extension_rejects_tampered_raw_bytes(self):
+        for name in self.extensions:
+            with self.subTest(name=name), copied_publication() as root:
+                path = root / ("contracts/extensions/" + name + ".catalogue.json")
+                path.write_bytes(path.read_bytes() + b"\n")
+                with self.assertRaisesRegex(ValueError, "extension digest mismatch"):
+                    SchemaCatalogue(root)
+
+    def test_each_added_extension_rejects_external_symlink(self):
+        for name in self.extensions:
+            with self.subTest(name=name), copied_publication() as root:
+                path = root / ("contracts/extensions/" + name + ".catalogue.json")
+                outside = root.parent / "outside.json"
+                path.rename(outside)
+                path.symlink_to(outside)
+                with self.assertRaisesRegex(ValueError, "路径超出登记目录"):
+                    SchemaCatalogue(root)

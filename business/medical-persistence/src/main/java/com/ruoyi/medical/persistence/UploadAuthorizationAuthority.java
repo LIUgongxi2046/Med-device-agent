@@ -51,9 +51,11 @@ public final class UploadAuthorizationAuthority {
                 || !admission.watermarks().governanceEpoch().toString().equals(manifest.governanceEpoch())))
             throw new TenantAccessException(ErrorCode.SCOPE_STALE);
         if (!PURPOSE.equals(manifest.purpose()) || !PURPOSE.equals(manifest.dependencyRequirement().purpose())
-                || !java.util.Set.of(DOCUMENT_SCHEMA, schemas.schemaRef("interfaces", "DocumentBody")).contains(manifest.schemaRef()) || manifest.projectId() == null
+                || manifest.projectId() == null
                 || manifest.context().use() == SourceReadProtocol.Use.MODEL_SEND) denied();
-        var published = schemas.requirePublished(schemas.schemaRef("interfaces", "DocumentBody"), manifest.schemaDocumentSha256());
+        String declaredRef = DOCUMENT_SCHEMA.equals(manifest.schemaRef()) ? schemas.schemaRef("interfaces", "DocumentBody") : manifest.schemaRef();
+        var published = schemas.requirePublished(declaredRef, manifest.schemaDocumentSha256());
+        if (!java.util.Set.of("interfaces", "document-body-v2").contains(published.name()) || !"DocumentBody".equals(published.definition())) denied();
         // 当前写入许可必须在读取文稿状态和判断版本之前核查。
         var grant = resources.require(admission, new PermissionProtocol.Scope(manifest.tenantId(), manifest.projectId(), "DOCUMENT", documentId),
             writing ? "document.write" : "document.read", PURPOSE);
@@ -75,12 +77,37 @@ public final class UploadAuthorizationAuthority {
         if (writing && !expected.equals(document.revision())) throw new TenantAccessException(ErrorCode.REVISION_CONFLICT);
         var basis = writing ? bases.require(admission, documentId, expectedRevision, manifest.documentBasis().settings()) : null;
         if (writing && !document.equals(basis.document())) throw new TenantAccessException(ErrorCode.SCOPE_STALE);
+        // Historical receipts retain the original manifest publication, not today's head schema.
+        if (writing && !published.equals(requireBaselinePublication(admission, document))) mismatch();
         var verified = dependencies.require(admission, manifest.dependencyAccessSetId(), manifest.dependencyRequirement(),
             manifest.sources(), manifest.context(), manifest.upstreamArtifacts());
         if (!manifest.dependencyManifestSha256().equals(verified.header().manifestSha256())) mismatch();
         if (writing) DocumentUploadBasisAuthority.requireBinding(basis, manifest.documentBasis(), verified, manifest.sources());
         return new VerifiedDocument(document, grant, verified, published, manifest, basis,
             digest(admission, document, grant, verified, published, manifest, basis));
+    }
+
+    /** Current write authority and the registered baseline, never request payload, select the body publication. */
+    SchemaCatalogue.PublishedSchema requireBaselinePublication(EnterpriseAccess.Admission admission,
+            UploadTransferProtocol.DocumentRow document) throws IOException {
+        if (admission == null || document == null) denied();
+        String statement = "com.ruoyi.medical.persistence.mapper.UploadTransferMapper.documentBodyPublication";
+        TenantScope.requireSqlAccess(statement);
+        if (!TenantScope.requireCurrent().tenantId().equals(admission.context().tenant_id())
+                || !admission.context().tenant_id().equals(document.tenantId())) denied();
+        resources.require(admission, new PermissionProtocol.Scope(document.tenantId(), document.projectId(), "DOCUMENT", document.documentId()), "document.write", PURPOSE);
+        if (document.currentDocumentRevision() == null) throw new TenantAccessException(ErrorCode.STEP_NOT_READY);
+        var values = Map.<String,Object>of("userId", admission.actorId(), "documentId", document.documentId(),
+            "projectId", document.projectId(), "documentRevision", document.currentDocumentRevision(), "revision", document.revision());
+        TenantScope.requireSubjectParameter(statement, values);
+        var rows = mapper.documentBodyPublication(values); if (rows.size() != 1) mismatch();
+        var row = rows.get(0);
+        if (!document.tenantId().equals(row.tenantId()) || !document.projectId().equals(row.projectId())
+                || !document.documentId().equals(row.documentId()) || !document.currentDocumentRevision().equals(row.documentRevision())) mismatch();
+        WireValues.uuid(row.schemaRevision());
+        var publication = schemas.requirePublished(row.schemaRef(), row.schemaSha256());
+        if (!java.util.Set.of("interfaces", "document-body-v2").contains(publication.name()) || !"DocumentBody".equals(publication.definition())) mismatch();
+        return publication;
     }
 
     VerifiedDocument requireBoundDocument(EnterpriseAccess.Admission admission, String uploadId) throws IOException, NoSuchAlgorithmException {

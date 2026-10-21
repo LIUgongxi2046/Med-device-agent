@@ -24,7 +24,9 @@ import org.springframework.util.function.ThrowingSupplier;
 
 @Service
 public final class ExportService {
-    private static final String CONVERTER_REVISION = "d807b84d-b5a8-4caf-a105-9d99f69e2f90";
+    private final ExportExecutionPolicy executionPolicy;
+    private final ExportLayoutService layouts;
+    private final org.springframework.beans.factory.ObjectProvider<DocumentSigningService> signing;
     private final EnterpriseAccess access;
     private final ExportMapper mapper;
     private final PermissionMapper permissions;
@@ -34,12 +36,15 @@ public final class ExportService {
     private final DocumentUploadPolicy capacity;
     private final ApplicationSessionIdentity identities;
     private final ExportSchema schema;
+    private final DocumentReadService documents;
 
     public ExportService(EnterpriseAccess access, ExportMapper mapper, PermissionMapper permissions,
             ResourceReadAuthority resources, ArtifactRegistryMapper artifacts, SourceUploadTransport transport,
-            DocumentUploadPolicy capacity, ApplicationSessionIdentity identities, ExportSchema schema) {
+            DocumentUploadPolicy capacity, ApplicationSessionIdentity identities, ExportSchema schema, ExportExecutionPolicy executionPolicy,
+            ExportLayoutService layouts, org.springframework.beans.factory.ObjectProvider<DocumentSigningService> signing, DocumentReadService documents) {
+        this.documents = documents;
         this.access = access; this.mapper = mapper; this.permissions = permissions; this.resources = resources;
-        this.artifacts = artifacts; this.transport = transport; this.capacity = capacity; this.identities = identities; this.schema = schema;
+        this.artifacts = artifacts; this.transport = transport; this.executionPolicy = executionPolicy; this.layouts = layouts; this.signing = signing; this.capacity = capacity; this.identities = identities; this.schema = schema;
     }
 
     public JsonNode create(ApplicationSessionIdentity.Verified subject, String context, String key,
@@ -52,13 +57,14 @@ public final class ExportService {
             var document = single(mapper.document(values)); requireDocument(admission, document, documentId, input.purpose(), "artifact.export");
             if (!input.template_version().equals(document.templateVersion())
                     || !input.format_profile_revision().equals(document.formatProfileRevision()) || !"ACTIVE".equals(document.projectStatus())) stale();
+            values.put("projectId", document.projectId());
             var prior = mapper.operation(values);
             if (prior.size() > 1) mismatch();
             if (!prior.isEmpty()) return replay(single(prior), values.get("requestHash").toString(), 202);
             var profile = schema.read(document.formatProfile()); requireProfile(profile, document, input);
             requireVersion(values, document.formatProfileRevision(), document.projectId(), profile.required("format_revision").required("content_sha256").textValue());
             requireProfileArtifacts(admission, profile, document);
-            if (input.channel_profile_revision() != null) requireVersion(values, input.channel_profile_revision(), document.projectId(), null);
+            layouts.consume(admission, document, input.channel_profile_revision());
             var reviews = schema.object().arrayNode();
             for (var row : mapper.reviewSnapshot(values)) reviews.add(schema.read(row));
             String reviewHash = DigestUtils.sha256Hex(schema.canonical(reviews));
@@ -67,6 +73,7 @@ public final class ExportService {
             if ("FORMAL_BODY".equals(input.purpose())) {
                 if (reviews.isEmpty() || !reviews.findValuesAsText("decision").stream().allMatch("CONFIRM"::equals)) stale();
                 var signatures = mapper.signature(values); if (signatures.size() != 1) stale(); signature = signatures.get(0);
+                requireSigned(admission, document, signature.signatureId());
                 if (!admission.watermarks().authEpoch().equals(signature.authEpoch())
                         || !admission.watermarks().governanceEpoch().equals(signature.governanceEpoch())) stale();
             }
@@ -94,7 +101,7 @@ public final class ExportService {
             values.put("channelProfileRevision", input.channel_profile_revision()); values.put("signatureId", signature == null ? null : signature.signatureId());
             values.put("manifest", canonicalManifest); values.put("manifestHash", manifestHash); values.put("schemaManifest", schema.manifestSha256());
             values.put("classification", document.classification()); values.put("now", now);
-            values.put("converterRevision", CONVERTER_REVISION); values.put("fontManifestHash", fontHash);
+            values.put("converterRevision", executionPolicy.converterRevision()); values.put("fontManifestHash", fontHash);
             var view = view(exportId, documentId, input, document.formatProfileRevision(), manifestHash, now, itemIds);
             var receipt = receipt(operationId, view, subject.user().user_id(), now);
             var response = schema.envelope("Receipt", receipt, id(), "1"); values.put("response", schema.canonical(response));
@@ -150,6 +157,7 @@ public final class ExportService {
             current(admission, context); WireValues.uuid(documentId); WireValues.uuid(documentRevision);
             var values = values(admission); values.put("documentId", documentId); values.put("documentRevision", documentRevision);
             values.put("purpose", "FORMAL_BODY"); var document = single(mapper.document(values));
+            values.put("projectId", document.projectId());
             requireDocument(admission, document, documentId, "EXPORT_PREPARATION", "artifact.export");
             var profile = schema.read(document.formatProfile());
             var reviews = schema.object().arrayNode();
@@ -157,7 +165,11 @@ public final class ExportService {
             String reviewHash = DigestUtils.sha256Hex(schema.canonical(reviews));
             boolean returned = reviews.findValuesAsText("decision").stream().anyMatch("RETURN"::equals);
             String reviewStatus = reviews.isEmpty() ? "UNREVIEWED" : returned ? "RETURNED" : "CONFIRMED";
-            boolean signed = mapper.signature(values).size() == 1;
+            var signatures = mapper.signature(values); boolean signed = signatures.size() == 1;
+            if (signed) {
+                try { requireSigned(admission, document, signatures.get(0).signatureId()); }
+                catch (TenantAccessException failure) { signed = false; }
+            }
             var result = schema.object(); result.put("schema_version", "1.0.0"); result.put("document_id", documentId);
             result.put("document_revision", documentRevision); result.put("template_version", document.templateVersion());
             result.put("format_profile_revision", document.formatProfileRevision()); result.put("review_manifest_sha256", reviewHash);
@@ -182,6 +194,8 @@ public final class ExportService {
             if (!input.expected_revision().equals(original.revision().toString())
                     || !List.of("FAILED", "CANCELLED").contains(original.status())) stale();
             var allItems = mapper.items(values);
+            if (allItems.stream().anyMatch(row -> row.format().equals(original.format())
+                    && ("SUCCEEDED".equals(row.status()) || row.attemptNo().compareTo(original.attemptNo()) > 0))) stale();
             BigInteger attempt = allItems.stream().filter(row -> row.format().equals(original.format())).map(ExportProtocol.ItemRow::attemptNo)
                     .max(Comparator.naturalOrder()).orElseThrow().add(BigInteger.ONE);
             String newItemId = id(), operationId = id(); LocalDateTime now = Objects.requireNonNull(permissions.databaseTime());
@@ -212,27 +226,35 @@ public final class ExportService {
 
     public ExportProtocol.Download content(ApplicationSessionIdentity.Verified subject, String context,
             String exportItemId, String range) throws Exception {
-        var initial = authorizeDownload(subject, context, exportItemId);
+        return content(subject, context, exportItemId, range, false);
+    }
+
+    public ExportProtocol.Download content(ApplicationSessionIdentity.Verified subject, String context, String exportItemId, String range, boolean review) throws Exception {
+        var initial = authorizeDownload(subject, context, exportItemId, review);
+        var fixed = documents.readFixed(subject, context, initial.item().documentId(), initial.item().documentRevision());
         long size = initial.artifact().sizeBytes().longValueExact(); long[] selected = range(range, size);
         var bytes = transport.readDocument(subject, initial.item().tenantId(), Math.toIntExact(size),
-                () -> requireDownload(subject, context, exportItemId, initial.authorization()), (reader, admission) -> {
+                () -> { documents.requireCurrent(subject, fixed); requireDownload(subject, context, exportItemId, initial.authorization(), review); }, (reader, admission) -> {
                     try (var verified = reader.readVerified(initial.artifact().reference(), admission)) {
                         byte[] value = verified.chunk(selected[0], Math.toIntExact(selected[1] - selected[0]));
                         admission.requireCurrent(); if (!initial.artifact().sha256().equals(verified.fullSha256())) mismatch(); return value;
                     }
                 });
-        requireDownload(subject, context, exportItemId, initial.authorization());
+        documents.requireCurrent(subject, fixed);
+        requireDownload(subject, context, exportItemId, initial.authorization(), review);
         String extension = initial.item().format().toLowerCase(java.util.Locale.ROOT);
         return new ExportProtocol.Download(bytes, initial.artifact().mediaType(), exportItemId + "." + extension,
                 selected[0], selected[1], size, initial.artifact().sha256(), initial.artifact().artifactId(), exportItemId);
     }
 
-    private DownloadState authorizeDownload(ApplicationSessionIdentity.Verified subject, String context, String exportItemId) {
+    private DownloadState authorizeDownload(ApplicationSessionIdentity.Verified subject, String context, String exportItemId, boolean review) {
         return access.execute(subject, admission -> ThrowingSupplier.of(() -> {
             current(admission, context); var values = values(admission); values.put("exportItemId", exportItemId);
             var item = single(mapper.itemForUpdate(values)); values.put("exportId", item.exportId()); var manifest = single(mapper.manifest(values));
             requireExport(admission, manifest, "export.read");
             if (!"SUCCEEDED".equals(item.status()) || item.artifactId() == null || item.validationArtifactId() == null) stale();
+            if (review) resources.require(admission, new PermissionProtocol.Scope(item.tenantId(), item.projectId(), "DOCUMENT", item.documentId()), "review.decide", "EXPORT_LAYOUT");
+            else if (!layouts.releasable(admission, manifest, item)) throw new TenantAccessException(ErrorCode.CONDITION_UNKNOWN);
             var artifactGrant = resources.require(admission, new PermissionProtocol.Scope(item.tenantId(), item.projectId(), "ARTIFACT", item.artifactId()),
                     "artifact.read", "EXPORT_DOWNLOAD");
             resources.require(admission, new PermissionProtocol.Scope(item.tenantId(), item.projectId(), "ARTIFACT", item.validationArtifactId()),
@@ -247,8 +269,8 @@ public final class ExportService {
             return new DownloadState(item, artifact, authorization);
         }).get());
     }
-    private void requireDownload(ApplicationSessionIdentity.Verified subject, String context, String id, String expected) {
-        if (!expected.equals(authorizeDownload(subject, context, id).authorization())) throw new TenantAccessException(ErrorCode.SCOPE_STALE);
+    private void requireDownload(ApplicationSessionIdentity.Verified subject, String context, String id, String expected, boolean review) {
+        if (!expected.equals(authorizeDownload(subject, context, id, review).authorization())) throw new TenantAccessException(ErrorCode.SCOPE_STALE);
     }
 
     private JsonNode view(EnterpriseAccess.Admission admission, ExportProtocol.ManifestRow manifest, List<ExportProtocol.ItemRow> items) throws Exception {
@@ -258,9 +280,12 @@ public final class ExportService {
             if ("SUCCEEDED".equals(item.status()) && item.artifactId() != null && item.validationArtifactId() != null) {
                 resources.require(admission, new PermissionProtocol.Scope(item.tenantId(), item.projectId(), "ARTIFACT", item.artifactId()), "artifact.read", "EXPORT_DOWNLOAD");
                 resources.require(admission, new PermissionProtocol.Scope(item.tenantId(), item.projectId(), "ARTIFACT", item.validationArtifactId()), "artifact.read", "EXPORT_DOWNLOAD");
-                downloadable = true;
+                downloadable = layouts.releasable(admission, manifest, item);
             }
-            array.add(itemView(item, downloadable));
+            var rendered = (com.fasterxml.jackson.databind.node.ObjectNode) itemView(item, downloadable);
+            var verification = layouts.latest(admission, item.exportItemId());
+            if (verification != null) rendered.set("layout_verification", verification);
+            array.add(rendered);
         }
         return view(manifest, array, manifest.status(), manifest.revision(), manifest.updatedAt());
     }
@@ -317,9 +342,15 @@ public final class ExportService {
         resources.require(admission, scope, "document.read", purpose); resources.require(admission, scope, action, purpose);
     }
     private void requireExport(EnterpriseAccess.Admission admission, ExportProtocol.ManifestRow manifest, String action) throws Exception {
-        requireDocument(admission, single(mapper.document(new HashMap<>(Map.of("userId", admission.subject().user().user_id(),
-                "documentId", manifest.documentId(), "documentRevision", manifest.documentRevision())))),
-                manifest.documentId(), manifest.purpose(), action);
+        var document = single(mapper.document(new HashMap<>(Map.of("userId", admission.subject().user().user_id(),
+                "documentId", manifest.documentId(), "documentRevision", manifest.documentRevision()))));
+        requireDocument(admission, document, manifest.documentId(), manifest.purpose(), action);
+        if ("FORMAL_BODY".equals(manifest.purpose())) requireSigned(admission, document, manifest.signatureId());
+    }
+    private void requireSigned(EnterpriseAccess.Admission admission, ExportProtocol.DocumentRow document, String signature) throws Exception {
+        var service = signing.getIfAvailable();
+        if (service == null || signature == null) throw new TenantAccessException(ErrorCode.SIGNING_POLICY_UNCONFIGURED);
+        service.requireExportCurrent(admission, document.documentId(), document.documentRevision(), signature);
     }
     private void requireProfile(JsonNode profile, ExportProtocol.DocumentRow document, ExportProtocol.CreateInput input) {
         if (!document.formatProfileRevision().equals(profile.required("format_revision").required("version_id").textValue())) mismatch();

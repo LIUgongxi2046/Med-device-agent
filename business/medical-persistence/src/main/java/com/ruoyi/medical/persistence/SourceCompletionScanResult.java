@@ -48,7 +48,7 @@ final class SourceCompletionScanResult {
         String extension=org.apache.commons.io.FilenameUtils.getExtension(command.required("source_path").textValue()).toLowerCase(java.util.Locale.ROOT);
         String format=switch(extension) {
             case "pdf" -> "PDF"; case "docx" -> "DOCX"; case "xlsx" -> "XLSX"; case "csv" -> "CSV";
-            case "pptx" -> "PPTX"; case "md","markdown" -> "MARKDOWN"; case "txt" -> "TXT";
+            case "html", "htm" -> "HTML"; case "png", "jpg", "jpeg", "tif", "tiff" -> "IMAGE"; case "pptx" -> "PPTX"; case "md","markdown" -> "MARKDOWN"; case "txt" -> "TXT";
             default -> throw new TenantAccessException(ErrorCode.FILE_TYPE_UNSUPPORTED);
         };
         if(!format.equals(receipt.required("format").textValue())) mismatch();

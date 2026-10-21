@@ -21,7 +21,7 @@ class DocumentRevisionAnnotationTailTest {
         fixture = new AnnotationAnchorLifecycleTest.Fixture();
         writes = mock(DocumentRevisionMapper.class);
         service = new DocumentRevisionService(null, writes, null, mock(com.ruoyi.medical.persistence.mapper.UploadTransferMapper.class), null, mock(UploadAuthorizationSchema.class), null, null,
-            null, null, null, null, fixture.f.permissions, null, null, fixture.f.json, fixture.lifecycle);
+            null, null, null, null, fixture.f.permissions, null, null, fixture.f.json, fixture.lifecycle, null);
         when(writes.advanceAnnotationIssues(anyMap())).thenAnswer(c -> {
             java.util.Map<String,Object> values = c.getArgument(0);
             fixture.f.store.issue = fixture.f.store.issue.add(BigInteger.valueOf((int)values.get("annotationIssues")));

@@ -31,6 +31,9 @@ public class SysOperlogController extends BaseController
     @Autowired
     private ISysOperLogService operLogService;
 
+    @org.springframework.beans.factory.annotation.Value("${medical.identity.mode:}")
+    private String medicalIdentityMode;
+
     @PreAuthorize("@ss.hasPermi('monitor:operlog:list')")
     @GetMapping("/list")
     public TableDataInfo list(SysOperLog operLog)
@@ -46,6 +49,14 @@ public class SysOperlogController extends BaseController
     public void export(HttpServletResponse response, SysOperLog operLog)
     {
         List<SysOperLog> list = operLogService.selectOperLogList(operLog);
+        // Streaming XLSX bypasses JSON response advice. Never export historical raw payloads in medical mode.
+        if ("local".equals(medicalIdentityMode) || "oidc".equals(medicalIdentityMode)) {
+            for (SysOperLog row : list) {
+                row.setOperParam("[REDACTED]");
+                row.setJsonResult("[REDACTED]");
+                row.setErrorMsg("[REDACTED]");
+            }
+        }
         ExcelUtil<SysOperLog> util = new ExcelUtil<SysOperLog>(SysOperLog.class);
         util.exportExcel(response, list, "操作日志");
     }

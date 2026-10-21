@@ -1,0 +1,597 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:formal-evaluation-policy-read:1.0.0",
+  "$ref": "#/$defs/Read",
+  "$defs": {
+    "Author": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "specification",
+        "root_uses",
+        "sampling_assessment"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "specification": {
+          "$ref": "#/$defs/PolicyAuthor"
+        },
+        "root_uses": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 512,
+          "items": {
+            "$ref": "#/$defs/RootUse"
+          }
+        },
+        "sampling_assessment": {
+          "$ref": "#/$defs/Reason"
+        }
+      }
+    },
+    "PolicyAuthor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "project_id",
+        "rule_revision",
+        "dataset",
+        "sample_manifest_artifact",
+        "candidate_refs",
+        "runtime_manifest_sha256",
+        "scope_sha256",
+        "familywise_confidence",
+        "sampling_design_evidence",
+        "dimensions",
+        "reason",
+        "expert_domains"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "project_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "rule_revision": {
+          "$ref": "#/$defs/Basis"
+        },
+        "dataset": {
+          "$ref": "#/$defs/Basis"
+        },
+        "sample_manifest_artifact": {
+          "$ref": "#/$defs/Basis"
+        },
+        "candidate_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Basis"
+          },
+          "minItems": 1,
+          "maxItems": 10,
+          "uniqueItems": true
+        },
+        "runtime_manifest_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "scope_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "familywise_confidence": {
+          "$ref": "#/$defs/Decimal"
+        },
+        "sampling_design_evidence": {
+          "$ref": "#/$defs/Basis"
+        },
+        "dimensions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/PolicyRule"
+          },
+          "minItems": 1,
+          "maxItems": 12,
+          "uniqueItems": true
+        },
+        "reason": {
+          "$ref": "#/$defs/Reason"
+        },
+        "expert_domains": {
+          "$ref": "#/$defs/ExpertDomains"
+        }
+      }
+    },
+    "Id": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "Basis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version_id",
+        "content_sha256"
+      ],
+      "properties": {
+        "version_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "content_sha256": {
+          "$ref": "#/$defs/Hash"
+        }
+      }
+    },
+    "Hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "Decimal": {
+      "type": "string",
+      "pattern": "^(0|1)(\\.[0-9]{1,60})?$"
+    },
+    "PolicyRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dimension",
+        "method",
+        "direction",
+        "threshold",
+        "repeat_count",
+        "minimum_families"
+      ],
+      "properties": {
+        "dimension": {
+          "$ref": "#/$defs/Dimension"
+        },
+        "method": {
+          "enum": [
+            "DETERMINISTIC_ALL_REQUIRED_RUNS",
+            "SOURCE_FAMILY_HOEFFDING_V1"
+          ]
+        },
+        "direction": {
+          "enum": [
+            "MIN",
+            "MAX"
+          ]
+        },
+        "threshold": {
+          "$ref": "#/$defs/Decimal"
+        },
+        "repeat_count": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "minimum_families": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        }
+      }
+    },
+    "Dimension": {
+      "enum": [
+        "EVAL-01",
+        "EVAL-02",
+        "EVAL-03",
+        "EVAL-04",
+        "EVAL-05",
+        "EVAL-06",
+        "EVAL-07",
+        "EVAL-08",
+        "EVAL-09",
+        "EVAL-10",
+        "EVAL-11",
+        "EVAL-12"
+      ]
+    },
+    "Reason": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2000
+    },
+    "ExpertDomains": {
+      "type": "object",
+      "minProperties": 1,
+      "maxProperties": 12,
+      "additionalProperties": false,
+      "properties": {
+        "EVAL-01": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "EVAL-02": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "EVAL-03": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "EVAL-04": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "EVAL-05": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "EVAL-06": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "EVAL-07": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "EVAL-08": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "EVAL-09": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "EVAL-10": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "EVAL-11": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "EVAL-12": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        }
+      }
+    },
+    "RootUse": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "purpose"
+      ],
+      "properties": {
+        "version": {
+          "$ref": "#/$defs/Basis"
+        },
+        "purpose": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9_]{0,127}$"
+        }
+      }
+    },
+    "EvidencePolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "policy_id",
+        "tenant_id",
+        "project_id",
+        "rule_revision",
+        "dataset",
+        "sample_manifest_artifact",
+        "candidate_refs",
+        "runtime_manifest_sha256",
+        "scope_sha256",
+        "familywise_confidence",
+        "sampling_design_evidence",
+        "created_at",
+        "approved_at",
+        "dimensions"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "policy_id": {
+          "$ref": "#/$defs/EvidenceId"
+        },
+        "tenant_id": {
+          "$ref": "#/$defs/EvidenceId"
+        },
+        "project_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EvidenceId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "rule_revision": {
+          "$ref": "#/$defs/EvidenceBasis"
+        },
+        "dataset": {
+          "$ref": "#/$defs/EvidenceBasis"
+        },
+        "sample_manifest_artifact": {
+          "$ref": "#/$defs/EvidenceBasis"
+        },
+        "candidate_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/EvidenceBasis"
+          },
+          "minItems": 1,
+          "maxItems": 10,
+          "uniqueItems": true
+        },
+        "runtime_manifest_sha256": {
+          "$ref": "#/$defs/EvidenceHash"
+        },
+        "scope_sha256": {
+          "$ref": "#/$defs/EvidenceHash"
+        },
+        "familywise_confidence": {
+          "$ref": "#/$defs/EvidenceDecimal"
+        },
+        "sampling_design_evidence": {
+          "$ref": "#/$defs/EvidenceBasis"
+        },
+        "created_at": {
+          "$ref": "#/$defs/EvidenceTime"
+        },
+        "approved_at": {
+          "$ref": "#/$defs/EvidenceTime"
+        },
+        "dimensions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/EvidencePolicyRule"
+          },
+          "minItems": 1,
+          "maxItems": 12,
+          "uniqueItems": true
+        }
+      }
+    },
+    "EvidenceId": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^[0-9a-f-]{36}$"
+    },
+    "EvidenceBasis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version_id",
+        "content_sha256"
+      ],
+      "properties": {
+        "version_id": {
+          "$ref": "#/$defs/EvidenceId"
+        },
+        "content_sha256": {
+          "$ref": "#/$defs/EvidenceHash"
+        }
+      }
+    },
+    "EvidenceHash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "EvidenceDecimal": {
+      "type": "string",
+      "pattern": "^(0|1)(\\.[0-9]{1,60})?$"
+    },
+    "EvidenceTime": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "Z$"
+    },
+    "EvidencePolicyRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dimension",
+        "method",
+        "direction",
+        "threshold",
+        "repeat_count",
+        "minimum_families"
+      ],
+      "properties": {
+        "dimension": {
+          "$ref": "#/$defs/EvidenceDimension"
+        },
+        "method": {
+          "enum": [
+            "DETERMINISTIC_ALL_REQUIRED_RUNS",
+            "SOURCE_FAMILY_HOEFFDING_V1"
+          ]
+        },
+        "direction": {
+          "enum": [
+            "MIN",
+            "MAX"
+          ]
+        },
+        "threshold": {
+          "$ref": "#/$defs/EvidenceDecimal"
+        },
+        "repeat_count": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "minimum_families": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        }
+      }
+    },
+    "EvidenceDimension": {
+      "enum": [
+        "EVAL-01",
+        "EVAL-02",
+        "EVAL-03",
+        "EVAL-04",
+        "EVAL-05",
+        "EVAL-06",
+        "EVAL-07",
+        "EVAL-08",
+        "EVAL-09",
+        "EVAL-10",
+        "EVAL-11",
+        "EVAL-12"
+      ]
+    },
+    "Classification": {
+      "enum": [
+        "PUBLIC",
+        "INTERNAL",
+        "RESTRICTED",
+        "PERSONAL_HEALTH"
+      ]
+    },
+    "DraftContent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "status",
+        "policy_draft_id",
+        "policy_schema_sha256",
+        "typed_input_sha256",
+        "author",
+        "classification"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "status": {
+          "const": "DRAFT"
+        },
+        "policy_draft_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "policy_schema_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "typed_input_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "author": {
+          "$ref": "#/$defs/Author"
+        },
+        "classification": {
+          "$ref": "#/$defs/Classification"
+        }
+      }
+    },
+    "DecisionContent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "status",
+        "draft_id",
+        "draft_sha256",
+        "policy_schema_sha256",
+        "typed_input_sha256",
+        "policy",
+        "sampling_assessment",
+        "classification"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "status": {
+          "enum": [
+            "APPROVE",
+            "REJECT"
+          ]
+        },
+        "draft_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "draft_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "policy_schema_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "typed_input_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "policy": {
+          "$ref": "#/$defs/EvidencePolicy"
+        },
+        "sampling_assessment": {
+          "$ref": "#/$defs/Reason"
+        },
+        "classification": {
+          "$ref": "#/$defs/Classification"
+        }
+      }
+    },
+    "Read": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_id",
+        "content_sha256",
+        "production_eligible",
+        "content"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "record_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "content_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "production_eligible": {
+          "const": false
+        },
+        "content": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/DraftContent"
+            },
+            {
+              "$ref": "#/$defs/DecisionContent"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

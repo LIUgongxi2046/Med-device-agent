@@ -7,7 +7,7 @@
     <p v-if="!validProject" role="alert">项目标识未通过接口校验</p>
     <p v-else-if="!permitted">上传资料需要当前企业身份及来源维护权限</p>
     <section v-if="permitted" data-source-upload-queue>
-      <p>支持 PDF、DOCX、XLSX、CSV、PPTX、Markdown 和 TXT。文件分别填写来源和许可，服务器逐项核查容量、格式与内容。</p>
+      <p>支持 PDF、DOCX、XLSX、CSV、PPTX、Markdown、TXT 和 PNG/JPEG/TIFF 图片。文件分别填写来源和许可，服务器逐项核查容量、格式与内容。</p>
       <file-upload :selection-only="true" :file-type="Object.keys(sourceMediaTypes)" :file-size="0" :limit="100" :drag="false"
         :disabled="busy || user.medicalWriting" @select-file="selectFile" />
       <p v-if="reselect">请选择原文件：{{ reselect.id }}。继续前将核查原文件大小和摘要。</p>
@@ -142,7 +142,7 @@ async function selectFile(file: File): Promise<void> {
   if (!actual || !permitted.value || busy.value || user.medicalWriting || document.hidden) return
   const extension = file.name.slice(file.name.lastIndexOf('.') + 1).toLowerCase()
   if (!Object.prototype.hasOwnProperty.call(sourceMediaTypes, extension)) {
-    notice.value = '文件格式不支持。请选择 PDF、DOCX、XLSX、CSV、PPTX、Markdown 或 TXT 文件。'
+    notice.value = '文件格式不支持。请选择 PDF、DOCX、XLSX、CSV、PPTX、Markdown、TXT 或 PNG/JPEG/TIFF 图片。'
     return
   }
   if (file.size <= 0 || !Number.isSafeInteger(file.size)) {

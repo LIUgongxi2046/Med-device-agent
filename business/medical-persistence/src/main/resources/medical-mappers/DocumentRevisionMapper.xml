@@ -45,7 +45,7 @@
       body_artifact_id,body_sha256,plan_revision,template_version,issue_watermark,dependency_access_set_id,content_sha256,
       created_by,created_at,classification)
     VALUES (#{projectId},#{documentRevision},#{documentId},#{basis.task.taskId},#{basis.taskRevision.taskRevision},#{basis.snapshot.snapshotId},
-      #{projectId},#{documentId},#{input.baseRevision},#{bodyReference.objectVersion},'1.0.0',#{input.bodySchemaRevision},
+      #{projectId},#{documentId},#{input.baseRevision},#{bodyReference.objectVersion},#{body.schemaVersion},#{input.bodySchemaRevision},
       #{input.bodyArtifactId},#{input.bodySha256},#{basis.plan.planRevision},#{body.templateVersion},0,#{accessSetId},#{input.bodySha256},
       #{userId},#{now},#{classification})
   </insert>

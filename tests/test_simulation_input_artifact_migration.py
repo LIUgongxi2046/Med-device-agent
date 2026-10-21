@@ -26,10 +26,33 @@ def inspect_migration(path):
         'com/fasterxml/jackson/core/jackson-databind/2.21.4/jackson-databind-2.21.4.jar',
         'com/fasterxml/jackson/core/jackson-core/2.21.4/jackson-core-2.21.4.jar',
         'com/fasterxml/jackson/core/jackson-annotations/2.21/jackson-annotations-2.21.jar')]
-    result = subprocess.run([str(resolve_java(ROOT)), '-XX:ActiveProcessorCount=2', '-XX:-UsePerfData',
-        '--class-path', os.pathsep.join(map(str, jars)), str(ROOT / 'tests/InspectAlterMigrations.java'),
-        str(path)], cwd=ROOT, capture_output=True, text=True, timeout=60, check=True)
-    parsed = json.loads(result.stdout)
+    from migration_source_parser import split_native_source
+    from tempfile import TemporaryDirectory
+    normal, triggers = split_native_source(Path(path).read_text())
+    # JSQLParser 5.2 hangs on MySQL DROP CHECK. Keep that exact, bounded
+    # grammar as a complete SQLGlot AST; all other original SQL stays native.
+    from migration_source_parser import bounded_drop_check
+    drops = {index: bounded_drop_check(statement) for index, statement in enumerate(normal)}
+    native = [statement for index, statement in enumerate(normal) if drops[index] is None]
+    parsed_native = []
+    if native:
+        with TemporaryDirectory(prefix="medical-source-parser-") as temporary:
+            native_path = Path(temporary) / "source.sql"
+            native_path.write_text("\n".join(native))
+            try:
+                from native_parser_cache import run_json
+                parsed_native = run_json([str(resolve_java(ROOT)), '-XX:ActiveProcessorCount=2', '-XX:-UsePerfData',
+                    '--class-path', os.pathsep.join(map(str, jars)), str(ROOT / 'tests/InspectAlterMigrations.java'),
+                    str(native_path)], source_bytes=Path(path).read_bytes(), libraries=jars,
+                    parser=ROOT / 'tests/InspectAlterMigrations.java', mode='ALTER', expected_count=len(native),
+                    cwd=ROOT, capture_output=True, text=True, timeout=60, check=True)
+            except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as error:
+                raise RuntimeError('NATIVE_MIGRATION_PARSE_FAILED: ' + str(path)) from error
+    if len(parsed_native) != len(native):
+        raise ValueError('NATIVE_STATEMENT_COUNT_MISMATCH: ' + str(path))
+    native_iter = iter(parsed_native)
+    parsed = [drops[index] if drops[index] is not None else next(native_iter) for index in range(len(normal))]
+    parsed.extend({"trigger": trigger} for trigger in triggers)
     tables = {}
     for item in parsed:
         if 'create' in item:

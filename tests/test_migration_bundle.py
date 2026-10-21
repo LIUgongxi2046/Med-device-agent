@@ -38,7 +38,13 @@ def parse_068_native_statements(path):
     # SQLGlot parses EVERY original statement/constraint; existing bundle checks still apply.
     if path.name != "068-document-technical-check.sql":
         raise ValueError("068_COMPATIBILITY_SCOPE_ONLY")
-    statements = sqlglot.parse(sqlglot_migration_source(path), read="mysql")
+    from migration_076_compat import _first_statement, parse_workflow_alter, expected_alter, OLD_JOBS, PRIOR_SHA256
+    if hashlib.sha256(path.read_bytes()).hexdigest() != PRIOR_SHA256:
+        raise ValueError("068_ORIGINAL_BYTES_CHANGED")
+    first, suffix = _first_statement(sqlglot_migration_source(path))
+    statements = [parse_workflow_alter(first), *sqlglot.parse(suffix, read="mysql")]
+    if statements[0] != expected_alter(OLD_JOBS) or any(list(s.find_all(exp.Command)) for s in statements):
+        raise ValueError("068_COMPLETE_WORKFLOW_AST_REQUIRED")
     if len(statements) != 3 or not isinstance(statements[0], exp.Alter) or not all(
             isinstance(statement, exp.Create) and statement.kind == "TABLE" for statement in statements[1:]):
         raise ValueError("068_COMPLETE_STATEMENT_SHAPE_REQUIRED")
@@ -112,6 +118,7 @@ class MigrationBundleChecks(unittest.TestCase):
         cls.xml_changes = []
         cls.native_alters = []
         cls.native_xml = []
+        cls.triggers = []
         for entry in cls.changelog.findall("lb:changeSet/lb:sqlFile", NAMESPACE):
             path = entry.attrib["path"]
             actual = ROOT / path if path == "data-design/core.sql" else RESOURCES / path
@@ -137,11 +144,13 @@ class MigrationBundleChecks(unittest.TestCase):
                                  repository / "commons-io/commons-io/2.22.0/commons-io-2.22.0.jar",
                                  repository / "com/opencsv/opencsv/5.9/opencsv-5.9.jar",
                                  repository / "org/yaml/snakeyaml/2.4/snakeyaml-2.4.jar"]
-                    result = subprocess.run([str(cls.java), "-Dfile.encoding=UTF-8", "-Djava.io.tmpdir=" + str(ROOT / ".implementation-work/java-temp"),
+                    from native_parser_cache import run_json
+                    definitions = run_json([str(cls.java), "-Dfile.encoding=UTF-8", "-Djava.io.tmpdir=" + str(ROOT / ".implementation-work/java-temp"),
                                              "--class-path", os.pathsep.join(str(path.resolve(strict=True)) for path in libraries),
                                              str(ROOT / "tests/InspectXmlMigrations.java"), str(actual), *(["LIQUIBASE"] if structured else [])],
+                                            source_bytes=actual.read_bytes(), libraries=libraries,
+                                            parser=ROOT / "tests/InspectXmlMigrations.java", mode="XML_LIQUIBASE" if structured else "XML",
                                             stdout=subprocess.PIPE, text=True, check=True, timeout=60)
-                    definitions = json.loads(result.stdout)
                     cls.native_xml.extend(definitions)
                     for definition in definitions:
                         if "create" in definition:
@@ -159,20 +168,16 @@ class MigrationBundleChecks(unittest.TestCase):
                                 raise ValueError("ALTER_DEFINITION_REQUIRED")
             elif actual.name == "068-document-technical-check.sql":
                 cls.statements.extend(parse_068_native_statements(actual))
+            elif actual.name == "099-task-professional-runtime.sql":
+                from migration_099_compat import parse_099_native_statements
+                cls.statements.extend(parse_099_native_statements(actual))
             elif actual.name == "076-formal-model-invocation.sql":
                 from migration_076_compat import parse_076_native_statements
                 cls.statements.extend(parse_076_native_statements(actual))
             elif entry.attrib["file"] in cls.manifest["native_alter_migrations"] + cls.manifest["native_sql_migrations"]:
-                repository = ROOT / ".implementation-work/maven-repository"
-                libraries = [repository / "com/github/jsqlparser/jsqlparser/5.2/jsqlparser-5.2.jar",
-                             repository / "com/fasterxml/jackson/core/jackson-databind/2.21.4/jackson-databind-2.21.4.jar",
-                             repository / "com/fasterxml/jackson/core/jackson-core/2.21.4/jackson-core-2.21.4.jar",
-                             repository / "com/fasterxml/jackson/core/jackson-annotations/2.21/jackson-annotations-2.21.jar"]
-                result = subprocess.run([str(cls.java), "-Djava.io.tmpdir=" + str(ROOT / ".implementation-work/java-temp"),
-                                         "--class-path", os.pathsep.join(str(path.resolve(strict=True)) for path in libraries),
-                                         str(ROOT / "tests/InspectAlterMigrations.java"), str(actual)],
-                                        capture_output=True, text=True, check=True, timeout=60)
-                alterations = json.loads(result.stdout)
+                from test_simulation_input_artifact_migration import inspect_migration
+                alterations, _ = inspect_migration(actual)
+                cls.triggers.extend(item["trigger"] for item in alterations if "trigger" in item)
                 cls.native_alters.extend({**item, "migration": entry.attrib["file"]} for item in alterations if "operation" in item)
                 for alteration in alterations:
                     if "data_fill" in alteration:
@@ -186,7 +191,11 @@ class MigrationBundleChecks(unittest.TestCase):
                             raise ValueError("CREATE_TABLE_REQUIRED")
                         cls.statements.append(definition)
                     if "definition" in alteration:
-                        definition = sqlglot.parse_one(alteration["definition"], read="mysql")
+                        from migration_source_parser import parse_schema_source
+                        definitions, _ = parse_schema_source(alteration["definition"])
+                        if len(definitions) != 1:
+                            raise ValueError("SINGLE_ALTER_DEFINITION_REQUIRED")
+                        definition = definitions[0]
                         if isinstance(definition, exp.Alter):
                             cls.statements.append(definition)
                         elif isinstance(definition, exp.Create) and isinstance(definition.this, exp.Schema):
@@ -200,6 +209,35 @@ class MigrationBundleChecks(unittest.TestCase):
             statement.this.this.name: statement
             for statement in cls.table_definitions
         }
+
+    def test_generated_scope_keys_match_ascii_foreign_key_parents(self):
+        for name in ('task_run_replay_intent', 'task_run_replay_registration', 'candidate_comparison_completion'):
+            column = next(column for column in self.tables[name].this.expressions
+                          if isinstance(column, exp.ColumnDef) and column.name == 'project_key')
+            self.assertIn('CHARACTER SET ascii', column.sql('mysql'), name)
+            self.assertEqual('VARCHAR(36)', column.kind.sql('mysql'))
+            self.assertEqual(1, len(list(column.find_all(exp.ComputedColumnConstraint))))
+        self.assertIn(('tenant_id', 'project_key', 'artifact_id'),
+                      [tuple(key.expressions[i].name for i in range(len(key.expressions)))
+                       for key in self.tables['candidate_comparison_completion'].find_all(exp.ForeignKey)
+                       if key.args['reference'].this.this.name == 'artifact'])
+
+    def test_tenant_run_identity_exists_before_dependent_journals(self):
+        identity = next(index for index, statement in enumerate(self.statements)
+                        if isinstance(statement, exp.Alter) and statement.this.name == 'task_run'
+                        and any(tuple(column.name for column in key.this.expressions) == ('tenant_id', 'run_id')
+                                for key in statement.find_all(exp.UniqueColumnConstraint)))
+        first_dependent = next(index for index, statement in enumerate(self.statements)
+                               if isinstance(statement, exp.Create)
+                               and statement.this.this.name == 'task_section_writer_exact_intent')
+        self.assertLess(identity, first_dependent)
+
+    def test_trigger_targets_and_names_are_complete(self):
+        names = [trigger["name"] for trigger in self.triggers]
+        self.assertEqual(len(names), len(set(names)), "Duplicate trigger name")
+        for trigger in self.triggers:
+            self.assertIn(trigger["table"], self.tables)
+            self.assertTrue(trigger["body"])
 
     def test_every_designed_entity_has_a_physical_migration(self):
         expected = [name for group in self.manifest["required_tables"].values() for name in group]
@@ -502,6 +540,13 @@ class MigrationBundleChecks(unittest.TestCase):
         # 058 adds exactly one immutable annotation-decision history table.
         # 059 adds three independent anchor lifecycle tables, preserving original identities.
         additions = {
+            "task_field_target": {'task_field_mapping_head', 'task_field_target_entry', 'task_field_mapping_revision', 'task_field_target_attempt', 'task_field_target_intent', 'task_field_source_read_receipt', 'task_field_target_input_capability', 'task_field_target_registration', 'task_field_target_input_capability_decision', 'task_field_target_input_capability_state'},
+            'formal_evaluation_node_input_object': {'formal_evaluation_node_input_intent', 'formal_evaluation_node_input_attempt', 'formal_evaluation_node_input_registered'},
+            'task_run_bootstrap': {'task_run_replay_intent', 'task_run_replay_attempt', 'task_run_replay_registration', 'task_run_workflow_launch', 'task_run_workflow_attempt', 'task_run_workflow_acceptance'},
+            'task_delegation': {'task_delegation_rule', 'task_delegation_state', 'task_delegation_decision'},
+            'task_run_replay_governance': {'task_run_replay_governance_manifest', 'task_run_replay_governance_member', 'task_run_replay_governance_edge'},
+            'formal_evaluation_plan_preparation': {'formal_evaluation_plan_preparation_attempt', 'formal_evaluation_plan_preparation_registered', 'formal_evaluation_plan_preparation_intent'},
+            'formal_evaluation_exact_input_object': {'formal_evaluation_exact_input_intent', 'formal_evaluation_exact_input_registered', 'formal_evaluation_exact_input_attempt'},
             'formal_agent_publication': {'formal_agent_acceptance', 'formal_agent_publication_intent', 'formal_agent_publication_attempt', 'formal_agent_publication_registration', 'formal_agent_publication_disable'},
             'formal_evaluation_context': {'formal_evaluation_context_version', 'formal_evaluation_context_decision', 'formal_evaluation_context_state', 'formal_evaluation_execution_context'},
             'model_enablement_preparation': {'model_enablement_policy_preparation'},
@@ -536,11 +581,75 @@ class MigrationBundleChecks(unittest.TestCase):
             "rule_workflow": {"rule_definition", "rule_approval_decision"},
             "evaluation_results": {"evaluation_definition", "evaluation_score_observation", "evaluation_result"},
         }
+        additions.update({'task_run_planned_graph': {'task_run_planned_edge', 'task_run_planned_graph'}, 'task_node_input': {'task_node_input_attempt', 'task_node_input_intent', 'task_node_input_registered'}, 'task_node_producer': {'task_node_producer_state', 'task_node_producer_rule', 'task_node_producer_decision'}, 'task_professional_runtime': {'professional_runtime_supervision', 'runtime_professional_object_binding'}})
+        additions["task_professional_package_authoring"] = {
+            "task_package_authoring_intent", "task_package_authoring_registration",
+            "task_package_authoring_rejection",
+        }
+        additions["strict_comparison_governance"] = {
+            "strict_comparison_policy_revision", "strict_comparison_policy_state",
+            "strict_comparison_policy_decision", "strict_decimal_evidence_revision",
+        }
+        additions['task_plan_draft'] = {'task_plan_draft_job', 'task_plan_draft_object_intent', 'task_plan_draft_object_attempt', 'task_plan_draft_candidate', 'task_plan_draft_check', 'task_plan_draft_tool_receipt', 'task_plan_draft_origin', 'task_plan_draft_runtime_prepare'}
+        additions['task_plan_draft_launch'] = {'task_plan_draft_launch_intent', 'task_plan_draft_launch_attempt', 'task_plan_draft_launch_receipt', 'task_plan_draft_completion'}
+        additions['task_plan_draft_invocation'] = {'task_plan_draft_exact_intent', 'task_plan_draft_exact_attempt', 'task_plan_draft_exact_registration'}
+        additions['task_strict_field'] = {'task_strict_field_input', 'task_strict_field_source_read', 'task_strict_field_result'}
+        additions['task_strict_field_typed'] = {'task_strict_field_context_revision', 'task_strict_field_context_decision', 'task_strict_field_typed_revision', 'task_strict_field_typed_decision', 'task_strict_field_context_state', 'task_strict_field_typed_state', 'task_strict_field_typed_intent', 'task_strict_field_typed_registration'}
+        additions["task_section_writer_producer"] = {"task_section_writer_producer_rule", "task_section_writer_producer_state", "task_section_writer_producer_decision"}
+        additions["task_strict_field_output"] = {'task_strict_field_rule_set', 'task_strict_field_output_intent', 'task_strict_field_output_registration', 'task_strict_field_method_read'}
+        additions['task_section_writer'] = {'task_section_writer_object_intent', 'task_section_writer_object_attempt', 'task_section_writer_object', 'task_section_writer_input', 'task_section_writer_submission'}
+        additions['task_section_writer_invocation'] = {'task_section_writer_exact_intent', 'task_section_writer_exact_attempt', 'task_section_writer_exact_registration'}
+        additions['task_section_writer_runtime'] = {'task_section_writer_runtime_prepare'}
+        additions['document_initial_revision'] = {'document_initial_intent', 'document_initial_object', 'document_initial_registration'}
+        additions['task_source_verifier'] = {'task_source_verifier_object_intent', 'task_source_verifier_object_attempt', 'task_source_verifier_object', 'task_source_verifier_input', 'task_source_verifier_producer_rule', 'task_source_verifier_producer_state', 'task_source_verifier_producer_decision', 'task_source_verifier_rule_set', 'task_source_verifier_submission', 'task_source_verifier_issue_proposal'}
+        additions['task_source_verifier_runtime'] = {'task_source_verifier_runtime_prepare', 'task_source_verifier_context_read', 'task_source_verifier_independent_read'}
+        additions['task_source_verifier_invocation'] = {'task_source_verifier_exact_intent', 'task_source_verifier_exact_attempt', 'task_source_verifier_exact_registration'}
+        additions['document_professional_review'] = {'document_review_intent', 'document_review_object_intent', 'document_review_object', 'document_review_result', 'document_review_object_attempt'}
+        additions['task_candidate_assembly'] = {'task_candidate_assembly_producer_decision', 'task_candidate_assembly_object_intent', 'task_candidate_assembly_object_attempt', 'task_candidate_assembly_rule_set', 'task_candidate_assembly_producer_state', 'task_candidate_assembly_object', 'task_candidate_assembly_producer_rule'}
+        additions['document_check_execution'] = {'document_review_launch_receipt', 'document_review_execution', 'document_review_completion', 'document_review_launch_intent', 'document_review_launch_attempt'}
+        additions['document_review_runtime'] = {'document_review_runtime_prepare'}
+        additions['document_review_invocation'] = {'document_review_exact_registration', 'document_review_exact_intent', 'document_review_exact_attempt'}
+        additions['document_review_context_read'] = {'document_review_independent_read', 'document_review_context_read'}
+        additions['template_application'] = {'template_application_head', 'template_application_decision'}
+        additions['document_candidate_adoption'] = {'document_adoption_completion', 'document_adoption_intent', 'document_adoption_preview'}
+        additions['document_adoption_output'] = {'document_adoption_save', 'document_adoption_output'}
+        additions['professional_issue_lifecycle'] = {'professional_issue_decision', 'professional_issue_occurrence'}
+        additions['human_evidence_review'] = {'human_evidence_decision', 'human_evidence_batch'}
+        additions['strict_field_human'] = {'strict_field_human_decision', 'strict_field_evidence_question', 'strict_field_human_head'}
+        additions['shared_fact_lifecycle'] = {'shared_fact_policy_head', 'shared_fact_adopted_head', 'shared_fact_policy', 'shared_fact_lifecycle_operation', 'shared_fact_check', 'shared_fact_verification', 'shared_fact_check_rule', 'shared_fact_proposal_head', 'shared_fact_adoption', 'shared_fact_proposal'}
+        additions['document_review_confirmations'] = {'document_review_revision_assignment', 'document_review_confirmation_receipt', 'document_review_resubmission'}
+        additions['candidate_comparison'] = {'candidate_comparison_intent', 'candidate_comparison_completion'}
+        additions['version_change_impact'] = {'change_revision_entry', 'change_impact_application', 'change_impact_decision', 'change_impact_resolution', 'change_impact_operation', 'change_proposal_scope'}
+        additions['document_signing'] = {'document_signing_policy', 'document_signing_policy_head', 'document_signed_content', 'document_signing_operation', 'document_signing_callback', 'document_signing_challenge_binding', 'document_signing_policy_approval'}
+        additions['task_run_continuation'] = {'task_run_continuation', 'task_input_continuation', 'task_run_preruntime_termination'}
+        additions['formal_evaluation_jobs'] = {'formal_evaluation_launch_intent', 'formal_evaluation_job', 'formal_evaluation_launch_receipt', 'formal_evaluation_launch_attempt'}
+        additions['formal_evaluation_node_runtime'] = {'formal_evaluation_node_dispatch', 'formal_evaluation_runtime_prepare', 'formal_evaluation_node_outcome', 'formal_evaluation_host_launch_attempt', 'formal_evaluation_node_waiting', 'formal_evaluation_cell_outcome', 'formal_evaluation_cancel_intent'}
+        additions['formal_evaluation_professional_completion'] = {'formal_evaluation_professional_completion'}
+        additions['formal_evaluation_invocation'] = {'formal_evaluation_invocation_context'}
+        additions['formal_evaluation_context_read'] = {'formal_evaluation_context_read'}
+        additions['formal_evaluation_runtime_objects'] = {'formal_evaluation_runtime_object_registered', 'formal_evaluation_runtime_object_intent', 'formal_evaluation_runtime_object_attempt'}
+        additions['scenario_specification'] = {'scenario_task_entry', 'scenario_record'}
+        additions['formal_evaluation_call_exact_input'] = {'formal_evaluation_call_exact_registration', 'formal_evaluation_call_exact_intent', 'formal_evaluation_call_exact_attempt'}
+        additions['formal_evaluation_tool_receipts'] = {'formal_evaluation_tool_receipt', 'formal_evaluation_tool_question'}
+        additions['formal_evaluation_stage_input'] = {'formal_evaluation_stage_input_intent', 'formal_evaluation_case_approval', 'formal_evaluation_stage_input_attempt', 'formal_evaluation_case_original', 'formal_evaluation_stage_input_registered'}
+        additions['export_layout_recovery'] = {'export_layout_profile', 'export_layout_verification'}
+        additions['task_deterministic_execution'] = {'task_deterministic_execution'}
+        additions['formal_evaluation_deterministic'] = {'formal_evaluation_deterministic_object_intent', 'formal_evaluation_deterministic_object_attempt', 'formal_evaluation_deterministic_object_registered', 'formal_evaluation_deterministic_execution', 'formal_evaluation_deterministic_outcome'}
+        additions['dense_retrieval'] = {'dense_index_configuration', 'dense_operation', 'dense_budget_reservation', 'dense_index_vector', 'dense_operation_source'}
+        additions['task_success_reuse'] = {'task_run_success_reuse', 'task_run_assembly_success_reuse'}
+        additions['gru_execution'] = {'gru_execution_action', 'gru_execution_message', 'gru_owner_memory', 'gru_execution_presentation_context'}
+        additions['approved_web_acquisition'] = {'approved_web_query', 'approved_web_query_decision', 'approved_web_acquisition', 'approved_web_candidate'}
+        additions['customer_connector'] = {'customer_connector_head', 'customer_connector_definition', 'customer_connector_decision', 'customer_connector_cursor', 'customer_connector_run', 'customer_connector_item'}
+        additions['operations_feedback'] = {'operations_feedback_event'}
+        additions['source_copy_authority'] = {'source_copy_authority'}
+        additions['framework_binding'] = {'framework_binding_manifest', 'framework_binding_approval', 'framework_binding_operation'}
+        additions['knowledge_feedback'] = {'knowledge_feedback_origin', 'knowledge_feedback_event'}
+        additions['framework_form_publication'] = {'framework_form_schema', 'framework_form_approval', 'framework_form_operation'}
         for group, expected in additions.items():
             self.assertSetEqual(set(self.manifest["required_tables"][group]), expected)
         self.assertEqual(len(business), 178 + sum(len(tables) for tables in additions.values()))
-        self.assertEqual(281, len(business))
-        self.assertEqual(318, len(self.tables))
+        self.assertEqual(526, len(business))
+        self.assertEqual(565, len(self.tables))
         for name in business:
             table = self.tables[name]
             with self.subTest(table=name):
@@ -587,6 +696,17 @@ class MigrationBundleChecks(unittest.TestCase):
             if isinstance(statement, exp.Alter):
                 keys[statement.this.name].update(tuple(item.name for item in key.this.expressions) for key in statement.find_all(exp.UniqueColumnConstraint))
                 columns[statement.this.name].update({column.name: column for column in statement.find_all(exp.ColumnDef)})
+        # XML 029 renames the physical identity table and retains the old name
+        # only as a read view. Historical FKs follow the rename in MySQL; newly
+        # declared framework ledgers must point at the physical identity PK.
+        identity_xml = ElementTree.parse(RESOURCES / 'db/migration/029-ruoyi-account-binding.xml')
+        rename = identity_xml.find('lb:changeSet/lb:renameTable', NAMESPACE)
+        self.assertEqual({'oldTableName': 'platform_local_account',
+                          'newTableName': 'platform_local_identity_metadata'}, rename.attrib)
+        view = identity_xml.find('lb:changeSet/lb:createView', NAMESPACE)
+        self.assertEqual('platform_local_account', view.attrib['viewName'])
+        keys[rename.attrib['newTableName']] = keys[rename.attrib['oldTableName']]
+        columns[rename.attrib['newTableName']] = columns[rename.attrib['oldTableName']]
         for statement in self.statements:
             if isinstance(statement, exp.Create):
                 source = statement.this.this.name
@@ -603,6 +723,21 @@ class MigrationBundleChecks(unittest.TestCase):
                 remote = tuple(item.name for item in reference.expressions)
                 with self.subTest(source=source, target=target, columns=local):
                     if source in self.manifest["platform_tables"]:
+                        if source in ("platform_framework_job_command", "platform_framework_job_revision"):
+                            expected_job_fk = {"actor_id": ("platform_local_identity_metadata", "user_id"),
+                                               "created_by": ("platform_local_identity_metadata", "user_id"),
+                                               "job_id": ("sys_job", "job_id")}
+                            if source == "platform_framework_job_revision":
+                                expected_job_fk = {"job_id": ("sys_job", "job_id"),
+                                                   "command_id": ("platform_framework_job_command", "command_id"),
+                                                   "created_by": ("platform_local_identity_metadata", "user_id")}
+                            self.assertEqual(len(local), 1)
+                            self.assertEqual(len(remote), 1)
+                            self.assertIn(local[0], expected_job_fk)
+                            self.assertEqual((target, remote[0]), expected_job_fk[local[0]])
+                            self.assertIn(remote, keys[target])
+                            self.assertEqual(columns[source][local[0]].kind, columns[target][remote[0]].kind)
+                            continue
                         if source in ("platform_local_operation", "platform_local_audit"):
                             expected_local = {
                                 "subject_id": ("platform_local_account", "user_id"),
@@ -661,6 +796,12 @@ class MigrationBundleChecks(unittest.TestCase):
                         self.assertIn(left, columns[source])
                         self.assertIn(right, columns[target])
                         self.assertEqual(columns[source][left].kind, columns[target][right].kind)
+                        # MySQL rejects equal SQL types with incompatible character sets (3780).
+                        def charset(column):
+                            declared = list(column.find_all(exp.CharacterSetColumnConstraint))
+                            return declared[0].this.name.lower() if declared else 'utf8mb4'
+                        self.assertEqual(charset(columns[source][left]), charset(columns[target][right]),
+                                         source + '.' + left + ' -> ' + target + '.' + right)
 
     def test_supplemental_rows_preserve_audit_and_json_schema_identity(self):
         core = set(self.manifest["required_tables"]["core"])

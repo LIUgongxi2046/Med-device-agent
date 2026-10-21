@@ -66,7 +66,7 @@ final class SourceIndexManifest {
             for(String field:List.of("raw_text","quote_hash","locator")) if(!chunk.required(field).equals(node.required(field))) mismatch();
             if(!chunk.required("raw_text").equals(chunk.required("search_text"))
                     || !chunk.required("quote_hash").textValue().equals(DigestUtils.sha256Hex(chunk.required("raw_text").textValue()))) mismatch();
-            TypedSchemaBindings.bind(catalogue,DatasetBindings.LOCATOR,chunk.required("locator"));
+            SourceLocatorSchema.validate(catalogue,chunk.required("locator"));
             var item=result.addObject(); item.put("chunk_id",chunk.required("chunk_id").textValue());
             item.put("node_id",chunk.required("node_id").textValue()); item.put("ordinal",ordinal);
             item.put("quote_hash",chunk.required("quote_hash").textValue());
@@ -82,7 +82,7 @@ final class SourceIndexManifest {
         var result=json.object().arrayNode(); var ids=new HashSet<String>(); var nodeIds=new HashSet<String>();
         for(int ordinal=0;ordinal<rows.size();ordinal++) {
             var row=rows.get(ordinal); var locator=read((String)row.get("locator"));
-            TypedSchemaBindings.bind(catalogue,DatasetBindings.LOCATOR,locator);
+            SourceLocatorSchema.validate(catalogue,locator);
             String raw=(String)Objects.requireNonNull(row.get("rawText")),search=(String)Objects.requireNonNull(row.get("searchText"));
             if(!Integer.toString(ordinal).equals(row.get("ordinal").toString())
                     || !Integer.toString(ordinal).equals(row.get("chunkOrdinal").toString())

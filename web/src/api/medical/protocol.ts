@@ -1,3 +1,6 @@
+import formalEvaluationContextHttp from '../../../../business/medical-persistence/src/main/resources/formal-evaluation-context-http.schema.json'
+import formalDisableRecovery from '../../../../business/medical-persistence/src/main/resources/formal-agent-publication-disable-recovery.schema.json'
+import formalPolicyRead from '../../../../business/medical-persistence/src/main/resources/formal-evaluation-policy-read.schema.json'
 import formalPublicationAvailability from '../../../../business/medical-persistence/src/main/resources/formal-agent-publication-feature-availability.schema.json'
 import formalPublicationReceipt from '../../../../business/medical-persistence/src/main/resources/formal-agent-publication-workflow.schema.json'
 import formalScoreBinding from '../../../../business/medical-persistence/src/main/resources/formal-evaluation-score-binding.schema.json'
@@ -72,6 +75,7 @@ import templates from '../../../../business/medical-persistence/src/main/resourc
 import templateApproval from '../../../../business/medical-persistence/src/main/resources/template-approval.schema.json'
 import templateApprovalView from './template-approval-view.schema.json'
 import templateOperations from '../../../../business/medical-persistence/src/main/resources/template-operations.schema.json'
+import templateApplication from '../../../../business/medical-persistence/src/main/resources/template-application.schema.json'
 import templateApplicability from '../../../../business/medical-persistence/src/main/resources/template-applicability.schema.json'
 import templateCreateView from './template-create-view.schema.json'
 import ruleExpressions from '../../../../business/medical-persistence/src/main/resources/rule-expressions.schema.json'
@@ -184,6 +188,7 @@ ajv.addSchema(templateApproval)
 ajv.addSchema(templateApprovalView)
 ajv.addSchema(templateOperations)
 ajv.addSchema(templateApplicability)
+ajv.addSchema(templateApplication)
 ajv.addSchema(templateCreateView)
 ajv.addSchema(ruleExpressions)
 ajv.addSchema(ruleWorkflow)
@@ -267,10 +272,16 @@ ajv.addSchema(formalInputDocument)
 ajv.addSchema(modelEnablementPolicy)
 ajv.addSchema(modelVerificationInput)
 ajv.addSchema(modelVerificationTokenizer)
+ajv.addSchema(formalEvaluationContextHttp)
+ajv.addSchema(formalDisableRecovery)
+ajv.addSchema(formalPolicyRead)
 ajv.addSchema(formalPublicationAvailability)
 ajv.addSchema(formalPublicationReceipt)
 ajv.addSchema(formalScoreBinding)
 const allowedSchemaReferences = new Set<string>([
+  ...['Availability','Query','Receipt','Recovery','View','Summary','Page'].map(name => formalEvaluationContextHttp.$id + '#/$defs/' + name),
+  formalDisableRecovery.$id, ...['Recovery','RecoveredDisable'].map(name => formalDisableRecovery.$id + '#/$defs/' + name),
+  formalPolicyRead.$id, formalPolicyRead.$id + '#/$defs/Read',
   formalPublicationAvailability.$id,
   formalPublicationReceipt.$id,
   ...['FormalScoreBinding','FormalRecovery','FormalReceipt'].map(name => formalScoreBinding.$id + '#/$defs/' + name),
@@ -410,7 +421,7 @@ const allowedSchemaReferences = new Set<string>([
   'urn:medical:task-plan-write-view:1.0.0',
   ...['Baseline', 'Request', 'Receipt'].map(name => 'urn:medical:task-plan-decision:1.0.0#/$defs/' + name),
   'urn:medical:task-plan-return-view:1.0.0',
-  ...['Id', 'Operation', 'DocumentSnapshot', 'DocumentBody', 'TextContent', 'FieldValue', 'BodyPage', 'RevisionInput', 'UploadRequest', 'UploadGrant', 'UploadCompletion', 'ArtifactReceipt', 'ContentChunk', 'PublicEvent', 'StreamCursor', 'CandidateDelta', 'Selection']
+  ...['Id', 'Operation', 'DocumentSnapshot', 'DocumentBody', 'TextContent', 'FieldValue', 'BodyPage', 'RevisionInput', 'UploadRequest', 'UploadGrant', 'UploadCompletion', 'ArtifactReceipt', 'ContentChunk', 'PublicEvent', 'StreamCursor', 'CandidateDelta', 'CandidateView', 'Selection']
     .map(name => 'https://schemas.medical-agent.invalid/1.0.0/backend-design/interfaces.schema.yaml#/$defs/' + name),
   'https://schemas.medical-agent.invalid/1.0.0/backend-design/resource-details.schema.yaml#/$defs/TaskDetail',
   ...['Request', 'Pending', 'Profile'].map(name => 'urn:medical:own-profile:1.0.0#/$defs/' + name),

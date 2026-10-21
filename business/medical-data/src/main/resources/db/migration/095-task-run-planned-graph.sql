@@ -1,0 +1,61 @@
+--liquibase formatted sql
+-- Immutable required graph; no input artifact, READY step, lease or completion is synthesized.
+--changeset medical-agent:095-01-task-run-planned-graph dbms:mysql runInTransaction:false failOnError:true
+CREATE TABLE task_run_planned_graph (
+ tenant_id CHAR(36) CHARACTER SET ascii NOT NULL,
+ project_id CHAR(36) CHARACTER SET ascii NOT NULL,
+ task_id CHAR(36) CHARACTER SET ascii NOT NULL,
+ run_id CHAR(36) CHARACTER SET ascii NOT NULL,
+ graph_id CHAR(36) CHARACTER SET ascii NOT NULL,
+ graph_sha256 CHAR(64) CHARACTER SET ascii NOT NULL,
+ principal_id CHAR(36) CHARACTER SET ascii NOT NULL,
+ plan_revision CHAR(36) CHARACTER SET ascii NOT NULL,
+ plan_sha256 CHAR(64) CHARACTER SET ascii NOT NULL,
+ replay_sha256 CHAR(64) CHARACTER SET ascii NOT NULL,
+ replay_receipt_sha256 CHAR(64) CHARACTER SET ascii NOT NULL,
+ graph_json JSON NOT NULL,
+ operation_id CHAR(36) CHARACTER SET ascii NOT NULL,
+ audit_id CHAR(36) CHARACTER SET ascii NOT NULL,
+ event_id CHAR(36) CHARACTER SET ascii NOT NULL,
+ schema_version VARCHAR(32) NOT NULL,
+ schema_manifest_sha256 CHAR(64) CHARACTER SET ascii NOT NULL,
+ created_by CHAR(36) CHARACTER SET ascii NOT NULL,
+ created_at DATETIME(6) NOT NULL,
+ classification VARCHAR(24) NOT NULL,
+ PRIMARY KEY (tenant_id,graph_id),
+ UNIQUE KEY uq_task_graph_run (tenant_id,project_id,task_id,run_id),
+ UNIQUE KEY uq_task_graph_identity (tenant_id,project_id,task_id,run_id,graph_id,graph_sha256),
+ FOREIGN KEY (tenant_id,project_id,task_id,run_id) REFERENCES task_run(tenant_id,project_id,task_id,run_id),
+ FOREIGN KEY (tenant_id,plan_revision,plan_sha256) REFERENCES version_registry(tenant_id,version_id,content_sha256),
+ FOREIGN KEY (tenant_id,operation_id) REFERENCES operation_record(tenant_id,operation_id),
+ FOREIGN KEY (tenant_id,audit_id) REFERENCES audit_event(tenant_id,audit_id),
+ FOREIGN KEY (tenant_id,event_id) REFERENCES outbox_event(tenant_id,event_id),
+ FOREIGN KEY (tenant_id,created_by) REFERENCES tenant_member(tenant_id,user_id),
+ CHECK (JSON_TYPE(graph_json)='OBJECT'),
+ CHECK (graph_sha256 REGEXP '^[a-f0-9]{64}$' AND plan_sha256 REGEXP '^[a-f0-9]{64}$' AND replay_sha256 REGEXP '^[a-f0-9]{64}$' AND replay_receipt_sha256 REGEXP '^[a-f0-9]{64}$'),
+ CHECK (schema_version='1.0.0' AND schema_manifest_sha256 REGEXP '^[a-f0-9]{64}$'),
+ CHECK (classification IN ('PUBLIC','INTERNAL','RESTRICTED','PERSONAL_HEALTH'))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_as_cs;
+
+--changeset medical-agent:095-02-task-run-planned-edge dbms:mysql runInTransaction:false failOnError:true
+CREATE TABLE task_run_planned_edge (
+ tenant_id CHAR(36) CHARACTER SET ascii NOT NULL,
+ project_id CHAR(36) CHARACTER SET ascii NOT NULL,
+ task_id CHAR(36) CHARACTER SET ascii NOT NULL,
+ run_id CHAR(36) CHARACTER SET ascii NOT NULL,
+ graph_id CHAR(36) CHARACTER SET ascii NOT NULL,
+ graph_sha256 CHAR(64) CHARACTER SET ascii NOT NULL,
+ step_id CHAR(36) CHARACTER SET ascii NOT NULL,
+ depends_on_step_id CHAR(36) CHARACTER SET ascii NOT NULL,
+ schema_version VARCHAR(32) NOT NULL,
+ schema_manifest_sha256 CHAR(64) CHARACTER SET ascii NOT NULL,
+ created_by CHAR(36) CHARACTER SET ascii NOT NULL,
+ created_at DATETIME(6) NOT NULL,
+ classification VARCHAR(24) NOT NULL,
+ PRIMARY KEY (tenant_id,graph_id,step_id,depends_on_step_id),
+ FOREIGN KEY (tenant_id,project_id,task_id,run_id,graph_id,graph_sha256) REFERENCES task_run_planned_graph(tenant_id,project_id,task_id,run_id,graph_id,graph_sha256),
+ FOREIGN KEY (tenant_id,created_by) REFERENCES tenant_member(tenant_id,user_id),
+ CHECK (step_id<>depends_on_step_id),
+ CHECK (schema_version='1.0.0' AND schema_manifest_sha256 REGEXP '^[a-f0-9]{64}$'),
+ CHECK (classification IN ('PUBLIC','INTERNAL','RESTRICTED','PERSONAL_HEALTH'))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_as_cs;

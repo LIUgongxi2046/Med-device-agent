@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0.0",
+  "base_catalogue_sha256": "dcd72acbb7a45775373662e0ffe4557030d4740b0afacdee8375e7768e761915",
+  "schemas": [
+    {
+      "name": "task-section-writer-package",
+      "path": "business/medical-persistence/src/main/resources/task-section-writer-package.schema.json",
+      "sha256": "911ab7af92e916439f4db51b24fb1603e11f4c2943ea7055d1e6db5af8f034aa"
+    },
+    {
+      "name": "task-source-verifier-package",
+      "path": "business/medical-persistence/src/main/resources/task-source-verifier-package.schema.json",
+      "sha256": "e33f7796286be1e3f6291b7c28f810c03c972892ca0d8b6c2d660d3160091ec5"
+    },
+    {
+      "name": "document-review-package",
+      "path": "business/medical-persistence/src/main/resources/document-review-package.schema.json",
+      "sha256": "8c9b8303a34da71275faa126bd972089324ddd085f64435393a9dfed3ff6d6b9"
+    }
+  ]
+}

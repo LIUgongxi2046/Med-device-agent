@@ -9,6 +9,42 @@ import static org.junit.jupiter.api.Assertions.*;
 
 /** Offline route registration checks, not a replacement for actual HTTP/browser refresh tests. */
 class FrameworkConfigurationRoutesTest {
+    @Test void publicationAndContextPagesDoNotBecomeApiCatchAllRoutes() {
+        var required = List.of("/agents/publication", "/agents/context-bindings");
+        assertTrue(FrameworkFrontendConfiguration.ROUTES.containsAll(required));
+        var parser = new PathPatternParser();
+        var entries = required.stream().map(parser::parse).toList();
+        for (var path : required)
+            assertTrue(entries.stream().anyMatch(entry -> entry.matches(PathContainer.parsePath(path))), path);
+        for (var path : List.of("/agents/publication/unknown", "/agents/context-bindings/unknown",
+                "/api/formal-agent-publications", "/api/formal-evaluation-context-bindings"))
+            assertFalse(entries.stream().anyMatch(entry -> entry.matches(PathContainer.parsePath(path))), path);
+    }
+
+    @Test void fieldTargetPreparationPagesHaveExactEntriesWithoutApiOrNestedFallback() {
+        var required = List.of("/projects/{projectId}/tasks/{taskId}/field-targets",
+                "/projects/{projectId}/tasks/{taskId}/field-target-capabilities");
+        assertTrue(FrameworkFrontendConfiguration.ROUTES.containsAll(required));
+        var parser = new PathPatternParser();
+        var entries = required.stream().map(parser::parse).toList();
+        for (var path : List.of("/projects/p/tasks/t/field-targets", "/projects/p/tasks/t/field-target-capabilities"))
+            assertTrue(entries.stream().anyMatch(entry -> entry.matches(PathContainer.parsePath(path))), path);
+        for (var path : List.of("/api/projects/p/tasks/t/field-targets", "/api/projects/p/tasks/t/field-target-capabilities",
+                "/projects/p/tasks/t/field-targets/unknown", "/projects/p/tasks/t/field-target-capabilities/unknown"))
+            assertFalse(entries.stream().anyMatch(entry -> entry.matches(PathContainer.parsePath(path))), path);
+    }
+
+    @Test void nodeProducerPageHasOnlyAnExactSpaEntry() {
+        String route = "/projects/{projectId}/tasks/{taskId}/node-producer-rules";
+        assertTrue(FrameworkFrontendConfiguration.ROUTES.contains(route));
+        var pattern = new PathPatternParser().parse(route);
+        assertTrue(pattern.matches(PathContainer.parsePath("/projects/p/tasks/t/node-producer-rules")));
+        for (var path : List.of("/api/tasks/t/node-producer-rules",
+                "/projects/p/tasks/t/node-producer-rules/decisions",
+                "/projects/p/tasks/t/node-producer-rules/recovery"))
+            assertFalse(pattern.matches(PathContainer.parsePath(path)), path);
+    }
+
     @Test void fixedConfigurationAndEvaluationPagesHaveExactServerEntries() {
         assertTrue(FrameworkFrontendConfiguration.ROUTES.containsAll(List.of(
             "/rules", "/rules/new", "/rules/{ruleId}", "/model-configurations", "/simulation-model-configurations",

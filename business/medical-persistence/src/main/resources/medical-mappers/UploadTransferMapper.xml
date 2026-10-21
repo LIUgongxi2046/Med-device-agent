@@ -19,6 +19,30 @@
           AND m.valid_from &lt;= UTC_TIMESTAMP(6) AND (m.valid_to IS NULL OR m.valid_to &gt; UTC_TIMESTAMP(6))
         WHERE d.document_id=#{documentId}<include refid="lock"/>
     </select>
+    <resultMap id="bodyPublicationRow" type="com.ruoyi.medical.persistence.UploadTransferProtocol$BodyPublicationRow">
+        <constructor>
+            <arg column="tenant_id" javaType="java.lang.String"/><arg column="project_id" javaType="java.lang.String"/>
+            <arg column="document_id" javaType="java.lang.String"/><arg column="document_revision" javaType="java.lang.String"/>
+            <arg column="body_schema_revision" javaType="java.lang.String"/><arg column="schema_ref" javaType="java.lang.String"/>
+            <arg column="schema_document_sha256" javaType="java.lang.String"/>
+        </constructor>
+    </resultMap>
+    <select id="documentBodyPublication" resultMap="bodyPublicationRow" useCache="false" flushCache="true">
+        SELECT d.tenant_id,d.project_id,d.document_id,r.document_revision,r.body_schema_revision,b.schema_ref,b.schema_document_sha256
+        FROM document_head d
+        JOIN tenant_member m ON m.tenant_id=d.tenant_id AND m.user_id=#{userId} AND m.status='ACTIVE'
+          AND m.valid_from &lt;= UTC_TIMESTAMP(6) AND (m.valid_to IS NULL OR m.valid_to &gt; UTC_TIMESTAMP(6))
+        JOIN document_revision_meta r ON r.tenant_id=d.tenant_id AND r.project_id=d.project_id AND r.document_id=d.document_id
+          AND r.document_revision=d.current_document_revision
+        JOIN artifact a ON a.tenant_id=r.tenant_id AND a.project_id=r.project_id AND a.artifact_id=r.body_artifact_id
+          AND a.artifact_kind='DOCUMENT_BODY' AND a.document_revision=r.document_revision AND a.sha256=r.body_sha256
+        JOIN artifact_content_binding b ON b.tenant_id=a.tenant_id AND b.project_id=a.project_id AND b.artifact_id=a.artifact_id
+          AND b.resource_kind='DOCUMENT' AND b.resource_id=d.document_id AND b.dependency_access_set_id=a.dependency_access_set_id
+        JOIN version_registry v ON v.tenant_id=r.tenant_id AND v.owner_project_id=r.project_id AND v.version_id=r.body_schema_revision
+          AND v.entity_kind='DOCUMENT_BODY_SCHEMA' AND v.content_sha256=b.schema_document_sha256
+        WHERE d.document_id=#{documentId} AND d.project_id=#{projectId} AND d.current_document_revision=#{documentRevision}
+          AND d.revision=#{revision} FOR UPDATE
+    </select>
     <resultMap id="sessionRow" type="com.ruoyi.medical.persistence.UploadTransferProtocol$SessionRow">
         <constructor>
             <arg column="tenant_id" javaType="java.lang.String"/><arg column="project_id" javaType="java.lang.String"/>

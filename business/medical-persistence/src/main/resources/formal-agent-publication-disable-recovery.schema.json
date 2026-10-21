@@ -1,0 +1,152 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:formal-agent-publication-disable-recovery:1.0.0",
+  "$ref": "#/$defs/RecoveredDisable",
+  "$defs": {
+    "Disable": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "release_id",
+        "expected_revision",
+        "reason"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "release_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "expected_revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "reason": {
+          "$ref": "#/$defs/Reason"
+        }
+      }
+    },
+    "Id": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "Revision": {
+      "type": "string",
+      "pattern": "^[1-9][0-9]{0,18}$"
+    },
+    "Reason": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2000,
+      "pattern": ".*\\S.*"
+    },
+    "Receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "operation_id",
+        "resource_id",
+        "kind",
+        "content_sha256",
+        "request_body_sha256"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "operation_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "resource_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "kind": {
+          "const": "PUBLICATION"
+        },
+        "content_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "request_body_sha256": {
+          "$ref": "#/$defs/Hash"
+        }
+      }
+    },
+    "Hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "OriginalKey": {
+      "type": "string",
+      "minLength": 16,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9._:-]{16,128}$"
+    },
+    "Recovery": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "original_key",
+        "request"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "original_key": {
+          "$ref": "#/$defs/OriginalKey"
+        },
+        "request": {
+          "$ref": "#/$defs/Disable"
+        }
+      }
+    },
+    "RecoveredDisable": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "state",
+        "original_key",
+        "actor_id",
+        "release_id",
+        "expected_revision",
+        "resulting_revision",
+        "request_body_sha256",
+        "receipt"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "state": {
+          "const": "COMPLETED"
+        },
+        "original_key": {
+          "$ref": "#/$defs/OriginalKey"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "release_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "expected_revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "resulting_revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "request_body_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "receipt": {
+          "$ref": "#/$defs/Receipt"
+        }
+      }
+    }
+  }
+}

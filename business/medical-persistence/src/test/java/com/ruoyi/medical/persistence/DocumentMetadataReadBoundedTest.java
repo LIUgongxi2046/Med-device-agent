@@ -13,6 +13,8 @@ class DocumentMetadataReadBoundedTest{
   when(f.subject.user()).thenReturn(new BusinessSessionProtocol.User(id(2),"actor","Actor","USER"));var identity=mock(AuthenticatedIdentityBinding.class);when(identity.view()).thenReturn(new AuthenticatedIdentityBinding.View("local",id(2),null,null));when(f.subject.binding()).thenReturn(identity);when(f.admission.contextId()).thenReturn(id(90));when(f.admission.watermarks()).thenReturn(new TenantWatermarks(BigInteger.ONE,BigInteger.ONE));
   when(f.permissions.resourceOwner("DOCUMENT",id(5))).thenReturn(List.of(new PermissionProtocol.OwnerRow(id(5),id(4))));when(resources.require(eq(f.admission),any(),eq("document.read"),eq("DOCUMENT_BODY"))).thenReturn(f.grant);
   when(reads.metadataHeader(anyMap())).thenAnswer(i->List.of(f.header));when(registry.version(id(6))).thenReturn(List.of(new ArtifactRegistryProtocol.VersionRow(id(6),id(4),"DOCUMENT_REVISION",HASH)));
+  // Preparation independently verifies the pinned body schema before accepting source authority.
+  when(registry.version(f.header.bodySchemaRevision())).thenReturn(List.of(new ArtifactRegistryProtocol.VersionRow(f.header.bodySchemaRevision(),id(4),"DOCUMENT_BODY_SCHEMA",f.catalogue.schemaDigest("interfaces"))));
   var manifest=new TaskProtocol.ScopeSnapshotManifest("1.0.0",id(1),id(4),id(11),id(20),new CommonProtocol.SourceScope(CommonProtocol.ScopeMode.SOURCE_VERSIONS,List.of(),List.of(id(81)),false,null,null),"1","1",List.of(new TaskProtocol.ScopeSnapshotMember(id(80),id(81),id(82),id(83),id(84),id(85),id(86),HASH)));
   String canonical=new String(ContentReadAuthorization.canonicalBytes(manifest),java.nio.charset.StandardCharsets.UTF_8);String hash=WireValues.sha256(canonical.getBytes(java.nio.charset.StandardCharsets.UTF_8));var snapshot=new TaskProtocol.Snapshot(id(1),id(4),id(11),canonical,hash,BigInteger.ONE,BigInteger.ONE,f.now,hash);
   when(reads.metadataSnapshotBytes(anyMap())).thenReturn(List.of(BigInteger.valueOf(canonical.length())));when(reads.metadataSnapshot(anyMap())).thenReturn(List.of(snapshot));when(reads.metadataSourceCount(anyMap())).thenReturn(1L);when(reads.metadataMembers(anyMap())).thenReturn(List.of(member));
@@ -22,7 +24,7 @@ class DocumentMetadataReadBoundedTest{
    String artifact=id(n),kind=n==15?"DOCUMENT_BODY":n==16?"DOCUMENT_FIELDS":"DOCUMENT_EVIDENCE",definition=n==15?"DocumentBody":n==16?"DocumentFieldProjection":"DocumentEvidenceProjection";
    var graph=new org.jgrapht.graph.DirectedPseudograph<String,SourceReadProtocol.ParentRow>(null,null,false);graph.addVertex(artifact);var versions=Map.of(artifact,new ArtifactRegistryProtocol.VersionRow(artifact,id(4),"ARTIFACT",HASH));var closure=new DependencyLineage.VerifiedLineage(artifact,graph,versions);when(lineage.inspect(eq(artifact),any())).thenReturn(closure);
    var row=new ArtifactRegistryProtocol.ArtifactRow(id(1),id(4),artifact,kind,"{}",n==15?"private/key":"projection/"+n,n==15?"private/version":"version",HASH,BigInteger.TEN,"application/json",id(18),HASH,"1.0.0",HASH,"INTERNAL");
-   var binding=new ArtifactRegistryProtocol.BindingRow(id(1),id(4),artifact,"DOCUMENT",id(5),f.catalogue.schemaRef("interfaces",definition),f.catalogue.schemaDigest("interfaces"),id(18),HASH);var dependencies=new ArtifactRegistryProtocol.DependencyManifest("1.0.0",id(1),id(4),id(18),List.of(new ArtifactRegistryProtocol.MemberRow(id(81),id(86))));var registration=new ArtifactRegistryProtocol.Registration(row,binding,dependencies,f.grant,f.grant,closure);verified.put(artifact,new ArtifactSourceAuthority.VerifiedSources(registration,Map.of(id(81),source),Map.of()));
+   var binding=new ArtifactRegistryProtocol.BindingRow(id(1),id(4),artifact,"DOCUMENT",id(5),f.catalogue.schemaRef("interfaces",definition),f.catalogue.schemaDigest("interfaces"),id(18),HASH);when(registry.binding(artifact)).thenReturn(List.of(binding));var dependencies=new ArtifactRegistryProtocol.DependencyManifest("1.0.0",id(1),id(4),id(18),List.of(new ArtifactRegistryProtocol.MemberRow(id(81),id(86))));var registration=new ArtifactRegistryProtocol.Registration(row,binding,dependencies,f.grant,f.grant,closure);verified.put(artifact,new ArtifactSourceAuthority.VerifiedSources(registration,Map.of(id(81),source),Map.of()));
   }
   when(sources.require(eq(f.admission),anyString(),any(),anyList(),any(),anyMap())).thenAnswer(i->verified.get(i.getArgument(1)));
   service=new DocumentReadService(f.access,reads,f.permissions,resources,tasks,new ScopeSnapshotSchema(new TaskInputSchema(f.json)),registry,lineage,sources,content,transport,storage,mock(DocumentReadPolicy.class),mock(ArtifactContentReadPolicy.class),mock(ArtifactContentPageCache.class),f.json);
@@ -42,13 +44,15 @@ class DocumentMetadataReadBoundedTest{
  }
 
  @Test void fixedReadCurrentnessRetainsFullAncillaryPreparation()throws Exception{
-  // Currentness consumes only State. Reuse an actual prepared state to isolate that branch;
-  // this reflective FixedRead fixture deliberately makes no claim to previously verified body bytes.
-  var metadata=proof();var field=DocumentReadService.MetadataRead.class.getDeclaredField("state");field.setAccessible(true);Object state=field.get(metadata);
-  var constructor=DocumentReadService.FixedRead.class.getDeclaredConstructors()[0];constructor.setAccessible(true);var fixed=(DocumentReadService.FixedRead)constructor.newInstance(state,null);
+  // Currentness retains the original read mode. Prepare a real full (non-control) state;
+  // wrapping metadata-only state would exercise the bounded worker branch instead.
+  // This reflective fixture makes no claim to previously verified body bytes.
   var snapshot=reads.metadataSnapshot(Map.of()).get(0);
   when(reads.header(anyMap())).thenAnswer(i->List.of(f.header));when(reads.sourceCount(anyMap())).thenReturn(1L);when(tasks.snapshot(id(2),id(4),id(11))).thenReturn(List.of(snapshot));when(tasks.members(id(2),id(4),id(11))).thenReturn(List.of(member));
   when(reads.projections(anyMap())).thenReturn(List.of(new DocumentReadProtocol.Projection(id(16),"DOCUMENT_FIELDS"),new DocumentReadProtocol.Projection(id(17),"DOCUMENT_EVIDENCE")));when(reads.watermarks(anyMap())).thenReturn(List.of(new DocumentReadProtocol.Watermarks(BigInteger.ZERO,BigInteger.ZERO)));
+  var prepare=DocumentReadService.class.getDeclaredMethod("prepare",EnterpriseAccess.Admission.class,String.class,String.class,String.class,boolean.class);prepare.setAccessible(true);
+  Object state=f.within(()->prepare.invoke(service,f.admission,"1",id(5),id(6),false));
+  var constructor=DocumentReadService.FixedRead.class.getDeclaredConstructors()[0];constructor.setAccessible(true);var fixed=(DocumentReadService.FixedRead)constructor.newInstance(state,null);
   clearInvocations(reads,tasks);f.within(()->{service.requireCurrent(f.admission,fixed);return null;});
   verify(reads).header(anyMap());verify(reads).sourceCount(anyMap());verify(reads).projections(anyMap());verify(reads).watermarks(anyMap());verify(reads).checks(anyMap());verify(reads).reviews(anyMap());verify(reads).signatures(anyMap());verify(reads).invalidationReasons(anyMap());verify(reads).streams(anyMap());verify(tasks).snapshot(id(2),id(4),id(11));verify(tasks).members(id(2),id(4),id(11));
   for(var invocation:mockingDetails(reads).getInvocations())assertFalse(invocation.getMethod().getName().startsWith("metadata"));

@@ -1,0 +1,1177 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:task-plan-draft:1.0.0",
+  "$defs": {
+    "Id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "Hash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "Revision": {
+      "type": "string",
+      "pattern": "^[1-9][0-9]{0,19}$"
+    },
+    "Basis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version_id",
+        "content_sha256"
+      ],
+      "properties": {
+        "version_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "content_sha256": {
+          "$ref": "#/$defs/Hash"
+        }
+      }
+    },
+    "Start": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "task_revision",
+        "expected_revision",
+        "template",
+        "profile",
+        "agent_release_id",
+        "execution_policy",
+        "enterprise_budget",
+        "parent_budget",
+        "currency",
+        "maximum_amount",
+        "maximum_tokens",
+        "reason"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "task_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "expected_revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "template": {
+          "$ref": "#/$defs/Basis"
+        },
+        "profile": {
+          "$ref": "#/$defs/Basis"
+        },
+        "agent_release_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "execution_policy": {
+          "$ref": "#/$defs/Basis"
+        },
+        "enterprise_budget": {
+          "$ref": "#/$defs/Basis"
+        },
+        "parent_budget": {
+          "$ref": "#/$defs/Basis"
+        },
+        "currency": {
+          "type": "string",
+          "pattern": "^[A-Z]{3}$"
+        },
+        "maximum_amount": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]{0,12})(\\.[0-9]{1,6})?$"
+        },
+        "maximum_tokens": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]{0,18})$"
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096
+        }
+      }
+    },
+    "Admission": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "tenant_id",
+        "project_id",
+        "task_id",
+        "task_revision",
+        "run_id",
+        "actor_id",
+        "execution_kind",
+        "job_type",
+        "node_kind",
+        "operation_id",
+        "request_sha256",
+        "context_revision",
+        "input_sha256",
+        "scope_snapshot_id",
+        "template",
+        "profile",
+        "agent_release_id",
+        "execution_policy",
+        "authority_sha256",
+        "missing_requirement_ids",
+        "created_at",
+        "principal_id",
+        "step_id",
+        "action_id",
+        "scope_manifest_id",
+        "rule_manifest_id",
+        "scope_manifest",
+        "principal_manifest",
+        "input_manifest",
+        "role_version",
+        "model_version",
+        "dependency_versions"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "tenant_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "project_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "task_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "task_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "run_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "execution_kind": {
+          "const": "SYSTEM_JOB"
+        },
+        "job_type": {
+          "const": "PLAN_DRAFT"
+        },
+        "node_kind": {
+          "const": "N01"
+        },
+        "operation_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "request_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "context_revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "input_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "scope_snapshot_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "template": {
+          "$ref": "#/$defs/Basis"
+        },
+        "profile": {
+          "$ref": "#/$defs/Basis"
+        },
+        "agent_release_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "execution_policy": {
+          "$ref": "#/$defs/Basis"
+        },
+        "authority_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "missing_requirement_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Id"
+          },
+          "maxItems": 1024,
+          "uniqueItems": true
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "principal_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "step_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "action_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "scope_manifest_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "rule_manifest_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "scope_manifest": {
+          "$ref": "#/$defs/ScopeManifest"
+        },
+        "principal_manifest": {
+          "$ref": "#/$defs/PrincipalManifest"
+        },
+        "input_manifest": {
+          "$ref": "#/$defs/InputManifest"
+        },
+        "role_version": {
+          "$ref": "#/$defs/Basis"
+        },
+        "model_version": {
+          "$ref": "#/$defs/Basis"
+        },
+        "dependency_versions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/DependencyVersion"
+          },
+          "minItems": 1,
+          "maxItems": 10000,
+          "uniqueItems": true
+        }
+      }
+    },
+    "CandidateReceipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "tenant_id",
+        "project_id",
+        "task_id",
+        "task_revision",
+        "run_id",
+        "actor_id",
+        "step_id",
+        "action_id",
+        "lease_generation",
+        "input_sha256",
+        "artifact_id",
+        "object_sha256",
+        "object_version",
+        "candidate_sha256",
+        "schema_sha256",
+        "access_set_id",
+        "registration_receipt_sha256",
+        "created_at",
+        "session_id",
+        "write_id",
+        "intent_sha256",
+        "invocation_pins_json",
+        "invocation_pins_sha256",
+        "supervision_pins_json",
+        "supervision_pins_sha256",
+        "normalization_pins_json",
+        "normalization_pins_sha256"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "tenant_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "project_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "task_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "task_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "run_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "step_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "action_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "lease_generation": {
+          "$ref": "#/$defs/Revision"
+        },
+        "input_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "artifact_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "object_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "object_version": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096
+        },
+        "candidate_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "schema_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "access_set_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "registration_receipt_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "session_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "write_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "intent_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "invocation_pins_json": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 1048576
+        },
+        "invocation_pins_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "supervision_pins_json": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 262144
+        },
+        "supervision_pins_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "normalization_pins_json": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 262144
+        },
+        "normalization_pins_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "CheckReceipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "tenant_id",
+        "project_id",
+        "task_id",
+        "task_revision",
+        "run_id",
+        "actor_id",
+        "check_id",
+        "candidate_receipt_sha256",
+        "candidate_sha256",
+        "template",
+        "profile",
+        "source_scope_sha256",
+        "check_implementation",
+        "authority_sha256",
+        "coverage_sha256",
+        "missing_item_ids",
+        "result",
+        "created_at",
+        "target_kind",
+        "target_revision",
+        "target_sha256"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "tenant_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "project_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "task_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "task_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "run_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "check_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "candidate_receipt_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "candidate_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "template": {
+          "$ref": "#/$defs/Basis"
+        },
+        "profile": {
+          "$ref": "#/$defs/Basis"
+        },
+        "source_scope_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "check_implementation": {
+          "const": "TASK_PLAN_DRAFT_SERVER_CHECK_V1"
+        },
+        "authority_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "coverage_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "missing_item_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "maxItems": 1024,
+          "uniqueItems": true
+        },
+        "result": {
+          "enum": [
+            "COMPLETE",
+            "INCOMPLETE"
+          ]
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "target_kind": {
+          "enum": [
+            "PLAN_CANDIDATE",
+            "PLAN_DRAFT"
+          ]
+        },
+        "target_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "target_sha256": {
+          "$ref": "#/$defs/Hash"
+        }
+      }
+    },
+    "ToolReceipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "tenant_id",
+        "project_id",
+        "task_id",
+        "task_revision",
+        "run_id",
+        "actor_id",
+        "step_id",
+        "action_id",
+        "lease_generation",
+        "session_id",
+        "call_id",
+        "input_sha256",
+        "request_sha256",
+        "artifact_id",
+        "candidate_receipt_sha256",
+        "check_receipt_sha256",
+        "waiting_item_id",
+        "status",
+        "created_at"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "tenant_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "project_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "task_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "task_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "run_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "step_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "action_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "lease_generation": {
+          "$ref": "#/$defs/Revision"
+        },
+        "session_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "call_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "input_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "request_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "artifact_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "candidate_receipt_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "check_receipt_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "waiting_item_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "status": {
+          "const": "WAITING_INPUT"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "Adopt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "expected_revision",
+        "base_plan_revision",
+        "candidate_receipt_sha256",
+        "check_receipt_sha256",
+        "reason"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "expected_revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "base_plan_revision": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "uuid"
+        },
+        "candidate_receipt_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "check_receipt_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+        }
+      }
+    },
+    "Origin": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "tenant_id",
+        "project_id",
+        "task_id",
+        "task_revision",
+        "run_id",
+        "actor_id",
+        "operation_id",
+        "candidate_artifact_id",
+        "candidate_sha256",
+        "candidate_receipt_sha256",
+        "check_receipt_sha256",
+        "draft_revision",
+        "draft_sha256",
+        "parent_draft_revision",
+        "created_at"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "tenant_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "project_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "task_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "task_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "run_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "operation_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "candidate_artifact_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "candidate_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "candidate_receipt_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "check_receipt_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "draft_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "draft_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "parent_draft_revision": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "uuid"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "Recovery": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "original_key",
+        "original_request"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "original_key": {
+          "type": "string",
+          "pattern": "^[!-~]{16,128}$"
+        },
+        "original_request": {
+          "$ref": "#/$defs/Start"
+        }
+      }
+    },
+    "NullableId": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Id"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "Action": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_.-]{0,63}$"
+    },
+    "Scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tenant_id",
+        "project_id",
+        "resource_kind",
+        "resource_id"
+      ],
+      "properties": {
+        "tenant_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "project_id": {
+          "$ref": "#/$defs/NullableId"
+        },
+        "resource_kind": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9_]{0,63}$"
+        },
+        "resource_id": {
+          "$ref": "#/$defs/Id"
+        }
+      }
+    },
+    "Permission": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scope",
+        "action",
+        "purpose"
+      ],
+      "properties": {
+        "scope": {
+          "$ref": "#/$defs/Scope"
+        },
+        "action": {
+          "$ref": "#/$defs/Action"
+        },
+        "purpose": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9_]{0,63}$"
+        }
+      }
+    },
+    "Service": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "service_uri",
+        "audience"
+      ],
+      "properties": {
+        "service_uri": {
+          "type": "string",
+          "format": "uri",
+          "maxLength": 512
+        },
+        "audience": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255
+        }
+      }
+    },
+    "ScopeManifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "tenant_id",
+        "project_id",
+        "initiator_id",
+        "run_id",
+        "execution_kind",
+        "resources"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "tenant_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "project_id": {
+          "$ref": "#/$defs/NullableId"
+        },
+        "initiator_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "run_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "execution_kind": {
+          "enum": [
+            "TASK",
+            "SYSTEM_JOB"
+          ]
+        },
+        "resources": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/Scope"
+          }
+        }
+      }
+    },
+    "PrincipalManifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "tenant_id",
+        "project_id",
+        "initiator_id",
+        "run_id",
+        "principal_id",
+        "scope_sha256",
+        "services",
+        "permissions"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "tenant_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "project_id": {
+          "$ref": "#/$defs/NullableId"
+        },
+        "initiator_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "run_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "principal_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "scope_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "services": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/Service"
+          }
+        },
+        "permissions": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/Permission"
+          }
+        }
+      }
+    },
+    "RoleScope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "permissions"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "permissions": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/Permission"
+          }
+        }
+      }
+    },
+    "InputManifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "tenant_id",
+        "project_id",
+        "task_id",
+        "task_revision",
+        "run_id",
+        "execution_kind",
+        "job_type",
+        "node_kind",
+        "scope_snapshot_id",
+        "authority_sha256",
+        "step_id",
+        "plan_revision",
+        "fixed_inputs_json"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "tenant_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "project_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "task_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "task_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "run_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "execution_kind": {
+          "const": "SYSTEM_JOB"
+        },
+        "job_type": {
+          "const": "PLAN_DRAFT"
+        },
+        "node_kind": {
+          "const": "N01"
+        },
+        "scope_snapshot_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "authority_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "step_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "plan_revision": {
+          "type": "null"
+        },
+        "fixed_inputs_json": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 1048576
+        }
+      }
+    },
+    "DependencyVersion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version_id",
+        "entity_kind",
+        "project_id",
+        "content_sha256"
+      ],
+      "properties": {
+        "version_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "entity_kind": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "project_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "uuid"
+        },
+        "content_sha256": {
+          "$ref": "#/$defs/Hash"
+        }
+      }
+    },
+    "View": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "tenant_id",
+        "project_id",
+        "task_id",
+        "task_revision",
+        "run_id",
+        "status",
+        "input_sha256",
+        "candidate_artifact_id",
+        "candidate_receipt_sha256",
+        "candidate",
+        "check_receipt",
+        "tool_receipt",
+        "check_receipt_sha256"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "tenant_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "project_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "task_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "task_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "run_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "status": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 32
+        },
+        "input_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "candidate_artifact_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "candidate_receipt_sha256": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Hash"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "candidate": {
+          "anyOf": [
+            {
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "check_receipt": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CheckReceipt"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "tool_receipt": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ToolReceipt"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "check_receipt_sha256": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Hash"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "Preparation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "tenant_id",
+        "project_id",
+        "task_id",
+        "task_revision",
+        "status",
+        "missing_requirements"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "tenant_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "project_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "task_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "task_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "status": {
+          "const": "PREPARATION_REQUIRED"
+        },
+        "missing_requirements": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "source_version",
+              "requirement",
+              "resolution"
+            ],
+            "properties": {
+              "source_version": {
+                "$ref": "#/$defs/Id"
+              },
+              "requirement": {
+                "const": "FIXED_SCOPE_SELECTION_REQUIRED"
+              },
+              "resolution": {
+                "const": "PREPARE_MATERIAL_AND_CREATE_TASK_REVISION"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

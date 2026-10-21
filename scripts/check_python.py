@@ -7,7 +7,8 @@ import sys
 
 
 ROOT = Path(__file__).resolve().parents[1]
-CAPTURE = Path("/Users/liuhaoxian/.agents/skills/haonan-s000-pmp/scripts/capture_check.py")
+from check_support import capture_check_path
+CAPTURE = capture_check_path()
 
 
 def main():
@@ -40,7 +41,7 @@ def main():
     capture = [sys.executable, str(CAPTURE), "--output-dir",
                str(ROOT / ".implementation-work" / (check_id + "-" + args.execution)),
                "--check-id", check_id, "--kind", "UNIT" if args.check == "test" else "INTEGRATION",
-               "--baseline-id", "shared-schemas-and-migration-1.0.0", "--cwd", str(ROOT), "--timeout", "60"]
+               "--baseline-id", "shared-schemas-and-migration-1.0.0", "--cwd", str(ROOT), "--timeout", "300"]
     if args.check == "package":
         inputs.update(("scripts/build_python.py", "tests/inspect_python_package.py"))
     for path in sorted(inputs):

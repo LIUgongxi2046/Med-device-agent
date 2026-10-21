@@ -18,6 +18,8 @@ public final class ArtifactRegistry {
     private final SchemaCatalogue schemas;
     private final DependencyLineage lineage;
     private final org.springframework.beans.factory.ObjectProvider<SimulationArtifactReadGuard> simulationReads;
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    private org.springframework.beans.factory.ObjectProvider<FormalEvaluationRuntimeObjects> evaluationRuntimeObjects;
 
     public ArtifactRegistry(ArtifactRegistryMapper mapper, ResourceReadAuthority authority, DependencyManifestSchema manifests, DependencyLineage lineage)
             throws IOException, NoSuchAlgorithmException {
@@ -32,6 +34,17 @@ public final class ArtifactRegistry {
         this.simulationReads=simulationReads; schemas = SchemaCatalogue.fromClasspath();
     }
 
+    private boolean requireEvaluationRuntimeOriginal(EnterpriseAccess.Admission a,ArtifactRegistryProtocol.ArtifactRow artifact,ArtifactRegistryProtocol.BindingRow binding,ArtifactRegistryProtocol.ReadRequirement required) {
+        var owners=mapper.evaluationRuntimeObjectOwners(artifact.artifactId());
+        boolean dedicated=binding.schemaRef()!=null&&binding.schemaRef().startsWith("urn:medical:evaluation-node-runtime:1.0.0#/$defs/")||artifact.artifactKind().startsWith("EVAL_");
+        if(owners.isEmpty()&&!dedicated)return false;
+        if(owners.size()!=1||!"EVALUATION_RESULTS".equals(required.purpose()))denied();
+        var source=evaluationRuntimeObjects==null?null:evaluationRuntimeObjects.getIfAvailable();if(source==null)denied();
+        var original=org.springframework.util.function.ThrowingSupplier.of(()->source.readOriginalArtifact(a,artifact.artifactId())).get();
+        if(!original.reference().equals(artifact.reference())||!original.artifact().schemaRef().equals(required.schemaRef())||!original.artifact().schemaRef().equals(binding.schemaRef()))mismatch();
+        return true;
+    }
+
     ArtifactRegistryProtocol.Registration requireRegistration(EnterpriseAccess.Admission admission, String id,
             ArtifactRegistryProtocol.ReadRequirement required) throws IOException {
         Objects.requireNonNull(required); WireValues.uuid(id); WireValues.hash(required.artifactSchemaManifest());
@@ -40,8 +53,22 @@ public final class ArtifactRegistry {
         // 主资源与制品分别授权，登记数据不能决定调用方应读取的领域类型。
         var resourceGrant = authority.require(admission, required.scope(), required.action(), required.purpose());
         var artifact = single(mapper.artifact(id)); var binding = single(mapper.binding(id));
+        if(admission.controlWorker())admission.controlProof().requireVersion(id,artifact.contentSha256());
+        TaskPlanDraftArtifactBoundary.requireGenericAllowed(artifact,binding,mapper.planDraftInputOwners(id),mapper.planDraftExactInputOwners(id));
+        TaskSectionWriterArtifactBoundary.requireGenericAllowed(artifact,binding,mapper.sectionWriterInputOwners(id),mapper.sectionWriterExactInputOwners(id));
+        TaskCandidateAssemblyArtifactBoundary.requireGenericAllowed(artifact,binding,mapper.candidateAssemblyOwners(id));
+        DocumentReviewInvocationArtifactBoundary.requireGenericAllowed(artifact,binding,mapper.documentReviewExactInputOwners(id));
+        TaskSourceVerifierArtifactBoundary.requireGenericAllowed(artifact,binding,mapper.sourceVerifierInputOwners(id),mapper.sourceVerifierExactInputOwners(id));
+        TaskFieldTargetArtifactBoundary.requireGenericAllowed(artifact,binding,mapper.taskFieldTargetOwners(id));
+        TaskNodeInputArtifactBoundary.requireGenericAllowed(artifact,binding,mapper.taskNodeInputOwners(id));
+        TaskProfessionalArtifactBoundary.requireGenericAllowed(artifact,binding,mapper.runtimeProfessionalOwners(id));
         FormalPublicationArtifactBoundary.requireGenericAllowed(artifact, binding);
         RuntimeArtifactReadBoundary.requireGenericAllowed(artifact, binding);
+        FormalEvaluationExactInputArtifactBoundary.requireGenericAllowed(artifact, binding, mapper.evaluationExactInputOwners(id));
+        FormalEvaluationPlanArtifactBoundary.requireGenericAllowed(artifact, binding, mapper.evaluationPlanPreparationOwners(id));
+        FormalEvaluationNodeInputArtifactBoundary.requireGenericAllowed(artifact, binding, mapper.evaluationNodeInputOwners(id));
+        FormalEvaluationInvocationArtifactBoundary.requireGenericAllowed(artifact,binding,mapper.evaluationCallExactInputOwners(id));
+        boolean evaluationRuntimeSchema = requireEvaluationRuntimeOriginal(admission, artifact, binding, required);
         var artifactGrant = authority.require(admission, new PermissionProtocol.Scope(tenant, artifact.projectId(), "ARTIFACT", id),
             "artifact.read", required.purpose());
         if (!tenant.equals(artifact.tenantId()) || !tenant.equals(binding.tenantId()) || !id.equals(artifact.artifactId())
@@ -51,7 +78,7 @@ public final class ArtifactRegistry {
                 || !required.schemaRef().equals(binding.schemaRef()) || !required.schemaDocumentSha256().equals(binding.schemaDocumentSha256())
                 || !"1.0.0".equals(artifact.schemaVersion()) || !required.artifactSchemaManifest().equals(artifact.schemaManifest())
                 || !artifact.sha256().equals(artifact.contentSha256())) mismatch();
-        if(!requireLocalSimulationSchema(artifact,required) && !requireLocalFormalInputSchema(artifact,required))
+        if(!evaluationRuntimeSchema && !requireLocalSimulationSchema(artifact,required) && !requireLocalFormalInputSchema(artifact,required))
             schemas.requirePublished(required.schemaRef(), required.schemaDocumentSha256());
         StoredObjectReferences.decode(artifact.storedObject(), artifact.reference());
         requireVersion(id, artifact.projectId(), artifact.sha256());

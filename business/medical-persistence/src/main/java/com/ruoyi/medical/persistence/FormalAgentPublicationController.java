@@ -7,9 +7,15 @@ public final class FormalAgentPublicationController {
  @PostMapping(value="/api/formal-agent-publications",consumes="application/json") public JsonNode publish(HttpServletRequest q,HttpServletResponse r,Authentication auth)throws Exception{var context=headers(q);return response(r,service.publish(identities.requireCurrent(q,auth),context,key(q),body(q)));}
  @GetMapping("/api/formal-agent-publication-operations/{originalKey}") public JsonNode receipt(HttpServletRequest q,HttpServletResponse r,Authentication auth,@PathVariable("originalKey") String originalKey)throws Exception{var context=headers(q);noBody(q);return response(r,service.receipt(identities.requireCurrent(q,auth),context,originalKey));}
  @PostMapping(value="/api/formal-agent-publications/disable",consumes="application/json") public JsonNode disable(HttpServletRequest q,HttpServletResponse r,Authentication auth)throws Exception{var context=headers(q);return response(r,authority.disable(identities.requireCurrent(q,auth),context,key(q),body(q)));}
+ @PostMapping(value="/api/formal-agent-publications/disable/recovery",consumes="application/json") public JsonNode recoverDisable(HttpServletRequest q,HttpServletResponse r,Authentication auth)throws Exception{
+  var context=headers(q);
+  if(q.getHeader("Idempotency-Key")!=null)throw new SchemaRejection(ErrorCode.SCHEMA_INVALID);
+  return response(r,authority.recoverDisable(identities.requireCurrent(q,auth),context,body(q,FormalPublicationDisableRecoverySchema.MAXIMUM_BYTES)));
+ }
  static String headers(HttpServletRequest q){if(!"1.0.0".equals(SimulationInputArtifactController.one(q,"X-Schema-Version")))throw new SchemaRejection(ErrorCode.SCHEMA_UNSUPPORTED);if(q.getQueryString()!=null)throw new SchemaRejection(ErrorCode.SCHEMA_INVALID);String context=SimulationInputArtifactController.one(q,"X-Context-Revision");PermissionSchema.revision(context);return context;}
  static String key(HttpServletRequest q){String key=SimulationInputArtifactController.one(q,"Idempotency-Key");SimulationInputArtifactSchema.key(key);return key;}
- static byte[] body(HttpServletRequest q)throws IOException{if(q.getContentLengthLong()>FormalAgentPublicationSchema.MAXIMUM_BYTES)throw new TenantAccessException(ErrorCode.FILE_TOO_LARGE);byte[] bytes=q.getInputStream().readNBytes(FormalAgentPublicationSchema.MAXIMUM_BYTES+1);if(bytes.length>FormalAgentPublicationSchema.MAXIMUM_BYTES)throw new TenantAccessException(ErrorCode.FILE_TOO_LARGE);return bytes;}
+ static byte[] body(HttpServletRequest q)throws IOException{return body(q,FormalAgentPublicationSchema.MAXIMUM_BYTES);}
+ static byte[] body(HttpServletRequest q,int maximum)throws IOException{if(q.getContentLengthLong()>maximum)throw new TenantAccessException(ErrorCode.FILE_TOO_LARGE);byte[] bytes=q.getInputStream().readNBytes(maximum+1);if(bytes.length>maximum)throw new TenantAccessException(ErrorCode.FILE_TOO_LARGE);return bytes;}
  static void noBody(HttpServletRequest q){if(q.getContentLengthLong()>0)throw new SchemaRejection(ErrorCode.SCHEMA_INVALID);}
  JsonNode response(HttpServletResponse r,JsonNode data){String id=UUID.randomUUID().toString();r.setHeader("Cache-Control","no-store");r.setHeader("X-Schema-Version","1.0.0");r.setHeader("X-Request-Id",id);return json.tree(new InterfaceProtocol.Envelope("1.0.0",id,"1",data));}
 

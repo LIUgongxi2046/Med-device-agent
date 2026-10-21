@@ -71,6 +71,7 @@ const prefix = 'medical.source.upload:'
 export const uploadStatusLabels = { PENDING: '待上传', UPLOADING: '接收中', RECEIVED: '已接收', FAILED: '接收失败' } as const
 export const transferStatusLabels = { ACTIVE: '允许发送', COMPLETING: '正在完成接收', COMPLETED: '传输完成', CANCELLED: '已取消', EXPIRED: '已过期', FAILED: '传输失败' } as const
 export const sourceMediaTypes: Record<string, string> = {
+  png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', tif: 'image/tiff', tiff: 'image/tiff',
   pdf: 'application/pdf', docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', csv: 'text/csv',
   pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation', md: 'text/markdown', markdown: 'text/markdown', txt: 'text/plain'
@@ -78,7 +79,7 @@ export const sourceMediaTypes: Record<string, string> = {
 export function sourceMediaType(file: File): string {
   const extension = file.name.slice(file.name.lastIndexOf('.') + 1).toLowerCase()
   const media = sourceMediaTypes[extension]
-  if (!media) fail('FILE_TYPE_UNSUPPORTED', '请选择 PDF、DOCX、XLSX、CSV、PPTX、Markdown 或 TXT 文件')
+  if (!media) fail('FILE_TYPE_UNSUPPORTED', '请选择 PDF、DOCX、XLSX、CSV、PPTX、Markdown、TXT 或 PNG/JPEG/TIFF 图片')
   if (file.size === 0 || !Number.isSafeInteger(file.size)) fail('SCHEMA_INVALID', '文件必须包含内容并具有可核验的大小')
   return media
 }

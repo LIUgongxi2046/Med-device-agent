@@ -42,8 +42,9 @@ public final class FormalWorkerAccess {
                 var context=new BusinessSessionProtocol.Context(admitted.tenantId(),"0",admitted.authEpoch().toString(),admitted.governanceEpoch().toString());
                 var result=operation.apply(new EnterpriseAccess.Admission(proof,context,new TenantWatermarks(admitted.authEpoch(),admitted.governanceEpoch())),admitted);
                 proof.requireActive();
-                var after=require(admitted);
-                try { if(!proof.identity.equals(after.identity)) denied(); } finally { after.close(); }
+                if(!("CHECK_DOCUMENT".equals(proof.identity.executionKind())&&tokens.documentReviewCompleted(admitted))){
+                    var after=require(admitted);try { if(!proof.identity.equals(after.identity)) denied(); } finally { after.close(); }
+                }
                 return result;
             } finally { proof.close(); }
         });
@@ -61,7 +62,16 @@ public final class FormalWorkerAccess {
             if(run.project()==null || run.task()==null || run.closed()!=null || run.superseded()!=null)denied();
             kind="TASK";
         } else if("SYSTEM_JOB".equals(run.kind())) {
-            kind=one(jdbc.query("""
+            var planDraft=jdbc.query("""
+                SELECT j.job_type FROM system_job_run j JOIN task_plan_draft_job d ON d.tenant_id=j.tenant_id AND d.run_id=j.run_id
+                WHERE j.tenant_id=? AND j.run_id=? AND j.initiator_id=? AND j.execution_kind='SYSTEM_JOB'
+                  AND j.job_type='PLAN_DRAFT' AND j.target_kind='TASK' AND j.target_id=d.task_id AND j.target_revision=d.task_revision
+                  AND j.status='RUNNING' AND j.ended_at IS NULL FOR UPDATE
+                """,(row,n)->row.getString(1),run.tenant(),run.id(),run.actor());
+            if(planDraft.size()>1)denied();
+            if(planDraft.size()==1){tokens.requirePlanDraftAdmission(admitted);kind="PLAN_DRAFT";}
+            else if(!jdbc.query("SELECT j.run_id FROM system_job_run j JOIN document_review_execution d ON d.tenant_id=j.tenant_id AND d.run_id=j.run_id WHERE j.tenant_id=? AND j.run_id=? AND j.initiator_id=? AND j.execution_kind='SYSTEM_JOB' AND j.job_type='CHECK_DOCUMENT' AND j.target_kind='DOCUMENT' AND j.target_id=d.document_id AND j.target_revision=d.document_revision AND j.status='RUNNING' AND j.ended_at IS NULL FOR UPDATE",(r,n)->r.getString(1),run.tenant(),run.id(),run.actor()).isEmpty()){tokens.requireDocumentReviewAdmission(admitted);kind="CHECK_DOCUMENT";}
+            else kind=one(jdbc.query("""
                 SELECT job_type FROM system_job_run WHERE tenant_id=? AND run_id=? AND initiator_id=?
                   AND execution_kind='SYSTEM_JOB' AND job_type='MODEL_VERIFICATION' AND target_kind='CONFIGURATION'
                   AND status IN ('QUEUED','RUNNING') AND ended_at IS NULL FOR UPDATE

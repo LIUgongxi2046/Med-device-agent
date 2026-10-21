@@ -40,6 +40,9 @@ public final class TypedSchemaBindings {
     public static <T> Definition<T> definition(String schema, String name, Class<T> type, ScalarWire wire) {
         return new Definition<>(schema, name, JSON.constructType(type), wire);
     }
+    public static <T> Definition<T> withSchema(Definition<T> original, String schema) {
+        return new Definition<>(schema, original.name, original.type, original.wire);
+    }
     public static final class Binding<T> {
         private final Definition<T> definition;
         private final SchemaCatalogue.ValidatedPayload payload;

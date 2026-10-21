@@ -73,6 +73,10 @@ class DocumentComparisonServiceTest {
   service=service(enabled);
  }
  void fixed(DocumentReadService.FixedRead p,String rev,String set)throws Exception{
+  // Both complete fixed-read proofs declare the exact published schema consumed by the comparison engine.
+  var catalogue=SchemaCatalogue.fromClasspath();
+  when(p.bodySchemaRef()).thenReturn(catalogue.schemaRef("interfaces","DocumentBody"));
+  when(p.bodySchemaSha256()).thenReturn(catalogue.schemaDigest("interfaces"));
   String hash=schema.hash(body);when(p.header()).thenReturn(new DocumentReadProtocol.Header(id(1),id(4),id(5),rev,id(7),BigInteger.TWO,"DRAFT","ACTIVE",id(10),id(11),id(15),id(13),id(14),hash,"body/key","v1",id(16),id(17),id(12),set,BigInteger.ZERO,hash,id(2),now,"INTERNAL"));
   when(p.body()).thenReturn(body);when(p.dependencies()).thenReturn(new ArtifactRegistryProtocol.DependencyManifest("1.0.0",id(1),id(4),set,List.of()));when(p.watermarks()).thenReturn(new DocumentReadProtocol.Watermarks(BigInteger.ZERO,BigInteger.ZERO));
  }

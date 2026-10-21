@@ -48,11 +48,20 @@ public final class RetrievalService {
     public JsonNode create(ApplicationSessionIdentity.Verified subject, String context, String key,
             RetrievalProtocol.SearchInput input) {
         return access.execute(subject, admission -> ThrowingSupplier.of(() -> {
-            current(admission, context); requireProject(admission, input.project_id());
+            return create(admission, context, key, input, subject.sessionId(), null);
+        }).get());
+    }
+
+    JsonNode create(EnterpriseAccess.Admission admission, String context, String key,
+            RetrievalProtocol.SearchInput input, String requestIdentity, TaskResearchToolAccess.Fixed fixed) throws IOException {
+            current(admission, context); if (fixed == null) requireProject(admission, input.project_id());
             var values = values(admission); values.put("projectId", input.project_id()); values.put("key", key);
             values.put("environment", policy.environment()); values.put("region", policy.region());
             values.put("queryText", input.query()); values.put("querySha256", DigestUtils.sha256Hex(input.query().getBytes(StandardCharsets.UTF_8)));
-            values.put("requestHash", schema.requestHash(input, context, subject.sessionId()));
+            values.put("requestHash", fixed == null ? schema.requestHash(input, context, requestIdentity)
+                    : DigestUtils.sha256Hex(json.canonical(json.tree(Map.of("operation", "TASK_AT01_RETRIEVAL",
+                        "input_receipt_identity", requestIdentity, "body", input)))));
+            if (fixed != null) values.put("fixedSources", fixed.sources());
             var previous = mapper.operation(values);
             if (!previous.isEmpty()) return replay(previous, values);
             var candidates = mapper.candidates(values);
@@ -60,6 +69,7 @@ public final class RetrievalService {
             var hits = new java.util.ArrayList<RetrievalProtocol.Hit>();
             int rank = 1;
             for (var candidate : candidates) {
+                if (fixed != null) fixed.require(candidate);
                 verifyCandidate(admission, input.project_id(), candidate);
                 hits.add(new RetrievalProtocol.Hit(BigInteger.valueOf(rank++), candidate.sourceId(), candidate.sourceVersion(),
                         candidate.parseVersion(), candidate.indexVersion(), candidate.chunkId(), candidate.approvalRevision(),
@@ -88,7 +98,7 @@ public final class RetrievalService {
             var audit = json.object(); audit.put("retrieval_id", retrievalId); audit.put("project_id", input.project_id());
             audit.put("query_sha256", values.get("querySha256").toString()); audit.put("selection_sha256", selectionSha);
             audit.put("result_count", Integer.toString(hits.size()));
-            one(permissions.saveAudit(subject.user().user_id(), input.project_id(), UUID.randomUUID().toString(),
+            one(permissions.saveAudit(admission.actorId(), input.project_id(), UUID.randomUUID().toString(),
                     "retrieval.created", json.canonical(audit), requestId, schema.manifestSha256(), identities.classification()));
             var stored = single(mapper.query(values), ErrorCode.CONTENT_MISMATCH);
             var saved = single(mapper.operation(values), ErrorCode.CONTENT_MISMATCH);
@@ -98,20 +108,31 @@ public final class RetrievalService {
                     || !saved.requestSha256().equals(values.get("requestHash"))
                     || !schema.operationReceipt(saved.responseRef()).equals(response)) mismatch();
             return response;
-        }).get());
     }
 
     public JsonNode read(ApplicationSessionIdentity.Verified subject, String context, String retrievalId,
             RetrievalProtocol.PageQuery page) {
         return access.execute(subject, admission -> ThrowingSupplier.of(() -> {
+            return read(admission, context, retrievalId, page, null);
+        }).get());
+    }
+
+    JsonNode read(EnterpriseAccess.Admission admission, String context, String retrievalId,
+            RetrievalProtocol.PageQuery page, TaskResearchToolAccess.Fixed fixed) throws IOException {
             current(admission, context); WireValues.uuid(retrievalId);
             var values = values(admission); values.put("retrievalId", retrievalId);
             var query = single(mapper.query(values), ErrorCode.OBJECT_UNAVAILABLE);
-            if (!query.subjectId().equals(subject.user().user_id()) || !query.createdBy().equals(query.subjectId())) denied(ErrorCode.ACCESS_DENIED);
+            if (!query.subjectId().equals(admission.actorId()) || !query.createdBy().equals(query.subjectId())) denied(ErrorCode.ACCESS_DENIED);
             if (!query.tenantId().equals(admission.context().tenant_id()) || !query.retrievalId().equals(retrievalId)
                     || !"VERIFICATION".equals(query.purpose()) || !"FULLTEXT".equals(query.mode())
                     || !query.status().equals(query.resultCount().signum() == 0 ? "EMPTY" : "FOUND")) mismatch();
-            requireProject(admission, query.projectId());
+            if (fixed == null) requireProject(admission, query.projectId());
+            else {
+                if (!fixed.projectId().equals(query.projectId()) || !fixed.questionText().equals(query.queryText())) mismatch();
+                values.put("key", fixed.retrievalKey());
+                var operation = single(mapper.operation(values), ErrorCode.OBJECT_UNAVAILABLE);
+                if (!retrievalId.equals(operation.targetId())) denied(ErrorCode.ACCESS_DENIED);
+            }
             BigInteger offsetValue = BigInteger.valueOf((long) page.page() - 1L).multiply(BigInteger.valueOf(page.pageSize()));
             if (offsetValue.compareTo(BigInteger.valueOf(Integer.MAX_VALUE)) > 0) throw new TenantAccessException(ErrorCode.CONTEXT_LIMIT);
             if (query.resultCount().signum() > 0 && offsetValue.compareTo(query.resultCount()) >= 0) denied(ErrorCode.OBJECT_UNAVAILABLE);
@@ -121,6 +142,7 @@ public final class RetrievalService {
             if (hits.size() != expected) throw new TenantAccessException(ErrorCode.SOURCE_NOT_READY);
             var items = json.object().arrayNode();
             for (var hit : hits) {
+                if (fixed != null) fixed.require(hit);
                 verifyHit(admission, query.projectId(), hit);
                 var item = json.object(); item.put("rank", hit.rank().intValueExact()); item.put("source_id", hit.sourceId());
                 item.put("source_version", hit.sourceVersion()); item.put("parse_version", hit.parseVersion());
@@ -139,7 +161,6 @@ public final class RetrievalService {
             result.put("mode", query.mode()); result.put("status", query.status()); result.put("created_at", time(query.createdAt()));
             result.set("items", items); result.set("page_info", info);
             return schema.page(result, UUID.randomUUID().toString());
-        }).get());
     }
 
     private JsonNode replay(List<SelectionOperationRow> rows, Map<String,Object> values) throws IOException {
@@ -174,13 +195,15 @@ public final class RetrievalService {
     }
 
     private void requireProject(EnterpriseAccess.Admission admission, String projectId) throws IOException {
-        authority.requireProject(admission.context().tenant_id(), admission.subject().binding().view().mode(), projectId,
-                "project.read", "PROJECT_READING", permissions.resourceGrants(admission.subject().user().user_id(), "project.read"));
+        if (admission.formalWorker()) admission.formalProof().require(new PermissionProtocol.Scope(
+                admission.context().tenant_id(), projectId, "PROJECT", projectId), "project.read", "PROJECT_READING");
+        authority.requireProject(admission.context().tenant_id(), admission.bindingView().mode(), projectId,
+                "project.read", "PROJECT_READING", permissions.resourceGrants(admission.actorId(), "project.read"));
     }
 
     private static Map<String,Object> values(EnterpriseAccess.Admission admission) {
-        var values = new HashMap<String,Object>(); values.put("userId", admission.subject().user().user_id());
-        values.put("identityMode", admission.subject().binding().view().mode()); return values;
+        var values = new HashMap<String,Object>(); values.put("userId", admission.actorId());
+        values.put("identityMode", admission.bindingView().mode()); return values;
     }
     private static void current(EnterpriseAccess.Admission admission, String context) {
         if (!admission.context().context_revision().equals(context)) denied(ErrorCode.CONTEXT_CHANGED);

@@ -2,7 +2,7 @@
   <main class="medical-page project-overview">
     <div class="project-breadcrumb">
       <el-breadcrumb separator="/"><el-breadcrumb-item :to="{ path: '/projects' }">项目中心</el-breadcrumb-item><el-breadcrumb-item>项目详情</el-breadcrumb-item></el-breadcrumb>
-      <div class="project-actions"><el-button @click="router.push('/projects')">返回项目</el-button><el-button v-if="project && canCreateTask" type="primary" :disabled="user.medicalWriting || project.status !== 'ACTIVE'" @click="go('/tasks/new')">创建文档任务</el-button></div>
+      <div class="project-actions"><el-button v-if="canConfigurePackage" :disabled="user.medicalWriting" @click="go('/task-professional-packages')">登记研究配置来源包</el-button><el-button @click="router.push('/projects')">返回项目</el-button><el-button v-if="project && canCreateTask" type="primary" :disabled="user.medicalWriting || project.status !== 'ACTIVE'" @click="go('/tasks/new')">创建文档任务</el-button></div>
     </div>
     <session-panel />
     <p v-if="loading" role="status">正在核查当前项目读取许可</p>
@@ -47,6 +47,7 @@
                 <el-table-column prop="question" label="待处理事项" min-width="240" />
                 <el-table-column prop="reason_code" label="原因" min-width="140" />
                 <el-table-column prop="updated_at" label="更新时间（UTC）" min-width="200" />
+                <el-table-column label="处理入口" min-width="170"><template #default="scope"><el-button v-if="canReadTasks" :disabled="user.medicalWriting || waitingLoading" @click="locateWaiting(scope.row)">定位关联任务</el-button><span v-else>未获准读取关联任务</span></template></el-table-column>
               </el-table>
               <p class="metric-note">当前查询共 {{ waiting.total }} 项；处理入口位于关联任务的运行工作区。</p>
               <el-button v-if="canReadTasks" @click="go('/tasks')">进入项目任务处理</el-button>
@@ -86,10 +87,12 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import useUserStore from '@/store/modules/user'
 import { readProject, listWorkItems } from '@/api/medical/projects'
+import { capabilityAllowed } from '@/api/medical/formal-capability-domain'
 import { projectActionAllowed } from '@/api/medical/project-write'
 import { sourceUploadAllowed } from '@/api/medical/source-uploads'
 import { formatProjectJson } from '@/api/medical/project-json'
 import { useMedicalRouteRead } from '@/api/medical/route-read'
+import { waitingTaskLocation, readWaitingTaskContext } from '@/utils/medical-task-context'
 import SessionPanel from './session-panel.vue'
 
 const user = useUserStore(); const route = useRoute(); const router = useRouter()
@@ -97,7 +100,8 @@ const project = ref(null); const loading = ref(false); const error = ref('')
 const waiting = ref(null); const waitingLoading = ref(false); const waitingError = ref('')
 const statuses = { PENDING: '建档待确认', ACTIVE: '使用中', PAUSED: '已暂停', ARCHIVED: '已归档' }
 const basePath = computed(() => '/projects/' + project.value?.project_id)
-const canReadTasks = computed(() => project.value?.allowed_actions.includes('project.task.read'))
+const canReadTasks = computed(() => project.value?.allowed_actions.includes('project.task.read') && projectActionAllowed(user.medicalSession, 'project.task.read', project.value.project_id))
+const canConfigurePackage = computed(() => project.value && capabilityAllowed(user.medicalSession, project.value.project_id))
 const canCreateTask = computed(() => project.value && projectActionAllowed(user.medicalSession, 'task.create', project.value.project_id))
 const canReadWaiting = computed(() => project.value && projectActionAllowed(user.medicalSession, 'work_item.read', project.value.project_id))
 const libraryTarget = computed(() => ({ path: '/library', query: { project_id: project.value?.project_id } }))
@@ -109,6 +113,15 @@ const stages = computed(() => [
 ])
 let generation = 0; let controller = null; let waitingController = null
 function go(suffix) { router.push(basePath.value + suffix) }
+function locateWaiting(item) {
+  const id = project.value?.project_id
+  if (!active.value || document.hidden || user.medicalWriting || waitingLoading.value || !id
+      || !canReadWaiting.value || !canReadTasks.value || !waiting.value?.items.includes(item)
+      || item.project_id !== id || route.params.projectId !== id) return
+  const context = readWaitingTaskContext({ waiting_item_id: item.waiting_item_id, run_id: item.run_id })
+  if (context.invalid || !context.waitingItemId || !context.runId) return
+  router.push(waitingTaskLocation(id, context.waitingItemId, context.runId))
+}
 function clear() {
   generation += 1; controller?.abort(); waitingController?.abort()
   controller = null; waitingController = null; project.value = null; loading.value = false; error.value = ''

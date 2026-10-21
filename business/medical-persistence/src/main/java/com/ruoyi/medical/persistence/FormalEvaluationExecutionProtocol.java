@@ -45,11 +45,15 @@ public final class FormalEvaluationExecutionProtocol {
    List<Artifact> actualArtifacts,List<String> checkIds,String runReceiptSha256,String stepReceiptSha256) {
   public Record {
    Objects.requireNonNull(node);WireValues.uuid(runId);WireValues.uuid(stepId);if(leaseGeneration<1)bad();
-   Objects.requireNonNull(inputManifest);Objects.requireNonNull(stepEnvelope);Objects.requireNonNull(stepResult);Objects.requireNonNull(sessionExport);
+   Objects.requireNonNull(inputManifest);Objects.requireNonNull(stepEnvelope);Objects.requireNonNull(stepResult);
    invocations=List.copyOf(invocations);actualArtifacts=List.copyOf(actualArtifacts);checkIds=List.copyOf(checkIds);
+   // Shape is not authority: only the private deterministic runtime proof can complete this branch.
+   if(deterministic(node)){if(sessionExport!=null||!invocations.isEmpty()||!checkIds.isEmpty()||actualArtifacts.size()!=1)bad();}
+   else Objects.requireNonNull(sessionExport);
    for(var id:checkIds)WireValues.uuid(id);WireValues.hash(runReceiptSha256);WireValues.hash(stepReceiptSha256);
   }
  }
+ static boolean deterministic(Node node){return java.util.Set.of("N03","N06").contains(node.nodeKind())&&node.model()==null&&node.tokenizer()==null;}
  private static void basis(PermissionProtocol.Basis b){Objects.requireNonNull(b);WireValues.uuid(b.version_id());WireValues.hash(b.content_sha256());}
  private static void bad(){throw new IllegalArgumentException("FORMAL_EVALUATION_BINDING_INVALID");}
 }

@@ -1,0 +1,184 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:framework-job-command:1.0.0",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/Run"
+    },
+    {
+      "$ref": "#/$defs/Status"
+    },
+    {
+      "$ref": "#/$defs/Create"
+    },
+    {
+      "$ref": "#/$defs/Edit"
+    },
+    {
+      "$ref": "#/$defs/Delete"
+    }
+  ],
+  "$defs": {
+    "Run": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "jobId",
+        "jobGroup"
+      ],
+      "properties": {
+        "jobId": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            {
+              "type": "string",
+              "pattern": "^[1-9][0-9]{0,18}$"
+            }
+          ]
+        },
+        "jobGroup": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,64}$"
+        }
+      }
+    },
+    "Status": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "jobId",
+        "status"
+      ],
+      "properties": {
+        "jobId": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            {
+              "type": "string",
+              "pattern": "^[1-9][0-9]{0,18}$"
+            }
+          ]
+        },
+        "status": {
+          "enum": [
+            "0",
+            "1"
+          ]
+        }
+      }
+    },
+    "Create": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "jobId",
+        "jobName",
+        "cronExpression",
+        "misfirePolicy",
+        "concurrent"
+      ],
+      "properties": {
+        "jobId": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]{0,18}$"
+        },
+        "jobName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "cronExpression": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255
+        },
+        "misfirePolicy": {
+          "enum": [
+            "0",
+            "1",
+            "2",
+            "3"
+          ]
+        },
+        "concurrent": {
+          "enum": [
+            "0",
+            "1"
+          ]
+        }
+      }
+    },
+    "Edit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "jobId",
+        "jobName",
+        "cronExpression",
+        "misfirePolicy",
+        "concurrent",
+        "expectedRevision"
+      ],
+      "properties": {
+        "jobId": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]{0,18}$"
+        },
+        "jobName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "cronExpression": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255
+        },
+        "misfirePolicy": {
+          "enum": [
+            "0",
+            "1",
+            "2",
+            "3"
+          ]
+        },
+        "concurrent": {
+          "enum": [
+            "0",
+            "1"
+          ]
+        },
+        "expectedRevision": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]{0,18}$"
+        }
+      }
+    },
+    "Delete": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "jobId",
+        "expectedRevision"
+      ],
+      "properties": {
+        "jobId": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]{0,18}$"
+        },
+        "expectedRevision": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]{0,18}$"
+        }
+      }
+    }
+  }
+}

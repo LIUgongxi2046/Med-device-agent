@@ -1,0 +1,361 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:human-evidence-history:1.1.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "request_id",
+    "resource_revision",
+    "data"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.1.0"
+    },
+    "request_id": {
+      "$ref": "#/$defs/Id"
+    },
+    "resource_revision": {
+      "$ref": "#/$defs/Revision"
+    },
+    "data": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "document_id",
+        "document_revision",
+        "items",
+        "page_info"
+      ],
+      "properties": {
+        "document_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "document_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "items": {
+          "type": "array",
+          "maxItems": 100,
+          "items": {
+            "$ref": "#/$defs/R_EvidenceDecisionDetail"
+          }
+        },
+        "page_info": {
+          "$ref": "#/$defs/PageInfo"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "EvidenceDecision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "evidence_link_id",
+        "selection",
+        "access",
+        "location",
+        "support",
+        "reason",
+        "rule_revision"
+      ],
+      "properties": {
+        "evidence_link_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "selection": {
+          "$ref": "#/$defs/Selection"
+        },
+        "access": {
+          "enum": [
+            "PASS",
+            "FAIL"
+          ]
+        },
+        "location": {
+          "enum": [
+            "PASS",
+            "FAIL"
+          ]
+        },
+        "support": {
+          "enum": [
+            "SUPPORTED",
+            "CONTRADICTED",
+            "INSUFFICIENT",
+            "NOT_APPLICABLE"
+          ]
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        },
+        "rule_revision": {
+          "$ref": "#/$defs/NullableId"
+        }
+      }
+    },
+    "Hash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "Id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "Ids": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/Id"
+      }
+    },
+    "ImageSelection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "node_id",
+        "image_artifact_id",
+        "image_sha256"
+      ],
+      "properties": {
+        "kind": {
+          "const": "IMAGE"
+        },
+        "node_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "image_artifact_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "image_sha256": {
+          "$ref": "#/$defs/Hash"
+        }
+      }
+    },
+    "NullableId": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/Id"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "NullableText": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "PageInfo": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "page",
+        "page_size",
+        "total",
+        "watermark",
+        "filter_sha256"
+      ],
+      "properties": {
+        "page": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "page_size": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "total": {
+          "$ref": "#/$defs/Revision"
+        },
+        "watermark": {
+          "$ref": "#/$defs/Revision"
+        },
+        "filter_sha256": {
+          "$ref": "#/$defs/Hash"
+        }
+      }
+    },
+    "R_EvidenceDecisionDetail": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "decision_id",
+        "batch_id",
+        "document_revision",
+        "actor_id",
+        "decided_at",
+        "decision",
+        "check_ids",
+        "evidence_watermark",
+        "issue_watermark",
+        "validity",
+        "invalidation_reason"
+      ],
+      "properties": {
+        "decision_id": {
+          "$ref": "#/$defs/R_Id"
+        },
+        "batch_id": {
+          "$ref": "#/$defs/R_Id"
+        },
+        "document_revision": {
+          "$ref": "#/$defs/R_Id"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/R_Id"
+        },
+        "decided_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "decision": {
+          "$ref": "#/$defs/EvidenceDecision"
+        },
+        "check_ids": {
+          "$ref": "#/$defs/R_Ids"
+        },
+        "evidence_watermark": {
+          "$ref": "#/$defs/R_Revision"
+        },
+        "issue_watermark": {
+          "$ref": "#/$defs/R_Revision"
+        },
+        "validity": {
+          "enum": [
+            "VALID",
+            "INVALIDATED"
+          ]
+        },
+        "invalidation_reason": {
+          "$ref": "#/$defs/NullableText"
+        }
+      }
+    },
+    "R_Id": {
+      "$ref": "#/$defs/Id"
+    },
+    "R_Ids": {
+      "$ref": "#/$defs/Ids"
+    },
+    "R_Revision": {
+      "$ref": "#/$defs/Revision"
+    },
+    "Revision": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)$",
+      "maxLength": 20
+    },
+    "Selection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "document_revision",
+        "segments"
+      ],
+      "properties": {
+        "document_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "segments": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "oneOf": [
+              {
+                "$ref": "#/$defs/TextSelection"
+              },
+              {
+                "$ref": "#/$defs/ImageSelection"
+              },
+              {
+                "$ref": "#/$defs/TableSelection"
+              }
+            ]
+          }
+        }
+      }
+    },
+    "TableSelection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "node_id",
+        "row_ids",
+        "column_ids",
+        "cell_ids",
+        "table_sha256"
+      ],
+      "properties": {
+        "kind": {
+          "const": "TABLE"
+        },
+        "node_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "row_ids": {
+          "$ref": "#/$defs/Ids",
+          "minItems": 1
+        },
+        "column_ids": {
+          "$ref": "#/$defs/Ids",
+          "minItems": 1
+        },
+        "cell_ids": {
+          "$ref": "#/$defs/Ids",
+          "minItems": 1
+        },
+        "table_sha256": {
+          "$ref": "#/$defs/Hash"
+        }
+      }
+    },
+    "TextSelection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "node_id",
+        "node_sha256",
+        "start_cp",
+        "end_cp",
+        "quote_sha256"
+      ],
+      "properties": {
+        "kind": {
+          "const": "TEXT"
+        },
+        "node_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "node_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "start_cp": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "end_cp": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "quote_sha256": {
+          "$ref": "#/$defs/Hash"
+        }
+      }
+    },
+    "Timestamp": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

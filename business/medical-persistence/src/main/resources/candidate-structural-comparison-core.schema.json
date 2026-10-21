@@ -1,0 +1,351 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:candidate-structural-comparison-core:1.0.0",
+  "$defs": {
+    "CoreResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "kind",
+        "algorithm_id",
+        "implementation_sha256",
+        "schema_sha256",
+        "body_schema_sha256",
+        "request",
+        "left_body_sha256",
+        "right_body_sha256",
+        "limits",
+        "input_sha256",
+        "semantic_assessment",
+        "record_count",
+        "records",
+        "affected_node_ids",
+        "left_affected_section_ids",
+        "right_affected_section_ids",
+        "coverage"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "kind": {
+          "const": "FIXED_CANDIDATE_STRUCTURE_CORE"
+        },
+        "algorithm_id": {
+          "const": "urn:medical:fixed-structure:stable-ids-prefix-suffix:1.0.0"
+        },
+        "implementation_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "schema_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "body_schema_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "request": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "candidate_id",
+            "target_document_revision"
+          ],
+          "properties": {
+            "candidate_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "target_document_revision": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        },
+        "left_body_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "right_body_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "limits": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "maximum_nodes",
+            "maximum_cells",
+            "maximum_relationships",
+            "maximum_input_bytes",
+            "maximum_result_bytes",
+            "maximum_records",
+            "maximum_text_code_points",
+            "maximum_work",
+            "maximum_milliseconds"
+          ],
+          "properties": {
+            "maximum_nodes": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "maximum_cells": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "maximum_relationships": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "maximum_input_bytes": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "maximum_result_bytes": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "maximum_records": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "maximum_text_code_points": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "maximum_work": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "maximum_milliseconds": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        },
+        "input_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "semantic_assessment": {
+          "const": "NOT_PERFORMED"
+        },
+        "record_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "records": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "category",
+              "identity",
+              "status",
+              "before_json",
+              "after_json",
+              "before_sha256",
+              "after_sha256",
+              "text_change"
+            ],
+            "properties": {
+              "category": {
+                "enum": [
+                  "BODY_METADATA",
+                  "NODE",
+                  "FIELD",
+                  "EVIDENCE",
+                  "FACT",
+                  "TABLE_ROW",
+                  "TABLE_COLUMN",
+                  "TABLE_CELL",
+                  "ORDER"
+                ]
+              },
+              "identity": {
+                "type": "string"
+              },
+              "status": {
+                "enum": [
+                  "ADDED",
+                  "REMOVED",
+                  "CHANGED",
+                  "UNCHANGED"
+                ]
+              },
+              "before_json": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "after_json": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "before_sha256": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "after_sha256": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "text_change": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "node_id",
+                      "left",
+                      "right"
+                    ],
+                    "properties": {
+                      "node_id": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "left": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "start",
+                          "end",
+                          "quote",
+                          "quote_sha256"
+                        ],
+                        "properties": {
+                          "start": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "end": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "quote": {
+                            "type": "string"
+                          },
+                          "quote_sha256": {
+                            "type": "string",
+                            "pattern": "^[a-f0-9]{64}$"
+                          }
+                        }
+                      },
+                      "right": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "start",
+                          "end",
+                          "quote",
+                          "quote_sha256"
+                        ],
+                        "properties": {
+                          "start": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "end": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "quote": {
+                            "type": "string"
+                          },
+                          "quote_sha256": {
+                            "type": "string",
+                            "pattern": "^[a-f0-9]{64}$"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "affected_node_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "left_affected_section_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "right_affected_section_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "coverage": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "selection_sha256",
+            "delivered_sha256",
+            "complete",
+            "next_cursor"
+          ],
+          "properties": {
+            "selection_sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "delivered_sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "complete": {
+              "const": true
+            },
+            "next_cursor": {
+              "type": "null"
+            }
+          }
+        }
+      }
+    }
+  }
+}

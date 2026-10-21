@@ -65,8 +65,8 @@ class AnnotationAnchorMigrationTest(unittest.TestCase):
         self.assertEqual(1, manifest["native_sql_migrations"].count(MIGRATION))
         self.assertEqual(TABLES, set(manifest["required_tables"]["annotation_anchors"]))
         self.assertEqual(TABLES, set(self.tables))
-        self.assertEqual(281, sum(map(len, manifest["required_tables"].values())))
-        self.assertEqual(318, sum(map(len, manifest["required_tables"].values()))
+        self.assertEqual(526, sum(map(len, manifest["required_tables"].values())))
+        self.assertEqual(565, sum(map(len, manifest["required_tables"].values()))
                          + len(manifest["platform_tables"]) + len(manifest["framework_tables"]))
         identities = re.findall(r"^--changeset ([^ ]+) dbms:mysql runInTransaction:false failOnError:true$", self.sql, re.M)
         self.assertEqual([

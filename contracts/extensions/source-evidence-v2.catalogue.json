@@ -1,0 +1,31 @@
+{
+  "schema_version": "1.0.0",
+  "base_catalogue_sha256": "dcd72acbb7a45775373662e0ffe4557030d4740b0afacdee8375e7768e761915",
+  "schemas": [
+    {
+      "name": "source-evidence-v2",
+      "path": "data-design/source-evidence-v2.schema.json",
+      "sha256": "35c8e8a735225c97bb6da50d8277b6b09860ffbe5b76bb64d115366903391d7e"
+    },
+    {
+      "name": "tool-inputs-v2",
+      "path": "agent-design/tool-inputs-v2.schema.json",
+      "sha256": "20413d84d8486252e7d924ca9c1153b0fe8273b164eb9435de8da444be7820b9"
+    },
+    {
+      "name": "tool-success-v2",
+      "path": "agent-design/tool-success-v2.schema.json",
+      "sha256": "a6c0594ff3cee0bb968c24560303d5e5f464ff002ea7d74de0220966f40f6f7c"
+    },
+    {
+      "name": "task-tool-read-success-v2",
+      "path": "agent-design/task-tool-read-success-v2.schema.json",
+      "sha256": "3f141aa921666f62fd36efacb258843ebe4ba6d703486553789e40cf484fd8ab"
+    },
+    {
+      "name": "artifacts-v2",
+      "path": "agent-design/artifacts-v2.schema.json",
+      "sha256": "5845ae7d801ab3765fe0f561cb466bed2dcea7a16c3201769f76ff225533e525"
+    }
+  ]
+}

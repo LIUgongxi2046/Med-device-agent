@@ -33,28 +33,73 @@ public final class TaskPlanConfirmationStore {
     private final AgentReleaseStore releaseStore;
     private final AgentReleaseScopeAuthority releaseScopes;
     private final IdentityDirectoryPolicy identity;
+    private final TaskPlanDraftOriginLocator origins;
+    private final ObjectProvider<TaskPlanDraftOriginGuard> originGuards;
 
     public TaskPlanConfirmationStore(TaskPlanService plans, TaskPlanWriteMapper mapper, TaskPlanRelationStore relations,
             TaskInputSchema inputs, PermissionSchema json, DependencyLineage lineage, TemplateDependencyPolicy limits,
             ObjectProvider<TaskPlanReleaseAdmission> releases, TaskMapper tasks, AgentReleaseStore releaseStore,
             AgentReleaseScopeAuthority releaseScopes, IdentityDirectoryPolicy identity) throws IOException, java.security.NoSuchAlgorithmException {
+        this(plans,mapper,relations,inputs,json,lineage,limits,releases,tasks,releaseStore,releaseScopes,identity,null,null);
+    }
+    @org.springframework.beans.factory.annotation.Autowired
+    public TaskPlanConfirmationStore(TaskPlanService plans, TaskPlanWriteMapper mapper, TaskPlanRelationStore relations,
+            TaskInputSchema inputs, PermissionSchema json, DependencyLineage lineage, TemplateDependencyPolicy limits,
+            ObjectProvider<TaskPlanReleaseAdmission> releases, TaskMapper tasks, AgentReleaseStore releaseStore,
+            AgentReleaseScopeAuthority releaseScopes, IdentityDirectoryPolicy identity,
+            TaskPlanDraftOriginLocator origins,ObjectProvider<TaskPlanDraftOriginGuard> originGuards) throws IOException, java.security.NoSuchAlgorithmException {
         this.plans = plans; this.mapper = mapper; this.relations = relations; this.inputs = inputs; this.json = json;
         this.lineage = lineage; this.limits = limits; this.releases = releases; this.tasks = tasks; shared = SchemaCatalogue.fromClasspath();
-        this.releaseStore = releaseStore; this.releaseScopes = releaseScopes; this.identity = identity;
+        this.releaseStore = releaseStore; this.releaseScopes = releaseScopes; this.identity = identity;this.origins=origins;this.originGuards=originGuards;
     }
 
     record Prepared(TaskService.VerifiedTask task, TaskPlanWriteProtocol.View draft, TaskPlanService.Confirmation plan,
-            TaskPlanReleaseAdmission.Verified release, AgentReleaseScopeAuthority.VerifiedScope scope, JsonNode authorizations) { }
+            TaskPlanReleaseAdmission.Verified release, AgentReleaseScopeAuthority.VerifiedScope scope, JsonNode authorizations,
+            TaskPlanDraftOriginGuard.Verified origin) {
+        Prepared(TaskService.VerifiedTask task,TaskPlanWriteProtocol.View draft,TaskPlanService.Confirmation plan,
+                TaskPlanReleaseAdmission.Verified release,AgentReleaseScopeAuthority.VerifiedScope scope,JsonNode authorizations){this(task,draft,plan,release,scope,authorizations,null);}
+    }
+    record External(TaskPlanReleaseAdmission release,TaskPlanDraftOriginGuard.Prepared origin) { }
     record Result(String taskRevision, String planRevision, String taskRevisionSha256) { }
 
+    TaskPlanReleaseAdmission prepareRelease(com.ruoyi.medical.identity.ApplicationSessionIdentity.Verified subject,
+            String context, TaskService.VerifiedTask task, TaskPlanWriteProtocol.View draft) throws IOException {
+        var provider = releases.getIfAvailable();
+        if (provider == null) throw new TenantAccessException(ErrorCode.DEPENDENCY_UNAVAILABLE);
+        return Objects.requireNonNull(provider.prepare(subject, context, task, draft));
+    }
+
+    boolean requiresOrigin(EnterpriseAccess.Admission admission,TaskService.VerifiedTask task,TaskPlanWriteProtocol.View draft)throws IOException {
+        if(origins==null)throw new TenantAccessException(ErrorCode.DEPENDENCY_UNAVAILABLE);
+        return org.springframework.util.function.ThrowingSupplier.of(()->origins.locate(admission,task,draft).isPresent()).get();
+    }
+    External prepareExternal(com.ruoyi.medical.identity.ApplicationSessionIdentity.Verified subject,String context,
+            TaskService.VerifiedTask task,TaskPlanWriteProtocol.View draft,boolean originRequired)throws IOException {
+        var release=prepareRelease(subject,context,task,draft);
+        if(!originRequired)return new External(release,null);
+        var guard=originGuards==null?null:originGuards.getIfAvailable();
+        if(guard==null)throw new TenantAccessException(ErrorCode.DEPENDENCY_UNAVAILABLE);
+        return new External(release,org.springframework.util.function.ThrowingSupplier.of(()->guard.prepare(subject,context,task,draft)).get());
+    }
     Prepared prepare(EnterpriseAccess.Admission admission, TaskService.VerifiedTask task,
-            TaskPlanWriteProtocol.View draft, JsonNode commonAuthorizations) throws IOException {
+            TaskPlanWriteProtocol.View draft, JsonNode commonAuthorizations, TaskPlanReleaseAdmission provider) throws IOException {
+        return prepareVerified(admission,task,draft,commonAuthorizations,new External(provider,null));
+    }
+    Prepared prepareVerified(EnterpriseAccess.Admission admission,TaskService.VerifiedTask task,
+            TaskPlanWriteProtocol.View draft,JsonNode commonAuthorizations,External external)throws IOException {
+        var provider=external==null?null:external.release();
+        TaskPlanDraftOriginGuard.Verified origin=null;
+        if(requiresOrigin(admission,task,draft)){
+            var guard=originGuards==null?null:originGuards.getIfAvailable();
+            if(guard==null||external==null||external.origin()==null)throw new TenantAccessException(ErrorCode.DEPENDENCY_UNAVAILABLE);
+            origin=org.springframework.util.function.ThrowingSupplier.of(()->guard.require(admission,task,draft,external.origin())).get();
+        }else if(external!=null&&external.origin()!=null)throw new TenantAccessException(ErrorCode.SCOPE_STALE);
+
         var plan = plans.confirmation(admission, task, draft);
         var stored = releaseStore.read(admission, task.head().agentReleaseId(), "PLAN_MAINTENANCE");
         if (!"PUBLISHED".equals(stored.agent().status())) throw new TenantAccessException(ErrorCode.DEPENDENCY_UNAVAILABLE);
         var scope = releaseScopes.require(stored, new PermissionProtocol.Scope(task.head().tenantId(), task.head().projectId(),
                 "TASK", task.head().taskId()), "plan.confirm", identity.classification(), limits.limits());
-        var provider = releases.getIfAvailable();
         if (provider == null) throw new TenantAccessException(ErrorCode.DEPENDENCY_UNAVAILABLE);
         var release = Objects.requireNonNull(provider.require(admission, task, draft, scope));
         var proof = Objects.requireNonNull(release.authorizations());
@@ -111,12 +156,14 @@ public final class TaskPlanConfirmationStore {
             owner.put("basis_version", entry.getValue().basisVersion()); array.add(owner);
         });
         release.requireUnchanged(); releaseScopes.requireUnchanged(scope); plans.requireUnchanged(admission, task, draft, plan);
-        return new Prepared(task, draft, plan, release, scope, authorizations);
+        if(origin!=null){var checkedOrigin=origin;array.add(org.springframework.util.function.ThrowingSupplier.of(checkedOrigin::authorizations).get());}
+        return new Prepared(task,draft,plan,release,scope,authorizations,origin);
     }
 
     Result save(EnterpriseAccess.Admission admission, Prepared prepared, TaskPlanDecisionProtocol.Request request,
             Map<String,Object> values) throws IOException {
         Objects.requireNonNull(prepared); Objects.requireNonNull(request);
+        if(prepared.origin()!=null)org.springframework.util.function.ThrowingSupplier.of(()->{prepared.origin().requireUnchanged();return null;}).get();
         if (!"CONFIRM".equals(request.decision()) || !request.targetRevision().equals(prepared.draft().planRevision())
                 || !request.baselineManifest().dependencyAuthorizationsSha256().equals(DigestUtils.sha256Hex(json.canonical(prepared.authorizations())))) mismatch();
         var head = prepared.task().head(); var input = prepared.task().input();

@@ -11,6 +11,7 @@ export default defineConfig(({ mode, command }) => {
     env.VITE_APP_ENV = 'medical'
     env.VITE_APP_TITLE ||= '医疗器械 Agent 平台'
   }
+  env.VITE_APP_TITLE ||= '若依管理系统'
   const { VITE_APP_ENV } = env
   const medicalProxy = {}
   if (env.VITE_MEDICAL_BACKEND) {
@@ -36,10 +37,10 @@ export default defineConfig(({ mode, command }) => {
     // 例如 https://www.ruoyi.vip/。如果应用被部署在一个子路径上，你就需要用这个选项指定这个子路径。例如，如果你的应用被部署在 https://www.ruoyi.vip/admin/，则设置 baseUrl 为 /admin/。
     base: VITE_APP_ENV === 'production' ? '/' : '/',
     // Medical scripts work on a clean checkout without private .env files.
-    define: mode === 'medical' ? {
-      'import.meta.env.VITE_APP_ENV': JSON.stringify('medical'),
+    define: {
+      ...(mode === 'medical' ? { 'import.meta.env.VITE_APP_ENV': JSON.stringify('medical') } : {}),
       'import.meta.env.VITE_APP_TITLE': JSON.stringify(env.VITE_APP_TITLE)
-    } : {},
+    },
     plugins: createVitePlugins(env, command === 'build'),
     resolve: {
       // https://cn.vitejs.dev/config/#resolve-alias

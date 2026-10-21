@@ -29,6 +29,13 @@ class DocumentTechnicalCheckEngineTest {
         assertEquals(schema.hash(input),result.at("/coverage/selection_sha256").textValue());
         assertEquals(result.at("/coverage/selection_sha256"),result.at("/coverage/delivered_sha256"));
     }
+    @Test void explicitV2PublicationChecksStructureWithoutUpgradingLegacyManifest()throws Exception{
+        var body=body().put("schema_version","2.0.0");var declared=input(body);
+        declared.put("body_schema_ref",schema.catalogue().schemaRef("document-body-v2","DocumentBody"));
+        declared.put("body_schema_sha256",schema.catalogue().schemaDigest("document-body-v2"));
+        assertEquals("PASS",engine.execute(body,declared,limits).path("technical_result").asText());
+        assertEquals("FAIL",engine.execute(body,input(body),limits).path("technical_result").asText());
+    }
     @Test void structureFailureIsCompletedTechnicalFindingNotProfessionalPass()throws Exception{
         var body=body();node(body,1).put("parent_id",id(99));
         var result=engine.execute(body,input(body),limits);

@@ -8,6 +8,7 @@ import { ModelStreamVerifier, finishReason, usageChunk, protocolError } from './
 import { readJson } from './json.js'
 
 export interface EnterpriseModelConfig {
+  modelToolMode?: 'EVALUATION_VERIFICATION_V1' | 'PLAN_DRAFT_N01_V1' | 'SECTION_WRITER_N04_V1' | 'SOURCE_VERIFIER_N05_V1' | 'DOCUMENT_REVIEW_N07_V1' | undefined
   model: string
   contextWindow: number
   maxOutputTokens: number
@@ -51,6 +52,10 @@ export class EnterpriseModelAdapter extends LlmAdapter {
   override async *stream(options: GenerateOptions): AsyncIterable<StreamChunk> {
     this.authorizeTools([])
     await this.resolveModel(options.provider, options.model, options.signal)
+    if (this.config.modelToolMode === 'PLAN_DRAFT_N01_V1' && ((options.tools?.length ?? 0) !== 0 || options.purpose === 'compaction' || (options.toolHistory != null && (options.toolHistory.tools.length !== 0 || options.toolHistory.updates.length !== 0)))) throw new LlmError('N01 首轮只允许无工具的原始输入', 'MODEL_CONFIG_INVALID')
+    if (this.config.modelToolMode === 'SECTION_WRITER_N04_V1' && ((options.tools?.length ?? 0) !== 0 || options.purpose === 'compaction' || (options.toolHistory != null && (options.toolHistory.tools.length !== 0 || options.toolHistory.updates.length !== 0)))) throw new LlmError('N04 只允许无工具的原始章节输入', 'MODEL_CONFIG_INVALID')
+    if (this.config.modelToolMode === 'SOURCE_VERIFIER_N05_V1' && ((options.tools?.length ?? 0) !== 0 || options.purpose === 'compaction' || (options.toolHistory != null && (options.toolHistory.tools.length !== 0 || options.toolHistory.updates.length !== 0)))) throw new LlmError('N05 只允许无工具的完整独立审查上下文', 'MODEL_CONFIG_INVALID')
+    if (this.config.modelToolMode === 'DOCUMENT_REVIEW_N07_V1' && ((options.tools?.length ?? 0) !== 0 || options.purpose === 'compaction' || (options.toolHistory != null && (options.toolHistory.tools.length !== 0 || options.toolHistory.updates.length !== 0)))) throw new LlmError('N07 只允许无工具的独立已保存正文审查上下文', 'MODEL_CONFIG_INVALID')
     if (options.purpose === 'session-title') throw new LlmError('当前运行配置不允许会话标题调用', 'MODEL_CONFIG_INVALID')
     const timeout = AbortSignal.timeout(this.config.streamTimeoutMs)
     const signal = options.signal === undefined ? timeout : AbortSignal.any([options.signal, timeout])
@@ -112,7 +117,7 @@ export class EnterpriseModelAdapter extends LlmAdapter {
     }
   }
 
-  private replay(result: ModelResult): StreamChunk[] {
+  protected replay(result: ModelResult): StreamChunk[] {
     const ids = new Set<string>()
     const chunks: StreamChunk[] = []
     for (const [index, block] of result.blocks.entries()) {

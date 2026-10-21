@@ -1,5 +1,12 @@
 <template>
    <div class="app-container">
+      <FrameworkJobEditor ref="medicalEditor" @saved="response => { reportMedicalCommand(response); getList() }" />
+      <el-button v-if="medicalMode" :disabled="!!pendingMedical" v-hasPermi="['monitor:job:add']" @click="medicalEditor.open(null)">创建已注册任务</el-button>
+      <el-alert v-if="medicalMode" title="仅已发布注册任务可启停或提交；调度器接收不表示任务执行完成。原调用表达式不可用；删除保留历史并退休注册任务。" type="info" :closable="false" />
+      <el-alert v-if="medicalCommand" :title="'命令 ' + medicalCommand.command_id + '：' + medicalCommand.state + '（非执行完成回执）'" type="info" :closable="false" />
+      <el-button v-if="medicalCommand" @click="refreshMedicalCommand">重新读取命令</el-button>
+      <el-button v-if="medicalCommand && ['RESERVED', 'UNKNOWN'].includes(medicalCommand.state)" @click="observeMedicalCommand">核对调度记录（不重新执行）</el-button>
+      <el-button v-if="pendingMedical" @click="retryMedicalCommand">重送同一冻结请求（不创建新命令）</el-button>
       <el-form :model="queryParams" ref="queryRef" :inline="true" v-show="showSearch">
          <el-form-item label="任务名称" prop="jobName">
             <el-input
@@ -43,7 +50,7 @@
                plain
                icon="Plus"
                @click="handleAdd"
-               v-hasPermi="['monitor:job:add']"
+               v-if="!medicalMode" v-hasPermi="['monitor:job:add']"
             >新增</el-button>
          </el-col>
          <el-col :span="1.5">
@@ -53,7 +60,7 @@
                icon="Edit"
                :disabled="single"
                @click="handleUpdate"
-               v-hasPermi="['monitor:job:edit']"
+               v-if="!medicalMode" v-hasPermi="['monitor:job:edit']"
             >修改</el-button>
          </el-col>
          <el-col :span="1.5">
@@ -63,7 +70,7 @@
                icon="Delete"
                :disabled="multiple"
                @click="handleDelete"
-               v-hasPermi="['monitor:job:remove']"
+               v-if="!medicalMode" v-hasPermi="['monitor:job:remove']"
             >删除</el-button>
          </el-col>
          <el-col :span="1.5">
@@ -114,11 +121,13 @@
          </el-table-column>
          <el-table-column label="操作" align="center" width="200" class-name="small-padding fixed-width">
             <template #default="scope">
+               <el-button v-if="medicalMode && scope.row.frameworkRevision" link type="primary" v-hasPermi="['monitor:job:edit']" :disabled="!!pendingMedical" @click="medicalEditor.open(scope.row)">修订</el-button>
+               <el-button v-if="medicalMode && scope.row.frameworkRevision" link type="danger" v-hasPermi="['monitor:job:remove']" @click="retireRegisteredJob(scope.row)">退休</el-button>
                <el-tooltip content="修改" placement="top">
-                  <el-button link type="primary" icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['monitor:job:edit']"></el-button>
+                  <el-button link type="primary" icon="Edit" @click="handleUpdate(scope.row)" v-if="!medicalMode" v-hasPermi="['monitor:job:edit']"></el-button>
                </el-tooltip>
                <el-tooltip content="删除" placement="top">
-                  <el-button link type="primary" icon="Delete" @click="handleDelete(scope.row)" v-hasPermi="['monitor:job:remove']"></el-button>
+                  <el-button link type="primary" icon="Delete" @click="handleDelete(scope.row)" v-if="!medicalMode" v-hasPermi="['monitor:job:remove']"></el-button>
                </el-tooltip>
                <el-tooltip content="执行一次" placement="top">
                   <el-button link type="primary" icon="CaretRight" @click="handleRun(scope.row)" v-hasPermi="['monitor:job:changeStatus']"></el-button>
@@ -239,6 +248,45 @@
 </template>
 
 <script setup name="Job">
+import frameworkRequest from '@/utils/request'
+import FrameworkJobEditor from '@/components/Medical/FrameworkJobEditor.vue'
+import useUserStore from '@/store/modules/user'
+const medicalMode = import.meta.env.VITE_APP_ENV === 'medical'
+const medicalEditor = ref(null), medicalCommand = ref(null), pendingMedical = ref(null)
+const pendingStorageKey = 'framework-job-command:' + (useUserStore().medicalSession?.user.user_id || 'unavailable')
+if (medicalMode) {
+  try { pendingMedical.value = JSON.parse(sessionStorage.getItem(pendingStorageKey) || 'null') } catch { /* no command is sent by restoration */ }
+  if (pendingMedical.value) medicalCommand.value = { command_id: pendingMedical.value.headers['Idempotency-Key'], state: 'UNKNOWN' }
+}
+function reportMedicalCommand(response) {
+  medicalCommand.value = response.data
+  if (['DISPATCHED', 'FAILED'].includes(response.data?.state) && pendingMedical.value?.headers['Idempotency-Key'] === response.data.command_id) { pendingMedical.value = null; sessionStorage.removeItem(pendingStorageKey) }
+}
+async function sendMedicalCommand(url, method, data, headers = {}) {
+  if (pendingMedical.value) throw new Error('请先核对上一命令结果，不可替换未知请求')
+  const key = crypto.randomUUID()
+  pendingMedical.value = { url, method, data: structuredClone(data), headers: { ...headers, 'Idempotency-Key': key } }
+  sessionStorage.setItem(pendingStorageKey, JSON.stringify(pendingMedical.value))
+  medicalCommand.value = { command_id: key, state: 'UNKNOWN' }
+  return retryMedicalCommand()
+}
+async function retryMedicalCommand() {
+  if (!pendingMedical.value) return
+  const response = await frameworkRequest(JSON.parse(JSON.stringify(pendingMedical.value)))
+  reportMedicalCommand(response); getList(); return response
+}
+async function refreshMedicalCommand() {
+  reportMedicalCommand(await frameworkRequest.get('/monitor/job/commands/' + medicalCommand.value.command_id))
+}
+async function observeMedicalCommand() {
+  reportMedicalCommand(await frameworkRequest.post('/monitor/job/commands/' + medicalCommand.value.command_id + '/observations'))
+  getList()
+}
+async function retireRegisteredJob(row) {
+  await proxy.$modal.confirm('确认退休此注册任务？历史保留，已开始的执行不会中断。')
+  await sendMedicalCommand('/monitor/job/' + row.jobId, 'delete', undefined, { 'X-Framework-Job-Revision': row.frameworkRevision })
+}
+
 import Crontab from '@/components/Crontab'
 import JobDetail from './detail'
 import { listJob, getJob, delJob, addJob, updateJob, runJob, changeJobStatus } from "@/api/monitor/job"
@@ -332,8 +380,9 @@ function handleSelectionChange(selection) {
 function handleStatusChange(row) {
   let text = row.status === "0" ? "启用" : "停用"
   proxy.$modal.confirm('确认要"' + text + '""' + row.jobName + '"任务吗?').then(function () {
-    return changeJobStatus(row.jobId, row.status)
-  }).then(() => {
+    return medicalMode ? sendMedicalCommand('/monitor/job/changeStatus', 'put', { jobId: String(row.jobId), status: row.status }) : changeJobStatus(row.jobId, row.status)
+  }).then(response => {
+    if (medicalMode) { reportMedicalCommand(response); getList(); return }
     proxy.$modal.msgSuccess(text + "成功")
   }).catch(function () {
     row.status = row.status === "0" ? "1" : "0"
@@ -343,8 +392,9 @@ function handleStatusChange(row) {
 /* 立即执行一次 */
 function handleRun(row) {
   proxy.$modal.confirm('确认要立即执行一次"' + row.jobName + '"任务吗?').then(function () {
-    return runJob(row.jobId, row.jobGroup)
-  }).then(() => {
+    return medicalMode ? sendMedicalCommand('/monitor/job/run', 'put', { jobId: String(row.jobId), jobGroup: row.jobGroup }) : runJob(row.jobId, row.jobGroup)
+  }).then(response => {
+    if (medicalMode) { reportMedicalCommand(response); return }
     proxy.$modal.msgSuccess("执行成功")
   }).catch(() => {})
 }
@@ -426,7 +476,7 @@ function handleDelete(row) {
 
 /** 导出按钮操作 */
 function handleExport() {
-  proxy.download("monitor/job/export", {
+  proxy.download("/monitor/job/export", {
     ...queryParams.value,
   }, `job_${new Date().getTime()}.xlsx`)
 }

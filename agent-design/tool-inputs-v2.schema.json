@@ -1,0 +1,255 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.medical-agent.invalid/2.0.0/tool-inputs",
+  "title": "AgentToolInputsV2",
+  "$defs": {
+    "Id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "Ids": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Id"
+      },
+      "uniqueItems": true
+    },
+    "Text": {
+      "type": "string",
+      "minLength": 1
+    },
+    "Cursor": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1
+    },
+    "EvidenceRef": {
+      "$ref": "https://schemas.medical-agent.invalid/2.0.0/source-evidence#/$defs/EvidenceRef"
+    },
+    "SearchArgs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "question_id",
+        "query",
+        "cursor",
+        "evidence_contract"
+      ],
+      "properties": {
+        "question_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "query": {
+          "$ref": "#/$defs/Text"
+        },
+        "cursor": {
+          "$ref": "#/$defs/Cursor"
+        },
+        "evidence_contract": {
+          "const": "2.0.0"
+        }
+      }
+    },
+    "ReadArgs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "evidence_ref",
+        "cursor",
+        "evidence_contract"
+      ],
+      "properties": {
+        "evidence_ref": {
+          "$ref": "#/$defs/EvidenceRef"
+        },
+        "cursor": {
+          "$ref": "#/$defs/Cursor"
+        },
+        "evidence_contract": {
+          "const": "2.0.0"
+        }
+      }
+    },
+    "ArtifactArgs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact_id",
+        "node_ids",
+        "cursor"
+      ],
+      "properties": {
+        "artifact_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "node_ids": {
+          "$ref": "#/$defs/Ids"
+        },
+        "cursor": {
+          "$ref": "#/$defs/Cursor"
+        }
+      }
+    },
+    "SkillArgs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "skill_version"
+      ],
+      "properties": {
+        "skill_version": {
+          "$ref": "#/$defs/Id"
+        }
+      }
+    },
+    "FieldArgs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact_id",
+        "field_ids"
+      ],
+      "properties": {
+        "artifact_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "field_ids": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/Id"
+          }
+        }
+      }
+    },
+    "CandidateArgs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "candidate_artifact_id"
+      ],
+      "properties": {
+        "candidate_artifact_id": {
+          "$ref": "#/$defs/Id"
+        }
+      }
+    },
+    "ReviewArgs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "findings_artifact_id"
+      ],
+      "properties": {
+        "findings_artifact_id": {
+          "$ref": "#/$defs/Id"
+        }
+      }
+    },
+    "QuestionArgs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "question_type",
+        "prompt_text",
+        "target_section_ids",
+        "requirement_ids",
+        "evidence_refs",
+        "evidence_contract"
+      ],
+      "properties": {
+        "question_type": {
+          "enum": [
+            "NEED_EVIDENCE",
+            "CLARIFY_APPLICABILITY",
+            "RESOLVE_CONFLICT",
+            "CONFIRM_PLAN",
+            "REVIEW_CANDIDATE",
+            "REQUEST_BUDGET"
+          ]
+        },
+        "prompt_text": {
+          "$ref": "#/$defs/Text"
+        },
+        "target_section_ids": {
+          "$ref": "#/$defs/Ids"
+        },
+        "requirement_ids": {
+          "$ref": "#/$defs/Ids"
+        },
+        "evidence_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/EvidenceRef"
+          }
+        },
+        "evidence_contract": {
+          "const": "2.0.0"
+        }
+      }
+    },
+    "WebArgs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "question_id",
+        "approved_query_revision"
+      ],
+      "properties": {
+        "question_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "approved_query_revision": {
+          "$ref": "#/$defs/Id"
+        }
+      }
+    },
+    "PlanArgs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "plan_artifact_id"
+      ],
+      "properties": {
+        "plan_artifact_id": {
+          "$ref": "#/$defs/Id"
+        }
+      }
+    }
+  },
+  "oneOf": [
+    {
+      "$ref": "#/$defs/SearchArgs"
+    },
+    {
+      "$ref": "#/$defs/ReadArgs"
+    },
+    {
+      "$ref": "#/$defs/ArtifactArgs"
+    },
+    {
+      "$ref": "#/$defs/SkillArgs"
+    },
+    {
+      "$ref": "#/$defs/FieldArgs"
+    },
+    {
+      "$ref": "#/$defs/CandidateArgs"
+    },
+    {
+      "$ref": "#/$defs/ReviewArgs"
+    },
+    {
+      "$ref": "#/$defs/QuestionArgs"
+    },
+    {
+      "$ref": "#/$defs/WebArgs"
+    },
+    {
+      "$ref": "#/$defs/PlanArgs"
+    }
+  ]
+}

@@ -25,6 +25,7 @@
   </section>
   <section v-if="saved" class="card result spaced" aria-label="能力保存结果" role="status"><h2>固定草稿已核验</h2><p>原操作、类型回执、完整声明与固定内容摘要一致。该草稿未获得发布或执行资格。</p><p class="identifier">固定版本 {{ saved.resource_id }}</p><router-link :to="'/agents/capabilities/' + saved.record_id"><el-button type="primary">查看固定草稿详情</el-button></router-link></section>
   <el-form v-if="availability === true && !pending" class="card spaced" label-position="top" :disabled="busy" @submit.prevent="submit">
+   <p v-if="project"><router-link :to="'/projects/' + project + '/task-professional-packages'">先登记角色、提示词或配置来源文件</router-link>，登记文件不会自动创建或批准能力。</p>
    <div class="form-grid">
     <el-form-item label="能力类型" for="formal-capability-kind"><el-select id="formal-capability-kind" v-model="kind"><el-option value="ROLE" label="专业角色 ROLE"/><el-option value="PROMPT" label="提示词 PROMPT"/></el-select></el-form-item>
     <el-form-item label="归属范围" for="formal-capability-project"><el-select id="formal-capability-project" v-model="project" filterable><el-option value="" label="当前企业"/><el-option v-for="item in projects" :key="item.project_id" :value="item.project_id" :label="item.name"/></el-select><div class="field-actions"><el-button link @click="loadProjects(false)">刷新项目</el-button><el-button v-if="projectCursor" link @click="loadProjects(true)">读取更多项目</el-button></div></el-form-item>
@@ -35,9 +36,15 @@
     <el-form-item label="输出契约" for="formal-capability-output"><el-select id="formal-capability-output" v-model="outputSchema" filterable placeholder="选择已发布契约"><el-option v-for="item in capabilitySchemas" :key="item.schema_ref" :value="item.schema_ref" :label="item.label"/></el-select></el-form-item>
    </div>
    <section v-if="kind === 'ROLE'" class="role-scope" aria-label="角色精确权限声明">
-    <h2>角色权限声明</h2><p>选择当前身份已有的精确资源与动作，逐项填写明确用途。声明须包含 1 至 128 个唯一权限，不会授予或扩大任何权限；服务端会重新核验每个当前授权。</p>
+    <h2>角色权限声明</h2><p>选择当前身份已有的精确资源与动作，逐项填写明确用途。已读取的当前项目、资料与模型配置可承接已有企业或项目授权，收窄为具体资源。声明须包含 1 至 128 个唯一权限，不会授予或扩大任何权限；服务端会重新核验每个当前授权。</p>
+    <div class="field-actions"><el-button :disabled="busy" @click="loadSources(false)">读取可选资料范围</el-button><el-button v-if="sourceCursor" :disabled="busy" @click="loadSources(true)">读取更多资料</el-button></div>
+    <p>资料候选来自当前企业可读目录，按真实归属使用 source_id。读取候选不会自动加入声明；资料权利、用途与当前权限仍由服务端核验。</p>
+    <p v-if="sourcesLoaded && !sourceResources.length" role="status">本页没有可用资料范围。{{ sourceCursor ? '可继续读取下一页。' : '' }}</p>
+    <div class="field-actions"><el-button :disabled="busy" @click="loadModels(false)">读取可选模型配置范围</el-button><el-button v-if="modelCursor" :disabled="busy" @click="loadModels(true)">读取更多模型配置</el-button></div>
+    <p>模型范围使用真实 config_id，并保留企业或项目归属；固定修订不作为权限资源编号。目录中的 DRAFT 只表示维护状态，模型可用资格与用途由服务端重新核验，读取不会启用模型。</p>
+    <p v-if="modelsLoaded && !hasModelScopes" role="status">已读取页面没有当前范围与动作可用的模型配置。{{ modelCursor ? '可继续读取下一页。' : '' }}</p>
     <div class="form-grid">
-     <el-form-item label="已有资源与动作" for="formal-capability-scope"><el-select id="formal-capability-scope" v-model="scopeKey" filterable placeholder="选择当前精确权限范围"><el-option v-for="item in scopeCandidates" :key="scopeIdentity(item)" :value="scopeIdentity(item)" :label="item.action + ' · ' + item.scope.resource_kind + ' · ' + item.scope.resource_id"/></el-select></el-form-item>
+     <el-form-item label="已有资源与动作" for="formal-capability-scope"><el-select id="formal-capability-scope" v-model="scopeKey" filterable placeholder="选择当前精确权限范围"><el-option v-for="item in scopeCandidates" :key="scopeIdentity(item)" :value="scopeIdentity(item)" :label="scopeLabel(item)"/></el-select></el-form-item>
      <el-form-item label="明确用途" for="formal-capability-purpose"><el-input id="formal-capability-purpose" v-model="purpose" autocomplete="off" maxlength="64" placeholder="填写已批准用途，例如 AGENT_PUBLICATION"/><small>用途没有公开授权目录；输入用途不代表已获得许可。</small></el-form-item>
     </div>
     <el-button :disabled="busy || !scopeKey || !purpose || permissions.length >= 128" @click="addPermission">加入固定权限声明</el-button>
@@ -59,12 +66,12 @@ import { onBeforeRouteLeave, useRouter } from 'vue-router'
 import useUserStore from '@/store/modules/user'
 import SessionPanel from './session-panel.vue'
 import FormalCapabilityDefinition from './formal-capability-definition.vue'
-import { capabilityAllowed, capabilityCanonical, capabilityInputIssue, capabilitySchemas, capabilityScopeCandidates, capabilityValidate, detached, readPendingCapability, readCapabilityCancellation } from '@/api/medical/formal-capability-domain'
-import type { CapabilityPermission, FormalCapability, FormalCapabilityRecord, PendingCapability, PendingCapabilityCancellation } from '@/api/medical/formal-capability-domain'
+import { capabilityAllowed, capabilityAuthorization, mergeCapabilityModelResources, capabilityCanonical, capabilityInputIssue, capabilitySchemas, capabilityScopeCandidates, capabilityValidate, detached, readPendingCapability, readCapabilityCancellation } from '@/api/medical/formal-capability-domain'
+import type { CapabilityPermission, FormalCapability, FormalCapabilityRecord, PendingCapability, PendingCapabilityCancellation, CapabilityResourceCandidate } from '@/api/medical/formal-capability-domain'
 import { mayCancelCapability, prepareCapabilityCancellation, sendCapabilityCancellation, recoverCapabilityCancellation, closeCapabilityCancellation } from '@/api/medical/formal-capability-cancellation'
 import type { CapabilityCancelReceipt } from '@/api/medical/formal-capability-cancellation'
 import { createCapability, readCapabilityAvailability, recoverCapability } from '@/api/medical/formal-capabilities'
-import { capabilityArtifactCandidates, capabilityProjectCandidates } from '@/api/medical/formal-capability-candidates'
+import { capabilityArtifactCandidates, capabilityProjectCandidates, capabilitySourceCandidates, capabilityModelCandidates } from '@/api/medical/formal-capability-candidates'
 import type { ArtifactCatalogueItem } from '@/api/medical/source-governance'
 import type { MedicalSession, Project } from '@/api/medical/protocol'
 import type { OperationLookup } from '@/api/medical/operations'
@@ -74,20 +81,26 @@ const cancelPending = ref<PendingCapabilityCancellation | null>(null), cancelRec
 const canCancel = computed(() => !!pending.value && !!user.medicalSession && mayCancelCapability(user.medicalSession, pending.value))
 const kind = ref<'ROLE' | 'PROMPT'>('PROMPT'), project = ref(''), artifactId = ref(''), inputSchema = ref(''), outputSchema = ref(''), reason = ref(''), attested = ref(false)
 const projects = ref<Project[]>([]), projectCursor = ref<string | null>(null), artifacts = ref<ArtifactCatalogueItem[]>([]), artifactCursor = ref<string | null>(null), artifactsLoaded = ref(false)
+const projectResources = ref<CapabilityResourceCandidate[]>([]), sourceResources = ref<CapabilityResourceCandidate[]>([]), sourceCursor = ref<string | null>(null), sourcesLoaded = ref(false)
+const modelResources = ref<CapabilityResourceCandidate[]>([]), modelCursor = ref<string | null>(null), modelsLoaded = ref(false)
+const scopeResources = computed(() => [...projectResources.value, ...sourceResources.value, ...modelResources.value])
+const hasModelScopes = computed(() => scopeCandidates.value.some(item => item.scope.resource_kind === 'CONFIGURATION' && modelResources.value.some(model => model.scope.resource_id === item.scope.resource_id)))
 const scopeKey = ref(''), purpose = ref(''), permissions = ref<CapabilityPermission[]>([]), leaveDialog = ref(false)
 const busy = computed(() => loading.value || user.medicalWriting)
 const mayCreate = computed(() => capabilityAllowed(user.medicalSession, project.value || null))
 const selectedArtifact = computed(() => artifacts.value.find(item => item.artifact_id === artifactId.value) ?? null)
-const scopeCandidates = computed(() => user.medicalSession?.current_context ? capabilityScopeCandidates(user.medicalSession, project.value || null) : [])
+const scopeCandidates = computed(() => user.medicalSession?.current_context ? capabilityScopeCandidates(user.medicalSession, project.value || null, scopeResources.value) : [])
 const lookupMessage = computed(() => lookup.value?.lookup_status === 'NOT_FOUND' ? '尚未查到原操作。原请求继续保留，不能据此认定未执行或自动重发。'
  : lookup.value?.lookup_status === 'EXPIRED' ? '原键查询期限已过，请保留原请求并联系管理员核查；本页不会重新创建。'
  : lookup.value?.operation?.status === 'PROCESSING' ? '原操作仍在处理，请稍后再次读取。'
  : lookup.value?.operation?.status === 'FAILED' ? '原操作显示失败，保留原声明与请求身份，需核查后处理。' : '原操作已完成，正在核对类型回执与固定声明。')
+let modelGeneration = 0
 let controller = new AbortController(), generation = 0, mounted = true, ownsWrite: object | null = null, leaveApproved = false, leavePath = ''
 const reader = (): MedicalSession => { if (!user.medicalSession?.current_context) throw new Error('请先选择当前企业'); return user.medicalSession }
 function live(g: number, session: MedicalSession) { return mounted && g === generation && user.medicalSession === session && !document.hidden }
-function clearForm() { kind.value = 'PROMPT'; project.value = ''; artifactId.value = ''; inputSchema.value = ''; outputSchema.value = ''; reason.value = ''; attested.value = false; scopeKey.value = ''; purpose.value = ''; permissions.value = [] }
-function clear() { cancelPending.value = null; cancelReceipt.value = null; cancelConfirmed.value = false; cancelExported.value = false; cancelAcknowledged.value = false; controller.abort(); controller = new AbortController(); generation++; root.value?.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>('input,textarea').forEach(item => { item.value = ''; if (item instanceof HTMLInputElement) item.checked = false }); clearForm(); projects.value = []; projectCursor.value = null; artifacts.value = []; artifactCursor.value = null; artifactsLoaded.value = false; availability.value = null; pending.value = null; lookup.value = null; saved.value = null; error.value = ''; loading.value = false; leaveDialog.value = false }
+function clearModels() { modelGeneration++; modelResources.value = []; modelCursor.value = null; modelsLoaded.value = false; scopeKey.value = ''; attested.value = false }
+function clearForm() { clearModels(); sourceResources.value = []; sourceCursor.value = null; sourcesLoaded.value = false; kind.value = 'PROMPT'; project.value = ''; artifactId.value = ''; inputSchema.value = ''; outputSchema.value = ''; reason.value = ''; attested.value = false; scopeKey.value = ''; purpose.value = ''; permissions.value = [] }
+function clear() { cancelPending.value = null; cancelReceipt.value = null; cancelConfirmed.value = false; cancelExported.value = false; cancelAcknowledged.value = false; controller.abort(); controller = new AbortController(); generation++; root.value?.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>('input,textarea').forEach(item => { item.value = ''; if (item instanceof HTMLInputElement) item.checked = false }); clearForm(); projects.value = []; projectResources.value = []; projectCursor.value = null; artifacts.value = []; artifactCursor.value = null; artifactsLoaded.value = false; availability.value = null; pending.value = null; lookup.value = null; saved.value = null; error.value = ''; loading.value = false; leaveDialog.value = false }
 async function focusError() { await nextTick(); root.value?.querySelector<HTMLElement>('[role="alert"]')?.focus() }
 async function read(work: (session: MedicalSession, signal: AbortSignal, current: () => boolean) => Promise<void>) {
  const session = user.medicalSession as MedicalSession | null; if (!session?.current_context || busy.value || document.hidden) return
@@ -98,13 +111,55 @@ async function read(work: (session: MedicalSession, signal: AbortSignal, current
 async function bootstrap() { if (ownsWrite || user.medicalWriting) return; clear(); const session = user.medicalSession as MedicalSession | null; if (!session?.current_context || document.hidden) return
  try { pending.value = readPendingCapability(session); cancelPending.value = readCapabilityCancellation(session) } catch (failure) { error.value = failure instanceof Error ? failure.message : '原请求无法恢复'; return }
  await read(async (_session, signal, current) => { const available = await readCapabilityAvailability(reader, signal); if (!current()) return; availability.value = available.features.agent_authoring
-   if (availability.value && !pending.value) { const page = await capabilityProjectCandidates(reader, null, signal); if (current()) { projects.value = page.projects; projectCursor.value = page.next_after } } })
+   if (availability.value && !pending.value) { const page = await capabilityProjectCandidates(reader, null, signal); if (current()) { projects.value = page.projects; projectResources.value = page.resources ?? []; projectCursor.value = page.next_after } } })
 }
-async function loadProjects(next: boolean) { const cursor = next ? projectCursor.value : null; if (next && !cursor) return
- await read(async (_session, signal, current) => { const page = await capabilityProjectCandidates(reader, cursor, signal); if (current()) { const combined = next ? [...projects.value, ...page.projects] : page.projects; if (new Set(combined.map(item => item.project_id)).size !== combined.length) throw new Error('项目目录发生变化，请重新读取首页'); projects.value = combined; projectCursor.value = page.next_after } }) }
+async function loadProjects(next: boolean) { const cursor = next ? projectCursor.value : null; if (busy.value || next && !cursor) return
+ if (!next) projectResources.value = []
+ await read(async (_session, signal, current) => { const page = await capabilityProjectCandidates(reader, cursor, signal); if (current()) { const combined = next ? [...projects.value, ...page.projects] : page.projects; if (new Set(combined.map(item => item.project_id)).size !== combined.length) throw new Error('项目目录发生变化，请重新读取首页'); projects.value = combined; projectResources.value = next ? [...projectResources.value, ...(page.resources ?? [])] : page.resources ?? []; projectCursor.value = page.next_after } }) }
 async function loadArtifacts(next: boolean) { const cursor = next ? artifactCursor.value : null, selectedProject = project.value; if (next && !cursor) return
  if (!next) { artifacts.value = []; artifactId.value = ''; artifactCursor.value = null; artifactsLoaded.value = false }
  await read(async (_session, signal, current) => { const page = await capabilityArtifactCandidates(reader, selectedProject || null, cursor, signal); if (current() && project.value === selectedProject) { const combined = next ? [...artifacts.value, ...page.items] : page.items; if (new Set(combined.map(item => item.artifact_id)).size !== combined.length) throw new Error('成果候选已变化，请重新读取首页'); artifacts.value = combined; artifactCursor.value = page.next_after; artifactsLoaded.value = true } }) }
+async function loadSources(next: boolean) {
+ const cursor = next ? sourceCursor.value : null, selectedProject = project.value
+ if (busy.value || pending.value || next && !cursor) return
+ if (!next) { sourceResources.value = []; sourceCursor.value = null; sourcesLoaded.value = false }
+ await read(async (_session, signal, current) => {
+  const page = await capabilitySourceCandidates(reader, selectedProject || null, cursor, signal)
+  if (!current() || project.value !== selectedProject) return
+  const combined = next ? [...sourceResources.value, ...page.resources] : page.resources
+  const unique = new Map<string, CapabilityResourceCandidate>()
+  for (const item of combined) {
+   const previous = unique.get(item.scope.resource_id)
+   if (previous && capabilityCanonical(previous.scope) !== capabilityCanonical(item.scope)) {
+    sourceResources.value = []; sourceCursor.value = null; sourcesLoaded.value = false
+    throw new Error('资料归属已变化，请重新读取首页')
+   }
+   unique.set(item.scope.resource_id, item)
+  }
+  sourceResources.value = [...unique.values()]; sourceCursor.value = page.next_after; sourcesLoaded.value = true
+ })
+}
+async function loadModels(next: boolean) {
+ const cursor = next ? modelCursor.value : null, selectedProject = project.value
+ if (busy.value || pending.value || next && !cursor) return
+ if (!next) clearModels()
+ const modelRead = modelGeneration
+ await read(async (_session, signal, current) => {
+  try {
+   const page = await capabilityModelCandidates(reader, cursor, signal)
+   if (!current() || project.value !== selectedProject || modelRead !== modelGeneration) return
+   modelResources.value = mergeCapabilityModelResources(next ? modelResources.value : [], page.resources)
+   modelCursor.value = page.next_after; modelsLoaded.value = true
+  } catch (failure) {
+   if (current() && project.value === selectedProject && modelRead === modelGeneration) clearModels()
+   throw failure
+  }
+ })
+}
+function scopeLabel(item: Omit<CapabilityPermission, 'purpose'>) {
+ const resource = scopeResources.value.find(value => capabilityCanonical(value.scope) === capabilityCanonical(item.scope))
+ return [item.action, item.scope.resource_kind, resource?.label, item.scope.resource_id].filter(Boolean).join(' · ')
+}
 function scopeIdentity(item: Omit<CapabilityPermission, 'purpose'>) { return capabilityCanonical(item) }
 function addPermission() { if (busy.value || pending.value) return; const candidate = scopeCandidates.value.find(item => scopeIdentity(item) === scopeKey.value)
  if (!candidate || !/^[A-Z][A-Z0-9_]{0,63}$/.test(purpose.value)) { error.value = '请选择当前精确范围，并填写 1 至 64 位大写用途代码'; return }
@@ -122,7 +177,7 @@ function body(): FormalCapability { const artifact = selectedArtifact.value, inp
 async function submit() { if (busy.value || pending.value || !attested.value || !mayCreate.value || availability.value !== true || document.hidden) return
  let value: FormalCapability; try { value = body(); const issue = capabilityInputIssue(value); if (issue) throw new Error(issue) } catch (failure) { error.value = failure instanceof Error ? failure.message : '请核查声明'; await focusError(); return }
  const session = reader(), g = generation; if (user.medicalWriting) return; const token = {}; ownsWrite = token; user.medicalWriting = true; error.value = ''; saved.value = null; lookup.value = null
- try { const result = await createCapability(reader, value, controller.signal, original => { if (live(g, session)) pending.value = original }); if (!live(g, session)) return
+ try { const result = await createCapability(reader, value, controller.signal, original => { if (live(g, session)) pending.value = original }, scopeResources.value); if (!live(g, session)) return
    attested.value = false; const recovered = await recoverCapability(reader, result.pending, controller.signal)
    if (live(g, session)) { lookup.value = recovered.lookup; if (recovered.record) { pending.value = null; clearForm(); saved.value = recovered.record } }
  } catch (failure) { if (live(g, session)) { error.value = failure instanceof Error ? failure.message : '保存结果待确认，请保留原请求并读取恢复'; pending.value = readPendingCapability(session); await focusError() } }
@@ -154,9 +209,10 @@ function visibility() { if (document.hidden) clear(); else void bootstrap() }
 async function confirmLeave() { clearForm(); leaveDialog.value = false; leaveApproved = true; try { await router.push(leavePath) } finally { leaveApproved = false; leavePath = '' } }
 onBeforeRouteLeave(to => { if (ownsWrite || user.medicalWriting) return false; if (leaveApproved || !dirty()) return true; leavePath = to.fullPath; leaveDialog.value = true; return false })
 watch([kind, project, artifactId, inputSchema, outputSchema, reason, scopeKey, purpose, permissions], () => { attested.value = false; saved.value = null }, { deep: true, flush: 'sync' })
-watch(project, () => { artifacts.value = []; artifactId.value = ''; artifactCursor.value = null; artifactsLoaded.value = false; scopeKey.value = ''; permissions.value = [] }, { flush: 'sync' })
+watch(project, () => { clearModels(); sourceResources.value = []; sourceCursor.value = null; sourcesLoaded.value = false; artifacts.value = []; artifactId.value = ''; artifactCursor.value = null; artifactsLoaded.value = false; scopeKey.value = ''; permissions.value = [] }, { flush: 'sync' })
+watch(scopeCandidates, () => { scopeKey.value = ''; attested.value = false }, { flush: 'sync' })
 watch(kind, () => { permissions.value = []; scopeKey.value = ''; purpose.value = '' }, { flush: 'sync' })
-watch(() => user.medicalSession, () => { clear(); if (!ownsWrite) void bootstrap() }, { immediate: true, flush: 'sync' })
+watch(() => [user.medicalSession, user.medicalSession?.user.user_id, user.medicalSession?.current_context?.tenant_id, user.medicalSession?.current_context?.context_revision, user.medicalSession?.current_context?.auth_epoch, user.medicalSession?.current_context?.governance_epoch, user.medicalSession ? capabilityAuthorization(user.medicalSession) : null], () => { clear(); if (!ownsWrite) void bootstrap() }, { immediate: true, flush: 'sync' })
 document.addEventListener('visibilitychange', visibility); window.addEventListener('beforeunload', unload)
 onBeforeUnmount(() => { mounted = false; clear(); document.removeEventListener('visibilitychange', visibility); window.removeEventListener('beforeunload', unload) })
 </script>

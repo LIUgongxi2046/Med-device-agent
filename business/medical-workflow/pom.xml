@@ -7,6 +7,7 @@
   <dependencies>
     <dependency><groupId>com.ruoyi</groupId><artifactId>medical-contracts</artifactId><version>${ruoyi.version}</version></dependency>
     <dependency><groupId>io.temporal</groupId><artifactId>temporal-sdk</artifactId><version>1.40.0</version></dependency>
+    <dependency><groupId>io.temporal</groupId><artifactId>temporal-testing</artifactId><version>1.40.0</version><scope>test</scope></dependency>
     <dependency><groupId>org.jgrapht</groupId><artifactId>jgrapht-core</artifactId><version>1.5.2</version></dependency>
     <dependency><groupId>org.junit.jupiter</groupId><artifactId>junit-jupiter</artifactId><scope>test</scope></dependency>
     <dependency><groupId>org.awaitility</groupId><artifactId>awaitility</artifactId><scope>test</scope></dependency>

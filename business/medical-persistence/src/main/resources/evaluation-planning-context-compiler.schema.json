@@ -1,0 +1,427 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:evaluation-planning-context-compiler:1.0.0",
+  "$defs": {
+    "PublishedSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_ref",
+        "schema_sha256"
+      ],
+      "properties": {
+        "schema_ref": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024
+        },
+        "schema_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      }
+    },
+    "ToolPackage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "kind",
+        "implementation_id",
+        "implementation_version",
+        "implementation_class_sha256",
+        "input_schema",
+        "output_schema",
+        "prompt_package_schema",
+        "context_mode",
+        "tool_mode",
+        "upstream_mode"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "kind": {
+          "const": "EVALUATION_CONTEXT_ASSEMBLER"
+        },
+        "implementation_id": {
+          "const": "MEDICAL_EVALUATION_N01_PLANNING_CONTEXT_V1"
+        },
+        "implementation_version": {
+          "const": "1.0.0"
+        },
+        "implementation_class_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "input_schema": {
+          "$ref": "#/$defs/PublishedSchema"
+        },
+        "output_schema": {
+          "$ref": "#/$defs/PublishedSchema"
+        },
+        "prompt_package_schema": {
+          "$ref": "#/$defs/PublishedSchema"
+        },
+        "context_mode": {
+          "const": "N01_PLANNING"
+        },
+        "tool_mode": {
+          "const": "NONE"
+        },
+        "upstream_mode": {
+          "const": "ORIGINAL_PLAN_PREPARATION"
+        }
+      }
+    },
+    "PromptPackage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "system_messages"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "system_messages": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 32,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 32768
+          }
+        }
+      }
+    },
+    "CompilationInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "document",
+        "prompt_package",
+        "planning"
+      ],
+      "properties": {
+        "document": {
+          "$ref": "urn:medical:formal-evaluation-input:1.0.0#/$defs/Document"
+        },
+        "prompt_package": {
+          "$ref": "#/$defs/PromptPackage"
+        },
+        "planning": {
+          "$ref": "#/$defs/PlanningInput"
+        }
+      }
+    },
+    "Id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "Hash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$(?![\\s\\S])"
+    },
+    "Basis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version_id",
+        "content_sha256"
+      ],
+      "properties": {
+        "version_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "content_sha256": {
+          "$ref": "#/$defs/Hash"
+        }
+      }
+    },
+    "Ids": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/Id"
+      }
+    },
+    "Text": {
+      "type": "string",
+      "minLength": 1
+    },
+    "NullableId": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "uuid"
+    },
+    "Key": {
+      "type": "string",
+      "pattern": "^[A-Za-z][A-Za-z0-9_-]*$(?![\\s\\S])"
+    },
+    "Keys": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/Key"
+      }
+    },
+    "PlanCandidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "template_version",
+        "profile_revision",
+        "requirement_node_ids",
+        "sections",
+        "questions",
+        "pending_condition_ids"
+      ],
+      "properties": {
+        "template_version": {
+          "$ref": "#/$defs/Id"
+        },
+        "profile_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "requirement_node_ids": {
+          "$ref": "#/$defs/Ids"
+        },
+        "sections": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/PlanSection"
+          }
+        },
+        "questions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ResearchQuestion"
+          }
+        },
+        "pending_condition_ids": {
+          "$ref": "#/$defs/Ids"
+        }
+      }
+    },
+    "PlanSection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "section_id",
+        "requirement_node_ids",
+        "goal",
+        "owner_id",
+        "method",
+        "depends_on_section_ids",
+        "completion_rule_ids"
+      ],
+      "properties": {
+        "section_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "requirement_node_ids": {
+          "$ref": "#/$defs/Ids"
+        },
+        "goal": {
+          "$ref": "#/$defs/Text"
+        },
+        "owner_id": {
+          "$ref": "#/$defs/NullableId"
+        },
+        "method": {
+          "enum": [
+            "DETERMINISTIC",
+            "MODEL_ASSISTED",
+            "HUMAN_PROVIDED"
+          ]
+        },
+        "depends_on_section_ids": {
+          "$ref": "#/$defs/Ids"
+        },
+        "completion_rule_ids": {
+          "$ref": "#/$defs/Ids"
+        }
+      }
+    },
+    "ResearchQuestion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "question_key",
+        "section_id",
+        "question",
+        "requirement_ids",
+        "completion_rule_ids",
+        "depends_on_question_keys"
+      ],
+      "properties": {
+        "question_key": {
+          "$ref": "#/$defs/Key"
+        },
+        "section_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "question": {
+          "$ref": "#/$defs/Text"
+        },
+        "requirement_ids": {
+          "$ref": "#/$defs/Ids"
+        },
+        "completion_rule_ids": {
+          "$ref": "#/$defs/Ids"
+        },
+        "depends_on_question_keys": {
+          "$ref": "#/$defs/Keys"
+        }
+      }
+    },
+    "KeyOriginal": {
+      "type": "string",
+      "minLength": 16,
+      "maxLength": 128,
+      "pattern": "^[!-~]+$(?![\\s\\S])"
+    },
+    "Condition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scope",
+        "target_id",
+        "rule_revision",
+        "engine_revision",
+        "input_keys",
+        "status",
+        "unknown_input_keys"
+      ],
+      "properties": {
+        "scope": {
+          "enum": [
+            "PROFILE",
+            "TEMPLATE",
+            "NODE",
+            "FIELD",
+            "ATTACHMENT"
+          ]
+        },
+        "target_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "rule_revision": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Basis"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "engine_revision": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "input_keys": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "status": {
+          "enum": [
+            "APPLICABLE",
+            "NOT_APPLICABLE",
+            "UNKNOWN"
+          ]
+        },
+        "unknown_input_keys": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "Blocker": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "code",
+        "target_ids"
+      ],
+      "properties": {
+        "code": {
+          "enum": [
+            "TEMPLATE_CHOICE_REQUIRED",
+            "NO_COMPATIBLE_TEMPLATE",
+            "APPLICABILITY_UNKNOWN",
+            "OWNER_UNASSIGNED",
+            "COMPLETION_RULE_MISSING",
+            "METHOD_REVIEW_REQUIRED"
+          ]
+        },
+        "target_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Id"
+          }
+        }
+      }
+    },
+    "PlanningInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "template",
+        "template_content",
+        "profile_revision",
+        "profile_sha256",
+        "profile_attributes",
+        "plan_candidate",
+        "conditions",
+        "blockers"
+      ],
+      "properties": {
+        "template": {
+          "$ref": "#/$defs/Basis"
+        },
+        "template_content": {
+          "$ref": "urn:medical:templates:1.0.0#/$defs/Content"
+        },
+        "profile_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "profile_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "profile_attributes": {
+          "$ref": "urn:medical:projects:1.0.0#/$defs/Attributes"
+        },
+        "plan_candidate": {
+          "$ref": "#/$defs/PlanCandidate"
+        },
+        "conditions": {
+          "type": "array",
+          "maxItems": 2048,
+          "items": {
+            "$ref": "#/$defs/Condition"
+          }
+        },
+        "blockers": {
+          "type": "array",
+          "maxItems": 2048,
+          "items": {
+            "$ref": "#/$defs/Blocker"
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,3 +1,5 @@
+import { loadModule as loadSourceReturnModule } from '../formal-capability/helpers.mjs'
+const sourceReturnApi = (await loadSourceReturnModule('source-return-navigation')).api
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
@@ -14,9 +16,9 @@ function mount(){
  const snapshot={document_id:id(2),project_id:id(3),document_revision:id(4),revision:'1',allowed_actions:[],body:{sha256:'a'.repeat(64)}}
  const saved={snapshot,body:{nodes:[],fields:[],evidence_links:[],fact_usages:[]}}
  const props=Vue.reactive({session:{user:{user_id:id(1)},current_context:{tenant_id:id(6),context_revision:'1',auth_epoch:'1',governance_epoch:'1'},action_summary:[]},projectId:id(3),documentId:id(2),active:true,reviewMode:false})
- const user=Vue.reactive({medicalWriting:false}),records=new Map(),reads=[],creates=[],basisReads=[],write=defer();let nextKey=20
+ const user=Vue.reactive({medicalWriting:false,medicalSession:props.session}),records=new Map(),reads=[],creates=[],basisReads=[],write=defer();let nextKey=20
  const selected=conversation=>({conversation_id:conversation,project_id:id(3),document_id:id(2),document_revision:id(4),scope_snapshot_id:id(7),scope:{},owner_id:id(1),revision:'2',messages:[{message_id:id(8),content:'current page only'}],message_records:[],page_info:{page:1}})
- const imports=path=>{if(path==='vue')return Vue;if(path==='@/store/modules/user')return {default:()=>user};if(path.endsWith('/protocol'))return {fail:code=>{throw Error(code)}}
+ const imports=path=>{if(path.endsWith('/source-return-navigation'))return sourceReturnApi;if(path==='vue-router')return {useRoute:()=>({path:'',query:{}}),useRouter:()=>({push(){}})};if(path==='vue')return Vue;if(path.endsWith('/gru-keyboard')){const out={};vm.runInNewContext(transpile(fs.readFileSync(new URL('../../src/api/medical/gru-keyboard.ts',import.meta.url),'utf8')),{exports:out});return out;}if(path==='@/store/modules/user')return {default:()=>user};if(path.endsWith('/protocol'))return {fail:code=>{throw Error(code)}}
   if(path.endsWith('/task-workspace'))return {workspaceHistoryRevision:()=>({revision:null,issue:''})}
   if(path.endsWith('/documents'))return {readSavedDocument:async()=>saved,readSavedDocumentRevision:()=>{throw Error('must not read body')}}
   if(path.endsWith('/document-body'))return {canonicalDocumentValue:JSON.stringify,DocumentEditBuffer:class{constructor(body){this.body=body;this.dirty=true}invalidate(){}}}

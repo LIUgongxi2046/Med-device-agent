@@ -1,0 +1,134 @@
+openapi: 3.1.0
+info:
+  title: Explicit saved-document candidate adoption
+  version: 1.0.0
+  description: >-
+    DC03 additive closed contract. N06 candidate completion is not consent or an actual saved document.
+    Preview prepares an expiring one-use action; it does not adopt. Only the authenticated user's explicit
+    confirmation may materialize a new document revision. Neither request accepts caller body bytes or check results.
+jsonSchemaDialect: https://json-schema.org/draft/2020-12/schema
+security: [{Session: []}]
+components:
+  securitySchemes:
+    Session: {type: apiKey, in: cookie, name: SESSION}
+  parameters:
+    Candidate: {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+    Schema: {name: X-Schema-Version, in: header, required: true, schema: {const: 1.0.0}}
+    Context: {name: X-Context-Revision, in: header, required: true, schema: {type: string, pattern: '^[1-9][0-9]{0,18}$'}}
+    Key: {name: Idempotency-Key, in: header, required: true, schema: {type: string, minLength: 16, maxLength: 128}}
+    Csrf: {name: X-CSRF-Token, in: header, required: true, schema: {type: string, minLength: 1}}
+paths:
+  /api/candidates/{id}/adoption-previews:
+    post:
+      operationId: prepareDocumentCandidateAdoptionV1
+      description: >-
+        candidate.adopt plus document.read/document.write/document.check with current project and source rights.
+        Complete physical reads of the committed candidate and exact current base are mandatory.
+        INITIAL selects all authorized assembled target roots and requires exact registered initial blank scaffold.
+        SELECTED_NODES replaces only selected existing non-overlapping subtrees inside the genuine candidate target set.
+        Preview fixes candidate provenance/checks, body bytes, source rights, base/head, selected scope, actor and current
+        authorization/governance in the action digest. Expiry is server selected and returned. It grants no approval.
+        An idempotent retry returns the original action, never renews expiry or silently changes its digest.
+      parameters:
+        - {$ref: '#/components/parameters/Candidate'}
+        - {$ref: '#/components/parameters/Schema'}
+        - {$ref: '#/components/parameters/Context'}
+        - {$ref: '#/components/parameters/Key'}
+        - {$ref: '#/components/parameters/Csrf'}
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: '../business/medical-persistence/src/main/resources/document-candidate-adoption.schema.json#/$defs/PreviewInput'}}}
+      responses:
+        '201':
+          description: Pending explicit user confirmation; no document was saved.
+          content: {application/json: {schema: {$ref: '../business/medical-persistence/src/main/resources/document-candidate-adoption.schema.json#/$defs/Preview'}}}
+        '409': {description: Candidate or base is stale, scope is invalid, or original idempotency key conflicts.}
+  /api/candidates/{id}/adoptions:
+    post:
+      operationId: confirmDocumentCandidateAdoptionV1
+      description: >-
+        This request is the explicit user confirmation. The authenticated actor must own the unexpired pending action.
+        Revalidate all immutable preview inputs and current permissions before physical output preparation, and again
+        before atomic save. A changed base/head, candidate, sources, policy or digest fails closed; create a fresh preview.
+        A durable operation reserves the original output identities before I/O. Recovery reads original objects only.
+        Final transaction CASes the same head, registers complete physical body/field/evidence objects and dependencies,
+        inserts adoption, consumes the confirmation exactly once, invalidates previous checks/review confirmations,
+        appends audit/outbox, and creates one CHECK_DOCUMENT intent tied to this original DC03 operation.
+        The completed original key is resolved before fresh candidate/action eligibility, with current authorization
+        and original receipt verification, so retry cannot adopt twice or fabricate a new professional review result.
+        N07 runs separately as SYSTEM_JOB; completed TASK is never reopened. Candidate PASS is never document PASS.
+      parameters:
+        - {$ref: '#/components/parameters/Candidate'}
+        - {$ref: '#/components/parameters/Schema'}
+        - {$ref: '#/components/parameters/Context'}
+        - {$ref: '#/components/parameters/Key'}
+        - {$ref: '#/components/parameters/Csrf'}
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: '../business/medical-persistence/src/main/resources/document-candidate-adoption.schema.json#/$defs/ConfirmInput'}}}
+      responses:
+        '201':
+          description: Exact original saved revision and distinct pending CHECK_DOCUMENT intent; not professional approval.
+          content: {application/json: {schema: {$ref: '../business/medical-persistence/src/main/resources/document-candidate-adoption.schema.json#/$defs/Result'}}}
+        '409': {description: Expired/stale/consumed confirmation, changed authorization or idempotency conflict.}
+        '403': {description: Current explicit candidate/document/source access denied.}
+  /api/runs/{id}/document-candidates:
+    post:
+      operationId: materializeCommittedDocumentCandidateV1
+      description: >-
+        Deterministically materializes one aggregate candidate for an actual committed N06 run after complete
+        physical original reads. Requires current task/source/document permissions. No body save, consent,
+        N07 completion or professional approval is implied. Repeated calls recover the same candidate identity.
+      parameters:
+        - {$ref: '#/components/parameters/Candidate'}
+        - {$ref: '#/components/parameters/Schema'}
+        - {$ref: '#/components/parameters/Context'}
+        - {$ref: '#/components/parameters/Key'}
+        - {$ref: '#/components/parameters/Csrf'}
+      responses:
+        '201': {description: Actual assembled candidate and fixed base metadata.}
+  /api/candidates/{id}:
+    get:
+      operationId: readFixedDocumentCandidateV1
+      description: >-
+        BX07 returns the existing CandidateView after complete physical original reads. New evidence is the
+        actual DOCUMENT_BODY artifact at /evidence_links, retaining its real body schema_ref; original evidence
+        is the actual base DOCUMENT_EVIDENCE projection. Historical candidate status is not adoption permission.
+      parameters:
+        - {$ref: '#/components/parameters/Candidate'}
+        - {$ref: '#/components/parameters/Schema'}
+        - {$ref: '#/components/parameters/Context'}
+      responses:
+        '200':
+          description: Existing typed CandidateView in the standard envelope.
+          content: {application/json: {schema: {$ref: './interfaces.schema.yaml#/$defs/Envelope'}}}
+  /api/candidate-comparisons:
+    post:
+      operationId: compareFixedDocumentCandidateV1
+      description: >-
+        BX08 uses the existing request and Comparison response. Requires current candidate.read and document.read
+        plus complete actual candidate/target/source reads. The requested target must still be the current head.
+        The bounded candidate-specific structural result is physically written/read back and registered; completed
+        retry performs original-only GET and verifies exact inputs, hashes, full result and receipt. No saved
+        document revision or professional check is fabricated. Requires configured document-comparison capacities.
+      parameters:
+        - {$ref: '#/components/parameters/Schema'}
+        - {$ref: '#/components/parameters/Context'}
+        - {$ref: '#/components/parameters/Key'}
+        - {$ref: '#/components/parameters/Csrf'}
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: './interfaces.schema.yaml#/$defs/CandidateCompareRequest'}}}
+      responses:
+        '201': {description: Existing Comparison in standard envelope, with a genuine physical differences ArtifactRef.}
+        '409': {description: Requested target no longer current, changed fixed input, or original key conflict.}
+  /api/candidate-comparisons/{id}:
+    get:
+      operationId: readFixedCandidateComparisonV1
+      description: Current authorized full original comparison read; no new PUT or comparison execution identity.
+      parameters:
+        - {$ref: '#/components/parameters/Candidate'}
+        - {$ref: '#/components/parameters/Schema'}
+        - {$ref: '#/components/parameters/Context'}
+      responses:
+        '200': {description: Standard envelope containing the original Comparison and complete candidate structural result.}

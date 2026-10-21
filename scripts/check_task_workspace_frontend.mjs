@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import vm from 'node:vm'
 import { readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { createRequire } from 'node:module'
@@ -35,7 +36,18 @@ for (const name of ['task-detail', 'document-editor']) {
     assert.match(source, /if \(props.reviewMode\) \{ await load\(\); return \}/)
     assert.ok(source.indexOf('if (props.reviewMode) { await load(); return }') < source.indexOf('const value = resumeDocumentDraft(key)'))
     assert.match(source, /if \(props.reviewMode \|\| ownedKey === null/)
-    assert.match(source, /<document-body-reader v-if="reviewMode"[^>]*:dirty="false"/)
+    // The editor now shares one reader between write and review. Test its actual
+    // editable guard rather than requiring the obsolete separate review element.
+    assert.match(source, /<document-body-reader [^>]*:dirty="hasUnsaved"[^>]*:editable="editable"/)
+    assert.match(source, /function replace\(value: DocumentBody\): void \{\s*if \(!editable.value \|\| draft.value === null\) fail\('ACTION_STALE'/)
+    const editableExpression = source.match(/const editable = computed\(\(\) => (.+)\)/)?.[1]
+    assert.ok(editableExpression)
+    const context = { props: { reviewMode: true, active: true }, loading: { value: false }, annotationBusy: { value: false }, user: { medicalWriting: false }, currentSnapshot: { value: { allowed_actions: ['document.edit'] } } }
+    assert.equal(vm.runInNewContext(editableExpression, context), false, 'Review must remain read-only even with edit permission')
+    context.props.reviewMode = false
+    assert.equal(vm.runInNewContext(editableExpression, context), true, 'Authorized write remains editable')
+    context.props.active = false
+    assert.equal(vm.runInNewContext(editableExpression, context), false, 'Inactive workspace cannot edit')
     assert.match(source, /:lifecycle="reviewMode"/)
   }
 }

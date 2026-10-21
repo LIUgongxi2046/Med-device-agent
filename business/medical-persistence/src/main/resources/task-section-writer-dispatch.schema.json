@@ -1,0 +1,272 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:task-section-writer-dispatch:1.0.0",
+  "$defs": {
+    "Envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tenant_id",
+        "project_id",
+        "task_id",
+        "run_id",
+        "step_id",
+        "action_id",
+        "session_id",
+        "plan_revision",
+        "snapshot_id",
+        "input_artifact_id",
+        "dependency_access_set_id",
+        "input_sha256",
+        "input_receipt_sha256",
+        "deployment_sha256",
+        "runtime_manifest_sha256",
+        "prompt_sha256",
+        "deployment_revision",
+        "worker_service_uri",
+        "compiled_prompt",
+        "producer",
+        "role_version",
+        "model_version",
+        "execution_policy_version",
+        "prompt_provenance",
+        "schema_version",
+        "execution_kind",
+        "node_kind",
+        "lease_generation"
+      ],
+      "properties": {
+        "tenant_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "project_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "task_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "run_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "step_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "action_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "session_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "plan_revision": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "snapshot_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "input_artifact_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "dependency_access_set_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "input_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "input_receipt_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "deployment_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "runtime_manifest_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "prompt_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "deployment_revision": {
+          "type": "string",
+          "minLength": 1
+        },
+        "worker_service_uri": {
+          "type": "string",
+          "minLength": 1
+        },
+        "compiled_prompt": {
+          "type": "string",
+          "minLength": 1
+        },
+        "producer": {
+          "type": "object"
+        },
+        "role_version": {
+          "type": "object"
+        },
+        "model_version": {
+          "type": "object"
+        },
+        "execution_policy_version": {
+          "type": "object"
+        },
+        "prompt_provenance": {
+          "type": "object"
+        },
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "execution_kind": {
+          "const": "TASK"
+        },
+        "node_kind": {
+          "const": "N04"
+        },
+        "lease_generation": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "Dispatch": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tenant_id",
+        "project_id",
+        "task_id",
+        "run_id",
+        "step_id",
+        "action_id",
+        "command_id",
+        "session_id",
+        "input_artifact_id",
+        "envelope_artifact_id",
+        "initiator_id",
+        "reference_sha256",
+        "input_sha256",
+        "input_receipt_sha256",
+        "envelope_sha256",
+        "envelope_receipt_sha256",
+        "launch_sha256",
+        "input_object_version",
+        "envelope_object_version",
+        "worker_service_uri",
+        "classification",
+        "schema_version",
+        "kind",
+        "lease_generation"
+      ],
+      "properties": {
+        "tenant_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "project_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "task_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "run_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "step_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "action_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "command_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "session_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "input_artifact_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "envelope_artifact_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "initiator_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "reference_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "input_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "input_receipt_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "envelope_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "envelope_receipt_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "launch_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "input_object_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "envelope_object_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "worker_service_uri": {
+          "type": "string",
+          "minLength": 1
+        },
+        "classification": {
+          "type": "string",
+          "minLength": 1
+        },
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "kind": {
+          "const": "TASK_SECTION_WRITER_DISPATCH"
+        },
+        "lease_generation": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,43 @@
+openapi: 3.1.0
+info: {title: Human evidence decision physical history, version: 1.1.0}
+# Additive history representation; interfaces.schema.yaml and resource-details.schema.yaml stay immutable.
+paths:
+  /api/documents/{id}/evidence-review-decisions:
+    parameters:
+      - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+      - {name: X-Context-Revision, in: header, required: true, schema: {type: string, pattern: '^(0|[1-9][0-9]*)$'}}
+    post:
+      operationId: BX-09-HUMAN-1
+      parameters:
+        - {name: X-Schema-Version, in: header, required: true, schema: {const: 1.0.0}}
+        - {name: Idempotency-Key, in: header, required: true, schema: {type: string, minLength: 1, maxLength: 128}}
+        - {name: X-CSRF-Token, in: header, required: true, schema: {type: string, minLength: 1}}
+      description: All saved-body citations exactly once; exact full Selection for each citation; server recomputes access/location from physical source bytes. Human support/reason remains explicit. NOT_APPLICABLE needs the approved fixed rule and applicable N07 NOT_APPLICABLE evidence. Current professional checks must precede the atomic batch. Advances evidence watermark and document CAS once; source approval is never support.
+      requestBody: {required: true, content: {application/json: {schema: {$ref: './interfaces.schema.yaml#/$defs/EvidenceDecisionBatch'}}}}
+      responses:
+        '200': {description: Original atomic batch receipt, content: {application/json: {schema: {allOf: [{$ref: './interfaces.schema.yaml#/$defs/Envelope'}, {properties: {data: {$ref: './interfaces.schema.yaml#/$defs/DecisionBatch'}}}]}}}}
+        default: {description: Closed domain error, content: {application/json: {schema: {$ref: './interfaces.schema.yaml#/$defs/Error'}}}}
+    get:
+      operationId: BX-10-HUMAN-INLINE-1.1
+      description: Closed inline history variant with no invented ArtifactRef. 1.0.0 GET is unsupported until a genuine decision-artifact producer exists. Every item is independently reread from physical batch/decision/operation/audit/outbox rows under current source and body permissions. Original decisions are immutable; invalidity is projected with a precise current reason.
+      parameters:
+        - {name: X-Schema-Version, in: header, required: true, schema: {const: 1.1.0}}
+        - {name: X-Document-Revision, in: header, required: true, schema: {type: string, format: uuid}}
+        - {name: page, in: query, schema: {type: integer, minimum: 1, default: 1}}
+        - {name: page_size, in: query, schema: {type: integer, minimum: 1, maximum: 100, default: 50}}
+        - {name: watermark, in: query, schema: {type: string, pattern: '^(0|[1-9][0-9]*)$'}}
+      responses:
+        '200': {description: Inline immutable decision history with current invalidation projection, content: {application/json: {schema: {$ref: './human-evidence-review.schema.json'}}}}
+        default: {description: Closed domain error, content: {application/json: {schema: {$ref: './interfaces.schema.yaml#/$defs/Error'}}}}
+  /api/documents/{id}/evidence-review-operations:
+    get:
+      operationId: BX-09-HUMAN-RECOVERY-1
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+        - {name: X-Schema-Version, in: header, required: true, schema: {const: 1.0.0}}
+        - {name: X-Context-Revision, in: header, required: true, schema: {type: string}}
+        - {name: X-Document-Revision, in: header, required: true, schema: {type: string, format: uuid}}
+        - {name: Idempotency-Key, in: header, required: true, schema: {type: string, minLength: 1, maxLength: 128}}
+      responses:
+        '200': {description: Exact original receipt for this actor and target, or envelope data null when absent, content: {application/json: {schema: {allOf: [{$ref: './interfaces.schema.yaml#/$defs/Envelope'}, {properties: {data: {oneOf: [{$ref: './interfaces.schema.yaml#/$defs/DecisionBatch'}, {type: 'null'}]}}}]}}}}
+        default: {description: Closed domain error, content: {application/json: {schema: {$ref: './interfaces.schema.yaml#/$defs/Error'}}}}

@@ -25,3 +25,29 @@ test('tampered storage receipt kind is rejected before any recovery request',asy
 test('authentic cursor expiry is a local refresh state and preserves identity',async()=>{const s=session(),error={schema_version:'1.0.0',code:'CURSOR_EXPIRED',message:'Expired cursor',request_id:id(90),resource_revision:null,operation_id:null,retryable:false,allowed_actions:[],details:[]};const x=await loadModule('formal-agent-drafts',{request:{post:async()=>({status:409,headers:{'cache-control':'no-store','x-schema-version':'1.0.0','x-request-id':id(90)},data:error})}});await assert.rejects(()=>x.api.queryDrafts(()=>s,'TOOL',null,id(44),signal()),e=>e.code==='CURSOR_EXPIRED');assert.equal(x.events.length,0);assert.ok(s.current_context)})
 test('malformed cursor failure keeps fail-closed header and exact error requirements',async()=>{const s=session();const x=await loadModule('formal-agent-drafts',{request:{post:async()=>({status:409,headers:{},data:{code:'CURSOR_EXPIRED'}})}});await assert.rejects(()=>x.api.queryDrafts(()=>s,'TOOL',null,id(44),signal()));assert.equal(x.events.length,1)})
 test('successful write preserves exact original body/key and requires read recovery before clearing',async()=>{const s=session();let api,observed,callback=[];const x=await loadModule('formal-agent-drafts',{request:{get:async()=>available(s),post:async(url,b,config)=>{observed={url,b,config};const view=fixed(api,b);return response({schema_version:'1.0.0',operation_id:id(7),resource_id:id(6),kind:'AUTHOR',content_sha256:view.content_sha256,request_body_sha256:hash(api,b)},'1',201)}}});api=x.api;const result=await api.createDraft(()=>s,'TOOL',body(api),signal(),p=>callback.push(p));assert.equal(observed.url,'/api/formal-runtime-capabilities');assert.equal(observed.config.headers['Idempotency-Key'],result.key);assert.equal(observed.config.headers[s.csrf.header_name],s.csrf.token);assert.equal(hash(api,observed.b),result.body_sha256);assert.equal(callback.length,2);assert.equal(api.pendingDraft(s).receipt.resource_id,id(6));assert.equal(x.events.length,0)})
+for(const kind of ['AGENT','TOOL','SKILL']){
+ test(kind+' honors current-tenant enterprise governance for both enterprise and selected project',async()=>{const {api}=await loadModule('formal-agent-drafts'),s=session(),action=kind==='AGENT'?'agent.configure':'capability.configure';s.action_summary=[{action,resource_kind:'ENTERPRISE',resource_id:s.current_context.tenant_id,project_id:null}];assert.equal(api.draftAllowed(s,kind,null),true);assert.equal(api.draftAllowed(s,kind,id(40)),true)})
+ test(kind+' honors only the exact concrete project governance grant',async()=>{const {api}=await loadModule('formal-agent-drafts'),s=session(),action=kind==='AGENT'?'agent.configure':'capability.configure';s.action_summary=[{action,resource_kind:'PROJECT',resource_id:id(40),project_id:id(40)}];assert.equal(api.draftAllowed(s,kind,id(40)),true);assert.equal(api.draftAllowed(s,kind,id(41)),false);assert.equal(api.draftAllowed(s,kind,null),false)})
+ test(kind+' rejects foreign-tenant, malformed project, wildcard and wrong-action summaries',async()=>{const {api}=await loadModule('formal-agent-drafts'),s=session(),action=kind==='AGENT'?'agent.configure':'capability.configure';for(const grant of [{action,resource_kind:'ENTERPRISE',resource_id:id(99),project_id:null},{action,resource_kind:'ENTERPRISE',resource_id:id(2),project_id:id(40)},{action,resource_kind:'ENTERPRISE',resource_id:null,project_id:null},{action,resource_kind:'PROJECT',resource_id:id(40),project_id:id(41)},{action:kind==='AGENT'?'capability.configure':'agent.configure',resource_kind:'ENTERPRISE',resource_id:id(2),project_id:null}]){s.action_summary=[grant];assert.equal(api.draftAllowed(s,kind,id(40)),false);assert.equal(api.draftAllowed(s,kind,null),false)}s.current_context=null;assert.equal(api.draftAllowed(s,kind,id(40)),false)})
+}
+for (const kind of ['TOOL', 'SKILL']) {
+ test(kind + ' submits concrete inherited permission only with current verified catalogue identity', async () => {
+  const s = session(); s.action_summary.push({ action: 'source.read', resource_kind: 'ENTERPRISE', resource_id: id(2), project_id: null })
+  let api, sent
+  const x = await loadModule('formal-agent-drafts', { request: {
+   get: async () => available(s),
+   post: async (url, payload) => { sent = { url, payload }; const view = fixed(api, payload); return response({ schema_version: '1.0.0', operation_id: id(7), resource_id: id(6), kind: 'AUTHOR', content_sha256: view.content_sha256, request_body_sha256: hash(api, payload) }, '1', 201) }
+  } })
+  api = x.api
+  const candidate = { actor: s.user.user_id, context: plain(s.current_context), label: '真实资料', scope: { tenant_id: id(2), project_id: id(8), resource_kind: 'SOURCE', resource_id: id(11) } }
+  const request = { ...body(api), kind, project_id: id(8), tool_scope: { schema_version: '1.0.0', permissions: [{ scope: candidate.scope, action: 'source.read', purpose: 'MODEL_EXECUTION' }] } }
+  await assert.rejects(api.createDraft(() => s, kind, request, signal(), () => {}), e => e.code === 'ACCESS_DENIED')
+  assert.equal(sent, undefined); assert.equal(x.store.map.size, 0)
+  await assert.rejects(api.createDraft(() => s, kind, request, signal(), () => {}, [{ ...candidate, actor: id(99) }]), e => e.code === 'ACCESS_DENIED')
+  assert.equal(sent, undefined)
+  const saved = await api.createDraft(() => s, kind, request, signal(), () => {}, [candidate])
+  assert.equal(saved.body.kind, kind); assert.equal(saved.body.execution_mode, 'PRODUCTION')
+  assert.equal(sent.url, '/api/formal-runtime-capabilities'); assert.deepEqual(plain(sent.payload), request)
+  assert.equal('resources' in sent.payload, false); assert.equal('actor' in sent.payload, false)
+ })
+}

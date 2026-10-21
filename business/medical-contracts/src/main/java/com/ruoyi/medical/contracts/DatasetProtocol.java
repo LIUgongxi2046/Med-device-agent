@@ -8,7 +8,7 @@ import static com.ruoyi.medical.contracts.CommonProtocol.constant;
 public final class DatasetProtocol {
     private DatasetProtocol() { }
     public enum Format { PDF, DOCX, XLSX, CSV, TXT, MARKDOWN, PPTX, DOC_REFERENCE }
-    public enum LocatorKind { PDF, DOCX, XLSX, CSV, TXT, MARKDOWN, PPTX }
+    public enum LocatorKind { PDF, DOCX, XLSX, CSV, TXT, MARKDOWN, PPTX, IMAGE, HTML }
     public enum Nature { OFFICIAL_ORIGINAL, DERIVED_PREVIEW, DERIVED_TEXT, PROJECT_SPECIFICATION }
     public enum AllowedUse { LOCAL_DESIGN_REVIEW, LOCAL_PARSER_CHECK, APPROVED_PRODUCTION, APPROVED_EXTERNAL_PROCESSING }
     public enum Sensitivity { PUBLIC, INTERNAL, RESTRICTED, PERSONAL_HEALTH }
@@ -35,16 +35,26 @@ public final class DatasetProtocol {
     public record EvidenceRef(String schemaVersion, String tenantId, String projectId, String sourceId,
                               String sourceVersion, String parseVersion, String chunkId, LocatorKind locatorKind,
                               Locator locator, String quoteHash, String approvalRevision) {
-        public EvidenceRef { constant(schemaVersion, "1.0.0"); }
+        public EvidenceRef { if (!"1.0.0".equals(schemaVersion) && !"2.0.0".equals(schemaVersion)) throw new IllegalArgumentException("EVIDENCE_CONTRACT_UNSUPPORTED"); }
     }
 
     @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.EXISTING_PROPERTY, property = "kind", visible = true)
     @JsonSubTypes({@JsonSubTypes.Type(value = PdfLocator.class, name = "PDF"), @JsonSubTypes.Type(value = DocxLocator.class, name = "DOCX"),
         @JsonSubTypes.Type(value = XlsxLocator.class, name = "XLSX"), @JsonSubTypes.Type(value = CsvLocator.class, name = "CSV"),
         @JsonSubTypes.Type(value = TextLocator.class, name = "TXT"), @JsonSubTypes.Type(value = MarkdownLocator.class, name = "MARKDOWN"),
-        @JsonSubTypes.Type(value = PptxLocator.class, name = "PPTX")})
-    public sealed interface Locator permits PdfLocator, DocxLocator, XlsxLocator, CsvLocator, TextLocator, MarkdownLocator, PptxLocator { String kind(); }
+        @JsonSubTypes.Type(value = PptxLocator.class, name = "PPTX"), @JsonSubTypes.Type(value = ImageLocator.class, name = "IMAGE"), @JsonSubTypes.Type(value = HtmlLocator.class, name = "HTML")})
+    public sealed interface Locator permits PdfLocator, DocxLocator, XlsxLocator, CsvLocator, TextLocator, MarkdownLocator, PptxLocator, ImageLocator, HtmlLocator { String kind(); }
 
+    public record ImageLocator(String schemaVersion, String kind, int frameIndex, String originalSha256,
+            String coordinateSystem, int width, int height, double x0, double y0, double x1, double y1) implements Locator {
+        public ImageLocator { constant(schemaVersion,"1.0.0"); constant(kind,"IMAGE"); constant(coordinateSystem,"ORIGINAL_TOP_LEFT_NORMALIZED"); if (!(x0<x1 && y0<y1)) throw new IllegalArgumentException("LOCATOR_INVALID"); }
+    }
+    public record HtmlAddress(String kind, String elementPath, long textStart, long textEnd) {
+        public HtmlAddress { constant(kind,"HTML_ELEMENT"); if(textStart>=textEnd) throw new IllegalArgumentException("LOCATOR_INVALID"); }
+    }
+    public record HtmlLocator(String schemaVersion, String kind, String originalSha256, HtmlAddress address) implements Locator {
+        public HtmlLocator { constant(schemaVersion,"1.0.0"); constant(kind,"HTML"); }
+    }
     public record PdfLocator(String kind, long pageIndex, PageBasis pageBasis, String printedLabel, PdfRegion region) implements Locator {
         public PdfLocator { constant(kind, "PDF"); }
     }

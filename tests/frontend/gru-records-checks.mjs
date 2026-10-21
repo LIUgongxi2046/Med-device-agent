@@ -29,14 +29,26 @@ function harness(overrides={}){
  const user=Vue.reactive({medicalWriting:false,medicalSession:session})
  const protocol={schemaIssues:(ref,v)=>{const check=ajv.getSchema(ref);assert.ok(check,ref);return check(v)?[]:check.errors.map(e=>({path:e.instancePath,code:e.keyword}))},validate:(ref,v)=>{if(protocol.schemaIssues(ref,v).length)protocol.fail('SCHEMA_INVALID');return v},validContext:()=>{},fail:code=>{fails.push(code);throw Error(code)},envelope:r=>r.envelope}
  const transport={get:async(path,config)=>{calls.push({path,config});if(path==='/api/gru-feature-availability')return {status:200,envelope:{resource_revision:'1',data:{schema_version:'1.0.0',current_context:context(),features:{gru_records:true}}}};if(path.endsWith('/context'))return {status:200,envelope:{resource_revision:'1',data:basis()}};if(path.includes('/receipts/'))return {status:200,envelope:{resource_revision:'1',data:await receiptFor(calls.find(c=>c.body).body)}};return {status:200,envelope:{resource_revision:'1',data:view()}}},post:async(path,body,config)=>{calls.push({path,body:JSON.parse(JSON.stringify(body)),config});throw Error('unknown write')},...overrides}
- const api={};function require(path){if(path==='./gru-record-export.vue')return {default:{}};if(path==='vue')return {...Vue,onBeforeUnmount:f=>cleanup.push(f)};if(path==='@/store/modules/user')return {default:()=>user};if(path.endsWith('/protocol'))return protocol;if(path.endsWith('/document-body'))return {canonicalDocumentValue:canonical};if(path.endsWith('/content-digest'))return {sourceDigest:digest};if(path.endsWith('/project-text'))return {projectTextIssue:(s,max)=>s.trim()!==s||s.normalize('NFC')!==s||Array.from(s).length>max||/[\u0000-\u001f\u007f-\u009f]/u.test(s)?'invalid':''};if(path==='@/utils/request')return {default:transport};if(path==='./operations')return {lookupOperation:async()=>({lookup_status:'NOT_FOUND',operation:null}),...overrides.operations};if(path.endsWith('/gru-records'))return api;throw Error(path)}
+ const presentation={};vm.runInNewContext(transpile(read('web/src/api/medical/gru-presentation.ts')),{exports:presentation});
+ const keyboard={};vm.runInNewContext(transpile(read('web/src/api/medical/gru-keyboard.ts')),{exports:keyboard});
+ const api={};function require(path){if(path.endsWith('/gru-presentation'))return presentation;if(path==='./gru-record-export.vue'||path==='./gru-panel.vue')return {default:{}};if(path.endsWith('/gru-keyboard'))return keyboard;if(path==='vue')return {...Vue,onBeforeUnmount:f=>cleanup.push(f)};if(path==='@/store/modules/user')return {default:()=>user};if(path.endsWith('/protocol'))return protocol;if(path.endsWith('/document-body'))return {canonicalDocumentValue:canonical};if(path.endsWith('/content-digest'))return {sourceDigest:digest};if(path.endsWith('/project-text'))return {projectTextIssue:(s,max)=>s.trim()!==s||s.normalize('NFC')!==s||Array.from(s).length>max||/[\u0000-\u001f\u007f-\u009f]/u.test(s)?'invalid':''};if(path==='@/utils/request')return {default:transport};if(path==='./operations')return {lookupOperation:async()=>({lookup_status:'NOT_FOUND',operation:null}),...overrides.operations};if(path.endsWith('/gru-records'))return api;throw Error(path)}
  const sessionStorage={getItem:k=>storage.get(k),setItem:(k,v)=>{if(overrides.storageSet)overrides.storageSet(k,v);storage.set(k,v)},removeItem:k=>storage.delete(k)}
  vm.runInNewContext(transpile(read('web/src/api/medical/gru-records.ts')),{exports:api,require,TextEncoder,sessionStorage})
+ const docEvents={},winEvents={},doc={hidden:false,addEventListener:(name,fn)=>{docEvents[name]=fn},removeEventListener:name=>{delete docEvents[name]}};
  const {descriptor}=parse(read('web/src/views/medical/document-gru-records.vue')),compiled=compileScript(descriptor,{id:'gru'}),out={}
- vm.runInNewContext(transpile(compiled.content),{exports:out,require,crypto:webcrypto,TextEncoder,AbortController,document:{hidden:false,addEventListener(){},removeEventListener(){}},window:{addEventListener(){},removeEventListener(){}},console})
- const b=scope.run(()=>out.default.setup(props,{expose(){}}));return {b,api,props,user,calls,fails,storage,async ready(){await new Promise(r=>setTimeout(r,0))},close(){cleanup.forEach(f=>f());scope.stop()}}
+ vm.runInNewContext(transpile(compiled.content),{exports:out,require,crypto:webcrypto,TextEncoder,AbortController,document:doc,window:{addEventListener:(name,fn)=>{winEvents[name]=fn},removeEventListener:name=>{delete winEvents[name]}},console})
+ const b=scope.run(()=>out.default.setup(props,{expose(){}}));return {b,api,props,user,calls,fails,storage,hide(hidden){doc.hidden=hidden;docEvents.visibilitychange?.()},invalidate(){winEvents['medical-context-invalidated']?.()},async ready(){await new Promise(r=>setTimeout(r,0))},close(){cleanup.forEach(f=>f());scope.stop()}}
 }
-test('actual SFC compiles and starts collapsed',()=>{const {descriptor}=parse(read('web/src/views/medical/document-gru-records.vue'));assert.equal(compileTemplate({source:descriptor.template.content,filename:'gru.vue',id:'gru'}).errors.length,0);assert.match(descriptor.template.content,/<details class="gru-records"/);assert.doesNotMatch(descriptor.template.content,/<details class="gru-records"[^>]*\bopen\b/)})
+test('actual SFC compiles and starts with authorized panel closed',()=>{
+ const {descriptor}=parse(read('web/src/views/medical/document-gru-records.vue'))
+ assert.equal(compileTemplate({source:descriptor.template.content,filename:'gru.vue',id:'gru'}).errors.length,0)
+ assert.match(descriptor.template.content,/<gru-panel :open="panelOpen && contentVisible"/)
+ const {descriptor:panel}=parse(read('web/src/views/medical/gru-panel.vue'))
+ assert.equal(compileTemplate({source:panel.template.content,filename:'gru-panel.vue',id:'gru-panel'}).errors.length,0)
+ assert.match(panel.template.content,/<Teleport to="body">/)
+ assert.match(panel.template.content,/<section v-show="open"/)
+ const r=harness();try{assert.equal(r.b.panelOpen.value,false);r.b.panelOpen.value=true;r.props.active=false;assert.equal(r.b.panelOpen.value,false);assert.equal(r.b.contentVisible.value,false)}finally{r.close()}
+})
 test('default-disabled service prevents business reads and writes',async()=>{const r=harness({get:async()=>({status:200,envelope:{resource_revision:'1',data:{schema_version:'1.0.0',current_context:context(),features:{gru_records:false}}}})});try{await r.ready();assert.equal(r.b.enabled.value,false);await r.b.loadBasis();await r.b.create();assert.equal(r.storage.size,0)}finally{r.close()}})
 test('fixed context comes from real context GET; no invented snapshot',async()=>{const r=harness();try{await r.ready();await r.b.loadBasis();assert.equal(r.b.basis.value.scope_snapshot_id,id(5));assert.equal(r.calls.at(-1).path,'/api/gru-conversations/context');assert.equal(r.calls.at(-1).config.params.document_revision,id(4))}finally{r.close()}})
 test('bad local reason does not post or fail closed',async()=>{const r=harness();try{await r.ready();await r.b.loadBasis();r.b.createReason.value=' bad ';await r.b.create();assert.equal(r.calls.filter(c=>c.body).length,0);assert.equal(r.fails.length,0);assert.ok(r.b.error.value)}finally{r.close()}})
@@ -72,3 +84,49 @@ test('FOUND append proof completes only with original full-body receipt',async()
 test('archived stale proof restores draft as history after refresh, never as a reusable unlock proof',async()=>{const r=staleHarness();try{await r.ready();r.b.view.value=view();r.b.text.value='retained draft';r.b.messageReason.value='reason';await r.b.append();await r.b.recover();r.b.savedProof.value=true;await r.b.finishStale();await r.b.reset();assert.equal(r.b.pending.value,null);assert.equal(r.b.recoveryProof.value,null);assert.equal(r.b.savedProof.value,false);assert.equal(r.b.text.value,'retained draft');assert.equal(r.b.staleArchive.value.proof.status,'NOT_APPLIED_STALE')}finally{r.close()}})
 test('archive storage failure preserves original pending key and exact draft before any clear',async()=>{const r=staleHarness('NOT_APPLIED_STALE',v=>v,{storageSet:(k)=>{if(k.endsWith(':stale-proof'))throw Error('quota exceeded')}});try{await r.ready();r.b.view.value=view();r.b.text.value='keep exact draft';r.b.messageReason.value='keep reason';await r.b.append();await r.b.recover();const key=r.b.pending.value.key;const before=JSON.stringify(r.b.pending.value);r.b.savedProof.value=true;await r.b.finishStale();assert.equal(r.b.pending.value.key,key);assert.equal(JSON.stringify(r.b.pending.value),before);assert.equal(r.b.text.value,'keep exact draft');assert.equal(r.b.messageReason.value,'keep reason');assert.equal(r.storage.size,1);assert.equal(r.b.staleArchive.value,null)}finally{r.close()}})
 test('export failure prevents ending original pending even if acknowledgement is later toggled',async()=>{const r=staleHarness();try{await r.ready();r.b.view.value=view();r.b.text.value='keep draft';r.b.messageReason.value='reason';await r.b.append();await r.b.recover();const key=r.b.pending.value.key;r.b.savedProof.value=true;r.b.downloadProof();assert.equal(r.b.proofExportFailed.value,true);assert.equal(r.b.savedProof.value,false);r.b.savedProof.value=true;await r.b.finishStale();assert.equal(r.b.pending.value.key,key);assert.equal(r.b.text.value,'keep draft');assert.equal(r.storage.size,1)}finally{r.close()}})
+
+test('presentation uses plain user record labels and disables unimplemented execution',()=>{
+ const source=read('web/src/views/medical/document-gru-records.vue')
+ assert.match(source,/<el-button disabled>执行需求（未接入）/)
+ assert.match(source,/<el-button disabled>采纳建议（无候选）/)
+ assert.match(source,/已保存 · 未执行/)
+ assert.doesNotMatch(source,/v-html|candidate_ids\.push|sender_kind:.*ASSISTANT/)
+})
+test('history empty state is not asserted before real list response and clears on reset',async()=>{
+ const r=harness();try{await r.ready();assert.equal(r.b.historyLoaded.value,false);r.b.historyLoaded.value=true;await r.b.reset();assert.equal(r.b.historyLoaded.value,false)}finally{r.close()}
+})
+test('dirty selection never displays saved-body text even if body prop is provided',async()=>{
+ const r=harness();try{await r.ready();r.props.selection={document_revision:id(4),segments:[{kind:'TEXT',node_id:id(20),start_cp:0,end_cp:2}]};r.props.savedBody={nodes:[{node_id:id(20),content:{kind:'TEXT',text:'机密正文'}}]};r.props.dirty=true;assert.match(r.b.selectionPreview.value[0],/未保存/);assert.doesNotMatch(r.b.selectionPreview.value[0],/机密/)}finally{r.close()}
+})
+test('selection preview respects code-point offsets, version, and non-text segments',()=>{
+ const exports={};vm.runInNewContext(transpile(read('web/src/api/medical/gru-presentation.ts')),{exports})
+ const body={nodes:[{node_id:id(20),content:{kind:'TEXT',text:'甲😀乙丙'}}]}
+ const selection={document_revision:id(4),segments:[{kind:'TEXT',node_id:id(20),start_cp:1,end_cp:3}]}
+ assert.equal(exports.gruSelectionPreview(selection,id(4),body)[0],'😀乙')
+ assert.match(exports.gruSelectionPreview(selection,id(5),body)[0],/另一正文版本/)
+ assert.match(exports.gruSelectionPreview(selection,id(4))[0],/原文未加载/)
+ assert.match(exports.gruSelectionPreview({...selection,segments:[{...selection.segments[0],end_cp:99}]},id(4),body)[0],/原文未加载/)
+ assert.match(exports.gruSelectionPreview({...selection,segments:[{kind:'TABLE',node_id:id(20),cell_ids:['a','b']}]},id(4),body)[0],/2 个单元格/)
+})
+
+test('temporary inactivity retains unsent draft but hides content and requires explicit history read',async()=>{
+ const r=harness();try{await r.ready();r.b.text.value='unsent';r.b.messageReason.value='reason';r.b.createReason.value='create reason';r.b.intent.value='CHECK';r.b.selected.value=id(8);r.b.view.value=view();r.props.active=false;assert.equal(r.b.contentVisible.value,false);assert.equal(r.b.view.value,null);assert.equal(r.b.text.value,'unsent');r.props.active=true;await r.ready();assert.equal(r.b.contentVisible.value,true);assert.equal(r.b.text.value,'unsent');assert.equal(r.b.messageReason.value,'reason');assert.equal(r.b.createReason.value,'create reason');assert.equal(r.b.intent.value,'CHECK');assert.equal(r.b.selected.value,id(8));assert.equal(r.b.view.value,null);assert.equal(r.calls.filter(c=>c.body||c.path.includes('/api/gru-conversations')).length,0)}finally{r.close()}
+})
+for(const change of ['actor','context','revision','authorization','session'])test('draft clears on '+change+' change',async()=>{
+ const r=harness();try{await r.ready();r.b.text.value='private';r.b.messageReason.value='reason';r.props.active=false;
+ if(change==='actor')r.props.session.user.user_id=id(99)
+ if(change==='context')r.props.session.current_context.auth_epoch='2'
+ if(change==='revision')r.props.snapshot.document_revision=id(99)
+ if(change==='authorization'){r.props.session.action_summary=[];assert.equal(r.b.contentVisible.value,false)}
+ if(change==='session')r.user.medicalSession=null
+ assert.equal(r.b.text.value,'');assert.equal(r.b.messageReason.value,'');r.props.active=true;await r.ready();assert.equal(r.b.text.value,'')
+ }finally{r.close()}
+})
+test('hidden draft resumes without send but global invalidation prevents resurrection',async()=>{
+ const r=harness();try{await r.ready();r.b.text.value='retained';r.b.messageReason.value='reason';r.hide(true);assert.equal(r.b.contentVisible.value,false);r.hide(false);await r.ready();assert.equal(r.b.text.value,'retained');assert.equal(r.b.contentVisible.value,true);r.hide(true);r.invalidate();assert.equal(r.b.text.value,'');const reads=r.calls.length;r.hide(false);await r.ready();assert.equal(r.b.text.value,'');assert.equal(r.b.contentVisible.value,false);assert.equal(r.calls.length,reads);assert.equal(r.calls.some(c=>c.body),false)}finally{r.close()}
+})
+test('explicit discard only clears unsubmitted draft, not an uncertain pending request',async()=>{
+ const r=harness();try{await r.ready();r.b.text.value='discard';r.b.messageReason.value='reason';r.b.discardDraft();assert.equal(r.b.text.value,'');r.b.view.value=view();r.b.text.value='pending';r.b.messageReason.value='reason';await r.b.append();const key=r.b.pending.value.key;r.b.discardDraft();assert.equal(r.b.pending.value.key,key);assert.equal(r.b.text.value,'pending');r.props.active=false;r.props.active=true;await r.b.reset(true);assert.equal(r.b.pending.value.key,key);assert.equal(r.b.confirmed.value,false);assert.equal(r.calls.filter(c=>c.body).length,1)}finally{r.close()}
+})
+
+test('explicit discard cannot resurrect an archived stale draft on later reset',async()=>{const r=staleHarness();try{await r.ready();r.b.view.value=view();r.b.text.value='archived';r.b.messageReason.value='reason';await r.b.append();await r.b.recover();r.b.savedProof.value=true;await r.b.finishStale();r.b.discardDraft();await r.b.reset(true);assert.equal(r.b.text.value,'');assert.equal(r.b.messageReason.value,'')}finally{r.close()}})

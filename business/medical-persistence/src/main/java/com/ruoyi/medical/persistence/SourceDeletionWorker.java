@@ -30,11 +30,12 @@ public final class SourceDeletionWorker {
     private final PermissionSchema json;
     private final SourceGovernanceSchema schema;
     private final JdbcTemplate jdbc;
+    private final DenseRetrievalRetention dense;
 
     SourceDeletionWorker(DataSource data,SourceDeletionPolicy policy,SourceDeletionAccess access,SourceDeletionStores stores,
             SourceDeletionMapper mapper,SourceGovernanceMapper governance,PermissionMapper permissions,
-            PermissionSchema json,SourceGovernanceSchema schema) {
-        jdbc=new JdbcTemplate(data); this.policy=policy; this.access=access; this.stores=stores;
+            PermissionSchema json,SourceGovernanceSchema schema,DenseRetrievalRetention dense) {
+        jdbc=new JdbcTemplate(data); this.dense=dense; this.policy=policy; this.access=access; this.stores=stores;
         this.mapper=mapper; this.governance=governance; this.permissions=permissions; this.json=json; this.schema=schema;
     }
 
@@ -69,6 +70,7 @@ public final class SourceDeletionWorker {
             recordExecution(admission,"source.deletion_started",generation,null);
             return new Claim(tenant,itemId,target,admission.item().targetSha256(),generation,
                 admission.item().itemRevision().add(BigInteger.ONE),admission.item().backupExpiry(),admission.now(),
+                (JsonNode)admission.values().get("copyAuthority"),
                 saved.get("execution_evidence")==null?null:schema.read(saved.get("execution_evidence").toString()));
         });
         if(claim==null) return;
@@ -76,6 +78,7 @@ public final class SourceDeletionWorker {
         values.put("parseVersion",claim.target().parseVersion()); values.put("indexVersion",claim.target().indexVersion());
         values.put("objectKey",claim.target().objectKey());
         var guard=new SourceDeletionStores.Guard() {
+            @Override public Instant now() throws Exception { return call(permissions::databaseTime).toInstant(ZoneOffset.UTC); }
             @Override public <T> T call(SourceDeletionStores.Action<T> action) {
                 return access.execute(tenant,itemId,admission -> {
                     requireClaim(claim,admission); values.put("userId",admission.actor()); values.put("now",admission.now());
@@ -88,12 +91,20 @@ public final class SourceDeletionWorker {
                 });
             }
         };
+        // Dense SQL vectors and private embedding originals are real additional source stores.
+        // Every purge target verifies them, including resumed jobs whose primary receipt predates A10.
+        guard.call(() -> { dense.erase(tenant,claim.target().sourceVersion()); return null; });
         JsonNode primary=claim.evidence();
+        // Older aggregate evidence cannot be promoted to per-copy proof. Re-observe under the current
+        // authority; an already absent object is recorded as absent, not as a newly acknowledged delete.
+        if(primary!=null && (!"2.0.0".equals(primary.path("schema_version").asText())
+                ||!claim.authority().equals(primary.path("copy_authority"))))primary=null;
         if(primary==null) {
             var details=stores.erase(tenant,claim.target(),guard,access,mapper,values);
-            var current=json.object(); current.put("schema_version","1.0.0"); current.put("target_sha256",claim.targetHash());
+            var current=json.object(); current.put("schema_version","2.0.0"); current.put("target_sha256",claim.targetHash());
             current.put("config_revision",policy.revision()); current.put("worker_id",workerId);
-            current.put("generation",claim.generation().toString()); current.put("deleted_at",time(claim.started()));
+            current.set("copy_authority",claim.authority());
+            current.put("generation",claim.generation().toString()); current.put("deleted_at",time(guard.call(permissions::databaseTime)));
             current.put("query_confirmed_at",time(guard.call(permissions::databaseTime))); current.set("stores",details);
             primary=current;
             String stored=json.canonical(primary);
@@ -103,9 +114,11 @@ public final class SourceDeletionWorker {
             });
         } else {
             if(!claim.targetHash().equals(primary.required("target_sha256").textValue())
-                    || !"1.0.0".equals(primary.required("schema_version").textValue())
-                    || !policy.revision().equals(primary.required("config_revision").textValue())) mismatch();
+                    || !"2.0.0".equals(primary.required("schema_version").textValue())
+                    || !policy.revision().equals(primary.required("config_revision").textValue())
+                    || !claim.authority().equals(primary.path("copy_authority"))) mismatch();
         }
+        SourceDeletionEvidence.requirePrimary(primary,claim.target(),claim.targetHash(),policy.revision());
         Instant now=guard.call(permissions::databaseTime).toInstant(ZoneOffset.UTC);
         if(claim.backupExpiry().toInstant(ZoneOffset.UTC).isAfter(now)) {
             access.execute(tenant,itemId,admission -> { requireClaim(claim,admission); one(mapper.release(admission.values())); return null; });
@@ -113,6 +126,7 @@ public final class SourceDeletionWorker {
         }
         Instant queried=WireValues.utcTime(primary.required("query_confirmed_at").textValue());
         stores.verifyAbsent(tenant,claim.target(),guard,mapper,values);
+        JsonNode fullSourceInventory=null;
         if(guard.call(() -> governance.pendingDeletionItemCount(values)).equals(BigInteger.ONE)) {
             for(var item:guard.call(() -> governance.deletionItems(values))) if("CONFIRMED".equals(item.itemStatus())) {
                 var prior=SourceDeletionTarget.read(item,schema); var priorValues=new HashMap<>(values);
@@ -120,13 +134,17 @@ public final class SourceDeletionWorker {
                 priorValues.put("objectKey",prior.objectKey());
                 stores.verifyAbsent(tenant,prior,guard,mapper,priorValues);
             }
+            fullSourceInventory=stores.confirmSourceScopesAbsent(tenant,claim.target().sourceVersion(),guard);
         }
         JsonNode backup=stores.confirmBackups(tenant,claim.target(),queried,now,guard);
         var evidence=json.object(); evidence.set("primary",primary); evidence.set("backup",backup);
+        if(fullSourceInventory!=null)evidence.set("complete_source_inventory",fullSourceInventory);
         var receipt=json.object(); receipt.put("deleted_at",primary.required("deleted_at").textValue());
         receipt.put("query_confirmed_at",primary.required("query_confirmed_at").textValue());
         receipt.put("backup_confirmed_at",time(guard.call(permissions::databaseTime)));
         receipt.put("evidence_sha256",DigestUtils.sha256Hex(json.canonical(evidence)));
+        SourceDeletionEvidence.requireComplete(evidence,receipt,claim.target(),claim.targetHash(),tenant,json);
+        SourceDeletionEvidence.requireCoverage(evidence,policy);
         String storedReceipt=json.canonical(receipt),storedEvidence=json.canonical(evidence);
         access.execute(tenant,itemId,admission -> {
             requireClaim(claim,admission); admission.values().put("evidence",storedEvidence);
@@ -136,6 +154,7 @@ public final class SourceDeletionWorker {
     }
 
     private void requireClaim(Claim claim,SourceDeletionAccess.Admission admission) {
+        if(!claim.authority().equals(admission.values().get("copyAuthority")))stale();
         if(!claim.revision().equals(admission.item().itemRevision()) || !"RUNNING".equals(admission.item().itemStatus())
                 || !claim.targetHash().equals(admission.item().targetSha256())) stale();
         var lease=singleLease(admission.values());
@@ -151,6 +170,7 @@ public final class SourceDeletionWorker {
         values.put("expectedJobRevision",item.jobRevision()); values.put("expectedLifecycleRevision",item.lifecycleRevision());
         values.put("receiptRef",json.canonical(receipt)); one(governance.confirmDeletionItem(values));
         boolean complete=governance.pendingDeletionItemCount(values).signum()==0;
+        if(complete)SourceDeletionEvidence.requireFinalInventory(schema.read(mapper.executionEvidence(values)),policy,item.tenantId(),item.sourceVersion());
         if(complete && (governance.blockingReferenceCount(values).signum()!=0 || mapper.additionalReferenceCount(values).signum()!=0))
             throw new TenantAccessException(ErrorCode.REFERENCE_HELD);
         values.put("jobStatus",complete?"COMPLETED":"RUNNING"); one(governance.updateDeletionJob(values));
@@ -200,5 +220,5 @@ public final class SourceDeletionWorker {
     private static void mismatch() { throw new TenantAccessException(ErrorCode.CONTENT_MISMATCH); }
     private static void stale() { throw new TenantAccessException(ErrorCode.ACTION_STALE); }
     private record Claim(String tenant,String itemId,SourceDeletionTarget target,String targetHash,BigInteger generation,
-            BigInteger revision,LocalDateTime backupExpiry,LocalDateTime started,JsonNode evidence) { }
+            BigInteger revision,LocalDateTime backupExpiry,LocalDateTime started,JsonNode authority,JsonNode evidence) { }
 }

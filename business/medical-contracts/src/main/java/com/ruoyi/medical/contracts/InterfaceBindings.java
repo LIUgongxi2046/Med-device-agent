@@ -24,6 +24,8 @@ public final class InterfaceBindings {
     public static final Definition<InterfaceProtocol.FieldValue> FIELD_VALUE = definition("interfaces", "FieldValue", InterfaceProtocol.FieldValue.class);
     public static final Definition<InterfaceProtocol.EvidenceLink> EVIDENCE_LINK = definition("interfaces", "EvidenceLink", InterfaceProtocol.EvidenceLink.class);
     public static final Definition<InterfaceProtocol.FactUsage> FACT_USAGE = definition("interfaces", "FactUsage", InterfaceProtocol.FactUsage.class);
+    public static final Definition<InterfaceProtocol.DocumentBody> DOCUMENT_BODY_V2 = definition("document-body-v2", "DocumentBody", InterfaceProtocol.DocumentBody.class);
+    public static final Definition<InterfaceProtocol.UploadRequest> UPLOAD_REQUEST_V2 = definition("document-body-v2", "UploadRequest", InterfaceProtocol.UploadRequest.class);
     public static final Definition<InterfaceProtocol.DocumentBody> DOCUMENT_BODY = definition("interfaces", "DocumentBody", InterfaceProtocol.DocumentBody.class);
     public static final Definition<InterfaceProtocol.DocumentFieldProjection> DOCUMENT_FIELD_PROJECTION = definition("interfaces", "DocumentFieldProjection", InterfaceProtocol.DocumentFieldProjection.class);
     public static final Definition<InterfaceProtocol.DocumentEvidenceProjection> DOCUMENT_EVIDENCE_PROJECTION = definition("interfaces", "DocumentEvidenceProjection", InterfaceProtocol.DocumentEvidenceProjection.class);

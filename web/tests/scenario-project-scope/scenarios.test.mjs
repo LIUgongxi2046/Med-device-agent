@@ -6,7 +6,7 @@ import vm from 'node:vm'
 const require = createRequire(import.meta.url), vue = require('vue'), ts = require('typescript')
 const { parse, compileScript, compileTemplate } = require('@vue/compiler-sfc')
 const source = readFileSync(new URL('../../src/views/medical/scenarios.vue', import.meta.url), 'utf8')
-function fixture() {
+function fixture(imageSimulation = undefined) {
   const user = vue.reactive({ medicalSession: { current_context: { tenant_id: 'tenant', auth_epoch: '1' }, action_summary: [{ action: 'configuration.read' }] }, medicalWriting: false })
   const calls = [], active = vue.ref(true), scope = vue.effectScope(), document = { hidden: false, addEventListener() {}, removeEventListener() {} }
   const { descriptor } = parse(source, { filename: 'scenarios.vue' })
@@ -19,7 +19,7 @@ function fixture() {
     '@/api/medical/tasks': { taskDocumentLabels: {}, taskIdReference: 'id' },
     '@/api/medical/route-read': { useMedicalRouteRead: () => active }
   }
-  vm.runInNewContext(code, { exports, require: id => dependencies[id] ?? {}, AbortController, document, Error })
+  vm.runInNewContext(code.replaceAll('import.meta.env.VITE_MEDICAL_IMAGE_SIMULATION', imageSimulation === undefined ? 'undefined' : JSON.stringify(imageSimulation)), { exports, require: id => dependencies[id] ?? {}, AbortController, document, Error })
   const state = scope.run(() => exports.default.setup({}, { expose() {} }))
   return { state, calls, user, document, active, stop: () => scope.stop() }
 }
@@ -94,4 +94,25 @@ test('hidden and inactive page immediately discard confirmed catalogue', async (
     f.document.hidden = false; f.active.value = false
     assert.equal(f.state.page.value, null); assert.equal(f.state.disabled.value, true)
   } finally { f.stop() }
+})
+test('ordinary catalogue filters and searches preserve planning workspace identity', async () => {
+  const f = fixture()
+  try {
+    const planningGeneration = f.state.pickerGeneration.value
+    assert.match(source, /<scenario-planning-workspace :key="pickerGeneration"/)
+    f.state.projectId.value = 'project-b'; f.state.documentType.value = 'TARGET'
+    assert.equal(f.state.pickerGeneration.value, planningGeneration)
+    const searching = f.state.search()
+    assert.equal(f.state.pickerGeneration.value, planningGeneration)
+    f.calls.at(-1).resolve({ ...page('project-b'), document_type: 'TARGET' }); await searching
+    assert.equal(f.state.pickerGeneration.value, planningGeneration)
+    f.document.hidden = true; await f.state.visibilityChanged()
+    assert.ok(f.state.pickerGeneration.value > planningGeneration)
+  } finally { f.stop() }
+})
+
+test('native image simulation remains opt-in and is enabled only by exact true build flag', () => {
+  for (const [flag, expected] of [[undefined, false], ['false', false], ['TRUE', false], ['true', true]]) {
+    const f = fixture(flag); try { assert.equal(f.state.showImageSimulation, expected) } finally { f.stop() }
+  }
 })

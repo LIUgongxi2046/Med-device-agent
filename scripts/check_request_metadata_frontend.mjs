@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
 import { mkdir, writeFile } from 'node:fs/promises'
-import { fileURLToPath } from 'node:url'
-import { chromium } from '../tests/browser/node_modules/playwright/index.mjs'
+import { fileURLToPath, pathToFileURL } from 'node:url'
+const { chromium } = await import(process.env.PLAYWRIGHT_MODULE ? pathToFileURL(process.env.PLAYWRIGHT_MODULE).href : '../tests/browser/node_modules/playwright/index.mjs')
 import { build, createServer, preview } from '../web/node_modules/vite/dist/node/index.js'
 
 const root = fileURLToPath(new URL('../', import.meta.url))
@@ -18,7 +18,7 @@ const production = await preview({ ...options, preview: { host: '127.0.0.1', por
 const development = await createServer(options)
 try {
   await development.listen()
-  const browser = await chromium.launch({ channel: 'chrome', headless: true })
+  const browser = await chromium.launch({ ...(process.env.CHROMIUM_EXECUTABLE ? { executablePath: process.env.CHROMIUM_EXECUTABLE } : {}), headless: true })
   try {
     const checks = []
     for (const [mode, origin] of [['development', 'http://127.0.0.1:18088'], ['production', 'http://127.0.0.1:18089']]) {

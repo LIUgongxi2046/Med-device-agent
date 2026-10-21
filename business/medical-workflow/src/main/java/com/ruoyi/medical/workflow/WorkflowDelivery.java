@@ -4,6 +4,7 @@ import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.WorkflowIdConflictPolicy;
 import io.temporal.api.enums.v1.WorkflowIdReusePolicy;
 import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
+import io.temporal.api.workflowservice.v1.DescribeWorkflowExecutionRequest;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
@@ -11,6 +12,7 @@ import java.util.Objects;
 import static com.ruoyi.medical.workflow.WorkflowProtocol.*;
 
 public final class WorkflowDelivery {
+    private static final String START_COMMAND_MEMO = "medical.start_command_id";
     private final WorkflowClient client;
     public WorkflowDelivery(WorkflowClient client) { this.client = Objects.requireNonNull(client); }
 
@@ -19,12 +21,28 @@ public final class WorkflowDelivery {
         var options = WorkflowOptions.newBuilder().setWorkflowId(reference.workflowId()).setTaskQueue(reference.controlTaskQueue())
             .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE)
             .setWorkflowIdConflictPolicy(WorkflowIdConflictPolicy.WORKFLOW_ID_CONFLICT_POLICY_USE_EXISTING)
-            .setRequestId(commandId).build();
+            .setRequestId(commandId).setMemo(java.util.Map.of(START_COMMAND_MEMO, commandId)).build();
         var workflow = client.newWorkflowStub(TaskWorkflow.class, options);
         var execution = WorkflowClient.start(workflow::run, reference);
-        requireInput(reference, execution);
+        requireInput(reference, execution, commandId);
         return acceptance(reference, execution);
     }
+
+    /** Query-only recovery: never resends StartWorkflowExecution, including on NOT_FOUND.
+     * Closed executions use the same immutable started event. Missing/ambiguous evidence fails closed. */
+    public Acceptance recover(Reference reference, String commandId) {
+        com.ruoyi.medical.contracts.WireValues.uuid(commandId);
+        var response = client.getWorkflowServiceStubs().blockingStub().describeWorkflowExecution(
+            DescribeWorkflowExecutionRequest.newBuilder().setNamespace(namespace())
+                .setExecution(WorkflowExecution.newBuilder().setWorkflowId(reference.workflowId())).build());
+        var execution = response.getWorkflowExecutionInfo().getExecution();
+        if (!reference.workflowId().equals(execution.getWorkflowId())) invalid();
+        com.ruoyi.medical.contracts.WireValues.uuid(execution.getRunId());
+        requireInput(reference, execution, commandId);
+        return acceptance(reference, execution);
+    }
+
+    public String namespace() { return client.getOptions().getNamespace(); }
 
     public Acceptance signal(Reference reference, String temporalRunId, Command command) {
         com.ruoyi.medical.contracts.WireValues.uuid(temporalRunId);
@@ -44,7 +62,9 @@ public final class WorkflowDelivery {
             .query("medical.task.command-receipt", CommandReceipt.class, commandId);
     }
 
-    private void requireInput(Reference reference, WorkflowExecution execution) {
+    private void requireInput(Reference reference, WorkflowExecution execution) { requireInput(reference, execution, null); }
+    private void requireInput(Reference reference, WorkflowExecution execution, String commandId) {
+        if (!reference.workflowId().equals(execution.getWorkflowId())) invalid();
         var request = GetWorkflowExecutionHistoryRequest.newBuilder().setNamespace(client.getOptions().getNamespace())
             .setExecution(execution).setMaximumPageSize(1).build();
         var history = client.getWorkflowServiceStubs().blockingStub().getWorkflowExecutionHistory(request).getHistory();
@@ -52,6 +72,14 @@ public final class WorkflowDelivery {
         var started = history.getEvents(0).getWorkflowExecutionStartedEventAttributes();
         if (!started.getWorkflowType().getName().equals("medical.task.run") || !started.hasInput()
                 || started.getInput().getPayloadsCount() != 1) invalid();
+        if (commandId != null) {
+            if (!started.hasMemo() || !started.getMemo().containsFields(START_COMMAND_MEMO)
+                    || !execution.getRunId().equals(started.getOriginalExecutionRunId())
+                    || !started.getContinuedExecutionRunId().isEmpty()) invalid();
+            var originalCommand = client.getOptions().getDataConverter().fromPayload(
+                started.getMemo().getFieldsOrThrow(START_COMMAND_MEMO), String.class, String.class);
+            if (!commandId.equals(originalCommand)) invalid();
+        }
         var original = client.getOptions().getDataConverter().fromPayload(started.getInput().getPayloads(0), Reference.class, Reference.class);
         if (!reference.equals(original)) invalid();
     }

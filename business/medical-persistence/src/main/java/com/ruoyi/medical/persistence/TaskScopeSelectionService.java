@@ -16,6 +16,8 @@ import java.util.List;
 import java.util.UUID;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.function.ThrowingSupplier;
 
 @Service
@@ -30,24 +32,45 @@ public final class TaskScopeSelectionService {
     private final TemplateDependencyPolicy policy;
     private final PermissionSchema json;
     private final TaskScopeSelectionSchema schema;
+    private final ObjectProvider<AgentPublicationAuthority> publications;
+    private final AgentExecutionPolicyAuthority executionPolicies;
 
     public TaskScopeSelectionService(EnterpriseAccess access, ResourceReadAuthority resources, PermissionMapper permissions,
             ScopeSelectionAuthority selections, CollectionAuthority collections, CollectionMapper mapper,
-            TemplateDependencyPolicy policy, PermissionSchema json, TaskScopeSelectionSchema schema) {
+            TemplateDependencyPolicy policy, PermissionSchema json, TaskScopeSelectionSchema schema,
+            ObjectProvider<AgentPublicationAuthority> publications, AgentExecutionPolicyAuthority executionPolicies) {
         this.access = access; this.resources = resources; this.permissions = permissions; this.selections = selections;
         this.collections = collections; this.mapper = mapper; this.policy = policy; this.json = json; this.schema = schema;
+        this.publications = publications; this.executionPolicies = executionPolicies;
     }
 
     JsonNode choices(ApplicationSessionIdentity.Verified subject, String context, String project, String kind, TaskScopeSelectionSchema.Query query) {
         PermissionSchema.revision(context); WireValues.uuid(project);
         if (!List.of("SOURCE", "COLLECTION").contains(kind)) throw new IllegalArgumentException("资料选择类型无效");
+        // Publication object evidence is prepared before opening the enterprise transaction.
+        if (TransactionSynchronizationManager.isActualTransactionActive()) fail(ErrorCode.ACCESS_DENIED);
+        var authority = publications.getIfAvailable();
+        if (authority == null) fail(ErrorCode.DEPENDENCY_UNAVAILABLE);
+        var prepared = ThrowingSupplier.of(() -> authority.prepare(subject, context, query.agentReleaseId(), PURPOSE, false)).get();
         return access.execute(subject, admission -> ThrowingSupplier.of(() -> {
             if (!context.equals(admission.context().context_revision())) fail(ErrorCode.CONTEXT_CHANGED);
             var scope = new PermissionProtocol.Scope(admission.context().tenant_id(), project, "PROJECT", project);
             var read = resources.require(admission, scope, "project.read", PURPOSE);
             var create = resources.require(admission, scope, "task.create", PURPOSE);
             if (!List.of("ACTIVE").equals(permissions.projectStatus(project))) fail(ErrorCode.ACCESS_DENIED);
-            var all = "SOURCE".equals(kind) ? sourceChoices(admission, project) : collectionChoices(admission, project);
+            var published = authority.require(admission, query.agentReleaseId(), PURPOSE, prepared);
+            var execution = executionPolicies.requireByVersion(admission, published.executionPolicyId(),
+                    published.executionPolicySha256(), project, PURPOSE);
+            AgentExecutionPolicyAuthority.requireManifest(execution.definition(), published.manifest().manifest());
+            var releaseScope = published.manifest().manifest().releaseScope();
+            if (!admission.context().tenant_id().equals(releaseScope.tenantId())
+                    || "PROJECTS".equals(releaseScope.projectMode()) && !releaseScope.projectIds().contains(project)) fail(ErrorCode.ACCESS_DENIED);
+            execution.requireConsumer(admission, project, PURPOSE);
+            if (!policy.environment().equals(execution.definition().environment())
+                    || !policy.region().equals(execution.definition().region())
+                    || "SIMULATION".equals(execution.definition().environment())) fail(ErrorCode.ACCESS_DENIED);
+            PublishedTaskCreateAdmission.requireSelection(execution.definition(), List.of());
+            var all = "SOURCE".equals(kind) ? sourceChoices(admission, project, execution) : collectionChoices(admission, project, execution);
             all.sort(Comparator.comparing(item -> item.required("version_id").textValue()));
             String previous = null;
             for (var item : all) {
@@ -57,7 +80,7 @@ public final class TaskScopeSelectionService {
             var filter = json.object(); filter.put("schema_version", "1.0.0"); filter.put("tenant_id", admission.context().tenant_id());
             filter.put("project_id", project); filter.put("actor_id", subject.user().user_id()); filter.put("context_revision", context);
             filter.put("auth_epoch", admission.watermarks().authEpoch().toString()); filter.put("governance_epoch", admission.watermarks().governanceEpoch().toString());
-            filter.put("scope_kind", kind); filter.put("limit", query.limit());
+            filter.put("scope_kind", kind); filter.put("agent_release_id", query.agentReleaseId()); filter.put("limit", query.limit());
             String filterHash = DigestUtils.sha256Hex(json.canonical(filter));
             var dataset = json.object(); dataset.put("filter_sha256", filterHash); dataset.set("items", json.tree(all));
             String watermark = DigestUtils.sha256Hex(json.canonical(dataset));
@@ -74,13 +97,14 @@ public final class TaskScopeSelectionService {
             result.put("filter_sha256", filterHash); result.put("dataset_watermark", watermark);
             if (!read.equals(resources.require(admission, scope, "project.read", PURPOSE))
                     || !create.equals(resources.require(admission, scope, "task.create", PURPOSE))) fail(ErrorCode.SCOPE_STALE);
+            published.requireUnchanged(); execution.requireConsumer(admission, project, PURPOSE);
             return schema.envelope(result, UUID.randomUUID().toString());
         }).get());
     }
 
-    private ArrayList<ObjectNode> sourceChoices(EnterpriseAccess.Admission admission, String project) throws IOException {
-        var selected = selections.require(admission, project, new CommonProtocol.SourceScope(CommonProtocol.ScopeMode.PROJECT_APPROVED,
-                List.of(), List.of(), false, null, null), PURPOSE, policy.environment(), policy.region(), policy.limits());
+    private ArrayList<ObjectNode> sourceChoices(EnterpriseAccess.Admission admission, String project, AgentExecutionPolicyAuthority.VerifiedPolicy execution) throws IOException {
+        var selected = selections.requireForTaskCreation(admission, project, new CommonProtocol.SourceScope(CommonProtocol.ScopeMode.PROJECT_APPROVED,
+                List.of(), List.of(), false, null, null), execution, policy.environment(), policy.region(), policy.limits());
         return sourceItems(selected);
     }
 
@@ -97,7 +121,7 @@ public final class TaskScopeSelectionService {
         return items;
     }
 
-    private ArrayList<ObjectNode> collectionChoices(EnterpriseAccess.Admission admission, String project) throws IOException {
+    private ArrayList<ObjectNode> collectionChoices(EnterpriseAccess.Admission admission, String project, AgentExecutionPolicyAuthority.VerifiedPolicy execution) throws IOException {
         int maximum = policy.limits().maximumVersions();
         if (maximum == Integer.MAX_VALUE) fail(ErrorCode.CONTEXT_LIMIT);
         var values = new HashMap<String,Object>(); values.put("userId", admission.subject().user().user_id());
@@ -109,10 +133,13 @@ public final class TaskScopeSelectionService {
             if (!tenant.equals(candidate.tenantId()) || ownerProject != null && !project.equals(ownerProject)) fail(ErrorCode.CONTENT_MISMATCH);
             var scope = new PermissionProtocol.Scope(tenant, ownerProject, ownerProject == null ? "ENTERPRISE" : "PROJECT", ownerProject == null ? tenant : ownerProject);
             if (resources.find(admission, scope, "collection.read", PURPOSE).isEmpty()) continue;
-            var proof = collections.require(admission, candidate.versionId(), PURPOSE, policy.environment(), policy.region(), policy.limits());
+            var proof = collections.require(admission, candidate.versionId(), execution.businessPurpose(), policy.environment(), policy.region(), policy.limits());
+            // A collection is selectable only as a whole, never by silently dropping fixed members.
+            if (!execution.definition().sourceSelection().sources().containsAll(proof.manifest().members().stream()
+                    .map(member -> new PermissionProtocol.Basis(member.source_version(), member.original_sha256())).toList())) continue;
             // 资料集读取保留固定成员；查询同时核验全部成员在当前任务中具有正式来源资格。
-            var selected = selections.require(admission, project, new CommonProtocol.SourceScope(CommonProtocol.ScopeMode.COLLECTION_VERSIONS,
-                    List.of(candidate.versionId()), List.of(), false, null, null), PURPOSE, policy.environment(), policy.region(), policy.limits());
+            var selected = selections.requireForTaskCreation(admission, project, new CommonProtocol.SourceScope(CommonProtocol.ScopeMode.COLLECTION_VERSIONS,
+                    List.of(candidate.versionId()), List.of(), false, null, null), execution, policy.environment(), policy.region(), policy.limits());
             var item = json.object(); item.put("kind", "COLLECTION"); item.put("version_id", proof.version().versionId());
             item.put("collection_id", proof.head().collectionId()); item.put("title", proof.manifest().title());
             item.put("content_sha256", proof.version().contentSha256()); item.put("member_count", proof.manifest().members().size());

@@ -21,7 +21,7 @@ def main():
     environment = os.environ.copy()
     environment["JAVA_HOME"] = str(java_home)
     # 文件处理和依赖缓存使用项目目录，保持本地构建的资源归属。
-    environment["MAVEN_OPTS"] = environment.get("MAVEN_OPTS", "") + " -Xms128m -Xmx512m -Dfile.encoding=UTF-8 -Djava.io.tmpdir=../.implementation-work/java-temp"
+    environment["MAVEN_OPTS"] = environment.get("MAVEN_OPTS", "-Xms128m -Xmx512m") + " -Dfile.encoding=UTF-8 -Djava.io.tmpdir=../.implementation-work/java-temp"
     (ROOT / ".implementation-work/java-temp").mkdir(parents=True, exist_ok=True)
     environment["TMPDIR"] = str(ROOT / ".implementation-work/java-temp")
     command = [str(maven)]

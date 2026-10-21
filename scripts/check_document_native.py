@@ -11,7 +11,8 @@ import unittest
 
 
 ROOT = Path(__file__).resolve().parents[1]
-CAPTURE = Path("/Users/liuhaoxian/.agents/skills/haonan-s000-pmp/scripts/capture_check.py")
+from check_support import capture_check_path
+CAPTURE = capture_check_path()
 PACKAGES = ("medical-document", "docling", "docling-parse", "python-docx", "pypdf", "markdown-it-py", "openpyxl", "pandas", "python-pptx", "medical-contracts")
 
 

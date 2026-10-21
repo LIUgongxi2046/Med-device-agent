@@ -120,7 +120,7 @@
               link
               type="primary"
               icon="Refresh"
-              @click="handleClearCacheAll()"
+              v-if="!medicalMode" @click="handleClearCacheAll()"
               >清理全部</el-button
             >
           </template>
@@ -155,6 +155,8 @@
 </template>
 
 <script setup name="CacheList">
+const medicalMode = import.meta.env.VITE_APP_ENV === 'medical'
+
 import { listCacheName, listCacheKey, getCacheValue, clearCacheName, clearCacheKey, clearCacheAll } from "@/api/monitor/cache"
 
 const { proxy } = getCurrentInstance()

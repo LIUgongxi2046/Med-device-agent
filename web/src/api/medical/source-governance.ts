@@ -1,3 +1,4 @@
+import { validateSourceLocator } from './source-image-locator'
 import request from '@/utils/request'
 import { canonicalizeEx } from 'json-canonicalize'
 import { envelope, fail, revision, validate, validContext } from './protocol'
@@ -321,7 +322,7 @@ export async function readSourceContent(session: MedicalSession, sourceVersion: 
   }
   for (const item of result.items) {
     revision(item.ordinal)
-    validate('https://schemas.medical-agent.invalid/1.0.0/data-design/dataset.schema.json#/$defs/locator', item.locator)
+    validateSourceLocator(item.locator)
     if (query.chunk_id !== undefined && (result.items.length !== 1 || item.chunk_id !== query.chunk_id
         || item.locator_sha256 !== query.locator_sha256)
         || query.after_ordinal !== undefined && BigInt(item.ordinal) <= BigInt(query.after_ordinal)) {

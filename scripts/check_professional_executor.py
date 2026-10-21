@@ -8,7 +8,8 @@ import sys
 
 
 ROOT = Path(__file__).resolve().parents[1]
-CAPTURE = Path('/Users/liuhaoxian/.agents/skills/haonan-s000-pmp/scripts/capture_check.py')
+from check_support import capture_check_path
+CAPTURE = capture_check_path()
 
 
 def suite():
@@ -41,6 +42,7 @@ def main():
         inputs.update(path for path in (ROOT / directory).rglob('*') if path.is_file())
     for path in ('professional-executor/package.json', 'professional-executor/package-lock.json', 'professional-executor/tsconfig.json',
         'professional-executor/medical.patch.yml', 'professional-executor/profiles/medical-agent/package.json',
+        'professional-executor/profiles/medical-agent/deployment-manifest.json',
         'professional-executor/profiles/medical-agent/pnpm-workspace.yaml', 'professional-executor/profiles/medical-agent/pnpm-lock.yaml',
         'professional-executor/profiles/medical-agent/cordis.patch.yml', 'contracts/typescript/package.json',
         'contracts/typescript/tsconfig.build.json'):

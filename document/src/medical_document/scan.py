@@ -93,7 +93,7 @@ class ClamAVScanner:
         if directory.resolve(strict=True) != directory or not stat.S_ISDIR(attributes.st_mode) \
                 or attributes.st_uid != os.getuid() or stat.S_IMODE(attributes.st_mode) != 0o700:
             raise ValueError("SCANNER_WORK_DIRECTORY_INVALID")
-        if suffix not in (".docx", ".pdf", ".xlsx", ".csv", ".txt", ".md", ".markdown", ".pptx"):
+        if suffix not in (".docx", ".pdf", ".xlsx", ".csv", ".txt", ".md", ".markdown", ".pptx", ".png", ".jpg", ".jpeg", ".tif", ".tiff", ".image", ".html", ".htm"):
             raise ValueError("SOURCE_FORMAT_UNSUPPORTED")
         self.verify_release()
         with TemporaryDirectory(prefix="source-scan-", dir=directory) as private:

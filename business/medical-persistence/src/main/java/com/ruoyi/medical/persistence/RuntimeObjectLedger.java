@@ -123,7 +123,7 @@ public final class RuntimeObjectLedger {
     private List<Intent> read(EnterpriseAccess.Admission a,String key)throws java.io.IOException{
         var i=a.formalProof().identity();var rows=jdbc.query("""
             SELECT write_id,planned_artifact_id,write_kind,object_key,object_sha256,size_bytes,canonical_payload,schema_ref,payload_schema_sha256
-            FROM runtime_object_intent WHERE tenant_id=? AND project_id=? AND run_id=? AND write_key=? AND created_by=? FOR UPDATE
+            FROM runtime_object_intent WHERE tenant_id=? AND project_id=? AND run_id=? AND write_key=? AND created_by=? AND schema_version='1.0.0' FOR UPDATE
             """,(r,n)->new Intent(key,r.getString("planned_artifact_id"),Kind.valueOf(r.getString("write_kind")),new S3ObjectWriter.WriteIntent(r.getString("write_id"),r.getString("object_key"),r.getString("object_sha256"),r.getString("size_bytes"),"application/json"),canonical(r.getString("canonical_payload")),r.getString("schema_ref"),r.getString("payload_schema_sha256"),i.tenant(),i.actor(),i.run()),i.tenant(),i.project(),i.run(),key,i.actor());
         for(var row:rows)verifyWitness(a,row);return rows;
     }

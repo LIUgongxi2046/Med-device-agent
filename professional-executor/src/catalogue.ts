@@ -5,7 +5,6 @@ import { mergePublishedCatalogue, SchemaCatalogue, type CatalogueManifest } from
 import { readJson } from './json.js'
 
 const additionalSchemas = [
-  { name: 'tool-inputs', path: 'agent-design/tool-inputs.schema.json', sha256: '197f61b9cb8b9fdf6ac8015a25ae46ba360a43a5229918722d12556297fea1d8' },
   { name: 'tool-success', path: 'agent-design/tool-success.schema.json', sha256: 'ce92b0cd6bc3d67279a48e9d147f24397ea8064fdceb368dcb8a3226d1a340c7' },
 ] as const
 
@@ -23,6 +22,19 @@ export async function loadCatalogue(root: string) {
     await readRegistered('contracts/extensions/simulation-execution.catalogue.json'),
     await readRegistered('contracts/extensions/task-runtime.catalogue.json'),
     await readRegistered('contracts/extensions/evaluation-context-compiler.catalogue.json'),
+    await readRegistered('contracts/extensions/evaluation-planning-context-compiler.catalogue.json'),
+    await readRegistered('contracts/extensions/task-tool-read.catalogue.json'),
+    await readRegistered('contracts/extensions/task-professional-package.catalogue.json'),
+    await readRegistered('contracts/extensions/task-plan-draft-package.catalogue.json'),
+    await readRegistered('contracts/extensions/professional-review-packages.catalogue.json'),
+    await readRegistered('contracts/extensions/source-evidence-v2.catalogue.json'),
+    await readRegistered('contracts/extensions/document-evidence-v2.catalogue.json'),
+    await readRegistered('contracts/extensions/template-application.catalogue.json'),
+    await readRegistered('contracts/extensions/strict-field-evidence-v2.catalogue.json'),
+    await readRegistered('contracts/extensions/document-operations-v2.catalogue.json'),
+    await readRegistered('contracts/extensions/evaluation-business-v2.catalogue.json'),
+    await readRegistered('contracts/extensions/task-professional-package-v2.catalogue.json'),
+    await readRegistered('contracts/extensions/evaluation-stage-input.catalogue.json'),
   )
   const manifest: CatalogueManifest = { ...original, schemas: [...original.schemas, ...additionalSchemas] }
   const files = new Map<string, Uint8Array>()
@@ -32,13 +44,18 @@ export async function loadCatalogue(root: string) {
   const catalogue = await SchemaCatalogue.create(manifest, files)
   const published = new Map<string, Uint8Array>()
   for (const entry of manifest.schemas) published.set(catalogue.schemaRef(entry.name), files.get(entry.path)!)
-  const document = await new $RefParser<Record<string, unknown>>().dereference(catalogue.schemaRef('tool-inputs'),
-    readJson(new TextDecoder('utf-8', { fatal: true }).decode(files.get(additionalSchemas[0].path)!)), {
+  const definitionsFor = async (name: 'tool-inputs' | 'tool-inputs-v2') => {
+  const entry = manifest.schemas.find(item => item.name === name)
+  if (!entry) throw new Error('工具 Schema 未发布')
+  const document = await new $RefParser<Record<string, unknown>>().dereference(catalogue.schemaRef(name),
+    readJson(new TextDecoder('utf-8', { fatal: true }).decode(files.get(entry.path)!)), {
       resolve: { file: false, http: false, published: { order: 1, canRead: file => published.has(file.url),
         read: file => { const bytes = published.get(file.url); if (bytes === undefined) throw new Error('Schema 引用未发布'); return Buffer.from(bytes) } } },
       dereference: { circular: false }, mutateInputSchema: false, timeoutMs: 10_000,
     })
   const definitions = document['$defs']
   if (definitions === null || typeof definitions !== 'object' || Array.isArray(definitions)) throw new Error('工具 Schema 缺少定义')
-  return { catalogue, inputDefinitions: definitions as Record<string, Record<string, unknown>> }
+  return definitions as Record<string, Record<string, unknown>>
+  }
+  return { catalogue, inputDefinitions: await definitionsFor('tool-inputs'), inputDefinitionsV2: await definitionsFor('tool-inputs-v2') }
 }

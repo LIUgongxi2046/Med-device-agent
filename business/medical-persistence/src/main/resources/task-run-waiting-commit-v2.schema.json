@@ -1,0 +1,234 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "kind",
+    "protocol_sha256",
+    "dispatch",
+    "completion",
+    "request",
+    "receipt"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "2.0.0"
+    },
+    "kind": {
+      "const": "TASK_WAITING_COMMITTED"
+    },
+    "protocol_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "dispatch": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "runId",
+        "stepId",
+        "actionId",
+        "commandId",
+        "stepEnvelopeArtifactId",
+        "inputSha256",
+        "stepEnvelopeSha256",
+        "leaseGeneration"
+      ],
+      "properties": {
+        "runId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "stepId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "actionId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "commandId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "stepEnvelopeArtifactId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "inputSha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "stepEnvelopeSha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "leaseGeneration": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "completion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "outcome",
+        "runId",
+        "stepId",
+        "inputSha256",
+        "leaseGeneration",
+        "waitingReceiptId",
+        "waitingReceiptSha256"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "2.0.0"
+        },
+        "outcome": {
+          "const": "WAITING_CONTROL"
+        },
+        "runId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "stepId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "inputSha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "leaseGeneration": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "waitingReceiptId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "waitingReceiptSha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      }
+    },
+    "request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "kind",
+        "run_id",
+        "step_id",
+        "waiting_item_id",
+        "waiting_receipt_id",
+        "producer_receipt_id",
+        "input_sha256",
+        "dispatch_sha256",
+        "waiting_receipt_sha256",
+        "producer_receipt_sha256",
+        "lease_generation",
+        "outputs"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "2.0.0"
+        },
+        "kind": {
+          "const": "TASK_TOOL_WAITING_COMMIT"
+        },
+        "run_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "step_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "waiting_item_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "waiting_receipt_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "producer_receipt_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "input_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "dispatch_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "waiting_receipt_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "producer_receipt_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "lease_generation": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "outputs": {
+          "type": "array",
+          "maxItems": 0
+        }
+      }
+    },
+    "receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "stepId",
+        "inputSha256",
+        "leaseGeneration",
+        "status",
+        "receiptId",
+        "waitingItemId",
+        "outputs"
+      ],
+      "properties": {
+        "stepId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "inputSha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "leaseGeneration": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "status": {
+          "const": "WAITING_INPUT"
+        },
+        "receiptId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "waitingItemId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "outputs": {
+          "type": "array",
+          "maxItems": 0
+        }
+      }
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "task-run-waiting-commit-v2.schema.json"
+}

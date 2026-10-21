@@ -6,7 +6,7 @@ import { capabilityRecordKind, capabilityOperation, capabilityGuard, capabilityV
   prepareCapability, markCapabilityDispatched, rememberCapabilityReceipt, verifyPendingCapability,
   verifyCapabilityReceipt, verifyCapabilityRecord, verifyCapabilityAvailability, settleCapability } from './formal-capability-domain'
 import type { FormalCapability, FormalCapabilityRecord, CapabilityAvailability, CapabilityPage, CapabilityReceipt,
-  PendingCapability, CapabilitySessionReader } from './formal-capability-domain'
+  PendingCapability, CapabilitySessionReader, CapabilityResourceCandidate } from './formal-capability-domain'
 
 function headers(context: { context_revision: string }) { return { 'X-Schema-Version': '1.0.0', 'X-Context-Revision': context.context_revision } }
 export async function readCapabilityAvailability(reader: CapabilitySessionReader, signal: AbortSignal): Promise<CapabilityAvailability> {
@@ -65,9 +65,9 @@ export async function recoverCapability(reader: CapabilitySessionReader, pending
 }
 /** The only write entry creates a new request. An existing pending record always blocks a second write. */
 export async function createCapability(reader: CapabilitySessionReader, body: FormalCapability, signal: AbortSignal,
-  onPending: (value: PendingCapability) => void): Promise<{ pending: PendingCapability; receipt: CapabilityReceipt }> {
+  onPending: (value: PendingCapability) => void, resources: CapabilityResourceCandidate[] = []): Promise<{ pending: PendingCapability; receipt: CapabilityReceipt }> {
   const guard = capabilityGuard(reader, signal)
-  const prepared = await prepareCapability(reader, body, signal); guard.assert(); onPending(detached(prepared))
+  const prepared = await prepareCapability(reader, body, signal, resources); guard.assert(); onPending(detached(prepared))
   const pending = await markCapabilityDispatched(reader, prepared, signal); guard.assert(); onPending(detached(pending))
   const raw = await request.post('/api/agent-authoring/capabilities', detached(pending.body), { medical: 'envelope', signal,
     headers: { ...headers(pending.context), 'Idempotency-Key': pending.key, [guard.session.csrf.header_name]: guard.session.csrf.token } })

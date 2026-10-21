@@ -6,26 +6,93 @@ public final class FormalInvocationDispatch {
  public FormalInvocationDispatch(DataSource data,ServiceCertificateIdentity services,FormalInvocationSchema schema,long deadlineSeconds){this(new JdbcTemplate(data),services,schema,deadlineSeconds);}
  FormalInvocationDispatch(JdbcTemplate db,ServiceCertificateIdentity services,FormalInvocationSchema schema,long deadlineSeconds){this.db=db;db.setQueryTimeout(5);this.services=services;this.schema=schema;if(deadlineSeconds<1||deadlineSeconds>3600)throw new IllegalArgumentException();this.deadlineSeconds=deadlineSeconds;}
  public static final class Permit {
-  private final String invocation,attempt,providerSha,service,credential,credentialRevision;private final JsonNode providerBody;private final FormalInvocationSendPreparation.Prepared prepared;private final LocalDateTime deadline;private final AtomicBoolean consumed=new AtomicBoolean();
-  private Permit(String invocation,String attempt,String service,String credential,String credentialRevision,FormalInvocationSendPreparation.Prepared prepared,LocalDateTime deadline){this.prepared=prepared;this.invocation=invocation;this.attempt=attempt;this.service=service;this.credential=credential;this.credentialRevision=credentialRevision;providerBody=prepared.providerBody();providerSha=prepared.canonicalProviderBodySha256();this.deadline=deadline;}
+  private final String invocation,attempt,providerSha,service,credential,credentialRevision;private final JsonNode providerBody;private final Payload prepared;private final LocalDateTime deadline;private final AtomicBoolean consumed=new AtomicBoolean();
+  private Permit(String invocation,String attempt,String service,String credential,String credentialRevision,Payload prepared,LocalDateTime deadline){this.prepared=prepared;this.invocation=invocation;this.attempt=attempt;this.service=service;this.credential=credential;this.credentialRevision=credentialRevision;providerBody=prepared.providerBody();providerSha=prepared.canonicalProviderBodySha256();this.deadline=deadline;}
   public String tenantId(){return prepared.job().tenant();}public String originalActorId(){return prepared.job().actor();}public String contextManifestId(){return prepared.job().context();}public String modelConfigRevision(){return prepared.job().model();}
   public String invocationId(){return invocation;}public String attemptId(){return attempt;}public String serviceUri(){return service;}public String credentialReferenceId(){return credential;}public String credentialRevision(){return credentialRevision;}public String canonicalProviderBodySha256(){return providerSha;}public LocalDateTime deadline(){return deadline;}
   /** Called only after the containing transaction has committed. Unknown delivery remains consumed. */
   public JsonNode claimProviderBody()throws Exception{if(TransactionSynchronizationManager.isActualTransactionActive()||consumed.get())throw new TenantAccessException(ErrorCode.ACCESS_DENIED);prepared.requireCurrentOutside();if(!deadline.toInstant(ZoneOffset.UTC).isAfter(Instant.now()))throw new TenantAccessException(ErrorCode.LEASE_STALE);if(!consumed.compareAndSet(false,true))throw new TenantAccessException(ErrorCode.ACCESS_DENIED);return providerBody.deepCopy();}
  }
+
+ private interface Payload {
+  FormalInvocationBinding job();JsonNode providerBody();String canonicalProviderBodySha256();
+  void requireCurrent(EnterpriseAccess.Admission a,RunTokenAuthority.Admission worker)throws Exception;
+  void requireCurrentOutside()throws Exception;
+ }
  public Optional<Permit> begin(HttpServletRequest http,EnterpriseAccess.Admission a,RunTokenAuthority.Admission worker,String invocation,FormalInvocationSendPreparation.Prepared prepared)throws Exception{
-  if(!TransactionSynchronizationManager.isActualTransactionActive()||!a.actorId().equals(worker.initiatorId())||!TenantScope.requireCurrent().subjectId().equals(a.actorId()))denied();WireValues.uuid(invocation);prepared.requireCurrent(a,worker);var job=prepared.job();var service=services.require(http);if(!service.serviceUri().equals(worker.serviceUri()))denied();
+  return begin(http,a,worker,invocation,new Payload(){
+   public FormalInvocationBinding job(){return new FormalInvocationBinding.Verification(prepared.job());}
+   public JsonNode providerBody(){return prepared.providerBody();}public String canonicalProviderBodySha256(){return prepared.canonicalProviderBodySha256();}
+   public void requireCurrent(EnterpriseAccess.Admission admission,RunTokenAuthority.Admission action)throws Exception{prepared.requireCurrent(admission,action);}
+   public void requireCurrentOutside()throws Exception{prepared.requireCurrentOutside();}
+  });
+ }
+ /** Independent MODEL_CALL admission plus private TASK context; HOST_CONTROL cannot mint a send. */
+ public Optional<Permit> beginTask(HttpServletRequest http,EnterpriseAccess.Admission a,RunTokenAuthority.Admission worker,String invocation,TaskInvocationService.Prepared prepared)throws Exception{
+  return begin(http,a,worker,invocation,new Payload(){
+   public FormalInvocationBinding job(){return prepared.binding();}
+   public JsonNode providerBody(){return prepared.providerBody();}public String canonicalProviderBodySha256(){return prepared.canonicalProviderBodySha256();}
+   public void requireCurrent(EnterpriseAccess.Admission admission,RunTokenAuthority.Admission action)throws Exception{prepared.requireCurrent(admission,action);}
+   public void requireCurrentOutside()throws Exception{prepared.requireCurrentOutside();}
+  });
+ }
+ public Optional<Permit> beginPlanDraft(HttpServletRequest http,EnterpriseAccess.Admission a,RunTokenAuthority.Admission worker,String invocation,TaskPlanDraftInvocationService.Prepared prepared)throws Exception{
+  return begin(http,a,worker,invocation,new Payload(){
+   public FormalInvocationBinding job(){return prepared.binding();}
+   public JsonNode providerBody(){return prepared.providerBody();}public String canonicalProviderBodySha256(){return prepared.canonicalProviderBodySha256();}
+   public void requireCurrent(EnterpriseAccess.Admission admission,RunTokenAuthority.Admission action)throws Exception{prepared.requireCurrent(admission,action);}
+   public void requireCurrentOutside()throws Exception{prepared.requireCurrentOutside();}
+  });
+ }
+ public Optional<Permit> beginSectionWriter(HttpServletRequest http,EnterpriseAccess.Admission a,RunTokenAuthority.Admission worker,String invocation,TaskSectionWriterInvocationService.Prepared prepared)throws Exception{
+  return begin(http,a,worker,invocation,new Payload(){
+   public FormalInvocationBinding job(){return prepared.binding();}
+   public JsonNode providerBody(){return prepared.providerBody();}public String canonicalProviderBodySha256(){return prepared.canonicalProviderBodySha256();}
+   public void requireCurrent(EnterpriseAccess.Admission admission,RunTokenAuthority.Admission action)throws Exception{prepared.requireCurrent(admission,action);}
+   public void requireCurrentOutside()throws Exception{prepared.requireCurrentOutside();}
+  });
+ }
+ public Optional<Permit> beginSourceVerifier(HttpServletRequest http,EnterpriseAccess.Admission a,RunTokenAuthority.Admission worker,String invocation,TaskSourceVerifierInvocationService.Prepared prepared)throws Exception{
+  return begin(http,a,worker,invocation,new Payload(){
+   public FormalInvocationBinding job(){return prepared.binding();}
+   public JsonNode providerBody(){return prepared.providerBody();}public String canonicalProviderBodySha256(){return prepared.canonicalProviderBodySha256();}
+   public void requireCurrent(EnterpriseAccess.Admission admission,RunTokenAuthority.Admission action)throws Exception{prepared.requireCurrent(admission,action);}
+   public void requireCurrentOutside()throws Exception{prepared.requireCurrentOutside();}
+  });
+ }
+ public Optional<Permit> beginDocumentReview(HttpServletRequest http,EnterpriseAccess.Admission a,RunTokenAuthority.Admission worker,String invocation,DocumentReviewInvocationService.Prepared prepared)throws Exception{
+  return begin(http,a,worker,invocation,new Payload(){
+   public FormalInvocationBinding job(){return prepared.binding();}
+   public JsonNode providerBody(){return prepared.providerBody();}public String canonicalProviderBodySha256(){return prepared.canonicalProviderBodySha256();}
+   public void requireCurrent(EnterpriseAccess.Admission admission,RunTokenAuthority.Admission action)throws Exception{prepared.requireCurrent(admission,action);}
+   public void requireCurrentOutside()throws Exception{prepared.requireCurrentOutside();}
+  });
+ }
+ private Optional<Permit> begin(HttpServletRequest http,EnterpriseAccess.Admission a,RunTokenAuthority.Admission worker,String invocation,Payload prepared)throws Exception{
+  if(!TransactionSynchronizationManager.isActualTransactionActive()||!a.actorId().equals(worker.initiatorId())||!TenantScope.requireCurrent().subjectId().equals(a.actorId()))denied();
+  return beginIndependent(http,a,worker.leaseGeneration(),worker.serviceUri(),invocation,prepared,()->prepared.requireCurrent(a,worker));
+ }
+ @FunctionalInterface private interface Current {void require()throws Exception;}
+ public Optional<Permit> beginEvaluation(HttpServletRequest http,EnterpriseAccess.Admission a,String invocation,FormalEvaluationInvocationService.Prepared p)throws Exception{
+  return beginIndependent(http,a,p.generation(),p.serviceUri(),invocation,new Payload(){
+   public FormalInvocationBinding job(){return p.binding();}public JsonNode providerBody(){return p.providerBody();}public String canonicalProviderBodySha256(){return p.canonicalProviderBodySha256();}
+   public void requireCurrent(EnterpriseAccess.Admission ignored,RunTokenAuthority.Admission unused)throws Exception{p.requireCurrent(ignored);}
+   public void requireCurrentOutside()throws Exception{p.requireCurrentOutside();}
+  },()->p.requireCurrent(a));
+ }
+ private Optional<Permit> beginIndependent(HttpServletRequest http,EnterpriseAccess.Admission a,java.math.BigInteger generation,String serviceUri,String invocation,Payload prepared,Current current)throws Exception{
+  if(!TransactionSynchronizationManager.isActualTransactionActive()||!TenantScope.requireCurrent().subjectId().equals(a.actorId()))denied();WireValues.uuid(invocation);current.require();var job=prepared.job();var service=services.require(http);if(!service.serviceUri().equals(serviceUri))denied();
   var row=one(db.query("SELECT status,CAST(dispatch_generation AS CHAR),CAST(lease_generation AS CHAR),credential_reference_id,credential_revision,actual_send_manifest,actual_send_sha256 FROM invocation WHERE tenant_id=? AND invocation_id=? AND run_id=? AND step_id=? AND action_id=? AND verification_id=? AND context_manifest_id=? AND input_sha256=? AND config_revision=? AND created_by=? LIMIT 2 FOR UPDATE",(r,n)->new Row(r.getString(1),r.getString(2),r.getString(3),r.getString(4),r.getString(5),r.getString(6),r.getString(7)),job.tenant(),invocation,job.run(),job.step(),job.action(),job.verification(),job.context(),job.inputHash(),job.model(),job.actor()));
   var attempts=db.query("SELECT attempt_id FROM formal_invocation_attempt WHERE tenant_id=? AND invocation_id=? LIMIT 2",(r,n)->r.getString(1),job.tenant(),invocation);if(attempts.size()>1)bad();if(!attempts.isEmpty()){if(!"1".equals(row.generation)||"RESERVED".equals(row.status)||row.manifest==null||!schema.hash(schema.parse(row.manifest)).equals(row.manifestHash))bad();return Optional.empty();}
-  if(!"RESERVED".equals(row.status)||!"0".equals(row.generation)||row.manifest!=null||row.manifestHash!=null)bad();if(!worker.leaseGeneration().toString().equals(row.lease))throw new TenantAccessException(ErrorCode.LEASE_STALE);
-  LocalDateTime now=one(db.query("SELECT UTC_TIMESTAMP(6)",(r,n)->r.getTimestamp(1).toLocalDateTime()));var leaseEnd=one(db.query("SELECT lease_expires_at FROM run_step WHERE tenant_id=? AND run_id=? AND step_id=? AND lease_generation=? AND lease_owner=? LIMIT 2",(r,n)->r.getTimestamp(1).toLocalDateTime(),job.tenant(),job.run(),job.step(),worker.leaseGeneration(),worker.serviceUri()));var deadline=now.plusSeconds(deadlineSeconds);if(leaseEnd.isBefore(deadline))deadline=leaseEnd;if(!deadline.isAfter(now))throw new TenantAccessException(ErrorCode.LEASE_STALE);
+  if(!"RESERVED".equals(row.status)||!"0".equals(row.generation)||row.manifest!=null||row.manifestHash!=null)bad();if(!generation.toString().equals(row.lease))throw new TenantAccessException(ErrorCode.LEASE_STALE);
+  LocalDateTime now=one(db.query("SELECT UTC_TIMESTAMP(6)",(r,n)->r.getTimestamp(1).toLocalDateTime()));var leaseEnd=one(db.query("SELECT lease_expires_at FROM run_step WHERE tenant_id=? AND run_id=? AND step_id=? AND lease_generation=? AND lease_owner=? LIMIT 2",(r,n)->r.getTimestamp(1).toLocalDateTime(),job.tenant(),job.run(),job.step(),generation,serviceUri));var deadline=now.plusSeconds(deadlineSeconds);if(leaseEnd.isBefore(deadline))deadline=leaseEnd;if(!deadline.isAfter(now))throw new TenantAccessException(ErrorCode.LEASE_STALE);
   String attempt=UUID.randomUUID().toString();var manifest=new com.fasterxml.jackson.databind.ObjectMapper().createObjectNode().put("schema_version","1.0.0").put("kind","FORMAL_PROVIDER_REQUEST").put("invocation_id",invocation).put("attempt_id",attempt).put("context_manifest_id",job.context()).put("input_sha256",job.inputHash()).put("request_sha256",job.requestHash()).put("canonical_provider_body_sha256",prepared.canonicalProviderBodySha256());manifest.set("provider_body",prepared.providerBody());String raw=schema.canonical(manifest),hash=schema.hash(manifest);
-  if(db.update("UPDATE invocation SET status='DISPATCHING',dispatch_generation=1,actual_send_manifest=?,actual_send_sha256=?,revision=revision+1,updated_at=? WHERE tenant_id=? AND invocation_id=? AND status='RESERVED' AND dispatch_generation=0 AND lease_generation=? AND actual_send_manifest IS NULL AND actual_send_sha256 IS NULL",raw,hash,now,job.tenant(),invocation,worker.leaseGeneration())!=1)throw new TenantAccessException(ErrorCode.REVISION_CONFLICT);
-  if(db.update("INSERT INTO formal_invocation_attempt (tenant_id,invocation_id,attempt_id,dispatch_generation,lease_generation,service_uri,certificate_sha256,trust_revision,input_sha256,request_sha256,admitted_at,deadline_at,schema_version,schema_manifest_sha256,created_by,created_at,classification) VALUES (?,?,?,1,?,?,?,?,?,?,?,?,'1.0.0',?,?,?,?)",job.tenant(),invocation,attempt,worker.leaseGeneration(),service.serviceUri(),service.certificateSha256(),service.trustRevision(),job.inputHash(),job.requestHash(),now,deadline,schema.manifestSha256(),job.actor(),now,job.classification())!=1)bad();
-  var event=manifest.deepCopy().put("service_uri",service.serviceUri()).put("certificate_sha256",service.certificateSha256()).put("trust_revision",service.trustRevision()).put("lease_generation",worker.leaseGeneration().toString()).put("admitted_at",now.toString()).put("deadline_at",deadline.toString()).put("actual_send_sha256",hash);String eventJson=schema.canonical(event);
+  if(db.update("UPDATE invocation SET status='DISPATCHING',dispatch_generation=1,actual_send_manifest=?,actual_send_sha256=?,revision=revision+1,updated_at=? WHERE tenant_id=? AND invocation_id=? AND status='RESERVED' AND dispatch_generation=0 AND lease_generation=? AND actual_send_manifest IS NULL AND actual_send_sha256 IS NULL",raw,hash,now,job.tenant(),invocation,generation)!=1)throw new TenantAccessException(ErrorCode.REVISION_CONFLICT);
+  if(db.update("INSERT INTO formal_invocation_attempt (tenant_id,invocation_id,attempt_id,dispatch_generation,lease_generation,service_uri,certificate_sha256,trust_revision,input_sha256,request_sha256,admitted_at,deadline_at,schema_version,schema_manifest_sha256,created_by,created_at,classification) VALUES (?,?,?,1,?,?,?,?,?,?,?,?,'1.0.0',?,?,?,?)",job.tenant(),invocation,attempt,generation,service.serviceUri(),service.certificateSha256(),service.trustRevision(),job.inputHash(),job.requestHash(),now,deadline,schema.manifestSha256(),job.actor(),now,job.classification())!=1)bad();
+  var event=manifest.deepCopy().put("service_uri",service.serviceUri()).put("certificate_sha256",service.certificateSha256()).put("trust_revision",service.trustRevision()).put("lease_generation",generation.toString()).put("admitted_at",now.toString()).put("deadline_at",deadline.toString()).put("actual_send_sha256",hash);String eventJson=schema.canonical(event);
   if(db.update("INSERT INTO audit_event (tenant_id,project_id,audit_id,subject_id,action,resource_ref,result,request_id,trace_id,schema_version,schema_manifest_sha256,created_by,created_at,classification) VALUES (?,?,?,?,'model.invocation_dispatching',?,'SUCCESS',?,?,'1.0.0',?,?,?,?)",job.tenant(),job.project(),UUID.randomUUID().toString(),job.actor(),eventJson,attempt,invocation,schema.manifestSha256(),job.actor(),now,job.classification())!=1)bad();
   if(db.update("INSERT INTO outbox_event (tenant_id,event_id,aggregate_id,aggregate_revision,event_type,payload,occurred_at) VALUES (?,?,?,1,'model.invocation_dispatching',?,?)",job.tenant(),UUID.randomUUID().toString(),attempt,eventJson,now)!=1)bad();
-  prepared.requireCurrent(a,worker);var after=services.require(http);if(!service.serviceUri().equals(after.serviceUri())||!service.certificateSha256().equals(after.certificateSha256())||!service.trustRevision().equals(after.trustRevision()))denied();
+  current.require();var after=services.require(http);if(!service.serviceUri().equals(after.serviceUri())||!service.certificateSha256().equals(after.certificateSha256())||!service.trustRevision().equals(after.trustRevision()))denied();
   var stored=one(db.query("SELECT actual_send_manifest FROM invocation WHERE tenant_id=? AND invocation_id=? AND status='DISPATCHING' AND dispatch_generation=1 AND actual_send_sha256=? LIMIT 2",(r,n)->r.getString(1),job.tenant(),invocation,hash));if(!schema.canonical(schema.parse(stored)).equals(raw))bad();return Optional.of(new Permit(invocation,attempt,service.serviceUri(),row.credential,row.credentialRevision,prepared,deadline));
  }
  static void verifyEvidence(JdbcTemplate db,FormalInvocationSchema schema,String tenant,String invocation,JsonNode binding)throws Exception{

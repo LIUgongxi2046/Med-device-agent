@@ -43,12 +43,17 @@ public final class ExportExecutionService {
     private final ExportSchema schema;
     private final ExportExecutionPolicy policy;
     private final Path workspace;
+    private final ExportLayoutService layouts;
+    private final DocumentReadService documents;
+    private final org.springframework.beans.factory.ObjectProvider<DocumentSigningService> signing;
 
     public ExportExecutionService(EnterpriseAccess access, ExportMapper mapper, PermissionMapper permissions,
             ResourceReadAuthority resources, ArtifactRegistryMapper artifacts, SourceUploadTransport transport,
-            ExportSchema schema, ExportExecutionPolicy policy, SourceUploadTransportPolicy storage) throws Exception {
+            ExportSchema schema, ExportExecutionPolicy policy, SourceUploadTransportPolicy storage, ExportLayoutService layouts,
+            org.springframework.beans.factory.ObjectProvider<DocumentSigningService> signing, DocumentReadService documents) throws Exception {
+        this.documents = documents;
         this.access = access; this.mapper = mapper; this.permissions = permissions; this.resources = resources;
-        this.artifacts = artifacts; this.transport = transport; this.schema = schema; this.policy = policy;
+        this.layouts = layouts; this.signing = signing; this.artifacts = artifacts; this.transport = transport; this.schema = schema; this.policy = policy;
         Path root = storage.storageDirectory().toRealPath(LinkOption.NOFOLLOW_LINKS);
         workspace = root.resolve("export-execution");
         Files.createDirectories(workspace, PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------")));
@@ -60,9 +65,15 @@ public final class ExportExecutionService {
     public String execute(ApplicationSessionIdentity.Verified subject, String context, String exportItemId,
             ExportProtocol.ProcessInput input) throws Exception {
         var plan = claim(subject, context, exportItemId, input);
+        if (plan == null) return access.execute(subject, a -> single(mapper.itemForUpdate(Map.of("userId", a.actorId(), "exportItemId", exportItemId))).exportId());
         boolean terminal = false; Path work = null;
         try {
+            var fixed = documents.readFixed(subject, context, plan.item().documentId(), plan.item().documentRevision());
+            if (!fixed.header().bodyArtifactId().equals(plan.document().bodyArtifactId())
+                    || !fixed.bodyObject().sha256().equals(plan.document().bodySha256())) mismatch();
+            plan = new Plan(plan.item(), plan.manifest(), plan.document(), plan.itemRevision(), plan.layout(), fixed);
             var body = readArtifact(subject, context, plan, plan.document().bodyArtifactId(), "EXPORT_BODY");
+            if (!java.util.Arrays.equals(fixed.bodyBytes(), body.bytes())) mismatch();
             var profile = schema.read(plan.document().formatProfile());
             String templateId = profile.required("format_revision").required("version_id").textValue();
             var template = readArtifact(subject, context, plan, templateId, "EXPORT_TEMPLATE");
@@ -76,29 +87,41 @@ public final class ExportExecutionService {
                 if ("IMAGE".equals(content.required("kind").textValue())) imageIds.add(content.required("artifact_id").textValue());
             }
             for (var imageId : imageIds) images.add(readArtifact(subject, context, plan, imageId, "EXPORT_IMAGE"));
-            work = Files.createDirectory(workspace.resolve(exportItemId),
+            work = Files.createDirectory(workspace.resolve(exportItemId + "-" + plan.itemRevision()),
                 PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------")));
             var command = prepareCommand(plan, body, template, fonts, images, work);
-            int result = run(command.request(), command.result(), work);
+            int result = run(command, work);
             if (result != 0) {
                 fail(subject, context, plan, command.itemRevision());
                 terminal = true;
                 return plan.item().exportId();
             }
+            if (!command.sha256().equals(DigestUtils.sha256Hex(Files.readAllBytes(command.request())))) mismatch();
             var descriptor = schema.read(Files.readString(command.result(), StandardCharsets.UTF_8));
             if (!"1.0.0".equals(descriptor.required("schema_version").textValue())) mismatch();
+            if (command.authenticated() && (!command.sha256().equals(descriptor.required("command_sha256").textValue())
+                    || !fixed.bodyObject().sha256().equals(descriptor.required("body_sha256").textValue())
+                    || !fixed.bodySchemaRef().equals(descriptor.required("body_schema_ref").textValue())
+                    || !fixed.bodySchemaSha256().equals(descriptor.required("body_schema_sha256").textValue()))) mismatch();
             Path output = requireChild(work, Path.of(descriptor.required("output_path").textValue()));
             Path validationPath = requireChild(work, Path.of(descriptor.required("validation_path").textValue()));
             byte[] outputBytes = Files.readAllBytes(output), validationBytes = Files.readAllBytes(validationPath);
             if (outputBytes.length == 0 || outputBytes.length > policy.maximumBytes() || validationBytes.length == 0
                     || validationBytes.length > policy.maximumBytes()) throw new TenantAccessException(ErrorCode.FILE_TOO_LARGE);
             var validation = descriptor.required("validation"); schema.verify("Validation", validation);
+            if (!"NOT_RUN".equals(validation.required("visual_check").textValue())
+                    || !"UNKNOWN".equals(validation.required("channel_check").textValue())) mismatch();
+            if (plan.layout() != null && (!DigestUtils.sha256Hex(schema.canonical(plan.layout())).equals(validation.required("layout_profile_sha256").textValue())
+                    || !plan.layout().required("attachment_node_ids").equals(validation.required("attachment_node_ids")))) mismatch();
             if (!schema.canonical(validation).equals(new String(validationBytes, StandardCharsets.UTF_8))
                     || !plan.item().format().equals(validation.required("format").textValue())
                     || !DigestUtils.sha256Hex(outputBytes).equals(validation.required("sha256").textValue())
                     || !Integer.toString(outputBytes.length).equals(validation.required("size_bytes").textValue())
                     || !policy.converterRevision().equals(validation.required("converter_revision").textValue())
                     || !plan.document().formatProfileRevision().equals(validation.required("font_manifest_revision").textValue())) mismatch();
+            var verifiedNodes = new java.util.HashSet<String>();
+            for (var node : validation.required("verified_node_ids")) if (!verifiedNodes.add(node.textValue())) mismatch();
+            if (!verifiedNodes.equals(fixed.body().nodes().stream().map(InterfaceProtocol.Node::nodeId).collect(java.util.stream.Collectors.toSet()))) mismatch();
             BigInteger verifyingRevision = verifying(subject, context, plan, command.itemRevision());
             String outputId = id(), validationId = id();
             var outputRef = write(subject, context, plan, verifyingRevision, outputId, outputBytes, mediaType(plan.item().format()), extension(plan.item().format()));
@@ -120,18 +143,25 @@ public final class ExportExecutionService {
             var values = values(admission); values.put("exportItemId", exportItemId);
             var item = single(mapper.itemForUpdate(values)); values.put("exportId", item.exportId());
             var manifest = single(mapper.manifest(values)); var document = requireExport(admission, manifest, "artifact.export");
-            if (!input.expected_revision().equals(item.revision().toString()) || !"QUEUED".equals(item.status())
-                    || !policy.converterRevision().equals(item.converterRevision())) stale();
+            if ("SUCCEEDED".equals(item.status())) return null;
+            if (!policy.converterRevision().equals(item.converterRevision())) stale();
+            LocalDateTime now = Objects.requireNonNull(permissions.databaseTime());
+            if (List.of("RUNNING", "VERIFYING").contains(item.status())) {
+                // Lease exceeds the maximum whole converter operation. New revisions fence stale workers.
+                if (item.updatedAt().plusSeconds(policy.timeout().toSeconds() * 3 + 60).isAfter(now)) return null;
+                values.put("itemRevision", item.revision()); values.put("now", now);
+                one(mapper.recoverItem(values)); item = single(mapper.itemForUpdate(values));
+            } else if (!input.expected_revision().equals(item.revision().toString())) stale();
+            if (!"QUEUED".equals(item.status())) stale();
             var profile = schema.read(document.formatProfile());
             var bodyArtifact = requireArtifact(admission, document.bodyArtifactId(), item.projectId(), "EXPORT_BODY");
             if (!item.projectId().equals(bodyArtifact.projectId())) mismatch();
             requireArtifact(admission, profile.required("format_revision").required("version_id").textValue(), item.projectId(), "EXPORT_TEMPLATE");
             for (var font : profile.required("font_artifacts"))
                 requireArtifact(admission, font.required("version_id").textValue(), item.projectId(), "EXPORT_FONT");
-            LocalDateTime now = Objects.requireNonNull(permissions.databaseTime());
             values.put("itemRevision", item.revision()); values.put("now", now); one(mapper.claimItem(values));
             values.put("manifestRevision", manifest.revision()); values.put("status", "RUNNING"); one(mapper.updateManifestStatus(values));
-            return new Plan(item, manifest, document, item.revision().add(BigInteger.ONE));
+            return new Plan(item, manifest, document, item.revision().add(BigInteger.ONE), layouts.consume(admission, document, manifest.channelProfileRevision()), null);
         }).get());
     }
 
@@ -181,20 +211,46 @@ public final class ExportExecutionService {
         request.set("assets", assetValues); request.put("body_path", bodyPath.toString()); request.put("template_path", templatePath.toString());
         request.put("catalogue_root", policy.projectRoot().toString()); request.put("output_directory", work.toString());
         request.put("format", plan.item().format());
-        Path requestPath = file(work, "request.json", schema.canonical(request).getBytes(StandardCharsets.UTF_8));
-        return new Command(requestPath, work.resolve("result.json"), plan.itemRevision());
+        if (plan.layout() == null) request.putNull("layout_profile"); else request.set("layout_profile", plan.layout());
+        boolean v2 = schema.bodyV2Ref().equals(plan.fixed().bodySchemaRef());
+        if (v2) {
+            if (!schema.bodyV2Digest().equals(plan.fixed().bodySchemaSha256())) mismatch();
+            request.put("schema_version", "2.0.0"); request.put("body_schema_ref", plan.fixed().bodySchemaRef());
+            request.put("body_schema_sha256", plan.fixed().bodySchemaSha256()); schema.verifyCommandV2(request);
+        }
+        if (!v2 && !schema.legacyBody(plan.fixed().bodySchemaRef(), plan.fixed().bodySchemaSha256())) mismatch();
+        byte[] commandBytes = schema.canonical(request).getBytes(StandardCharsets.UTF_8);
+        Path requestPath = file(work, "request.json", commandBytes);
+        Files.setPosixFilePermissions(requestPath, PosixFilePermissions.fromString("r--------"));
+        return new Command(requestPath, work.resolve("result.json"), plan.itemRevision(), DigestUtils.sha256Hex(commandBytes), v2);
     }
 
-    private int run(Path request, Path result, Path work) throws Exception {
+    private int run(Command command, Path work) throws Exception {
+        Path request = command.request(), result = command.result();
+        byte[] commandBytes = Files.readAllBytes(request);
+        if (!command.sha256().equals(DigestUtils.sha256Hex(commandBytes))) mismatch();
         try (var input = Files.newInputStream(policy.converterExecutable())) {
             if (!policy.converterSha256().equals(DigestUtils.sha256Hex(input))) mismatch();
         }
-        var process = new ProcessBuilder(policy.pythonExecutable().toString(), "-m", "medical_document.export_command",
-            request.toString(), result.toString()).directory(policy.projectRoot().toFile())
+        var arguments = new ArrayList<>(List.of(policy.pythonExecutable().toString(), "-m", "medical_document.export_command",
+            request.toString(), result.toString()));
+        if (command.authenticated()) arguments.add("--authenticated-v2");
+        var process = new ProcessBuilder(arguments).directory(policy.projectRoot().toFile())
             .redirectOutput(work.resolve("stdout.log").toFile()).redirectError(work.resolve("stderr.log").toFile());
         process.environment().put("PYTHONPATH", policy.projectRoot().resolve("document/src") + java.io.File.pathSeparator
             + policy.projectRoot().resolve("contracts/python/src"));
         var running = process.start();
+        try (var pipe = running.getOutputStream()) {
+            if (command.authenticated()) {
+                byte[] key = new byte[32]; new java.security.SecureRandom().nextBytes(key);
+                try {
+                    var mac = javax.crypto.Mac.getInstance("HmacSHA256");
+                    mac.init(new javax.crypto.spec.SecretKeySpec(key, "HmacSHA256"));
+                    String proof = java.util.HexFormat.of().formatHex(key) + ":" + java.util.HexFormat.of().formatHex(mac.doFinal(commandBytes));
+                    pipe.write(proof.getBytes(StandardCharsets.US_ASCII));
+                } finally { java.util.Arrays.fill(key, (byte) 0); }
+            }
+        }
         if (!running.waitFor(policy.timeout().toMillis(), java.util.concurrent.TimeUnit.MILLISECONDS)) {
             running.destroyForcibly(); running.waitFor(); return 124;
         }
@@ -258,7 +314,8 @@ public final class ExportExecutionService {
             current(admission, context); var values = values(admission); values.put("exportItemId", plan.item().exportItemId());
             var rows = mapper.itemForUpdate(values);
             if (rows.size() != 1) mismatch(); var item = rows.get(0);
-            if (!List.of("RUNNING", "VERIFYING").contains(item.status())) return null;
+            if (!List.of("RUNNING", "VERIFYING").contains(item.status())
+                    || item.revision().compareTo(plan.itemRevision().add(BigInteger.ONE)) > 0) return null;
             values.put("exportId", item.exportId()); requireExport(admission, single(mapper.manifest(values)), "artifact.export");
             values.put("itemRevision", item.revision()); values.put("validationRef", null);
             values.put("now", Objects.requireNonNull(permissions.databaseTime())); one(mapper.failItem(values));
@@ -296,10 +353,16 @@ public final class ExportExecutionService {
         var document = single(mapper.document(values));
         var scope = new PermissionProtocol.Scope(document.tenantId(), document.projectId(), "DOCUMENT", document.documentId());
         resources.require(admission, scope, "document.read", manifest.purpose()); resources.require(admission, scope, action, manifest.purpose());
+        if ("FORMAL_BODY".equals(manifest.purpose())) {
+            var service = signing.getIfAvailable();
+            if (service == null || manifest.signatureId() == null) throw new TenantAccessException(ErrorCode.SIGNING_POLICY_UNCONFIGURED);
+            service.requireExportCurrent(admission, document.documentId(), document.documentRevision(), manifest.signatureId());
+        }
         return document;
     }
 
     private void requireRunning(EnterpriseAccess.Admission admission, Plan plan, BigInteger revision, String status) throws Exception {
+        if (plan.fixed() != null) documents.requireCurrent(admission, plan.fixed());
         var values = values(admission); values.put("exportItemId", plan.item().exportItemId());
         var item = single(mapper.itemForUpdate(values)); values.put("exportId", item.exportId()); var manifest = single(mapper.manifest(values));
         requireExport(admission, manifest, "artifact.export");
@@ -376,10 +439,10 @@ public final class ExportExecutionService {
     private static void mismatch() { throw new TenantAccessException(ErrorCode.CONTENT_MISMATCH); }
     private static void stale() { throw new TenantAccessException(ErrorCode.ACTION_STALE); }
     private record Plan(ExportProtocol.ItemRow item, ExportProtocol.ManifestRow manifest,
-            ExportProtocol.DocumentRow document, BigInteger itemRevision) { }
+            ExportProtocol.DocumentRow document, BigInteger itemRevision, JsonNode layout, DocumentReadService.FixedRead fixed) { }
     private record LoadedArtifact(ArtifactRegistryProtocol.ArtifactRow row, byte[] bytes) {
         private LoadedArtifact { bytes = bytes.clone(); }
         @Override public byte[] bytes() { return bytes.clone(); }
     }
-    private record Command(Path request, Path result, BigInteger itemRevision) { }
+    private record Command(Path request, Path result, BigInteger itemRevision, String sha256, boolean authenticated) { }
 }

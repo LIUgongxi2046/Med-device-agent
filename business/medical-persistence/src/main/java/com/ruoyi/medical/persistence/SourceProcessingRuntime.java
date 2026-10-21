@@ -28,8 +28,11 @@ final class SourceProcessingRuntime {
                 paths.filter(path -> path.toString().endsWith(".py")).forEach(path -> actual.add(policy.projectRoot().relativize(path).toString()));
             }
         if(!expected.equals(actual)) mismatch();
-        for(var binding:policy.bindings())
+        for(var binding:policy.bindings()) {
             if(!binding.scannerReleaseSha256().equals(DigestUtils.sha256Hex(SourceProcessingResult.privateBytes(binding.scannerReleasePath(),262144)))) mismatch();
+            if(binding.complexReleasePath()!=null && !binding.complexReleaseSha256().equals(
+                    DigestUtils.sha256Hex(SourceProcessingResult.privateBytes(binding.complexReleasePath(),2097152)))) mismatch();
+        }
     }
 
     static int scan(SourceProcessingPolicy policy,Path command,Path result,Path work,S3ObjectReader.Admission admission) throws Exception {

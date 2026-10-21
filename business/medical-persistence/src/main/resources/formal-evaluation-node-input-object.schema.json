@@ -1,0 +1,2427 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:formal-evaluation-node-input-object:1.0.0",
+  "$defs": {
+    "Id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "Hash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "Revision": {
+      "type": "string",
+      "pattern": "^[1-9][0-9]{0,19}$"
+    },
+    "Basis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version_id",
+        "content_sha256"
+      ],
+      "properties": {
+        "version_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "content_sha256": {
+          "$ref": "#/$defs/Hash"
+        }
+      }
+    },
+    "ExecutionStart": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "evaluation_id",
+        "definition_sha256",
+        "expected_evaluation_revision",
+        "candidate",
+        "execution_policy",
+        "enterprise_budget",
+        "parent_budget"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "evaluation_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "definition_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "expected_evaluation_revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "candidate": {
+          "$ref": "#/$defs/Basis"
+        },
+        "execution_policy": {
+          "$ref": "#/$defs/Basis"
+        },
+        "enterprise_budget": {
+          "$ref": "#/$defs/Basis"
+        },
+        "parent_budget": {
+          "$ref": "#/$defs/Basis"
+        }
+      }
+    },
+    "Request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "execution_id",
+        "start",
+        "sample_id",
+        "repeat_index",
+        "node_kind",
+        "plan_original_key",
+        "plan_request",
+        "plan_receipt"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "execution_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "start": {
+          "$ref": "#/$defs/ExecutionStart"
+        },
+        "sample_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "repeat_index": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 99
+        },
+        "node_kind": {
+          "const": "N01"
+        },
+        "plan_original_key": {
+          "type": "string",
+          "pattern": "^[!-~]{16,128}$"
+        },
+        "plan_request": {
+          "$ref": "#/$defs/PlanRequest"
+        },
+        "plan_receipt": {
+          "$ref": "#/$defs/PlanReceipt"
+        }
+      }
+    },
+    "PlanReceipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "operation_id",
+        "write_id",
+        "attempt_id",
+        "execution_id",
+        "artifact_id",
+        "artifact_sha256",
+        "object_version",
+        "receipt_sha256",
+        "state",
+        "runnable",
+        "professional_completion"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "operation_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "write_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "attempt_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "execution_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "artifact_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "artifact_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "object_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "receipt_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "state": {
+          "const": "PREPARED"
+        },
+        "runnable": {
+          "const": false
+        },
+        "professional_completion": {
+          "const": false
+        }
+      }
+    },
+    "PlanRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "execution_id",
+        "start",
+        "sample_id",
+        "repeat_index",
+        "node_kind",
+        "template"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "execution_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "start": {
+          "$ref": "#/$defs/ExecutionStart"
+        },
+        "sample_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "repeat_index": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 99
+        },
+        "node_kind": {
+          "const": "N01"
+        },
+        "template": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Basis"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "Recovery": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "original_key",
+        "original_request"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "original_key": {
+          "type": "string",
+          "pattern": "^[!-~]{16,128}$"
+        },
+        "original_request": {
+          "$ref": "#/$defs/Request"
+        }
+      }
+    },
+    "Identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "operation_id",
+        "write_id",
+        "attempt_id",
+        "execution_id",
+        "artifact_id",
+        "artifact_sha256",
+        "object_version",
+        "receipt_sha256",
+        "state",
+        "runnable",
+        "professional_completion"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "operation_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "write_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "attempt_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "execution_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "artifact_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "artifact_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "object_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "receipt_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "state": {
+          "const": "PREPARED"
+        },
+        "runnable": {
+          "const": false
+        },
+        "professional_completion": {
+          "const": false
+        }
+      }
+    },
+    "Status": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "runnable",
+        "professional_completion",
+        "state",
+        "receipt",
+        "content_available"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "runnable": {
+          "const": false
+        },
+        "professional_completion": {
+          "const": false
+        },
+        "state": {
+          "enum": [
+            "NOT_FOUND",
+            "PENDING",
+            "PREPARED"
+          ]
+        },
+        "receipt": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Identity"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "content_available": {
+          "const": false
+        }
+      }
+    },
+    "Availability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "features",
+        "unavailable_reason"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "features": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "preparation",
+            "recovery",
+            "status",
+            "content"
+          ],
+          "properties": {
+            "preparation": {
+              "type": "boolean"
+            },
+            "recovery": {
+              "type": "boolean"
+            },
+            "status": {
+              "type": "boolean"
+            },
+            "content": {
+              "type": "boolean"
+            }
+          }
+        },
+        "unavailable_reason": {
+          "enum": [
+            null,
+            "FEATURE_DISABLED",
+            "DEPENDENCY_UNAVAILABLE"
+          ]
+        }
+      }
+    },
+    "Ids": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/Id"
+      }
+    },
+    "Text": {
+      "type": "string",
+      "minLength": 1
+    },
+    "NullableId": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "uuid"
+    },
+    "Key": {
+      "type": "string",
+      "pattern": "^[A-Za-z][A-Za-z0-9_-]*$(?![\\s\\S])"
+    },
+    "Keys": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/Key"
+      }
+    },
+    "PlanCandidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "template_version",
+        "profile_revision",
+        "requirement_node_ids",
+        "sections",
+        "questions",
+        "pending_condition_ids"
+      ],
+      "properties": {
+        "template_version": {
+          "$ref": "#/$defs/Id"
+        },
+        "profile_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "requirement_node_ids": {
+          "$ref": "#/$defs/Ids"
+        },
+        "sections": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/PlanSection"
+          }
+        },
+        "questions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ResearchQuestion"
+          }
+        },
+        "pending_condition_ids": {
+          "$ref": "#/$defs/Ids"
+        }
+      }
+    },
+    "PlanSection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "section_id",
+        "requirement_node_ids",
+        "goal",
+        "owner_id",
+        "method",
+        "depends_on_section_ids",
+        "completion_rule_ids"
+      ],
+      "properties": {
+        "section_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "requirement_node_ids": {
+          "$ref": "#/$defs/Ids"
+        },
+        "goal": {
+          "$ref": "#/$defs/Text"
+        },
+        "owner_id": {
+          "$ref": "#/$defs/NullableId"
+        },
+        "method": {
+          "enum": [
+            "DETERMINISTIC",
+            "MODEL_ASSISTED",
+            "HUMAN_PROVIDED"
+          ]
+        },
+        "depends_on_section_ids": {
+          "$ref": "#/$defs/Ids"
+        },
+        "completion_rule_ids": {
+          "$ref": "#/$defs/Ids"
+        }
+      }
+    },
+    "ResearchQuestion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "question_key",
+        "section_id",
+        "question",
+        "requirement_ids",
+        "completion_rule_ids",
+        "depends_on_question_keys"
+      ],
+      "properties": {
+        "question_key": {
+          "$ref": "#/$defs/Key"
+        },
+        "section_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "question": {
+          "$ref": "#/$defs/Text"
+        },
+        "requirement_ids": {
+          "$ref": "#/$defs/Ids"
+        },
+        "completion_rule_ids": {
+          "$ref": "#/$defs/Ids"
+        },
+        "depends_on_question_keys": {
+          "$ref": "#/$defs/Keys"
+        }
+      }
+    },
+    "KeyOriginal": {
+      "type": "string",
+      "minLength": 16,
+      "maxLength": 128,
+      "pattern": "^[!-~]+$(?![\\s\\S])"
+    },
+    "Condition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scope",
+        "target_id",
+        "rule_revision",
+        "engine_revision",
+        "input_keys",
+        "status",
+        "unknown_input_keys"
+      ],
+      "properties": {
+        "scope": {
+          "enum": [
+            "PROFILE",
+            "TEMPLATE",
+            "NODE",
+            "FIELD",
+            "ATTACHMENT"
+          ]
+        },
+        "target_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "rule_revision": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Basis"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "engine_revision": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "input_keys": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "status": {
+          "enum": [
+            "APPLICABLE",
+            "NOT_APPLICABLE",
+            "UNKNOWN"
+          ]
+        },
+        "unknown_input_keys": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "Blocker": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "code",
+        "target_ids"
+      ],
+      "properties": {
+        "code": {
+          "enum": [
+            "TEMPLATE_CHOICE_REQUIRED",
+            "NO_COMPATIBLE_TEMPLATE",
+            "APPLICABILITY_UNKNOWN",
+            "OWNER_UNASSIGNED",
+            "COMPLETION_RULE_MISSING",
+            "METHOD_REVIEW_REQUIRED"
+          ]
+        },
+        "target_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Id"
+          }
+        }
+      }
+    },
+    "PlanningInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "template",
+        "template_content",
+        "profile_revision",
+        "profile_sha256",
+        "profile_attributes",
+        "plan_candidate",
+        "conditions",
+        "blockers"
+      ],
+      "properties": {
+        "template": {
+          "$ref": "#/$defs/Basis"
+        },
+        "template_content": {
+          "$ref": "#/$defs/TemplateContent"
+        },
+        "profile_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "profile_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "profile_attributes": {
+          "$ref": "#/$defs/ProjectAttributes"
+        },
+        "plan_candidate": {
+          "$ref": "#/$defs/PlanCandidate"
+        },
+        "conditions": {
+          "type": "array",
+          "maxItems": 2048,
+          "items": {
+            "$ref": "#/$defs/Condition"
+          }
+        },
+        "blockers": {
+          "type": "array",
+          "maxItems": 2048,
+          "items": {
+            "$ref": "#/$defs/Blocker"
+          }
+        }
+      }
+    },
+    "TemplateId": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "TemplateNullableId": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/TemplateId"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "TemplateIds": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/TemplateId"
+      }
+    },
+    "TemplateHash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "TemplateText": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S"
+    },
+    "TemplateKey": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z][A-Za-z0-9_.-]*$"
+    },
+    "TemplateKeys": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/TemplateKey"
+      }
+    },
+    "TemplateOrdinal": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 2147483647
+    },
+    "TemplateCount": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]{0,19})$"
+    },
+    "TemplateDecimal": {
+      "type": "string",
+      "pattern": "^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$"
+    },
+    "TemplateBasis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version_id",
+        "content_sha256"
+      ],
+      "properties": {
+        "version_id": {
+          "$ref": "#/$defs/TemplateId"
+        },
+        "content_sha256": {
+          "$ref": "#/$defs/TemplateHash"
+        }
+      }
+    },
+    "TemplateNullableBasis": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/TemplateBasis"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "TemplateBases": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/TemplateBasis"
+      }
+    },
+    "TemplateDocumentType": {
+      "enum": [
+        "PRODUCT_TECHNICAL_REQUIREMENTS",
+        "REGISTRATION_DIRECTORY",
+        "OVERVIEW",
+        "INSTRUCTIONS_FOR_USE",
+        "LABEL",
+        "ESSENTIAL_PRINCIPLES",
+        "RISK_MANAGEMENT",
+        "RESEARCH_REPORT",
+        "CLINICAL_EVALUATION",
+        "QUALITY_SYSTEM",
+        "CHANGE_REGISTRATION",
+        "RENEWAL_REGISTRATION",
+        "REGISTRATION_DOSSIER"
+      ]
+    },
+    "TemplateApplicationPath": {
+      "enum": [
+        "FIRST_REGISTRATION",
+        "CHANGE_REGISTRATION",
+        "RENEWAL_REGISTRATION"
+      ]
+    },
+    "TemplateValueType": {
+      "enum": [
+        "TEXT",
+        "LONG_TEXT",
+        "DATE",
+        "NUMBER",
+        "ENUM",
+        "MULTI_SELECT",
+        "RELATION",
+        "TABLE",
+        "IMAGE",
+        "FORMULA",
+        "FILE"
+      ]
+    },
+    "TemplateApplicability": {
+      "enum": [
+        "APPLICABLE",
+        "NOT_APPLICABLE",
+        "UNKNOWN"
+      ]
+    },
+    "TemplateAttachmentMode": {
+      "const": "AUTHORIZED_ORIGINAL_ONLY"
+    },
+    "TemplateCondition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mode",
+        "rule_revision",
+        "engine_revision",
+        "input_keys"
+      ],
+      "properties": {
+        "mode": {
+          "enum": [
+            "ALWAYS",
+            "RULE"
+          ]
+        },
+        "rule_revision": {
+          "$ref": "#/$defs/TemplateNullableBasis"
+        },
+        "engine_revision": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TemplateText"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "input_keys": {
+          "$ref": "#/$defs/TemplateKeys"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "mode": {
+                "const": "ALWAYS"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "rule_revision": {
+                "type": "null"
+              },
+              "engine_revision": {
+                "type": "null"
+              },
+              "input_keys": {
+                "maxItems": 0
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "mode": {
+                "const": "RULE"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "rule_revision": {
+                "$ref": "#/$defs/TemplateBasis"
+              },
+              "engine_revision": {
+                "$ref": "#/$defs/TemplateText"
+              },
+              "input_keys": {
+                "minItems": 1
+              }
+            }
+          }
+        }
+      ]
+    },
+    "TemplateConditionSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "attribute_keys",
+        "applicability",
+        "unknown_result"
+      ],
+      "properties": {
+        "attribute_keys": {
+          "$ref": "#/$defs/TemplateKeys"
+        },
+        "applicability": {
+          "$ref": "#/$defs/TemplateCondition"
+        },
+        "unknown_result": {
+          "const": "UNKNOWN"
+        }
+      }
+    },
+    "TemplateEvidenceRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mode",
+        "authority_source_types",
+        "verification_rule_revisions",
+        "calculation_rule_revision",
+        "input_field_ids",
+        "require_original_locator",
+        "require_human_verification"
+      ],
+      "properties": {
+        "mode": {
+          "enum": [
+            "DIRECT_REFERENCE",
+            "APPROVED_CALCULATION",
+            "NARRATIVE",
+            "AUTHORIZED_ORIGINAL_ONLY"
+          ]
+        },
+        "authority_source_types": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/TemplateKey"
+          }
+        },
+        "verification_rule_revisions": {
+          "$ref": "#/$defs/TemplateBases"
+        },
+        "calculation_rule_revision": {
+          "$ref": "#/$defs/TemplateNullableBasis"
+        },
+        "input_field_ids": {
+          "$ref": "#/$defs/TemplateIds"
+        },
+        "require_original_locator": {
+          "const": true
+        },
+        "require_human_verification": {
+          "const": true
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "mode": {
+                "const": "APPROVED_CALCULATION"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "calculation_rule_revision": {
+                "$ref": "#/$defs/TemplateBasis"
+              },
+              "input_field_ids": {
+                "minItems": 1
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "calculation_rule_revision": {
+                "type": "null"
+              },
+              "input_field_ids": {
+                "maxItems": 0
+              }
+            }
+          }
+        }
+      ]
+    },
+    "TemplateNode": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "node_id",
+        "parent_id",
+        "official_number",
+        "title",
+        "ordinal",
+        "condition",
+        "required",
+        "content_mode",
+        "evidence_rule",
+        "basis_refs",
+        "nature",
+        "content_requirements"
+      ],
+      "properties": {
+        "node_id": {
+          "$ref": "#/$defs/TemplateId"
+        },
+        "parent_id": {
+          "$ref": "#/$defs/TemplateNullableId"
+        },
+        "official_number": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        },
+        "ordinal": {
+          "$ref": "#/$defs/TemplateOrdinal"
+        },
+        "condition": {
+          "$ref": "#/$defs/TemplateCondition"
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "content_mode": {
+          "enum": [
+            "DIRECT_REFERENCE",
+            "APPROVED_CALCULATION",
+            "NARRATIVE",
+            "AUTHORIZED_ORIGINAL_ONLY",
+            "DIRECTORY"
+          ]
+        },
+        "evidence_rule": {
+          "$ref": "#/$defs/TemplateEvidenceRule"
+        },
+        "basis_refs": {
+          "$ref": "#/$defs/TemplateBases"
+        },
+        "nature": {
+          "enum": [
+            "OFFICIAL",
+            "ENTERPRISE_SUPPLEMENT"
+          ]
+        },
+        "content_requirements": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/TemplateText"
+          }
+        }
+      }
+    },
+    "TemplateOption": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "value",
+        "label",
+        "basis_refs"
+      ],
+      "properties": {
+        "value": {
+          "$ref": "#/$defs/TemplateKey"
+        },
+        "label": {
+          "$ref": "#/$defs/TemplateText"
+        },
+        "basis_refs": {
+          "$ref": "#/$defs/TemplateBases"
+        }
+      }
+    },
+    "TemplateConstraints": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "max_length",
+        "precision",
+        "minimum",
+        "maximum",
+        "unit",
+        "range_basis",
+        "enum_options",
+        "nullable_reasons"
+      ],
+      "properties": {
+        "max_length": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "precision": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 2147483647
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "minimum": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TemplateDecimal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "maximum": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TemplateDecimal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "unit": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TemplateText"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "range_basis": {
+          "$ref": "#/$defs/TemplateBases"
+        },
+        "enum_options": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/TemplateOption"
+          }
+        },
+        "nullable_reasons": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/TemplateKey"
+          }
+        }
+      }
+    },
+    "TemplateOutputMapping": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "node_id",
+        "repeat_id",
+        "column_key",
+        "internal_only",
+        "ordinal"
+      ],
+      "properties": {
+        "node_id": {
+          "$ref": "#/$defs/TemplateId"
+        },
+        "repeat_id": {
+          "$ref": "#/$defs/TemplateNullableId"
+        },
+        "column_key": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TemplateKey"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "internal_only": {
+          "type": "boolean"
+        },
+        "ordinal": {
+          "$ref": "#/$defs/TemplateOrdinal"
+        }
+      }
+    },
+    "TemplateField": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "field_id",
+        "node_id",
+        "key",
+        "name",
+        "description",
+        "value_type",
+        "constraints",
+        "condition",
+        "required",
+        "evidence_rule",
+        "output_mapping",
+        "repeat_id",
+        "attachment_requirement_id",
+        "basis_refs"
+      ],
+      "properties": {
+        "field_id": {
+          "$ref": "#/$defs/TemplateId"
+        },
+        "node_id": {
+          "$ref": "#/$defs/TemplateId"
+        },
+        "key": {
+          "$ref": "#/$defs/TemplateKey"
+        },
+        "name": {
+          "$ref": "#/$defs/TemplateText"
+        },
+        "description": {
+          "$ref": "#/$defs/TemplateText"
+        },
+        "value_type": {
+          "$ref": "#/$defs/TemplateValueType"
+        },
+        "constraints": {
+          "$ref": "#/$defs/TemplateConstraints"
+        },
+        "condition": {
+          "$ref": "#/$defs/TemplateCondition"
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "evidence_rule": {
+          "$ref": "#/$defs/TemplateEvidenceRule"
+        },
+        "output_mapping": {
+          "$ref": "#/$defs/TemplateOutputMapping"
+        },
+        "repeat_id": {
+          "$ref": "#/$defs/TemplateNullableId"
+        },
+        "attachment_requirement_id": {
+          "$ref": "#/$defs/TemplateNullableId"
+        },
+        "basis_refs": {
+          "$ref": "#/$defs/TemplateBases"
+        }
+      }
+    },
+    "TemplateRepeat": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "repeat_id",
+        "node_id",
+        "name",
+        "field_ids",
+        "min_count",
+        "max_count",
+        "count_basis",
+        "row_id_required"
+      ],
+      "properties": {
+        "repeat_id": {
+          "$ref": "#/$defs/TemplateId"
+        },
+        "node_id": {
+          "$ref": "#/$defs/TemplateId"
+        },
+        "name": {
+          "$ref": "#/$defs/TemplateText"
+        },
+        "field_ids": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/TemplateIds"
+            },
+            {
+              "minItems": 1
+            }
+          ]
+        },
+        "min_count": {
+          "$ref": "#/$defs/TemplateCount"
+        },
+        "max_count": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TemplateCount"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "count_basis": {
+          "$ref": "#/$defs/TemplateBases"
+        },
+        "row_id_required": {
+          "const": true
+        }
+      }
+    },
+    "TemplateAttachment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "attachment_requirement_id",
+        "node_id",
+        "name",
+        "kind",
+        "mode",
+        "condition",
+        "required",
+        "min_count",
+        "max_count",
+        "count_basis",
+        "allowed_media_types",
+        "evidence_rule",
+        "ordinal"
+      ],
+      "properties": {
+        "attachment_requirement_id": {
+          "$ref": "#/$defs/TemplateId"
+        },
+        "node_id": {
+          "$ref": "#/$defs/TemplateId"
+        },
+        "name": {
+          "$ref": "#/$defs/TemplateText"
+        },
+        "kind": {
+          "enum": [
+            "REPORT",
+            "CERTIFICATE",
+            "ETHICS_DOCUMENT",
+            "SIGNATURE",
+            "SEAL",
+            "RAW_DATA",
+            "OTHER"
+          ]
+        },
+        "mode": {
+          "$ref": "#/$defs/TemplateAttachmentMode"
+        },
+        "condition": {
+          "$ref": "#/$defs/TemplateCondition"
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "min_count": {
+          "$ref": "#/$defs/TemplateCount"
+        },
+        "max_count": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TemplateCount"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "count_basis": {
+          "$ref": "#/$defs/TemplateBases"
+        },
+        "allowed_media_types": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9!#$&^_.+-]*/[a-z0-9][a-z0-9!#$&^_.+-]*$"
+          }
+        },
+        "evidence_rule": {
+          "$ref": "#/$defs/TemplateEvidenceRule"
+        },
+        "ordinal": {
+          "$ref": "#/$defs/TemplateOrdinal"
+        }
+      }
+    },
+    "TemplateCrossDocumentRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rule_id",
+        "rule_revision",
+        "field_ids",
+        "related_document_types",
+        "severity"
+      ],
+      "properties": {
+        "rule_id": {
+          "$ref": "#/$defs/TemplateId"
+        },
+        "rule_revision": {
+          "$ref": "#/$defs/TemplateBasis"
+        },
+        "field_ids": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/TemplateIds"
+            },
+            {
+              "minItems": 1
+            }
+          ]
+        },
+        "related_document_types": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/TemplateDocumentType"
+          }
+        },
+        "severity": {
+          "enum": [
+            "CRITICAL",
+            "MAJOR",
+            "MINOR"
+          ]
+        }
+      }
+    },
+    "TemplateNodeDisplay": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "node_id",
+        "not_applicable_display",
+        "rule_revision"
+      ],
+      "properties": {
+        "node_id": {
+          "$ref": "#/$defs/TemplateId"
+        },
+        "not_applicable_display": {
+          "enum": [
+            "SHOW_DECISION",
+            "OMIT_BODY"
+          ]
+        },
+        "rule_revision": {
+          "$ref": "#/$defs/TemplateBasis"
+        }
+      }
+    },
+    "TemplateFormatProfile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "format_revision",
+        "output_types",
+        "numbering_rule_revision",
+        "font_artifacts",
+        "node_displays",
+        "attachment_order"
+      ],
+      "properties": {
+        "format_revision": {
+          "$ref": "#/$defs/TemplateBasis"
+        },
+        "output_types": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "DOCX",
+              "PDF"
+            ]
+          }
+        },
+        "numbering_rule_revision": {
+          "$ref": "#/$defs/TemplateBasis"
+        },
+        "font_artifacts": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/TemplateBases"
+            },
+            {
+              "minItems": 1
+            }
+          ]
+        },
+        "node_displays": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/TemplateNodeDisplay"
+          }
+        },
+        "attachment_order": {
+          "const": "DECLARED_ORDINAL"
+        }
+      }
+    },
+    "TemplateDirectoryEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "official_number",
+        "parent_number",
+        "title",
+        "ordinal"
+      ],
+      "properties": {
+        "official_number": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "parent_number": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        },
+        "ordinal": {
+          "$ref": "#/$defs/TemplateOrdinal"
+        }
+      }
+    },
+    "TemplateDirectory": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/TemplateDirectoryEntry"
+      }
+    },
+    "TemplateContent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "document_type",
+        "application_path",
+        "ivd",
+        "directory_profile",
+        "nodes",
+        "field_definitions",
+        "repeat_definitions",
+        "attachment_requirements",
+        "cross_document_rules",
+        "condition_schema",
+        "basis_manifest",
+        "format_profile"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "document_type": {
+          "$ref": "#/$defs/TemplateDocumentType"
+        },
+        "application_path": {
+          "$ref": "#/$defs/TemplateApplicationPath"
+        },
+        "ivd": {
+          "type": "boolean"
+        },
+        "directory_profile": {
+          "anyOf": [
+            {
+              "const": "NON_IVD_FIRST_REGISTRATION_2021_121"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "nodes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/TemplateNode"
+          }
+        },
+        "field_definitions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/TemplateField"
+          }
+        },
+        "repeat_definitions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/TemplateRepeat"
+          }
+        },
+        "attachment_requirements": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/TemplateAttachment"
+          }
+        },
+        "cross_document_rules": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/TemplateCrossDocumentRule"
+          }
+        },
+        "condition_schema": {
+          "$ref": "#/$defs/TemplateConditionSchema"
+        },
+        "basis_manifest": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/TemplateBases"
+            },
+            {
+              "minItems": 1
+            }
+          ]
+        },
+        "format_profile": {
+          "$ref": "#/$defs/TemplateFormatProfile"
+        }
+      }
+    },
+    "TemplateVersionInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "base_version",
+        "schema_ref",
+        "content",
+        "reason"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "base_version": {
+          "$ref": "#/$defs/TemplateNullableBasis"
+        },
+        "schema_ref": {
+          "const": "urn:medical:templates:1.0.0#/$defs/TemplateContent"
+        },
+        "content": {
+          "$ref": "#/$defs/TemplateContent"
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        }
+      }
+    },
+    "ProjectId": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "ProjectNullableId": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ProjectId"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "ProjectRevision": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]{0,19})$"
+    },
+    "ProjectNullableRevision": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ProjectRevision"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "ProjectHash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "ProjectTime": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?Z$"
+    },
+    "ProjectText": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2000
+    },
+    "ProjectBasis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version_id",
+        "content_sha256"
+      ],
+      "properties": {
+        "version_id": {
+          "$ref": "#/$defs/ProjectId"
+        },
+        "content_sha256": {
+          "$ref": "#/$defs/ProjectHash"
+        }
+      }
+    },
+    "ProjectBases": {
+      "type": "array",
+      "maxItems": 1000,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/ProjectBasis"
+      }
+    },
+    "ProjectAttribute": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "key",
+        "status",
+        "value",
+        "authority_refs",
+        "reason"
+      ],
+      "properties": {
+        "key": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "status": {
+          "enum": [
+            "KNOWN",
+            "UNKNOWN"
+          ]
+        },
+        "value": {},
+        "authority_refs": {
+          "$ref": "#/$defs/ProjectBases"
+        },
+        "reason": {
+          "$ref": "#/$defs/ProjectText"
+        }
+      },
+      "oneOf": [
+        {
+          "properties": {
+            "status": {
+              "const": "KNOWN"
+            },
+            "value": {
+              "not": {
+                "type": "null"
+              }
+            },
+            "authority_refs": {
+              "minItems": 1
+            }
+          }
+        },
+        {
+          "properties": {
+            "status": {
+              "const": "UNKNOWN"
+            },
+            "value": {
+              "type": "null"
+            },
+            "authority_refs": {
+              "maxItems": 0
+            }
+          }
+        }
+      ]
+    },
+    "ProjectAttributes": {
+      "type": "array",
+      "maxItems": 1000,
+      "items": {
+        "$ref": "#/$defs/ProjectAttribute"
+      }
+    },
+    "ProjectStatus": {
+      "enum": [
+        "PENDING",
+        "ACTIVE",
+        "PAUSED",
+        "ARCHIVED"
+      ]
+    },
+    "ProjectCreate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "name",
+        "responsible_user_id",
+        "attributes",
+        "creation_basis",
+        "reason",
+        "approval_attested"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "responsible_user_id": {
+          "$ref": "#/$defs/ProjectId"
+        },
+        "attributes": {
+          "$ref": "#/$defs/ProjectAttributes"
+        },
+        "creation_basis": {
+          "$ref": "#/$defs/ProjectBasis"
+        },
+        "reason": {
+          "$ref": "#/$defs/ProjectText"
+        },
+        "approval_attested": {
+          "const": true
+        }
+      }
+    },
+    "ProjectRevise": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "expected_revision",
+        "based_on_profile_revision",
+        "attributes",
+        "reason",
+        "approval_attested"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "expected_revision": {
+          "$ref": "#/$defs/ProjectRevision"
+        },
+        "based_on_profile_revision": {
+          "$ref": "#/$defs/ProjectId"
+        },
+        "attributes": {
+          "$ref": "#/$defs/ProjectAttributes"
+        },
+        "reason": {
+          "$ref": "#/$defs/ProjectText"
+        },
+        "approval_attested": {
+          "const": true
+        }
+      }
+    },
+    "ProjectDecide": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "decision",
+        "expected_revision",
+        "reason",
+        "approval_attested"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "decision": {
+          "enum": [
+            "ACTIVATE",
+            "PAUSE",
+            "ARCHIVE",
+            "RESTORE"
+          ]
+        },
+        "expected_revision": {
+          "$ref": "#/$defs/ProjectRevision"
+        },
+        "reason": {
+          "$ref": "#/$defs/ProjectText"
+        },
+        "approval_attested": {
+          "const": true
+        }
+      }
+    },
+    "ProjectProfile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "profile_revision",
+        "attributes",
+        "authority_refs",
+        "content_sha256",
+        "created_by",
+        "created_at"
+      ],
+      "properties": {
+        "profile_revision": {
+          "$ref": "#/$defs/ProjectId"
+        },
+        "attributes": {
+          "$ref": "#/$defs/ProjectAttributes"
+        },
+        "authority_refs": {
+          "$ref": "#/$defs/ProjectBases"
+        },
+        "content_sha256": {
+          "$ref": "#/$defs/ProjectHash"
+        },
+        "created_by": {
+          "$ref": "#/$defs/ProjectId"
+        },
+        "created_at": {
+          "$ref": "#/$defs/ProjectTime"
+        }
+      }
+    },
+    "ProjectChildren": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tasks",
+        "active_runs",
+        "waiting_items"
+      ],
+      "properties": {
+        "tasks": {
+          "$ref": "#/$defs/ProjectNullableRevision"
+        },
+        "active_runs": {
+          "$ref": "#/$defs/ProjectNullableRevision"
+        },
+        "waiting_items": {
+          "$ref": "#/$defs/ProjectNullableRevision"
+        }
+      }
+    },
+    "ProjectProject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "tenant_id",
+        "project_id",
+        "name",
+        "responsible_user_id",
+        "status",
+        "revision",
+        "profile",
+        "creation_basis",
+        "creation_reason",
+        "created_by",
+        "created_at",
+        "updated_at",
+        "children",
+        "allowed_actions"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "tenant_id": {
+          "$ref": "#/$defs/ProjectId"
+        },
+        "project_id": {
+          "$ref": "#/$defs/ProjectId"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "responsible_user_id": {
+          "$ref": "#/$defs/ProjectId"
+        },
+        "status": {
+          "$ref": "#/$defs/ProjectStatus"
+        },
+        "revision": {
+          "$ref": "#/$defs/ProjectRevision"
+        },
+        "profile": {
+          "$ref": "#/$defs/ProjectProfile"
+        },
+        "creation_basis": {
+          "$ref": "#/$defs/ProjectBasis"
+        },
+        "creation_reason": {
+          "$ref": "#/$defs/ProjectText"
+        },
+        "created_by": {
+          "$ref": "#/$defs/ProjectId"
+        },
+        "created_at": {
+          "$ref": "#/$defs/ProjectTime"
+        },
+        "updated_at": {
+          "$ref": "#/$defs/ProjectTime"
+        },
+        "children": {
+          "$ref": "#/$defs/ProjectChildren"
+        },
+        "allowed_actions": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "project.read",
+              "profile.confirm",
+              "project.manage",
+              "project.task.read",
+              "task.read",
+              "run.read",
+              "work_item.read"
+            ]
+          }
+        }
+      }
+    },
+    "ProjectListing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "projects",
+        "total",
+        "next_after"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "projects": {
+          "type": "array",
+          "maxItems": 100,
+          "items": {
+            "$ref": "#/$defs/ProjectProject"
+          }
+        },
+        "total": {
+          "$ref": "#/$defs/ProjectRevision"
+        },
+        "next_after": {
+          "$ref": "#/$defs/ProjectNullableId"
+        }
+      }
+    },
+    "ProjectRun": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "run_id",
+        "status",
+        "revision"
+      ],
+      "properties": {
+        "run_id": {
+          "$ref": "#/$defs/ProjectId"
+        },
+        "status": {
+          "enum": [
+            "QUEUED",
+            "RUNNING",
+            "WAITING_INPUT",
+            "CANCEL_REQUESTED"
+          ]
+        },
+        "revision": {
+          "$ref": "#/$defs/ProjectRevision"
+        }
+      }
+    },
+    "ProjectIds": {
+      "type": "array",
+      "maxItems": 1000,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/ProjectId"
+      }
+    },
+    "ProjectImpact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "old_profile_revision",
+        "new_profile_revision",
+        "dependent_tasks",
+        "task_ids",
+        "active_runs",
+        "runs",
+        "complete",
+        "new_dispatch",
+        "inflight"
+      ],
+      "properties": {
+        "old_profile_revision": {
+          "$ref": "#/$defs/ProjectNullableId"
+        },
+        "new_profile_revision": {
+          "$ref": "#/$defs/ProjectId"
+        },
+        "dependent_tasks": {
+          "$ref": "#/$defs/ProjectNullableRevision"
+        },
+        "task_ids": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ProjectIds"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "active_runs": {
+          "$ref": "#/$defs/ProjectNullableRevision"
+        },
+        "runs": {
+          "anyOf": [
+            {
+              "type": "array",
+              "maxItems": 1000,
+              "items": {
+                "$ref": "#/$defs/ProjectRun"
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "complete": {
+          "type": "boolean"
+        },
+        "new_dispatch": {
+          "enum": [
+            "PENDING",
+            "DENIED",
+            "REVALIDATE"
+          ]
+        },
+        "inflight": {
+          "const": "RECONCILE_ACTUAL_INVOCATIONS"
+        }
+      }
+    },
+    "ProjectContext": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tenant_id",
+        "context_revision",
+        "auth_epoch",
+        "governance_epoch"
+      ],
+      "properties": {
+        "tenant_id": {
+          "$ref": "#/$defs/ProjectId"
+        },
+        "context_revision": {
+          "$ref": "#/$defs/ProjectRevision"
+        },
+        "auth_epoch": {
+          "$ref": "#/$defs/ProjectRevision"
+        },
+        "governance_epoch": {
+          "$ref": "#/$defs/ProjectRevision"
+        }
+      }
+    },
+    "ProjectReceipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "operation_id",
+        "decision_id",
+        "decision",
+        "tenant_id",
+        "project_id",
+        "status",
+        "revision",
+        "profile_revision",
+        "impact",
+        "current_context"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "operation_id": {
+          "$ref": "#/$defs/ProjectId"
+        },
+        "decision_id": {
+          "$ref": "#/$defs/ProjectNullableId"
+        },
+        "decision": {
+          "enum": [
+            "CREATE",
+            "REVISE",
+            "ACTIVATE",
+            "PAUSE",
+            "ARCHIVE",
+            "RESTORE"
+          ]
+        },
+        "tenant_id": {
+          "$ref": "#/$defs/ProjectId"
+        },
+        "project_id": {
+          "$ref": "#/$defs/ProjectId"
+        },
+        "status": {
+          "$ref": "#/$defs/ProjectStatus"
+        },
+        "revision": {
+          "$ref": "#/$defs/ProjectRevision"
+        },
+        "profile_revision": {
+          "$ref": "#/$defs/ProjectId"
+        },
+        "impact": {
+          "$ref": "#/$defs/ProjectImpact"
+        },
+        "current_context": {
+          "$ref": "#/$defs/ProjectContext"
+        }
+      }
+    },
+    "ProjectWaiting": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "waiting_item_id",
+        "project_id",
+        "run_id",
+        "target_revision",
+        "reason_code",
+        "question",
+        "requirement_refs",
+        "allowed_resolution_actions",
+        "assignee_id",
+        "status",
+        "revision",
+        "updated_at"
+      ],
+      "properties": {
+        "waiting_item_id": {
+          "$ref": "#/$defs/ProjectId"
+        },
+        "project_id": {
+          "$ref": "#/$defs/ProjectNullableId"
+        },
+        "run_id": {
+          "$ref": "#/$defs/ProjectId"
+        },
+        "target_revision": {
+          "$ref": "#/$defs/ProjectId"
+        },
+        "reason_code": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "question": {
+          "type": "string",
+          "minLength": 1
+        },
+        "requirement_refs": {
+          "type": "array"
+        },
+        "allowed_resolution_actions": {
+          "type": "array"
+        },
+        "assignee_id": {
+          "$ref": "#/$defs/ProjectId"
+        },
+        "status": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 24
+        },
+        "revision": {
+          "$ref": "#/$defs/ProjectRevision"
+        },
+        "updated_at": {
+          "$ref": "#/$defs/ProjectTime"
+        }
+      }
+    },
+    "ProjectWaitingListing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "items",
+        "total",
+        "next_after"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "items": {
+          "type": "array",
+          "maxItems": 100,
+          "items": {
+            "$ref": "#/$defs/ProjectWaiting"
+          }
+        },
+        "total": {
+          "$ref": "#/$defs/ProjectRevision"
+        },
+        "next_after": {
+          "$ref": "#/$defs/ProjectNullableId"
+        }
+      }
+    },
+    "Content": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "runnable",
+        "professional_completion",
+        "receipt",
+        "exact_input",
+        "planning"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "runnable": {
+          "const": false
+        },
+        "professional_completion": {
+          "const": false
+        },
+        "receipt": {
+          "$ref": "#/$defs/Identity"
+        },
+        "exact_input": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "messages",
+            "tools"
+          ],
+          "properties": {
+            "messages": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 256,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "role",
+                  "content"
+                ],
+                "properties": {
+                  "role": {
+                    "enum": [
+                      "system",
+                      "user"
+                    ]
+                  },
+                  "content": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "tools": {
+              "type": "array",
+              "maxItems": 0
+            }
+          }
+        },
+        "planning": {
+          "$ref": "#/$defs/PlanningInput"
+        }
+      }
+    }
+  }
+}

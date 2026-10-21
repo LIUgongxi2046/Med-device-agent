@@ -1,0 +1,11 @@
+{
+  "schema_version": "1.0.0",
+  "base_catalogue_sha256": "dcd72acbb7a45775373662e0ffe4557030d4740b0afacdee8375e7768e761915",
+  "schemas": [
+    {
+      "name": "document-export-command-v2",
+      "path": "business/medical-persistence/src/main/resources/document-export-command-v2.schema.json",
+      "sha256": "b2c33c60f7f793dbad79b5256287312174944b30fd30730a0271a5fdc69daff2"
+    }
+  ]
+}

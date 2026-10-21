@@ -1,109 +1,823 @@
 {
-  "$schema":"https://json-schema.org/draft/2020-12/schema",
-  "$id":"urn:medical:export-api:1.0.0",
-  "$defs":{
-    "Id":{"type":"string","format":"uuid"},
-    "Hash":{"type":"string","pattern":"^[0-9a-f]{64}$"},
-    "Revision":{"type":"string","pattern":"^(0|[1-9][0-9]{0,19})$"},
-    "CreateInput":{
-      "type":"object","additionalProperties":false,
-      "required":["schema_version","document_revision","purpose","formats","template_version","review_manifest_sha256","format_profile_revision","channel_profile_revision"],
-      "properties":{
-        "schema_version":{"const":"1.0.0"},
-        "document_revision":{"$ref":"#/$defs/Id"},
-        "purpose":{"enum":["FORMAL_BODY","REVIEW_PACKAGE","INTERNAL_EXCHANGE"]},
-        "formats":{"type":"array","minItems":1,"maxItems":3,"uniqueItems":true,"items":{"enum":["DOCX","PDF","MARKDOWN"]}},
-        "template_version":{"$ref":"#/$defs/Id"},
-        "format_profile_revision":{"$ref":"#/$defs/Id"},
-        "channel_profile_revision":{"anyOf":[{"$ref":"#/$defs/Id"},{"type":"null"}]},
-        "review_manifest_sha256":{"$ref":"#/$defs/Hash"}
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:export-api:1.0.0",
+  "$defs": {
+    "Id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "Hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "Revision": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]{0,19})$"
+    },
+    "CreateInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "document_revision",
+        "purpose",
+        "formats",
+        "template_version",
+        "review_manifest_sha256",
+        "format_profile_revision",
+        "channel_profile_revision"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "document_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "purpose": {
+          "enum": [
+            "FORMAL_BODY",
+            "REVIEW_PACKAGE",
+            "INTERNAL_EXCHANGE"
+          ]
+        },
+        "formats": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 3,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "DOCX",
+              "PDF",
+              "MARKDOWN"
+            ]
+          }
+        },
+        "template_version": {
+          "$ref": "#/$defs/Id"
+        },
+        "format_profile_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "channel_profile_revision": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "review_manifest_sha256": {
+          "$ref": "#/$defs/Hash"
+        }
       }
     },
-    "Basis":{
-      "type":"object","additionalProperties":false,
-      "required":["schema_version","document_id","document_revision","template_version","format_profile_revision","review_manifest_sha256","review_status","formal_signature_ready","allowed_formats"],
-      "properties":{
-        "schema_version":{"const":"1.0.0"},"document_id":{"$ref":"#/$defs/Id"},"document_revision":{"$ref":"#/$defs/Id"},
-        "template_version":{"$ref":"#/$defs/Id"},"format_profile_revision":{"$ref":"#/$defs/Id"},
-        "review_manifest_sha256":{"$ref":"#/$defs/Hash"},"review_status":{"enum":["UNREVIEWED","CONFIRMED","RETURNED"]},
-        "formal_signature_ready":{"type":"boolean"},"allowed_formats":{"type":"array","minItems":1,"uniqueItems":true,"items":{"enum":["DOCX","PDF","MARKDOWN"]}}
+    "Basis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "document_id",
+        "document_revision",
+        "template_version",
+        "format_profile_revision",
+        "review_manifest_sha256",
+        "review_status",
+        "formal_signature_ready",
+        "allowed_formats"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "document_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "document_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "template_version": {
+          "$ref": "#/$defs/Id"
+        },
+        "format_profile_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "review_manifest_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "review_status": {
+          "enum": [
+            "UNREVIEWED",
+            "CONFIRMED",
+            "RETURNED"
+          ]
+        },
+        "formal_signature_ready": {
+          "type": "boolean"
+        },
+        "allowed_formats": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "DOCX",
+              "PDF",
+              "MARKDOWN"
+            ]
+          }
+        }
       }
     },
-    "RetryInput":{
-      "type":"object","additionalProperties":false,
-      "required":["schema_version","expected_revision","reason"],
-      "properties":{
-        "schema_version":{"const":"1.0.0"},
-        "expected_revision":{"$ref":"#/$defs/Revision"},
-        "reason":{"type":"string","minLength":1,"maxLength":1000}
+    "RetryInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "expected_revision",
+        "reason"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "expected_revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000
+        }
       }
     },
-    "ProcessInput":{
-      "type":"object","additionalProperties":false,"required":["schema_version","expected_revision"],
-      "properties":{"schema_version":{"const":"1.0.0"},"expected_revision":{"$ref":"#/$defs/Revision"}}
-    },
-    "Validation":{
-      "type":"object","additionalProperties":false,
-      "required":["schema_version","format","sha256","size_bytes","input_sha256","verified_node_ids","plan_sha256","channel_check","visual_check","converter_revision","font_manifest_revision"],
-      "properties":{
-        "schema_version":{"const":"1.0.0"},"format":{"enum":["DOCX","PDF","MARKDOWN"]},
-        "sha256":{"$ref":"#/$defs/Hash"},"size_bytes":{"$ref":"#/$defs/Revision"},"input_sha256":{"$ref":"#/$defs/Hash"},
-        "verified_node_ids":{"type":"array","minItems":1,"uniqueItems":true,"items":{"$ref":"#/$defs/Id"}},
-        "plan_sha256":{"$ref":"#/$defs/Hash"},"channel_check":{"enum":["APPROVED","PENDING_REVIEW"]},
-        "visual_check":{"enum":["PASSED","NOT_RUN"]},"converter_revision":{"$ref":"#/$defs/Id"},
-        "font_manifest_revision":{"$ref":"#/$defs/Id"}
+    "ProcessInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "expected_revision"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "expected_revision": {
+          "$ref": "#/$defs/Revision"
+        }
       }
     },
-    "File":{
-      "type":"object","additionalProperties":false,
-      "required":["schema_version","format","media_type","sha256","size_bytes"],
-      "properties":{
-        "schema_version":{"const":"1.0.0"},"format":{"enum":["DOCX","PDF","MARKDOWN"]},
-        "media_type":{"enum":["application/vnd.openxmlformats-officedocument.wordprocessingml.document","application/pdf","text/markdown"]},
-        "sha256":{"$ref":"#/$defs/Hash"},"size_bytes":{"$ref":"#/$defs/Revision"}
+    "Validation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "format",
+        "sha256",
+        "size_bytes",
+        "input_sha256",
+        "verified_node_ids",
+        "plan_sha256",
+        "channel_check",
+        "visual_check",
+        "converter_revision",
+        "font_manifest_revision"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "format": {
+          "enum": [
+            "DOCX",
+            "PDF",
+            "MARKDOWN"
+          ]
+        },
+        "sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "size_bytes": {
+          "$ref": "#/$defs/Revision"
+        },
+        "input_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "verified_node_ids": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/Id"
+          }
+        },
+        "plan_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "channel_check": {
+          "enum": [
+            "APPROVED",
+            "PENDING_REVIEW",
+            "UNKNOWN"
+          ]
+        },
+        "visual_check": {
+          "enum": [
+            "PASSED",
+            "NOT_RUN"
+          ]
+        },
+        "converter_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "font_manifest_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "pagination_check": {
+          "enum": [
+            "FIELDS_AUTHORED",
+            "CONVERTER_RESOLVED",
+            "NOT_APPLICABLE",
+            "UNKNOWN"
+          ]
+        },
+        "attachment_node_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/Id"
+          }
+        },
+        "layout_profile_sha256": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Hash"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
       }
     },
-    "Item":{
-      "type":"object","additionalProperties":false,
-      "required":["export_item_id","format","attempt_no","status","artifact_id","validation_artifact_id","validation","downloadable","revision","created_at","updated_at"],
-      "properties":{
-        "export_item_id":{"$ref":"#/$defs/Id"},"format":{"enum":["DOCX","PDF","MARKDOWN"]},
-        "attempt_no":{"$ref":"#/$defs/Revision"},"status":{"enum":["QUEUED","RUNNING","VERIFYING","SUCCEEDED","FAILED","CANCEL_REQUESTED","CANCELLED"]},
-        "artifact_id":{"anyOf":[{"$ref":"#/$defs/Id"},{"type":"null"}]},
-        "validation_artifact_id":{"anyOf":[{"$ref":"#/$defs/Id"},{"type":"null"}]},
-        "validation":{"anyOf":[{"$ref":"#/$defs/Validation"},{"type":"null"}]},
-        "downloadable":{"type":"boolean"},"revision":{"$ref":"#/$defs/Revision"},
-        "created_at":{"type":"string","format":"date-time"},"updated_at":{"type":"string","format":"date-time"}
+    "File": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "format",
+        "media_type",
+        "sha256",
+        "size_bytes"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "format": {
+          "enum": [
+            "DOCX",
+            "PDF",
+            "MARKDOWN"
+          ]
+        },
+        "media_type": {
+          "enum": [
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "application/pdf",
+            "text/markdown"
+          ]
+        },
+        "sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "size_bytes": {
+          "$ref": "#/$defs/Revision"
+        }
       }
     },
-    "View":{
-      "type":"object","additionalProperties":false,
-      "required":["schema_version","export_id","document_id","document_revision","purpose","status","template_version","review_manifest_sha256","format_profile_revision","channel_profile_revision","manifest_sha256","revision","items","created_at","updated_at"],
-      "properties":{
-        "schema_version":{"const":"1.0.0"},"export_id":{"$ref":"#/$defs/Id"},"document_id":{"$ref":"#/$defs/Id"},
-        "document_revision":{"$ref":"#/$defs/Id"},"purpose":{"enum":["FORMAL_BODY","REVIEW_PACKAGE","INTERNAL_EXCHANGE"]},
-        "status":{"enum":["QUEUED","RUNNING","PARTIAL_FAILED","SUCCEEDED","FAILED","CANCEL_REQUESTED","CANCELLED"]},
-        "template_version":{"$ref":"#/$defs/Id"},"review_manifest_sha256":{"$ref":"#/$defs/Hash"},
-        "format_profile_revision":{"$ref":"#/$defs/Id"},"channel_profile_revision":{"anyOf":[{"$ref":"#/$defs/Id"},{"type":"null"}]},
-        "manifest_sha256":{"$ref":"#/$defs/Hash"},"revision":{"$ref":"#/$defs/Revision"},
-        "items":{"type":"array","minItems":1,"items":{"$ref":"#/$defs/Item"}},
-        "created_at":{"type":"string","format":"date-time"},"updated_at":{"type":"string","format":"date-time"}
+    "Item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "export_item_id",
+        "format",
+        "attempt_no",
+        "status",
+        "artifact_id",
+        "validation_artifact_id",
+        "validation",
+        "downloadable",
+        "revision",
+        "created_at",
+        "updated_at"
+      ],
+      "properties": {
+        "export_item_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "format": {
+          "enum": [
+            "DOCX",
+            "PDF",
+            "MARKDOWN"
+          ]
+        },
+        "attempt_no": {
+          "$ref": "#/$defs/Revision"
+        },
+        "status": {
+          "enum": [
+            "QUEUED",
+            "RUNNING",
+            "VERIFYING",
+            "SUCCEEDED",
+            "FAILED",
+            "CANCEL_REQUESTED",
+            "CANCELLED"
+          ]
+        },
+        "artifact_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "validation_artifact_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "validation": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Validation"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "downloadable": {
+          "type": "boolean"
+        },
+        "revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updated_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "layout_verification": {
+          "$ref": "#/$defs/VerificationView"
+        }
       }
     },
-    "History":{
-      "type":"object","additionalProperties":false,
-      "required":["schema_version","document_id","document_revision","page","size","total","has_more","items"],
-      "properties":{
-        "schema_version":{"const":"1.0.0"},"document_id":{"$ref":"#/$defs/Id"},
-        "document_revision":{"$ref":"#/$defs/Id"},"page":{"$ref":"#/$defs/Revision"},
-        "size":{"$ref":"#/$defs/Revision"},"total":{"$ref":"#/$defs/Revision"},
-        "has_more":{"type":"boolean"},"items":{"type":"array","items":{"$ref":"#/$defs/View"}}
+    "View": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "export_id",
+        "document_id",
+        "document_revision",
+        "purpose",
+        "status",
+        "template_version",
+        "review_manifest_sha256",
+        "format_profile_revision",
+        "channel_profile_revision",
+        "manifest_sha256",
+        "revision",
+        "items",
+        "created_at",
+        "updated_at"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "export_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "document_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "document_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "purpose": {
+          "enum": [
+            "FORMAL_BODY",
+            "REVIEW_PACKAGE",
+            "INTERNAL_EXCHANGE"
+          ]
+        },
+        "status": {
+          "enum": [
+            "QUEUED",
+            "RUNNING",
+            "PARTIAL_FAILED",
+            "SUCCEEDED",
+            "FAILED",
+            "CANCEL_REQUESTED",
+            "CANCELLED"
+          ]
+        },
+        "template_version": {
+          "$ref": "#/$defs/Id"
+        },
+        "review_manifest_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "format_profile_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "channel_profile_revision": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "manifest_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "items": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/Item"
+          }
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updated_at": {
+          "type": "string",
+          "format": "date-time"
+        }
       }
     },
-    "Receipt":{
-      "type":"object","additionalProperties":false,
-      "required":["schema_version","operation_id","export","actor_id","accepted_at"],
-      "properties":{"schema_version":{"const":"1.0.0"},"operation_id":{"$ref":"#/$defs/Id"},"export":{"$ref":"#/$defs/View"},"actor_id":{"$ref":"#/$defs/Id"},"accepted_at":{"type":"string","format":"date-time"}}
+    "History": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "document_id",
+        "document_revision",
+        "page",
+        "size",
+        "total",
+        "has_more",
+        "items"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "document_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "document_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "page": {
+          "$ref": "#/$defs/Revision"
+        },
+        "size": {
+          "$ref": "#/$defs/Revision"
+        },
+        "total": {
+          "$ref": "#/$defs/Revision"
+        },
+        "has_more": {
+          "type": "boolean"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/View"
+          }
+        }
+      }
+    },
+    "Receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "operation_id",
+        "export",
+        "actor_id",
+        "accepted_at"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "operation_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "export": {
+          "$ref": "#/$defs/View"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "accepted_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "LayoutProfile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "document_revision",
+        "format_profile_revision",
+        "numbering_rule_revision",
+        "channel_name",
+        "channel_specification_artifact_id",
+        "toc_title",
+        "toc_depth",
+        "page_number_start",
+        "attachment_node_ids",
+        "channel_specification_sha256"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "document_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "format_profile_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "numbering_rule_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "channel_name": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1,
+          "maxLength": 300
+        },
+        "channel_specification_artifact_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "toc_title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "toc_depth": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9
+        },
+        "page_number_start": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9999
+        },
+        "attachment_node_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "maxItems": 1000,
+          "items": {
+            "$ref": "#/$defs/Id"
+          }
+        },
+        "channel_specification_sha256": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Hash"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "VerificationInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "expected_revision",
+        "output_sha256",
+        "channel_profile_revision",
+        "channel_check",
+        "visual_check",
+        "evidence_artifact_id",
+        "evidence_sha256",
+        "notes",
+        "previous_verification_id"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "expected_revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "output_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "channel_profile_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "channel_check": {
+          "enum": [
+            "APPROVED",
+            "REJECTED",
+            "UNKNOWN"
+          ]
+        },
+        "visual_check": {
+          "enum": [
+            "PASSED",
+            "FAILED",
+            "NOT_RUN"
+          ]
+        },
+        "evidence_artifact_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "evidence_sha256": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Hash"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "notes": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000
+        },
+        "previous_verification_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "anyOf": [
+              {
+                "properties": {
+                  "channel_check": {
+                    "const": "APPROVED"
+                  }
+                }
+              },
+              {
+                "properties": {
+                  "visual_check": {
+                    "const": "PASSED"
+                  }
+                }
+              }
+            ]
+          },
+          "then": {
+            "properties": {
+              "evidence_artifact_id": {
+                "$ref": "#/$defs/Id"
+              },
+              "evidence_sha256": {
+                "$ref": "#/$defs/Hash"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "VerificationView": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "verification_id",
+        "actor_id",
+        "created_at",
+        "verification"
+      ],
+      "properties": {
+        "verification_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "created_at": {
+          "type": "string"
+        },
+        "verification": {
+          "$ref": "#/$defs/VerificationInput"
+        }
+      }
+    },
+    "LayoutProfileView": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "profile_id",
+        "sha256",
+        "channel_check",
+        "profile"
+      ],
+      "properties": {
+        "profile_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "channel_check": {
+          "const": "UNKNOWN"
+        },
+        "profile": {
+          "$ref": "#/$defs/LayoutProfile"
+        }
+      }
+    },
+    "LayoutVerificationHistory": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "channel_check",
+        "visual_check",
+        "items"
+      ],
+      "properties": {
+        "channel_check": {
+          "const": "UNKNOWN"
+        },
+        "visual_check": {
+          "const": "NOT_RUN"
+        },
+        "items": {
+          "type": "array",
+          "maxItems": 1000,
+          "items": {
+            "$ref": "#/$defs/VerificationView"
+          }
+        }
+      }
     }
   }
 }

@@ -1,0 +1,986 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:knowledge-rule-feedback:1.0.0",
+  "$defs": {
+    "Create": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "project_id",
+        "kind",
+        "target_version",
+        "document_revision",
+        "revised_document_revision",
+        "review_id",
+        "return_id",
+        "reason"
+      ],
+      "properties": {
+        "project_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "kind": {
+          "enum": [
+            "SOURCE",
+            "RULE"
+          ]
+        },
+        "target_version": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "document_revision": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "uuid"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "revised_document_revision": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "uuid"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "review_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "uuid"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "return_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "uuid"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000,
+          "pattern": "\\S"
+        }
+      }
+    },
+    "LinkProposal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "expected_revision",
+        "proposal_id",
+        "reason"
+      ],
+      "properties": {
+        "expected_revision": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]{0,19}$"
+        },
+        "proposal_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000,
+          "pattern": "\\S"
+        }
+      }
+    },
+    "LinkReview": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "expected_revision",
+        "decision_id",
+        "reason"
+      ],
+      "properties": {
+        "expected_revision": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]{0,19}$"
+        },
+        "decision_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000,
+          "pattern": "\\S"
+        }
+      }
+    },
+    "SourceSelection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "parse_version",
+        "index_version",
+        "binding_revision"
+      ],
+      "properties": {
+        "parse_version": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "index_version": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "binding_revision": {
+          "type": "string",
+          "format": "uuid"
+        }
+      }
+    },
+    "Close": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "expected_revision",
+        "approval_id",
+        "source_selection",
+        "reason"
+      ],
+      "properties": {
+        "expected_revision": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]{0,19}$"
+        },
+        "approval_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "source_selection": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SourceSelection"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000,
+          "pattern": "\\S"
+        }
+      }
+    },
+    "Reject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "expected_revision",
+        "reason"
+      ],
+      "properties": {
+        "expected_revision": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]{0,19}$"
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000,
+          "pattern": "\\S"
+        }
+      }
+    },
+    "Document": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "document_id",
+        "document_revision",
+        "content_sha256",
+        "body_sha256",
+        "classification"
+      ],
+      "properties": {
+        "document_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "document_revision": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "content_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "body_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "classification": {
+          "enum": [
+            "PUBLIC",
+            "INTERNAL",
+            "RESTRICTED",
+            "PERSONAL_HEALTH"
+          ]
+        }
+      }
+    },
+    "Origin": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [],
+      "properties": {
+        "document": {
+          "$ref": "#/$defs/Document"
+        },
+        "revised_document": {
+          "$ref": "#/$defs/Document"
+        },
+        "review": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "review_id",
+            "decision",
+            "actor_id",
+            "reason",
+            "classification",
+            "baseline_sha256"
+          ],
+          "properties": {
+            "review_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "decision": {
+              "const": "RETURN"
+            },
+            "actor_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "reason": {
+              "type": "string"
+            },
+            "classification": {
+              "enum": [
+                "PUBLIC",
+                "INTERNAL",
+                "RESTRICTED",
+                "PERSONAL_HEALTH"
+              ]
+            },
+            "baseline_sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          }
+        },
+        "return": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "return_id",
+            "decision",
+            "actor_id",
+            "reason",
+            "classification",
+            "request_sha256"
+          ],
+          "properties": {
+            "return_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "decision": {
+              "const": "RETURN_FOR_REVISION"
+            },
+            "actor_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "reason": {
+              "type": "string"
+            },
+            "classification": {
+              "enum": [
+                "PUBLIC",
+                "INTERNAL",
+                "RESTRICTED",
+                "PERSONAL_HEALTH"
+              ]
+            },
+            "request_sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          }
+        }
+      }
+    },
+    "Target": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "version_id",
+            "content_sha256",
+            "classification",
+            "created_by",
+            "created_at",
+            "kind",
+            "source_id",
+            "rights_revision",
+            "rights_sha256"
+          ],
+          "properties": {
+            "version_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "content_sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "classification": {
+              "enum": [
+                "PUBLIC",
+                "INTERNAL",
+                "RESTRICTED",
+                "PERSONAL_HEALTH"
+              ]
+            },
+            "created_by": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "created_at": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "kind": {
+              "const": "SOURCE"
+            },
+            "source_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "rights_revision": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "rights_sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "version_id",
+            "content_sha256",
+            "classification",
+            "created_by",
+            "created_at",
+            "kind",
+            "base_version"
+          ],
+          "properties": {
+            "version_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "content_sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "classification": {
+              "enum": [
+                "PUBLIC",
+                "INTERNAL",
+                "RESTRICTED",
+                "PERSONAL_HEALTH"
+              ]
+            },
+            "created_by": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "created_at": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "kind": {
+              "const": "RULE"
+            },
+            "base_version": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "version_id",
+                    "content_sha256"
+                  ],
+                  "properties": {
+                    "version_id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "content_sha256": {
+                      "type": "string",
+                      "pattern": "^[a-f0-9]{64}$"
+                    }
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "Original": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "feedback_id",
+        "project_id",
+        "actor_id",
+        "recorded_at",
+        "classification",
+        "request",
+        "target",
+        "origin"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "feedback_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "project_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "actor_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "recorded_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "classification": {
+          "enum": [
+            "PUBLIC",
+            "INTERNAL",
+            "RESTRICTED",
+            "PERSONAL_HEALTH"
+          ]
+        },
+        "request": {
+          "$ref": "#/$defs/Create"
+        },
+        "target": {
+          "$ref": "#/$defs/Target"
+        },
+        "origin": {
+          "$ref": "#/$defs/Origin"
+        }
+      }
+    },
+    "ChangeProof": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "proposal_id",
+        "proposal_sha256",
+        "revision_version",
+        "decision_id",
+        "decision_sha256",
+        "impact_id",
+        "impact_sha256",
+        "application_recorded_at",
+        "affected_document_count",
+        "downstream_document_confirmation_claimed",
+        "version_transition_performed"
+      ],
+      "properties": {
+        "proposal_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "proposal_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "revision_version": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "decision_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "decision_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "impact_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "impact_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "application_recorded_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "affected_document_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10000
+        },
+        "downstream_document_confirmation_claimed": {
+          "const": false
+        },
+        "version_transition_performed": {
+          "const": false
+        }
+      }
+    },
+    "ApprovalProof": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "approval_id",
+            "revision_version",
+            "content_sha256",
+            "receipt_sha256",
+            "current_rule_revision"
+          ],
+          "properties": {
+            "kind": {
+              "const": "RULE"
+            },
+            "approval_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "revision_version": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "content_sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "receipt_sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "current_rule_revision": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]{0,19}$"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "approval_id",
+            "revision_version",
+            "content_sha256",
+            "approval_sha256",
+            "source_selection"
+          ],
+          "properties": {
+            "kind": {
+              "const": "SOURCE"
+            },
+            "approval_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "revision_version": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "content_sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "approval_sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "source_selection": {
+              "$ref": "#/$defs/SourceSelection"
+            }
+          }
+        }
+      ]
+    },
+    "Receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "feedback_id",
+        "project_id",
+        "kind",
+        "target_version",
+        "target_sha256",
+        "original_sha256",
+        "revision",
+        "state",
+        "reason",
+        "proposal_id",
+        "revision_version",
+        "decision_id",
+        "previous_receipt_sha256",
+        "actor_id",
+        "recorded_at",
+        "classification",
+        "closure_scope",
+        "downstream_document_confirmation_claimed",
+        "change_proof",
+        "approval_proof"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "feedback_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "project_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "kind": {
+          "enum": [
+            "SOURCE",
+            "RULE"
+          ]
+        },
+        "target_version": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "target_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "original_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "revision": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]{0,19}$"
+        },
+        "state": {
+          "enum": [
+            "PENDING_REVIEW",
+            "PROPOSAL_LINKED",
+            "REVIEWED",
+            "CLOSED",
+            "REJECTED"
+          ]
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000,
+          "pattern": "\\S"
+        },
+        "proposal_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "uuid"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "revision_version": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "uuid"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "decision_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "uuid"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "previous_receipt_sha256": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "actor_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "recorded_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "classification": {
+          "enum": [
+            "PUBLIC",
+            "INTERNAL",
+            "RESTRICTED",
+            "PERSONAL_HEALTH"
+          ]
+        },
+        "closure_scope": {
+          "const": "KNOWLEDGE_RULE_FEEDBACK_ONLY"
+        },
+        "downstream_document_confirmation_claimed": {
+          "const": false
+        },
+        "change_proof": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ChangeProof"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "approval_proof": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ApprovalProof"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "enum": [
+                  "PENDING_REVIEW"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "revision": {
+                "const": "1"
+              },
+              "proposal_id": {
+                "type": "null"
+              },
+              "revision_version": {
+                "type": "null"
+              },
+              "decision_id": {
+                "type": "null"
+              },
+              "change_proof": {
+                "type": "null"
+              },
+              "approval_proof": {
+                "type": "null"
+              },
+              "previous_receipt_sha256": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "enum": [
+                  "PROPOSAL_LINKED"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "proposal_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "revision_version": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "decision_id": {
+                "type": "null"
+              },
+              "change_proof": {
+                "type": "null"
+              },
+              "approval_proof": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "enum": [
+                  "REVIEWED",
+                  "CLOSED"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "proposal_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "revision_version": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "decision_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "change_proof": {
+                "$ref": "#/$defs/ChangeProof"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "enum": [
+                  "REVIEWED",
+                  "REJECTED"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "approval_proof": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "enum": [
+                  "REJECTED"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "decision_id": {
+                "type": "null"
+              },
+              "change_proof": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "enum": [
+                  "CLOSED"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "approval_proof": {
+                "$ref": "#/$defs/ApprovalProof"
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

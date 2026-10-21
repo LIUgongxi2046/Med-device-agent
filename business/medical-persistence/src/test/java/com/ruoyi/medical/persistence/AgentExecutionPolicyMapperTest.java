@@ -1,5 +1,4 @@
 package com.ruoyi.medical.persistence;
-import java.nio.file.*;
 import java.util.*;
 import org.apache.ibatis.builder.xml.XMLMapperBuilder;
 import org.apache.ibatis.session.Configuration;
@@ -10,7 +9,14 @@ final class AgentExecutionPolicyMapperTest {
  static final String NS="com.ruoyi.medical.persistence.mapper.AgentExecutionPolicyMapper.";
  static final List<String> READS=List.of("policy","state","components","decisions","parents","componentParents","source","role","model","list");
  static final List<String> INSERTS=List.of("insertRegistry","insertPolicy","insertState","insertComponent","insertLineage","insertDecision");
- Configuration configuration()throws Exception{var c=new Configuration();try(var in=Files.newInputStream(Path.of(System.getProperty("policy.directory","/tmp/stage22-task-runtime/a/policy"),"AgentExecutionPolicyMapper.xml"))){new XMLMapperBuilder(in,c,"AgentExecutionPolicyMapper.xml",c.getSqlFragments()).parse();}return c;}
+ Configuration configuration()throws Exception{
+  var c=new Configuration();String resource="medical-mappers/AgentExecutionPolicyMapper.xml";
+  try(var in=getClass().getClassLoader().getResourceAsStream(resource)){
+   assertNotNull(in,"Actual packaged policy mapper must be present");
+   new XMLMapperBuilder(in,c,resource,c.getSqlFragments()).parse();
+  }
+  return c;
+ }
  String sql(Configuration c,String id){return c.getMappedStatement(NS+id).getBoundSql(new HashMap<>()).getSql().replaceAll("\\s+"," ").trim();}
  @Test void allEighteenStatementsAreActualMyBatisAndJsqlParserSql()throws Exception{var c=configuration();var names=new ArrayList<>(READS);names.addAll(INSERTS);names.addAll(List.of("advanceState","advanceGovernance"));assertEquals(18,names.size());for(var name:names)assertNotNull(CCJSqlParserUtil.parse(sql(c,name)),name);assertEquals(new HashSet<>(names),new HashSet<>(Arrays.stream(com.ruoyi.medical.persistence.mapper.AgentExecutionPolicyMapper.class.getDeclaredMethods()).map(java.lang.reflect.Method::getName).toList()));}
  @Test void everyReadIsUncachedAndCoreStateUsesActualRowLocks()throws Exception{var c=configuration();for(String n:READS){assertFalse(c.getMappedStatement(NS+n).isUseCache(),n);assertTrue(c.getMappedStatement(NS+n).isFlushCacheRequired(),n);}assertTrue(sql(c,"policy").endsWith("FOR UPDATE"));assertTrue(sql(c,"state").endsWith("FOR UPDATE"));}

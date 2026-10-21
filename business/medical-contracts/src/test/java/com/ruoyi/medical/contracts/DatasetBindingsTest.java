@@ -41,7 +41,7 @@ class DatasetBindingsTest {
             "/$defs/docx/properties/address/oneOf/2", DatasetProtocol.NodeAddress.class,
             "/$defs/pptx/properties/table_cell", DatasetProtocol.TableCell.class);
         inline.forEach((pointer, type) -> SchemaTypeAssertions.object(schema, schema.at(JsonPointer.compile(pointer)), JSON.constructType(type)));
-        assertTrue(DatasetProtocol.Locator.class.isSealed()); assertEquals(7, DatasetProtocol.Locator.class.getPermittedSubclasses().length);
+        assertTrue(DatasetProtocol.Locator.class.isSealed()); assertEquals(Set.of(DatasetProtocol.PdfLocator.class, DatasetProtocol.DocxLocator.class, DatasetProtocol.XlsxLocator.class, DatasetProtocol.CsvLocator.class, DatasetProtocol.TextLocator.class, DatasetProtocol.MarkdownLocator.class, DatasetProtocol.PptxLocator.class, DatasetProtocol.ImageLocator.class, DatasetProtocol.HtmlLocator.class), Set.of(DatasetProtocol.Locator.class.getPermittedSubclasses()));
         assertTrue(DatasetProtocol.PdfRegion.class.isSealed()); assertEquals(2, DatasetProtocol.PdfRegion.class.getPermittedSubclasses().length);
         assertTrue(DatasetProtocol.DocxAddress.class.isSealed()); assertEquals(3, DatasetProtocol.DocxAddress.class.getPermittedSubclasses().length);
     }

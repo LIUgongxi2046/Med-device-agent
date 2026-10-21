@@ -1,0 +1,521 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:evaluation-node-runtime:1.0.0",
+  "$defs": {
+    "Binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tenant_id",
+        "run_id",
+        "step_id",
+        "action_id",
+        "lease_generation",
+        "input_sha256",
+        "step_envelope_sha256"
+      ],
+      "properties": {
+        "tenant_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "run_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "step_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "action_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "lease_generation": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "input_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "step_envelope_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      }
+    },
+    "File": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256",
+        "size_bytes",
+        "content_base64"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "size_bytes": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        "content_base64": {
+          "type": "string",
+          "maxLength": 22369624
+        }
+      }
+    },
+    "Basis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version_id",
+        "content_sha256"
+      ],
+      "properties": {
+        "version_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "content_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      }
+    },
+    "Artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact_id",
+        "sha256",
+        "object_version",
+        "schema_ref"
+      ],
+      "properties": {
+        "artifact_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "object_version": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "schema_ref": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        }
+      }
+    },
+    "Cell": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "evaluation_id",
+        "definition_sha256",
+        "candidate",
+        "policy",
+        "sample_id",
+        "source_family",
+        "split",
+        "repeat_index",
+        "input",
+        "expected",
+        "runtime_manifest_sha256"
+      ],
+      "properties": {
+        "evaluation_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "definition_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "candidate": {
+          "$ref": "#/$defs/Basis"
+        },
+        "policy": {
+          "$ref": "#/$defs/Basis"
+        },
+        "sample_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "source_family": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "split": {
+          "enum": [
+            "DEVELOPMENT",
+            "TUNING",
+            "ACCEPTANCE"
+          ]
+        },
+        "repeat_index": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 99
+        },
+        "input": {
+          "$ref": "#/$defs/Basis"
+        },
+        "expected": {
+          "$ref": "#/$defs/Basis"
+        },
+        "runtime_manifest_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      }
+    },
+    "Node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cell",
+        "node_kind",
+        "role",
+        "model",
+        "tokenizer",
+        "parameters_sha256"
+      ],
+      "properties": {
+        "cell": {
+          "$ref": "#/$defs/Cell"
+        },
+        "node_kind": {
+          "enum": [
+            "N01",
+            "N02",
+            "N03",
+            "N04",
+            "N05",
+            "N06",
+            "N07"
+          ]
+        },
+        "role": {
+          "$ref": "#/$defs/Basis"
+        },
+        "model": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Basis"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "tokenizer": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Basis"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "parameters_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      }
+    },
+    "StepEnvelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tenant_id",
+        "project_id",
+        "execution_id",
+        "evaluation_id",
+        "run_id",
+        "step_id",
+        "action_id",
+        "session_id",
+        "schema_version",
+        "execution_kind",
+        "job_type",
+        "node_kind",
+        "node_sha256",
+        "lease_generation",
+        "input_sha256",
+        "runtime_manifest_sha256",
+        "deployment_revision",
+        "deployment_sha256",
+        "worker_service_uri",
+        "node",
+        "input",
+        "compiler",
+        "context_reads"
+      ],
+      "properties": {
+        "tenant_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "project_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "execution_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "evaluation_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "run_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "step_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "action_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "session_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "execution_kind": {
+          "const": "SYSTEM_JOB"
+        },
+        "job_type": {
+          "const": "EVALUATION_VERIFICATION"
+        },
+        "node_kind": {
+          "enum": [
+            "N01",
+            "N02",
+            "N03",
+            "N04",
+            "N05",
+            "N06",
+            "N07"
+          ]
+        },
+        "node_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "lease_generation": {
+          "const": 1
+        },
+        "input_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "runtime_manifest_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "deployment_revision": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "deployment_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "worker_service_uri": {
+          "type": "string",
+          "minLength": 1
+        },
+        "node": {
+          "$ref": "#/$defs/Node"
+        },
+        "input": {
+          "$ref": "#/$defs/Artifact"
+        },
+        "compiler": {
+          "type": "object",
+          "minProperties": 1
+        },
+        "context_reads": {
+          "type": "object",
+          "minProperties": 1
+        }
+      }
+    },
+    "SessionExport": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "kind",
+        "binding",
+        "session_id",
+        "runtime_manifest_sha256",
+        "files",
+        "observation",
+        "supervision_sha256"
+      ],
+      "properties": {
+        "schema_version": {
+          "type": "string",
+          "const": "1.0.0"
+        },
+        "kind": {
+          "const": "SESSION_EXPORT"
+        },
+        "binding": {
+          "$ref": "#/$defs/Binding"
+        },
+        "session_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "runtime_manifest_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "files": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/File"
+          },
+          "minItems": 1,
+          "maxItems": 10000
+        },
+        "observation": {
+          "type": "object"
+        },
+        "supervision_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      }
+    },
+    "StepResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "execution_kind",
+        "job_type",
+        "node_kind",
+        "binding",
+        "session_id",
+        "outcome",
+        "session_export",
+        "model_result",
+        "provider_capture",
+        "output",
+        "output_sha256",
+        "output_schema_ref",
+        "invocation_ids",
+        "check_ids",
+        "checker"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "execution_kind": {
+          "const": "SYSTEM_JOB"
+        },
+        "job_type": {
+          "const": "EVALUATION_VERIFICATION"
+        },
+        "node_kind": {
+          "enum": [
+            "N01",
+            "N02",
+            "N03",
+            "N04",
+            "N05",
+            "N06",
+            "N07"
+          ]
+        },
+        "binding": {
+          "$ref": "#/$defs/Binding"
+        },
+        "session_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "outcome": {
+          "enum": [
+            "SUCCEEDED",
+            "WAITING_INPUT",
+            "FAILED"
+          ]
+        },
+        "session_export": {
+          "$ref": "#/$defs/Artifact"
+        },
+        "model_result": {
+          "$ref": "#/$defs/Artifact"
+        },
+        "provider_capture": {
+          "$ref": "#/$defs/Artifact"
+        },
+        "output": {
+          "type": "object",
+          "minProperties": 1
+        },
+        "output_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "output_schema_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "invocation_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "minItems": 1,
+          "maxItems": 1000,
+          "uniqueItems": true
+        },
+        "check_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "uniqueItems": true,
+          "maxItems": 10000
+        },
+        "checker": {
+          "const": "EVALUATION_ORIGINAL_NODE_OUTCOME_V1"
+        },
+        "output_artifact": {
+          "$ref": "#/$defs/Artifact"
+        }
+      }
+    }
+  }
+}

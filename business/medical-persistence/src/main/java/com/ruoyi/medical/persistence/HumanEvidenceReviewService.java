@@ -1,0 +1,138 @@
+package com.ruoyi.medical.persistence;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.*;
+import com.ruoyi.medical.contracts.*;
+import com.ruoyi.medical.identity.ApplicationSessionIdentity;
+import com.ruoyi.medical.persistence.mapper.PermissionMapper;
+import java.util.*;
+import javax.sql.DataSource;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.util.function.ThrowingSupplier;
+
+/** BX09 human decisions, complete citation batches, atomic CAS and independently verified recovery. */
+public final class HumanEvidenceReviewService {
+ static final String OPERATION="BX-09-HUMAN-1",EVENT="document.evidence_review.decided";
+ private final EnterpriseAccess access;private final DocumentReadService documents;private final ProfessionalCheckService checks;
+ private final DocumentReviewAuthority target;private final DocumentReviewRules rules;private final com.networknt.schema.JsonSchema historySchema;
+ private final HumanEvidenceCitationReads citations;private final ResourceReadAuthority resources;private final PermissionMapper permissions;
+ private final JdbcTemplate db;private final TaskSourceVerifierSchema json=new TaskSourceVerifierSchema();private final SchemaCatalogue schemas;private final String manifest;
+ public HumanEvidenceReviewService(DataSource data,EnterpriseAccess access,DocumentReadService documents,ProfessionalCheckService checks,HumanEvidenceCitationReads citations,ResourceReadAuthority resources,PermissionMapper permissions,DocumentReviewAuthority target,DocumentReviewRules rules)throws Exception{
+  this.target=target;this.rules=rules;db=new JdbcTemplate(data);db.setQueryTimeout(5);this.access=access;this.documents=documents;this.checks=checks;this.citations=citations;this.resources=resources;this.permissions=permissions;schemas=SchemaCatalogue.fromClasspath();
+  try(var in=Objects.requireNonNull(getClass().getResourceAsStream("/human-evidence-review.schema.json"))){byte[] schemaBytes=in.readAllBytes();manifest=WireValues.sha256(schemaBytes);historySchema=com.networknt.schema.JsonSchemaFactory.getInstance(com.networknt.schema.SpecVersion.VersionFlag.V202012).getSchema(json.read(schemaBytes),com.networknt.schema.SchemaValidatorsConfig.builder().formatAssertionsEnabled(true).build());}
+ }
+ public JsonNode decide(ApplicationSessionIdentity.Verified subject,String context,String key,String document,byte[] bytes)throws Exception{
+  WireValues.uuid(document);PermissionSchema.revision(context);if(key==null||key.isBlank()||key.length()>128)fail(ErrorCode.SCHEMA_INVALID);
+  if(bytes.length>1024*1024)fail(ErrorCode.FILE_TOO_LARGE);var input=json.read(bytes);var request=TypedSchemaBindings.bind(schemas,InterfaceBindings.EVIDENCE_DECISION_BATCH,input).read();
+  String hash=json.hash(Map.of("document_id",document,"request",input));
+  var fixed=documents.readFixed(subject,context,document,request.documentRevision());
+  var replay=tx(subject,a->{current(a,context,fixed);grant(a,fixed);var rows=operation(a,subject.user().user_id(),key);if(rows.isEmpty())return null;var row=one(rows);if(!hash.equals(text(row,"request_sha256"))||!document.equals(text(row,"document_id")))fail(ErrorCode.IDEMPOTENCY_CONFLICT);return stored(a,fixed,row);});if(replay!=null)return replay;
+  if(request.checkIds().size()>32||new HashSet<>(request.checkIds()).size()!=request.checkIds().size())fail(ErrorCode.SCHEMA_INVALID);
+  var verified=new ArrayList<ProfessionalCheckService.Verified>();for(String check:request.checkIds()){var proof=checks.verified(subject,context,check);if(!document.equals(proof.snapshot().document().header().documentId())||!request.documentRevision().equals(proof.snapshot().document().header().documentRevision()))fail(ErrorCode.REVIEW_STALE);verified.add(proof);}
+  var physical=citations.read(subject,fixed);var links=new HashMap<String,InterfaceProtocol.EvidenceLink>();fixed.body().evidenceLinks().forEach(l->links.put(l.evidenceLinkId(),l));var seen=new HashSet<String>();
+  for(var decision:request.decisions()){
+   var link=links.get(decision.evidenceLinkId());if(link==null||!seen.add(decision.evidenceLinkId())||decision.reason().isBlank())fail(ErrorCode.SCHEMA_INVALID);
+   DocumentSelectionSemantics.verify(schemas,request.documentRevision(),fixed.body(),decision.selection());
+   var selected=new HashSet<String>();json.tree(decision.selection()).required("segments").forEach(s->selected.add(s.required("node_id").asText()));if(!new HashSet<>(link.nodeIds()).equals(selected))fail(ErrorCode.SELECTION_INVALID);
+   var pin=physical.get(decision.evidenceLinkId());if(decision.access()!=CommonProtocol.Access.PASS||decision.location()!=(pin.located()?CommonProtocol.Access.PASS:CommonProtocol.Access.FAIL))fail(ErrorCode.CONTENT_MISMATCH);
+   if(!pin.located()&&decision.support()!=CommonProtocol.Support.INSUFFICIENT)fail(ErrorCode.SCHEMA_INVALID);
+   if(decision.support()==CommonProtocol.Support.NOT_APPLICABLE){
+    if(decision.ruleRevision()==null)fail(ErrorCode.SCHEMA_INVALID);
+    boolean basis=false;for(var proof:verified){var ruleManifest=json.read(text(proof.snapshot().row(),"rule_manifest"));boolean approved=false;for(var rule:ruleManifest.required("rules"))if(decision.ruleRevision().equals(rule.path("rule_id").asText()))approved=true;
+     if(approved&&proof.findings().ruleChecks().stream().anyMatch(r->decision.ruleRevision().equals(r.ruleId())&&r.result()==ArtifactProtocol.RuleResult.NOT_APPLICABLE&&r.targetNodeIds().containsAll(selected)&&r.evidenceRefs().contains(link.evidence())))basis=true;
+    }if(!basis)fail(ErrorCode.REVIEW_STALE);
+   }else if(decision.ruleRevision()!=null)fail(ErrorCode.SCHEMA_INVALID);
+  }
+  if(!seen.equals(links.keySet()))fail(ErrorCode.SCHEMA_INVALID);
+  return tx(subject,a->{
+   current(a,context,fixed);var witness=grant(a,fixed);var old=operation(a,subject.user().user_id(),key);if(!old.isEmpty()){var row=one(old);if(!hash.equals(text(row,"request_sha256")))fail(ErrorCode.IDEMPOTENCY_CONFLICT);return stored(a,fixed,row);}
+   var h=fixed.header();if(!h.documentRevision().equals(h.currentDocumentRevision())||"SIGNED".equals(h.status()))fail(ErrorCode.REVIEW_STALE);
+   if(!h.revision().toString().equals(request.expectedRevision())||!fixed.watermarks().evidenceWatermark().toString().equals(request.evidenceWatermark())||!fixed.watermarks().issueWatermark().toString().equals(request.issueWatermark()))fail(ErrorCode.REVISION_CONFLICT);
+   for(var proof:verified)proof.requireValid(a);citations.requireCurrent(a,fixed,physical);
+   String batch=id(),operation=id(),requestId=id(),revision=PermissionSchema.next(request.expectedRevision()),watermark=PermissionSchema.next(request.evidenceWatermark());var now=permissions.databaseTime();String time=java.time.format.DateTimeFormatter.ofPattern("uuuu-MM-dd'T'HH:mm:ss.SSSSSS'Z'").format(now);
+   var invalidated=db.queryForList("SELECT review_id FROM review_decision WHERE tenant_id=? AND project_id=? AND document_revision=? AND decision='CONFIRM' ORDER BY review_id FOR UPDATE",String.class,h.tenantId(),h.projectId(),h.documentRevision());
+   var baseline=JsonNodeFactory.instance.objectNode().put("body_sha256",h.bodySha256()).put("document_read_sha256",fixed.digest()).put("auth_epoch",a.context().auth_epoch()).put("governance_epoch",a.context().governance_epoch());baseline.set("invalidated_review_ids",json.tree(invalidated));baseline.set("request",input);baseline.set("authority",AgentPublicationWitness.tree(witness));baseline.set("citations",AgentPublicationWitness.tree(physical));baseline.set("target",target.requireForRead(a,context,fixed).baseline());var proofPins=baseline.putArray("checks");for(var proof:verified){var pin=proofPins.addObject().put("check_id",text(proof.snapshot().row(),"check_id")).put("snapshot_sha256",proof.snapshot().digest());pin.set("receipt",proof.snapshot().receipt());pin.set("rules",json.read(text(proof.snapshot().row(),"rule_manifest")));}
+   var ids=new ArrayList<String>();var details=new ArrayList<JsonNode>();for(var decision:request.decisions()){String decisionId=id();ids.add(decisionId);var detail=JsonNodeFactory.instance.objectNode().put("decision_id",decisionId).put("batch_id",batch).put("document_revision",h.documentRevision()).put("actor_id",subject.user().user_id()).put("decided_at",time).put("evidence_watermark",watermark).put("issue_watermark",request.issueWatermark()).put("validity","VALID").putNull("invalidation_reason");detail.set("decision",json.tree(decision));detail.set("check_ids",json.tree(request.checkIds()));schemas.validate("resource-details",detail,"EvidenceDecisionDetail");details.add(detail);}
+   var data=json.tree(new InterfaceProtocol.DecisionBatch(batch,h.documentRevision(),revision,ids));var response=envelope(data,revision,requestId,"1.0.0");String result=json.canonical(response);
+   oneWrite(db.update("INSERT INTO operation_record(tenant_id,operation_id,subject_id,operation_name,idempotency_key,request_sha256,state,http_status,response_ref,target_id,schema_version,schema_manifest_sha256,created_by,created_at,classification,revision,updated_at) VALUES(?,?,?,?,?,?,'COMPLETED',200,?,?, '1.0.0',?,?,?, ?,1,?)",h.tenantId(),operation,subject.user().user_id(),OPERATION,key,hash,result,document,manifest,subject.user().user_id(),now,h.classification(),now));
+   oneWrite(db.update("INSERT INTO human_evidence_batch(tenant_id,project_id,batch_id,document_id,document_revision,actor_id,operation_id,idempotency_key,request_sha256,request_json,baseline_json,baseline_sha256,receipt_json,receipt_sha256,evidence_watermark,issue_watermark,resulting_revision,schema_version,schema_manifest_sha256,created_by,created_at,classification) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'1.0.0',?,?,?,?)",h.tenantId(),h.projectId(),batch,document,h.documentRevision(),subject.user().user_id(),operation,key,hash,json.canonical(input),json.canonical(baseline),json.hash(baseline),result,json.hash(response),watermark,request.issueWatermark(),revision,manifest,subject.user().user_id(),now,h.classification()));
+   for(var detail:details)oneWrite(db.update("INSERT INTO human_evidence_decision(tenant_id,project_id,decision_id,batch_id,document_revision,evidence_link_id,decision_json,decision_sha256,schema_version,schema_manifest_sha256,created_by,created_at,classification) VALUES(?,?,?,?,?,?,?,?,'1.0.0',?,?,?,?)",h.tenantId(),h.projectId(),detail.required("decision_id").asText(),batch,h.documentRevision(),detail.required("decision").required("evidence_link_id").asText(),json.canonical(detail),json.hash(detail),manifest,subject.user().user_id(),now,h.classification()));
+   oneWrite(db.update("UPDATE document_revision_state SET evidence_watermark=evidence_watermark+1,revision=revision+1,updated_at=? WHERE tenant_id=? AND project_id=? AND document_revision=? AND evidence_watermark=? AND issue_watermark=?",now,h.tenantId(),h.projectId(),h.documentRevision(),request.evidenceWatermark(),request.issueWatermark()));
+   oneWrite(db.update("UPDATE document_head SET revision=revision+1,updated_at=? WHERE tenant_id=? AND project_id=? AND document_id=? AND current_document_revision=? AND revision=? AND status<>'SIGNED'",now,h.tenantId(),h.projectId(),document,h.documentRevision(),request.expectedRevision()));
+   for(String review:invalidated)oneWrite(db.update("INSERT INTO review_invalidation(tenant_id,project_id,invalidation_id,review_id,trigger_version,reason_code,created_by,created_at,classification) VALUES(?,?,?,?,?,?,?,?,?)",h.tenantId(),h.projectId(),id(),review,h.documentRevision(),"HUMAN_EVIDENCE_BATCH_"+batch,subject.user().user_id(),now,h.classification()));
+   var event=event(batch,document,h.documentRevision(),revision,hash,json.hash(baseline));oneWrite(permissions.saveAudit(subject.user().user_id(),h.projectId(),id(),EVENT,json.canonical(event),requestId,manifest,h.classification()));oneWrite(permissions.saveEvent(subject.user().user_id(),id(),document,revision,EVENT,json.canonical(event)));
+   if(!witness.equals(grant(a,fixed)))fail(ErrorCode.SCOPE_STALE);var saved=stored(a,fixed,one(operation(a,subject.user().user_id(),key)));if(!response.equals(saved))fail(ErrorCode.CONTENT_MISMATCH);return saved;
+  });
+ }
+ public JsonNode recover(ApplicationSessionIdentity.Verified subject,String context,String key,String document,String revision)throws Exception{
+  var fixed=documents.readFixed(subject,context,document,revision);return tx(subject,a->{current(a,context,fixed);grant(a,fixed);var rows=operation(a,subject.user().user_id(),key);if(rows.isEmpty())return envelope(NullNode.instance,fixed.header().revision().toString(),id(),"1.0.0");var row=one(rows);if(!document.equals(text(row,"document_id"))||!revision.equals(text(row,"document_revision")))fail(ErrorCode.IDEMPOTENCY_CONFLICT);return stored(a,fixed,row);});
+ }
+ public JsonNode history(ApplicationSessionIdentity.Verified subject,String context,String document,String revision,int page,int size,String watermark)throws Exception{
+  if(page<1||size<1||size>100)fail(ErrorCode.SCHEMA_INVALID);var fixed=documents.readFixed(subject,context,document,revision);
+  return tx(subject,a->{current(a,context,fixed);if(watermark!=null&&!watermark.equals(fixed.watermarks().evidenceWatermark().toString()))fail(ErrorCode.REVISION_CONFLICT);
+   var all=details(a,fixed,false);long offset=((long)page-1)*size;if(offset>100000)fail(ErrorCode.CONTEXT_LIMIT);var items=JsonNodeFactory.instance.arrayNode();for(int i=(int)Math.min(offset,all.size());i<Math.min(offset+size,all.size());i++)items.add(all.get(i));
+   var data=JsonNodeFactory.instance.objectNode().put("document_id",document).put("document_revision",revision);data.set("items",items);data.set("page_info",json.tree(new InterfaceProtocol.PageInfo(page,size,Integer.toString(all.size()),fixed.watermarks().evidenceWatermark().toString(),json.hash(Map.of("document_id",document,"document_revision",revision)))));return envelope(data,fixed.header().revision().toString(),id(),"1.1.0");});
+ }
+ /** Consumer seam for B09/signing: full current human batch, never a source-approval or check PASS. */
+ public final class CurrentBatch {
+  private final DocumentReadService.FixedRead fixed;private final JsonNode details;private final String digest;
+  private CurrentBatch(DocumentReadService.FixedRead fixed,JsonNode details)throws Exception{this.fixed=fixed;this.details=details.deepCopy();this.digest=json.hash(details);}
+  public JsonNode decisions(){return details.deepCopy();}public String sha256(){return digest;}
+  public void requireCurrent(EnterpriseAccess.Admission admission)throws Exception{documents.requireCurrent(admission,fixed);if(!digest.equals(json.hash(json.tree(HumanEvidenceReviewService.this.details(admission,fixed,true)))))fail(ErrorCode.REVIEW_STALE);}
+  /** A narrowly scoped, real +1 human-decision transition, not a waiver of check currentness. */
+  void requirePrecedingCheck(EnterpriseAccess.Admission admission,ProfessionalCheckService.Verified check)throws Exception{
+   requireCurrent(admission);if(details.isEmpty()||!check.findings().coverageComplete())fail(ErrorCode.REVIEW_STALE);
+   var h=fixed.header();String batchId=details.get(0).required("batch_id").asText();
+   var batch=one(db.queryForList("SELECT * FROM human_evidence_batch WHERE tenant_id=? AND project_id=? AND document_id=? AND document_revision=? AND batch_id=? FOR UPDATE",h.tenantId(),h.projectId(),h.documentId(),h.documentRevision(),batchId));
+   stored(admission,fixed,batch);var baseline=json.read(text(batch,"baseline_json"));var original=baseline.required("request");var snapshot=check.snapshot();var checkRow=snapshot.row();
+   if(!h.documentId().equals(snapshot.document().header().documentId())||!h.documentRevision().equals(snapshot.document().header().documentRevision())||!h.bodySha256().equals(check.findings().targetSha256()))fail(ErrorCode.REVIEW_STALE);
+   String before=original.required("evidence_watermark").asText(),after=text(batch,"evidence_watermark");
+   if(!PermissionSchema.next(before).equals(after)||!fixed.watermarks().evidenceWatermark().toString().equals(after)||!before.equals(text(checkRow,"evidence_watermark"))||!text(batch,"issue_watermark").equals(text(checkRow,"issue_watermark")))fail(ErrorCode.REVIEW_STALE);
+   boolean linked=false;for(var pin:baseline.required("checks"))if(pin.required("check_id").asText().equals(text(checkRow,"check_id"))&&pin.required("receipt").equals(snapshot.receipt()))linked=true;
+   if(!linked)fail(ErrorCode.REVIEW_STALE);
+  }
+
+ }
+ CurrentBatch requireCurrentBatch(EnterpriseAccess.Admission a,DocumentReadService.FixedRead fixed)throws Exception{
+  documents.requireCurrent(a,fixed);var rows=details(a,fixed,true);var expected=new HashSet<String>();fixed.body().evidenceLinks().forEach(e->expected.add(e.evidenceLinkId()));var actual=new HashSet<String>();String batch=null;
+  for(var row:rows){if(!actual.add(row.required("decision").required("evidence_link_id").asText()))fail(ErrorCode.CONTENT_MISMATCH);String next=row.required("batch_id").asText();if(batch!=null&&!batch.equals(next))fail(ErrorCode.CONTENT_MISMATCH);batch=next;}
+  if(!actual.equals(expected))fail(ErrorCode.REVIEW_STALE);return new CurrentBatch(fixed,json.tree(rows));
+ }
+ private List<JsonNode> details(EnterpriseAccess.Admission a,DocumentReadService.FixedRead fixed,boolean activeOnly)throws Exception{
+  var h=fixed.header();var batches=db.queryForList("SELECT * FROM human_evidence_batch WHERE tenant_id=? AND project_id=? AND document_id=? AND document_revision=? ORDER BY resulting_revision,batch_id LIMIT 1001 FOR UPDATE",h.tenantId(),h.projectId(),h.documentId(),h.documentRevision());if(batches.size()>1000)fail(ErrorCode.CONTEXT_LIMIT);var result=new ArrayList<JsonNode>();
+  for(var batch:batches){stored(a,fixed,batch);String reason=invalid(a,fixed,batch);if(activeOnly&&reason!=null)continue;for(var row:decisionRows(batch)){var detail=(ObjectNode)json.read(text(row,"decision_json"));detail.put("validity",reason==null?"VALID":"INVALIDATED");if(reason==null)detail.putNull("invalidation_reason");else detail.put("invalidation_reason",reason);result.add(detail);}}
+  return result;
+ }
+ private String invalid(EnterpriseAccess.Admission a,DocumentReadService.FixedRead fixed,Map<String,Object> batch)throws Exception{
+  var h=fixed.header();if(!h.documentRevision().equals(h.currentDocumentRevision()))return "DOCUMENT_REVISION_CHANGED";
+  var baseline=json.read(text(batch,"baseline_json"));if(!h.bodySha256().equals(baseline.required("body_sha256").asText()))return "BODY_CHANGED";
+  if(!fixed.watermarks().evidenceWatermark().toString().equals(text(batch,"evidence_watermark")))return "EVIDENCE_WATERMARK_CHANGED";
+  if(!fixed.watermarks().issueWatermark().toString().equals(text(batch,"issue_watermark")))return "ISSUE_WATERMARK_CHANGED";
+  if(!a.context().auth_epoch().equals(baseline.required("auth_epoch").asText()))return "AUTHORIZATION_CHANGED";
+  if(!a.context().governance_epoch().equals(baseline.required("governance_epoch").asText()))return "GOVERNANCE_CHANGED";
+  var nowTarget=target.requireForRead(a,a.context().context_revision(),fixed);var oldTarget=(ObjectNode)baseline.required("target").deepCopy();var newTarget=(ObjectNode)nowTarget.baseline();oldTarget.remove("watermarks");newTarget.remove("watermarks");if(!oldTarget.equals(newTarget))return "INPUT_BASELINE_CHANGED";var currentRules=rules.require(a,nowTarget).manifest();
+  for(var pin:baseline.required("checks")){if(!factualRules(currentRules).equals(factualRules(pin.required("rules"))))return "RULE_MANIFEST_CHANGED";var row=one(db.queryForList("SELECT invalidation_reason,result_ref FROM check_run WHERE tenant_id=? AND project_id=? AND check_id=? FOR UPDATE",h.tenantId(),h.projectId(),pin.required("check_id").asText()));if(row.get("invalidation_reason")!=null)return "CHECK_INVALIDATED";if(!pin.required("receipt").equals(json.read(text(row,"result_ref"))))return "CHECK_RESULT_CHANGED";}
+  return null;
+ }
+ private List<Map<String,Object>> operation(EnterpriseAccess.Admission a,String actor,String key){return db.queryForList("SELECT * FROM human_evidence_batch WHERE tenant_id=? AND actor_id=? AND idempotency_key=? LIMIT 2 FOR UPDATE",a.context().tenant_id(),actor,key);}
+ private List<Map<String,Object>> decisionRows(Map<String,Object> batch){return db.queryForList("SELECT * FROM human_evidence_decision WHERE tenant_id=? AND project_id=? AND batch_id=? ORDER BY decision_id LIMIT 513 FOR UPDATE",batch.get("tenant_id"),batch.get("project_id"),batch.get("batch_id"));}
+ private JsonNode stored(EnterpriseAccess.Admission a,DocumentReadService.FixedRead fixed,Map<String,Object> row)throws Exception{
+  var h=fixed.header();same(h.tenantId(),text(row,"tenant_id"));same(h.projectId(),text(row,"project_id"));same(h.documentId(),text(row,"document_id"));same(h.documentRevision(),text(row,"document_revision"));same(text(row,"actor_id"),text(row,"created_by"));same(manifest,text(row,"schema_manifest_sha256"));same("1.0.0",text(row,"schema_version"));
+  var request=json.read(text(row,"request_json"));TypedSchemaBindings.bind(schemas,InterfaceBindings.EVIDENCE_DECISION_BATCH,request).read();same(h.documentRevision(),request.required("document_revision").asText());same(json.hash(Map.of("document_id",h.documentId(),"request",request)),text(row,"request_sha256"));
+  var baseline=json.read(text(row,"baseline_json"));same(request,baseline.required("request"));same(json.hash(baseline),text(row,"baseline_sha256"));
+  var receipt=json.read(text(row,"receipt_json"));same(json.hash(receipt),text(row,"receipt_sha256"));schemas.validate("interfaces",receipt,"Envelope");schemas.validate("interfaces",receipt.required("data"),"DecisionBatch");var data=receipt.required("data");same(text(row,"batch_id"),data.required("batch_id").asText());same(h.documentRevision(),data.required("document_revision").asText());same(text(row,"resulting_revision"),data.required("revision").asText());
+  var wanted=new HashMap<String,JsonNode>();for(var decision:request.required("decisions"))if(wanted.put(decision.required("evidence_link_id").asText(),decision)!=null)bad();var found=new HashSet<String>();var ids=new HashSet<String>();
+  for(var physical:decisionRows(row)){same("1.0.0",text(physical,"schema_version"));same(text(row,"classification"),text(physical,"classification"));same(manifest,text(physical,"schema_manifest_sha256"));same(text(row,"actor_id"),text(physical,"created_by"));same(h.documentRevision(),text(physical,"document_revision"));var detail=json.read(text(physical,"decision_json"));same(json.hash(detail),text(physical,"decision_sha256"));schemas.validate("resource-details",detail,"EvidenceDecisionDetail");same("VALID",detail.required("validity").asText());if(!detail.required("invalidation_reason").isNull())bad();same(text(physical,"decision_id"),detail.required("decision_id").asText());same(text(row,"batch_id"),detail.required("batch_id").asText());same(text(row,"actor_id"),detail.required("actor_id").asText());same(request.required("check_ids"),detail.required("check_ids"));same(text(row,"evidence_watermark"),detail.required("evidence_watermark").asText());same(text(row,"issue_watermark"),detail.required("issue_watermark").asText());same(wanted.get(text(physical,"evidence_link_id")),detail.required("decision"));if(!found.add(text(physical,"evidence_link_id"))||!ids.add(text(physical,"decision_id")))bad();}
+  var receiptIds=new HashSet<String>();data.required("decision_ids").forEach(i->{if(!receiptIds.add(i.asText()))bad();});if(!found.equals(wanted.keySet())||!ids.equals(receiptIds))bad();
+  var op=one(db.queryForList("SELECT * FROM operation_record WHERE tenant_id=? AND operation_id=? AND subject_id=? AND operation_name=? AND idempotency_key=? FOR UPDATE",h.tenantId(),row.get("operation_id"),row.get("actor_id"),OPERATION,row.get("idempotency_key")));same("1.0.0",text(op,"schema_version"));same(text(row,"classification"),text(op,"classification"));same("COMPLETED",text(op,"state"));same("200",text(op,"http_status"));same(h.documentId(),text(op,"target_id"));same(row.get("request_sha256"),op.get("request_sha256"));same(manifest,text(op,"schema_manifest_sha256"));same(receipt,json.read(text(op,"response_ref")));same(row.get("actor_id"),op.get("created_by"));
+  var expected=event(text(row,"batch_id"),h.documentId(),h.documentRevision(),text(row,"resulting_revision"),text(row,"request_sha256"),text(row,"baseline_sha256"));var audit=one(db.queryForList("SELECT resource_ref FROM audit_event WHERE tenant_id=? AND project_id=? AND subject_id=? AND created_by=? AND action=? AND request_id=? AND result='SUCCESS' AND schema_manifest_sha256=? FOR UPDATE",h.tenantId(),h.projectId(),row.get("actor_id"),row.get("actor_id"),EVENT,receipt.required("request_id").asText(),manifest));same(expected,json.read(text(audit,"resource_ref")));var event=one(db.queryForList("SELECT payload FROM outbox_event WHERE tenant_id=? AND aggregate_id=? AND aggregate_revision=? AND event_type=? FOR UPDATE",h.tenantId(),h.documentId(),row.get("resulting_revision"),EVENT));same(expected,json.read(text(event,"payload")));
+  var invalidations=db.queryForList("SELECT review_id FROM review_invalidation WHERE tenant_id=? AND project_id=? AND trigger_version=? AND reason_code=? AND created_by=? ORDER BY review_id FOR UPDATE",String.class,h.tenantId(),h.projectId(),h.documentRevision(),"HUMAN_EVIDENCE_BATCH_"+text(row,"batch_id"),row.get("actor_id"));same(json.tree(invalidations),baseline.required("invalidated_review_ids"));return receipt;
+ }
+ private static JsonNode factualRules(JsonNode value){var copy=(ObjectNode)value.deepCopy();copy.remove("authorizations");return copy;}
+ private ObjectNode event(String batch,String document,String revision,String result,String request,String baseline){return JsonNodeFactory.instance.objectNode().put("schema_version","1.0.0").put("batch_id",batch).put("document_id",document).put("document_revision",revision).put("revision",result).put("request_sha256",request).put("baseline_sha256",baseline);}
+ private JsonNode envelope(JsonNode data,String revision,String request,String version){var n=JsonNodeFactory.instance.objectNode().put("schema_version",version).put("request_id",request).put("resource_revision",revision);n.set("data",data);if("1.1.0".equals(version)&&!historySchema.validate(n).isEmpty())bad();return n;}
+ private void current(EnterpriseAccess.Admission a,String context,DocumentReadService.FixedRead fixed)throws Exception{if(!context.equals(a.context().context_revision()))fail(ErrorCode.CONTEXT_CHANGED);documents.requireCurrent(a,fixed);}
+ private PermissionProtocol.GrantRow grant(EnterpriseAccess.Admission a,DocumentReadService.FixedRead fixed)throws Exception{var h=fixed.header();return resources.require(a,new PermissionProtocol.Scope(h.tenantId(),h.projectId(),"DOCUMENT",h.documentId()),"review.decide","DOCUMENT_REVIEW");}
+ private <T>T tx(ApplicationSessionIdentity.Verified subject,Work<T> work){return access.execute(subject,a->ThrowingSupplier.of(()->work.run(a)).get());}private interface Work<T>{T run(EnterpriseAccess.Admission a)throws Exception;}
+ private static <T>T one(List<T> rows){if(rows.size()!=1)bad();return rows.get(0);}private static String text(Map<String,Object> row,String field){var value=row.get(field);if(value==null)bad();return value.toString();}private static String id(){return UUID.randomUUID().toString();}private static void oneWrite(int n){if(n!=1)fail(ErrorCode.REVISION_CONFLICT);}private static void same(Object a,Object b){if(!Objects.equals(a,b))bad();}private static void bad(){fail(ErrorCode.CONTENT_MISMATCH);}private static void fail(ErrorCode code){throw new TenantAccessException(code);}
+}

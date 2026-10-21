@@ -19,13 +19,53 @@ public final class DocumentStructuralComparisonEngine {
   return actual;
  }
  public ObjectNode compare(InterfaceProtocol.CompareRequest request,InterfaceProtocol.DocumentBody left,InterfaceProtocol.DocumentBody right,Limits limits)throws Exception {
+  if(schema.candidate())throw new IllegalArgumentException("DOCUMENT_COMPARISON_SCHEMA_REQUIRED");
+  if(request.leftRevision().equals(request.rightRevision())&&!schema.hash(json.tree(left)).equals(schema.hash(json.tree(right))))throw new TenantAccessException(ErrorCode.CONTENT_MISMATCH);
+  return compareFixed(request,left,right,limits,legacy(),legacy());
+ }
+ public ObjectNode compareCandidate(InterfaceProtocol.CandidateCompareRequest request,InterfaceProtocol.DocumentBody candidate,InterfaceProtocol.DocumentBody target,Limits limits)throws Exception {
+  if(!schema.candidate())throw new IllegalArgumentException("CANDIDATE_COMPARISON_SCHEMA_REQUIRED");
+  return compareFixed(request,candidate,target,limits,legacy(),legacy());
+ }
+ private SchemaCatalogue.PublishedSchema legacy(){return schema.catalogue.requirePublished(schema.catalogue.schemaRef("interfaces","DocumentBody"),schema.catalogue.schemaDigest("interfaces"));}
+ private SchemaCatalogue.PublishedSchema declared(String ref,String sha){var p=schema.catalogue.requirePublished(ref,sha);if(!Set.of("interfaces","document-body-v2").contains(p.name())||!"DocumentBody".equals(p.definition()))throw new TenantAccessException(ErrorCode.CONTENT_MISMATCH);return p;}
+ public ObjectNode compare(InterfaceProtocol.CompareRequest request,InterfaceProtocol.DocumentBody left,InterfaceProtocol.DocumentBody right,Limits limits,String leftRef,String leftSha,String rightRef,String rightSha)throws Exception{
+  if(schema.candidate())throw new IllegalArgumentException("DOCUMENT_COMPARISON_SCHEMA_REQUIRED");
+  if(request.leftRevision().equals(request.rightRevision())&&!schema.hash(json.tree(left)).equals(schema.hash(json.tree(right))))throw new TenantAccessException(ErrorCode.CONTENT_MISMATCH);
+  return compareFixed(request,left,right,limits,declared(leftRef,leftSha),declared(rightRef,rightSha));
+ }
+ public ObjectNode compareCandidate(InterfaceProtocol.CandidateCompareRequest request,InterfaceProtocol.DocumentBody left,InterfaceProtocol.DocumentBody right,Limits limits,String leftRef,String leftSha,String rightRef,String rightSha)throws Exception{
+  if(!schema.candidate())throw new IllegalArgumentException("CANDIDATE_COMPARISON_SCHEMA_REQUIRED");return compareFixed(request,left,right,limits,declared(leftRef,leftSha),declared(rightRef,rightSha));
+ }
+ public ObjectNode verifyAgainstInputs(InterfaceProtocol.CompareRequest request,InterfaceProtocol.DocumentBody left,InterfaceProtocol.DocumentBody right,JsonNode candidate,Limits limits,String leftRef,String leftSha,String rightRef,String rightSha)throws Exception{
+  Objects.requireNonNull(candidate);if(ContentReadAuthorization.canonicalBytes(candidate).length>limits.maximumResultBytes())capacity();var actual=compare(request,left,right,limits,leftRef,leftSha,rightRef,rightSha);if(!schema.canonical(actual).equals(schema.canonical(candidate)))throw new TenantAccessException(ErrorCode.CONTENT_MISMATCH);return actual;
+ }
+ /** Only for an original, immutable registered result already read through the service authorities.
+  * Recompute every semantic/result field, retaining the original build provenance, never relabeling it. */
+ ObjectNode verifyRegisteredAgainstInputs(InterfaceProtocol.CompareRequest request,InterfaceProtocol.DocumentBody left,InterfaceProtocol.DocumentBody right,JsonNode registered,Limits limits,String leftRef,String leftSha,String rightRef,String rightSha)throws Exception{
+  return verifyRegistered(compare(request,left,right,limits,leftRef,leftSha,rightRef,rightSha),registered,limits);
+ }
+ ObjectNode verifyRegisteredCandidate(InterfaceProtocol.CandidateCompareRequest request,InterfaceProtocol.DocumentBody left,InterfaceProtocol.DocumentBody right,JsonNode registered,Limits limits,String leftRef,String leftSha,String rightRef,String rightSha)throws Exception{
+  return verifyRegistered(compareCandidate(request,left,right,limits,leftRef,leftSha,rightRef,rightSha),registered,limits);
+ }
+ private ObjectNode verifyRegistered(ObjectNode actual,JsonNode registered,Limits limits)throws Exception{
+  if(ContentReadAuthorization.canonicalBytes(registered).length>limits.maximumResultBytes())capacity();
+  var original=schema.validate(registered);
+  actual.set("implementation_sha256",original.required("implementation_sha256"));
+  var input=actual.deepCopy();for(String k:List.of("input_sha256","record_count","records","affected_node_ids","left_affected_section_ids","right_affected_section_ids","coverage"))input.remove(k);
+  actual.put("input_sha256",schema.hash(input));((ObjectNode)actual.required("coverage")).put("selection_sha256",schema.hash(input));
+  if(!schema.canonical(actual).equals(schema.canonical(original)))throw new TenantAccessException(ErrorCode.CONTENT_MISMATCH);
+  return original;
+ }
+ private ObjectNode compareFixed(Object request,InterfaceProtocol.DocumentBody left,InterfaceProtocol.DocumentBody right,Limits limits,SchemaCatalogue.PublishedSchema leftSchema,SchemaCatalogue.PublishedSchema rightSchema)throws Exception {
   Objects.requireNonNull(request);Objects.requireNonNull(left);Objects.requireNonNull(right);Objects.requireNonNull(limits);
   var budget=new Budget(limits);preflight(left,budget);preflight(right,budget);var l=json.tree(left);var r=json.tree(right);
-  for(var body:List.of(l,r)){byte[] bytes=ContentReadAuthorization.canonicalBytes(body);if(bytes.length>limits.maximumInputBytes())capacity();budget.take(bytes.length);DocumentBodySemantics.verify(schema.catalogue,body,new DocumentBodySemantics.Limits(limits.maximumNodes(),limits.maximumCells(),limits.maximumRelationships()));for(var node:body.path("nodes"))if(node.at("/content/kind").asText().equals("TEXT")){String text=node.at("/content/text").asText();budget.text(text.codePointCount(0,text.length()));}}
-  if(request.leftRevision().equals(request.rightRevision())&&!schema.hash(l).equals(schema.hash(r)))throw new TenantAccessException(ErrorCode.CONTENT_MISMATCH);
-  var output=json.object().put("schema_version","1.0.0").put("kind","FIXED_DOCUMENT_STRUCTURE_CORE").put("algorithm_id","urn:medical:fixed-structure:stable-ids-prefix-suffix:1.0.0")
-   .put("implementation_sha256",implementation()).put("schema_sha256",schema.schemaSha256()).put("body_schema_sha256",schema.catalogue.schemaDigest("interfaces"))
+  boolean v2=!"interfaces".equals(leftSchema.name())||!"interfaces".equals(rightSchema.name());
+  for(var body:List.of(l,r)){var publication=body==l?leftSchema:rightSchema;byte[] bytes=ContentReadAuthorization.canonicalBytes(body);if(bytes.length>limits.maximumInputBytes())capacity();budget.take(bytes.length);DocumentBodySemantics.verify(schema.catalogue,body,new DocumentBodySemantics.Limits(limits.maximumNodes(),limits.maximumCells(),limits.maximumRelationships()),publication.schemaRef(),publication.schemaSha256());for(var node:body.path("nodes"))if(node.at("/content/kind").asText().equals("TEXT")){String text=node.at("/content/text").asText();budget.text(text.codePointCount(0,text.length()));}}
+  var output=json.object().put("schema_version",v2?"2.0.0":"1.0.0").put("kind",schema.candidate()?"FIXED_CANDIDATE_STRUCTURE_CORE":"FIXED_DOCUMENT_STRUCTURE_CORE").put("algorithm_id","urn:medical:fixed-structure:stable-ids-prefix-suffix:1.0.0")
+   .put("implementation_sha256",implementation()).put("schema_sha256",schema.schemaSha256(v2))
    .put("left_body_sha256",schema.hash(l)).put("right_body_sha256",schema.hash(r)).put("semantic_assessment","NOT_PERFORMED");
+  if(v2){output.put("left_body_schema_ref",leftSchema.schemaRef()).put("left_body_schema_sha256",leftSchema.schemaSha256()).put("right_body_schema_ref",rightSchema.schemaRef()).put("right_body_schema_sha256",rightSchema.schemaSha256());}else output.put("body_schema_sha256",schema.catalogue.schemaDigest("interfaces"));
   output.set("request",json.tree(request));output.set("limits",json.tree(limits));output.put("input_sha256",schema.hash(output));
   var records=output.putArray("records");var affected=new TreeSet<String>();
   var ln=index(l.path("nodes"),"node_id");var rn=index(r.path("nodes"),"node_id");

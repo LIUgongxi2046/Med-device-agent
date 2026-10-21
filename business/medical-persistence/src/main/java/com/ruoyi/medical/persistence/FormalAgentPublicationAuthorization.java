@@ -18,9 +18,9 @@ import org.springframework.beans.factory.ObjectProvider;import org.springframewo
   var authorization=json.object();authorization.set("dependencies",deps.authorizations());authorization.set("current_read",AgentPublicationWitness.tree(loaded.readGrant()));
   if(!historical)authorization.set("acceptance_approval",AgentPublicationWitness.tree(currentApproval(a,loaded)));
   if(writing){if(candidate.binding().createdBy().equals(a.actorId()))deny(ErrorCode.ACCESS_DENIED);authorization.set("publication_write",AgentPublicationWitness.tree(resources.require(a,FormalAgentCandidateService.governance(a,loaded.row().projectId()),"agent.publish","AGENT_PUBLICATION")));resources.require(a,new PermissionProtocol.Scope(a.context().tenant_id(),loaded.row().projectId(),"CONFIGURATION",candidate.agent().agentId()),"artifact.register","AGENT_PUBLICATION");}
-  adapter.requireCurrent(a,loaded.content().deepCopy(),historical,prepared);
+  var allVersions=new TreeSet<String>(deps.versions());allVersions.add(acceptance.version_id());allVersions.addAll(adapter.requireCurrentDependencies(a,loaded.content().deepCopy(),historical,prepared));if(allVersions.size()>10000)deny(ErrorCode.CONTEXT_LIMIT);
   var identity=json.object();identity.set("candidate",AgentPublicationWitness.tree(candidate.agent()));identity.set("acceptance",loaded.content());identity.set("authorization",authorization);
-  return new Verified(this,a,acceptance,writing,historical,loaded,deps.versions(),authorization,schema.hash(identity),prepared);
+  return new Verified(this,a,acceptance,writing,historical,loaded,List.copyOf(allVersions),authorization,schema.hash(identity),prepared);
  }
  private PermissionProtocol.GrantRow currentApproval(EnterpriseAccess.Admission a,FormalAgentAcceptanceStore.Loaded loaded)throws Exception{
   var original=schema.read(loaded.decision().authorizationsJson()).required("governance");String actor=loaded.row().createdBy(),grantId=original.required("grant_id").asText();

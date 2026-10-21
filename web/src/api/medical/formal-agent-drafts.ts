@@ -12,6 +12,7 @@ import { projectJsonIssue } from './project-json';
 import { lookupOperation, readOperation } from './operations';
 import { capabilityGuard, capabilityScopeCandidates, capabilitySchemas } from './formal-capability-domain';
 export { capabilityScopeCandidates, capabilitySchemas };
+import type { CapabilityResourceCandidate } from './formal-capability-domain';
 export type DraftKind = 'AGENT' | 'TOOL' | 'SKILL';
 export type DraftReader = () => MedicalSession;
 export type DraftBody = Record<string, any>;
@@ -79,7 +80,7 @@ export function draftIssue(kind: DraftKind, body: DraftBody): string { const che
     return '请补齐固定声明：' + (check.errors?.[0]?.instancePath || '字段格式'); if (kind !== 'AGENT' && body.kind !== kind)
     return '能力类型与当前表单不一致'; if (typeof body.reason !== 'string' || body.reason.trim() !== body.reason || !body.reason.trim() || body.reason.normalize('NFC') !== body.reason)
     return '登记理由须为规范化的非空文本'; return ''; }
-export function draftAllowed(s: MedicalSession, kind: DraftKind, project: string | null): boolean { const t = s.current_context?.tenant_id; return !!t && s.action_summary.some(x => x.action === (kind === 'AGENT' ? 'agent.configure' : 'capability.configure') && (project === null ? x.resource_kind === 'ENTERPRISE' && x.resource_id === t && x.project_id === null : x.resource_kind === 'PROJECT' && x.resource_id === project && x.project_id === project)); }
+export function draftAllowed(s: MedicalSession, kind: DraftKind, project: string | null): boolean { const t = s.current_context?.tenant_id; return !!t && s.action_summary.some(x => x.action === (kind === 'AGENT' ? 'agent.configure' : 'capability.configure') && (x.resource_kind === 'ENTERPRISE' && x.resource_id === t && x.project_id === null || project !== null && x.resource_kind === 'PROJECT' && x.resource_id === project && x.project_id === project)); }
 const key = (s: MedicalSession) => 'medical.formal-agent-draft.pending:' + s.user.user_id + ':' + s.current_context?.tenant_id;
 const pendingCheck = ajv.compile<PendingDraft>({ type: 'object', additionalProperties: false, required: ['schema_version', 'actor', 'tenant_id', 'context', 'kind', 'key', 'body', 'body_sha256', 'phase', 'receipt'], properties: { schema_version: { const: '1.0.0' }, actor: { $ref: ref(discovery, 'Id') }, tenant_id: { $ref: ref(discovery, 'Id') }, context: { $ref: ref(discovery, 'Context') }, kind: { enum: ['AGENT', 'TOOL', 'SKILL'] }, key: { $ref: ref(discovery, 'Id') }, body: { anyOf: [{ $ref: ref(agent, 'Author') }, { $ref: ref(runtime, 'FormalCapability') }] }, body_sha256: { $ref: ref(discovery, 'Hash') }, phase: { enum: ['PENDING', 'UNKNOWN'] }, receipt: { anyOf: [{ $ref: ref(runtime, 'Receipt') }, { type: 'null' }] } } });
 export function pendingDraft(s: MedicalSession): PendingDraft | null { const raw = sessionStorage.getItem(key(s)); if (raw === null)
@@ -105,7 +106,7 @@ export async function readDraft(reader: DraftReader, kind: DraftKind, id: string
     fail('CONTENT_MISMATCH', '固定草稿身份或摘要不一致'); g.assert(); return draftCopy(v); }
 function verifyReceipt(p: PendingDraft, value: unknown, revision: string | null): DraftReceipt { const r = validate<DraftReceipt>(runtime, 'Receipt', value); if (revision !== '1' || r.kind !== 'AUTHOR' || r.request_body_sha256 !== p.body_sha256)
     fail('CONTENT_MISMATCH', '回执不属于完整原请求'); return r; }
-export async function createDraft(reader: DraftReader, kind: DraftKind, body: DraftBody, signal: AbortSignal, onPending: (p: PendingDraft) => void) {
+export async function createDraft(reader: DraftReader, kind: DraftKind, body: DraftBody, signal: AbortSignal, onPending: (p: PendingDraft) => void, resources: CapabilityResourceCandidate[] = []) {
     const g = capabilityGuard(reader, signal), frozen = draftCopy(body), issue = draftIssue(kind, frozen);
     if (issue)
         throw new Error(issue);
@@ -116,7 +117,7 @@ export async function createDraft(reader: DraftReader, kind: DraftKind, body: Dr
     if (pendingDraft(g.session))
         throw new Error('已有原请求待核查，不能创建或重发');
     if (kind !== 'AGENT') {
-        const candidates = capabilityScopeCandidates(g.session, frozen.project_id);
+        const candidates = capabilityScopeCandidates(g.session, frozen.project_id, resources);
         if (frozen.tool_scope.permissions.some((p: any) => !candidates.some(c => draftCanonical(c) === draftCanonical({ scope: p.scope, action: p.action }))))
             fail('ACCESS_DENIED', '权限须来自当前精确范围，不能通过声明扩大授权');
     }

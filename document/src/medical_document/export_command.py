@@ -1,4 +1,6 @@
 from pathlib import Path
+import os
+import stat
 import json
 import sys
 
@@ -24,13 +26,38 @@ def font_family(path: Path) -> str:
     return families[0]
 
 
-def execute(request_path: Path, result_path: Path) -> None:
-    request = json.loads(request_path.read_bytes())
-    if required(request, 'schema_version') != '1.0.0':
+def execute(request_path: Path, result_path: Path, *, authentication: bytes | None = None) -> None:
+    original_command = request_path.read_bytes()
+    if authentication is not None:
+        from .export_contract import verify_authentication
+        verify_authentication(original_command, authentication)
+        if request_path.resolve(strict=True) != request_path or request_path.stat().st_uid != os.getuid() \
+                or stat.S_IMODE(request_path.stat().st_mode) != 0o400 \
+                or stat.S_IMODE(request_path.parent.stat().st_mode) != 0o700:
+            raise ValueError('认证导出命令文件权限无效')
+    request = json.loads(original_command)
+    catalogue = SchemaCatalogue(Path(required(request, 'catalogue_root')).resolve(strict=True))
+    contract = None
+    if authentication is not None:
+        from .export_contract import authenticate
+        request, contract = authenticate(original_command, authentication, catalogue)
+    elif required(request, 'schema_version') != '1.0.0':
         raise ValueError('导出命令版本无效')
     fonts = required(request, 'fonts')
     if not fonts:
         raise ValueError('导出命令缺少字体')
+    output = Path(required(request, 'output_directory')).resolve(strict=True)
+    if contract is not None:
+        if output != request_path.parent or result_path.parent != output or result_path.exists() or result_path.is_symlink():
+            raise ValueError('认证导出目录无效')
+        for name in ('body_path', 'template_path'):
+            path = Path(required(request, name))
+            if path.resolve(strict=True) != path or path.parent != output:
+                raise ValueError('认证导出输入路径无效')
+        for item in (*fonts, *required(request, 'assets')):
+            path = Path(required(item, 'path'))
+            if path.resolve(strict=True) != path or path.parent != output:
+                raise ValueError('认证导出资源路径无效')
     primary_path = Path(required(fonts[0], 'path')).resolve(strict=True)
     primary_family = font_family(primary_path)
     additional = tuple(FontResource(Path(required(item, 'path')).resolve(strict=True), required(item, 'sha256'),
@@ -42,13 +69,12 @@ def execute(request_path: Path, result_path: Path) -> None:
         required(converter_data, 'version'), required(converter_data, 'timeout_seconds'), required(converter_data, 'sha256'))
     plan = ExportInput(required(request, 'tenant_id'), required(request, 'project_id'), required(request, 'document_revision'),
         required(request, 'attempt_id'), required(request, 'template_version'), required(request, 'body_sha256'),
-        required(request, 'template_sha256'), required(request, 'purpose'), required(request, 'input_data_kind'), font, converter)
+        required(request, 'template_sha256'), required(request, 'purpose'), required(request, 'input_data_kind'), font, converter, request.get('layout_profile'), contract)
     assets = tuple(FixedAsset(required(item, 'artifact_id'), required(item, 'sha256'), required(item, 'media_type'),
         Path(required(item, 'path')).resolve(strict=True).read_bytes()) for item in required(request, 'assets'))
-    renderer = ExportRenderer(SchemaCatalogue(Path(required(request, 'catalogue_root')).resolve(strict=True)))
+    renderer = ExportRenderer(catalogue)
     body = Path(required(request, 'body_path')).resolve(strict=True).read_bytes()
     template = Path(required(request, 'template_path')).resolve(strict=True).read_bytes()
-    output = Path(required(request, 'output_directory')).resolve(strict=True)
     format_name = required(request, 'format')
     if format_name == 'DOCX':
         exported = renderer.docx(plan, body, template, assets, output / 'docx')
@@ -69,20 +95,32 @@ def execute(request_path: Path, result_path: Path) -> None:
         'plan_sha256': exported.plan_sha256,
         'channel_check': exported.channel_check,
         'visual_check': exported.visual_check,
+        'pagination_check': exported.pagination_check,
+        'attachment_node_ids': list(exported.attachment_node_ids),
+        'layout_profile_sha256': exported.layout_profile_sha256,
         'converter_revision': converter.revision,
         'font_manifest_revision': font.manifest_revision,
     }
     validation_path = output / 'validation.json'
     validation_path.write_bytes(rfc8785.dumps(validation))
-    result_path.write_text(json.dumps({
+    if request_path.read_bytes() != original_command:
+        raise ValueError('导出命令在执行期间发生变化')
+    result = {
         'schema_version': '1.0.0',
         'output_path': str(exported.path.resolve(strict=True)),
         'validation_path': str(validation_path.resolve(strict=True)),
         'validation': validation,
-    }, ensure_ascii=False, separators=(',', ':')), encoding='utf-8')
+    }
+    if contract is not None:
+        result.update(command_sha256=contract.command_sha256, body_sha256=contract.body_sha256,
+            body_schema_ref=contract.schema_ref, body_schema_sha256=contract.schema_sha256)
+    result_path.write_text(json.dumps(result, ensure_ascii=False, separators=(',', ':')), encoding='utf-8')
 
 
 if __name__ == '__main__':
-    if len(sys.argv) != 3:
+    if len(sys.argv) == 4 and sys.argv[3] == '--authenticated-v2':
+        execute(Path(sys.argv[1]), Path(sys.argv[2]), authentication=sys.stdin.buffer.read(130))
+    elif len(sys.argv) == 3:
+        execute(Path(sys.argv[1]), Path(sys.argv[2]))
+    else:
         raise ValueError('导出命令参数数量无效')
-    execute(Path(sys.argv[1]), Path(sys.argv[2]))

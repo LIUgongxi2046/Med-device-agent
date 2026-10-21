@@ -7,5 +7,7 @@ import com.ruoyi.medical.identity.ApplicationSessionIdentity;
 public interface PublicationEvidenceRevalidation {
  interface Prepared { }
  Prepared prepare(ApplicationSessionIdentity.Verified subject,String context,JsonNode exactStoredAcceptance,boolean historicalRead)throws Exception;
+ Prepared prepare(EvidenceReadAccess reads,String context,JsonNode exactStoredAcceptance,boolean historicalRead)throws Exception;
+ java.util.List<String> requireCurrentDependencies(EnterpriseAccess.Admission admission,JsonNode exactStoredAcceptance,boolean historicalRead,Prepared prepared)throws Exception;
  void requireCurrent(EnterpriseAccess.Admission admission,JsonNode exactStoredAcceptance,boolean historicalRead,Prepared prepared)throws Exception;
 }

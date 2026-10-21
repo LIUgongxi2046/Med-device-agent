@@ -23,14 +23,18 @@ public final class FormalWorkerControlAuthority {
   return withControl(http,run,actor,null,audience,operation);
  }
  <T>T withControl(HttpServletRequest http,String run,String actor,String step,String audience,Function<VerifiedControl,T> operation)throws Exception{
-  var identity=read(http,run,actor,step,audience);var proof=new VerifiedControl(this,http,identity);
+  var identity=read(http,run,actor,step,audience,null);var proof=new VerifiedControl(this,http,identity);
   try{var result=operation.apply(proof);proof.requireUnchanged();return result;}finally{proof.active=false;}
  }
- private Snapshot read(HttpServletRequest http,String runId,String actor,String stepId,String audience)throws Exception{
+ <T>T withLifecycleControl(HttpServletRequest http,String run,String actor,String audience,TaskRunLifecycleAuthority.Operation operation,Function<VerifiedControl,T> callback)throws Exception{
+  var proof=new VerifiedControl(this,http,read(http,run,actor,null,audience,Objects.requireNonNull(operation)));
+  try{var result=callback.apply(proof);proof.requireUnchanged();return result;}finally{proof.active=false;}
+ }
+ private Snapshot read(HttpServletRequest http,String runId,String actor,String stepId,String audience,TaskRunLifecycleAuthority.Operation operation)throws Exception{
   var scope=TenantScope.requireCurrent();if(!TransactionSynchronizationManager.isActualTransactionActive()||!scope.subjectId().equals(actor))deny();
   var service=services.require(http);var run=store.run(runId,actor);
   if(!"TASK".equals(run.kind())||run.project()==null||run.task()==null||!run.actor().equals(actor)||!run.executionActor().equals(actor)
-    ||!"ACTIVE".equals(run.principalStatus())||!(stepId==null?List.of("QUEUED","RUNNING").contains(run.status()):"RUNNING".equals(run.status()))||run.ended()!=null||run.closed()!=null||run.superseded()!=null
+    ||!"ACTIVE".equals(run.principalStatus())||(operation==null?(!(stepId==null?List.of("QUEUED","RUNNING").contains(run.status()):"RUNNING".equals(run.status()))||run.ended()!=null||run.closed()!=null):!Set.of("RUNNING","WAITING_INPUT","CANCEL_REQUESTED","SUCCEEDED","FAILED","CANCELLED").contains(run.status()))||run.superseded()!=null
     ||!scope.tenantId().equals(run.tenant())||!schema.manifestSha256().equals(run.manifest())||!schema.manifestSha256().equals(run.principalManifest()))deny();
   var manifest=schema.scopeManifest(run.scope(),run.tenant(),run.project(),actor,run.id(),run.kind());
   var principal=schema.principalManifest(run.capabilities(),run.tenant(),run.project(),actor,run.id(),run.principal(),manifest);
@@ -40,9 +44,11 @@ public final class FormalWorkerControlAuthority {
   if("local".equals(binding.mode())){if(!actor.equals(binding.localUserId()))deny();accounts=jdbc.query("SELECT user_id FROM platform_local_account WHERE user_id=? AND status='ACTIVE' FOR UPDATE",(r,n)->r.getString(1),actor);}
   else if("oidc".equals(binding.mode())){if(binding.localUserId()!=null)deny();accounts=jdbc.query("SELECT user_id FROM platform_identity WHERE identity_id=? AND user_id=? AND issuer=? AND subject=? AND status='ACTIVE' FOR UPDATE",(r,n)->r.getString(1),binding.identityId(),actor,binding.issuer(),binding.subject());}
   else{deny();return null;}
-  if(accounts.size()!=1||!"ACTIVE".equals(one(permissions.projectStatus(run.project()))))deny();
+  if(accounts.size()!=1||!(operation!=null&&operation.cancellation()?Set.of("ACTIVE","PAUSED"):Set.of("ACTIVE")).contains(one(permissions.projectStatus(run.project()))))deny();
   one(jdbc.query("SELECT user_id FROM tenant_member WHERE tenant_id=? AND user_id=? AND status='ACTIVE' AND valid_from<=UTC_TIMESTAMP(6) AND (valid_to IS NULL OR valid_to>UTC_TIMESTAMP(6)) FOR UPDATE",(r,n)->r.getString(1),run.tenant(),actor));
-  grants.requireResource(new PermissionProtocol.Scope(run.tenant(),run.project(),"TASK",run.task()),actor,binding.mode(),"task.run","TASK_EXECUTION",permissions.resourceGrants(actor,"task.run"),store.now());
+  var taskScope=new PermissionProtocol.Scope(run.tenant(),run.project(),"TASK",run.task());String purpose=operation==null?"TASK_EXECUTION":operation.purpose();
+  if(operation!=null&&!schema.permissions(principal).contains(new RunTokenAuthoritySchema.Permission(taskScope,"task.run",purpose)))deny();
+  var grant=grants.requireResource(taskScope,actor,binding.mode(),"task.run",purpose,permissions.resourceGrants(actor,"task.run"),store.now());
   var saved=one(jdbc.query("""
     SELECT r.replay_manifest,o.payload FROM task_run r JOIN outbox_event o ON o.tenant_id=r.tenant_id AND o.aggregate_id=r.run_id AND o.event_type='run.start.requested'
     WHERE r.tenant_id=? AND r.project_id=? AND r.run_id=? AND r.created_by=? AND r.execution_kind='TASK' LIMIT 2 FOR UPDATE
@@ -57,7 +63,7 @@ public final class FormalWorkerControlAuthority {
   var original=start.deepCopy();((com.fasterxml.jackson.databind.node.ObjectNode)original.required("command")).remove("command_sha256");
   if(!schema.sha256(original).equals(startCommand.required("command_sha256").asText()))deny();
   var policyIdentity=savedReplay.required("execution_policy_version");
-  if(stepId==null)return new Snapshot(run,null,new Node(null,null,null,policyIdentity.required("version_id").asText(),policyIdentity.required("content_sha256").asText(),null,null,null,null,null,null,schema.canonical(savedReplay)),service.serviceUri(),service.certificateSha256(),service.trustRevision(),audience,binding.mode(),savedReplay.required("execution_policy").required("business_purpose").asText());
+  if(stepId==null)return new Snapshot(run,null,new Node(null,null,null,policyIdentity.required("version_id").asText(),policyIdentity.required("content_sha256").asText(),null,null,null,null,null,null,schema.canonical(savedReplay)),service.serviceUri(),service.certificateSha256(),service.trustRevision(),audience,binding.mode(),savedReplay.required("execution_policy").required("business_purpose").asText(),operation,grant);
   var node=one(jdbc.query("""
     SELECT n.node_kind,n.role_version,n.role_sha256,n.policy_version,n.policy_sha256,
       n.canonical_definition,n.definition_sha256,s.input_sha256,s.status,s.lease_generation,s.lease_owner,
@@ -75,17 +81,29 @@ public final class FormalWorkerControlAuthority {
   var replay=reader.readTree(node.replay());if(!replay.equals(savedReplay))deny();var policy=replay.required("execution_policy_version");
   if(!node.policy().equals(policy.required("version_id").asText())||!node.policySha().equals(policy.required("content_sha256").asText())
     ||!List.of("READY","RUNNING").contains(node.status()))deny();
-  return new Snapshot(run,stepId,node,service.serviceUri(),service.certificateSha256(),service.trustRevision(),audience,binding.mode(),savedReplay.required("execution_policy").required("business_purpose").asText());
+  return new Snapshot(run,stepId,node,service.serviceUri(),service.certificateSha256(),service.trustRevision(),audience,binding.mode(),savedReplay.required("execution_policy").required("business_purpose").asText(),operation,grant);
  }
  private record Node(String kind,String role,String roleSha,String policy,String policySha,String definition,String definitionSha,String input,String status,String generation,String owner,String replay){}
- private record Snapshot(RunTokenAuthorityStore.Run run,String step,Node node,String service,String certificateSha,String trustRevision,String audience,String mode,String purpose){}
+ private record Snapshot(RunTokenAuthorityStore.Run run,String step,Node node,String service,String certificateSha,String trustRevision,String audience,String mode,String purpose,TaskRunLifecycleAuthority.Operation operation,PermissionProtocol.GrantRow grant){}
  public static final class VerifiedControl {
-  private final FormalWorkerControlAuthority owner;private final HttpServletRequest http;private final Snapshot value;
+  private final FormalWorkerControlAuthority owner;private final HttpServletRequest http;private Snapshot value;
   private final Thread thread=Thread.currentThread();private final TenantScope scope=TenantScope.requireCurrent();
   private final Map<Object,Object> transaction=Map.copyOf(TransactionSynchronizationManager.getResourceMap());private boolean active=true;
   private VerifiedControl(FormalWorkerControlAuthority owner,HttpServletRequest http,Snapshot value){this.owner=owner;this.http=http;this.value=value;if(transaction.isEmpty())deny();}
   private void active(){if(!active||thread!=Thread.currentThread()||scope!=TenantScope.requireCurrent()||!TransactionSynchronizationManager.isActualTransactionActive())deny();var current=TransactionSynchronizationManager.getResourceMap();if(current.size()!=transaction.size()||transaction.entrySet().stream().anyMatch(e->current.get(e.getKey())!=e.getValue()))deny();}
-  public void requireUnchanged(){active();try{if(!value.equals(owner.read(http,value.run().id(),value.run().actor(),value.step(),value.audience())))deny();}catch(RuntimeException e){throw e;}catch(Exception e){throw new TenantAccessException(ErrorCode.ACCESS_DENIED);}}
+  public void requireUnchanged(){active();try{if(!value.equals(owner.read(http,value.run().id(),value.run().actor(),value.step(),value.audience(),value.operation())))deny();}catch(RuntimeException e){throw e;}catch(Exception e){throw new TenantAccessException(ErrorCode.ACCESS_DENIED);}}
+  void acceptedStart(FormalRunControlAccess.Proof proof,TaskRunAcceptedStart.Transition transition)throws Exception{
+   active();if(!runOnly())deny();var fresh=owner.read(http,value.run().id(),value.run().actor(),null,value.audience(),value.operation());
+   transition.claim(proof,value.run(),fresh.run());
+   if(!new Snapshot(fresh.run(),value.step(),value.node(),value.service(),value.certificateSha(),value.trustRevision(),value.audience(),value.mode(),value.purpose(),value.operation(),value.grant()).equals(fresh))deny();
+   value=fresh;requireUnchanged();
+  }
+  void lifecycleTransition(FormalRunControlAccess.Proof proof,TaskRunLifecycleAuthority.Transition transition)throws Exception{
+   active();if(!runOnly()||value.operation()==null)deny();var fresh=owner.read(http,value.run().id(),value.run().actor(),null,value.audience(),value.operation());
+   transition.claim(proof,value.operation(),value.run(),fresh.run());
+   if(!new Snapshot(fresh.run(),value.step(),value.node(),value.service(),value.certificateSha(),value.trustRevision(),value.audience(),value.mode(),value.purpose(),value.operation(),value.grant()).equals(fresh))deny();
+   value=fresh;requireUnchanged();
+  }
   public void requireLiteralMetadataPermission(PermissionProtocol.Scope resource,String purpose){
    requireUnchanged();if(!"CONFIGURATION".equals(resource.resource_kind())||!value.run().tenant().equals(resource.tenant_id()))deny();
    try{var run=value.run();var declared=owner.schema.scopeManifest(run.scope(),run.tenant(),run.project(),run.actor(),run.id(),run.kind());

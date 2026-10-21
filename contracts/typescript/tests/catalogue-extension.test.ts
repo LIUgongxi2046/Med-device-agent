@@ -1,3 +1,4 @@
+import { publicationFixture } from './publication-fixture.js'
 import assert from 'node:assert/strict'
 import { copyFile, mkdir, mkdtemp, readFile, rename, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -8,6 +9,19 @@ import { mergePublishedCatalogue, SchemaCatalogue, sha256, type CatalogueManifes
 import { loadProject } from '../src/load-project.js'
 
 const root = resolve('../..')
+const currentPublication = await publicationFixture(root)
+const planDraftPackagePath = 'contracts/extensions/task-plan-draft-package.catalogue.json'
+const planDraftPackageBytes = await readFile(resolve(root,planDraftPackagePath))
+const planDraftPackage = JSON.parse(planDraftPackageBytes.toString('utf8')) as CatalogueManifest
+const taskPackagePath = 'contracts/extensions/task-professional-package.catalogue.json'
+const taskPackageBytes = await readFile(resolve(root,taskPackagePath))
+const taskPackage = JSON.parse(taskPackageBytes.toString('utf8')) as CatalogueManifest
+const taskToolPath = 'contracts/extensions/task-tool-read.catalogue.json'
+const taskToolBytes = await readFile(resolve(root, taskToolPath))
+const taskTool = JSON.parse(taskToolBytes.toString('utf-8')) as CatalogueManifest
+const planningPath = 'contracts/extensions/evaluation-planning-context-compiler.catalogue.json'
+const planningBytes = await readFile(resolve(root, planningPath))
+const planning = JSON.parse(planningBytes.toString('utf-8')) as CatalogueManifest
 const contextPath = 'contracts/extensions/evaluation-context-compiler.catalogue.json'
 const context = JSON.parse(await readFile(resolve(root, contextPath), 'utf-8')) as CatalogueManifest
 const runtimePath = 'contracts/extensions/task-runtime.catalogue.json'
@@ -27,7 +41,7 @@ async function copiedPublication(run: (project: string) => Promise<void>): Promi
   const directory = await mkdtemp(resolve(tmpdir(), 'medical-catalogue-'))
   const project = resolve(directory, 'project')
   try {
-    for (const path of ['contracts/catalogue.json', extensionPath, simulationPath, runtimePath, contextPath, ...context.schemas.map(entry => entry.path), ...runtime.schemas.map(entry => entry.path), ...simulation.schemas.map(entry => entry.path), ...base.schemas.map(entry => entry.path), ...extension.schemas.map(entry => entry.path)]) {
+    for (const path of currentPublication.files) {
       const target = resolve(project, path)
       await mkdir(dirname(target), { recursive: true })
       await copyFile(resolve(root, path), target)
@@ -56,7 +70,7 @@ test('pinned extension preserves all legacy bytes, identities, digests and defin
     for (const definition of Object.keys(document.$defs)) assert.equal(catalogue.schemaRef(entry.name, definition), legacy.schemaRef(entry.name, definition))
   }
   assert.equal(catalogue.schemaRef('evaluation-results'), 'urn:medical:evaluation-results:1.0.0')
-  assert.equal(catalogue.definitionCount, 503)
+  assert.equal(catalogue.definitionCount, currentPublication.definitionCount)
 })
 
 test('publication trust uses exact raw extension and base bytes', async () => {
@@ -89,7 +103,7 @@ test('loader reads only the fixed extension and rejects symlinks outside the pro
     const catalogue = await loadProject(project)
     assert.equal(catalogue.schemaRef('evaluation-results'), 'urn:medical:evaluation-results:1.0.0')
   })
-  for (const path of ['contracts/catalogue.json', extensionPath, simulationPath, runtimePath, contextPath, ...context.schemas.map(entry => entry.path), ...runtime.schemas.map(entry => entry.path), ...simulation.schemas.map(entry => entry.path), extension.schemas[0]!.path]) {
+  for (const path of ['contracts/catalogue.json', extensionPath, simulationPath, runtimePath, contextPath, planningPath, taskToolPath, taskPackagePath, planDraftPackagePath, ...planDraftPackage.schemas.map(entry => entry.path), ...taskPackage.schemas.map(entry => entry.path), ...taskTool.schemas.map(entry => entry.path), ...planning.schemas.map(entry => entry.path), ...context.schemas.map(entry => entry.path), ...runtime.schemas.map(entry => entry.path), ...simulation.schemas.map(entry => entry.path), extension.schemas[0]!.path]) {
     await copiedPublication(async project => {
       const outside = resolve(project, '../outside.json')
       await rename(resolve(project, path), outside)
@@ -158,12 +172,12 @@ test('candidate dependency manifest has explicit independent version and bounded
   assert.throws(() => catalogue.validate('simulation-execution', { ...value, approved: true }, 'SimulationCandidateDependencyManifest'))
 })
 
-test('fifth fixed context publication has exact 25 schema and 503 definition coverage', async () => {
+test('fifth context remains25 schemas while separately pinned planning adds19 definitions', async () => {
   const bytes = await readFile(resolve(root, contextPath))
   const full = await mergePublishedCatalogue(baseBytes, extensionBytes, simulationBytes, runtimeBytes, bytes)
   assert.equal(full.schemas.length, 25)
   const catalogue = await loadProject(root)
-  assert.equal(catalogue.definitionCount, 503)
+  assert.equal(catalogue.definitionCount, currentPublication.definitionCount)
   assert.equal(catalogue.schemaRef('evaluation-context-compiler'), 'urn:medical:evaluation-context-compiler:1.0.0')
   assert.equal(catalogue.schemaRef('formal-evaluation-input'), 'urn:medical:formal-evaluation-input:1.0.0')
 })
@@ -171,3 +185,50 @@ test('fifth publication does not accept altered raw bytes', async () => {
   const bytes = await readFile(resolve(root, contextPath))
   await assert.rejects(mergePublishedCatalogue(baseBytes, extensionBytes, simulationBytes, runtimeBytes, Buffer.concat([bytes, Buffer.from('\n')])), /context extension digest/)
 })
+
+test('sixth planning publication preserves the frozen fifth and rejects altered planning bytes', async () => {
+ const contextBytes = await readFile(resolve(root,contextPath))
+ const old = await mergePublishedCatalogue(baseBytes,extensionBytes,simulationBytes,runtimeBytes,contextBytes)
+ const full = await mergePublishedCatalogue(baseBytes,extensionBytes,simulationBytes,runtimeBytes,contextBytes,planningBytes)
+ assert.equal(old.schemas.length,25);assert.equal(full.schemas.length,26)
+ assert.deepEqual(full.schemas.slice(0,25),old.schemas)
+ assert.equal((await loadProject(root)).schemaRef('evaluation-planning-context-compiler'),'urn:medical:evaluation-planning-context-compiler:1.0.0')
+ await assert.rejects(mergePublishedCatalogue(baseBytes,extensionBytes,simulationBytes,runtimeBytes,contextBytes,Buffer.concat([planningBytes,Buffer.from('\n')])),/planning extension digest/)
+})
+
+
+test('seventh task-tool extension preserves frozen six-argument publication and exact source bytes', async () => {
+ const contextBytes = await readFile(resolve(root,contextPath))
+ const old = await mergePublishedCatalogue(baseBytes,extensionBytes,simulationBytes,runtimeBytes,contextBytes,planningBytes)
+ const full = await mergePublishedCatalogue(baseBytes,extensionBytes,simulationBytes,runtimeBytes,contextBytes,planningBytes,taskToolBytes)
+ assert.equal(old.schemas.length,26);assert.equal(full.schemas.length,28)
+ assert.deepEqual(full.schemas.slice(0,26),old.schemas)
+ const oldFiles=new Map<string,Uint8Array>();for(const entry of old.schemas)oldFiles.set(entry.path,await readFile(resolve(root,entry.path)))
+ assert.equal((await SchemaCatalogue.create(old,oldFiles)).definitionCount,522)
+ const current=await loadProject(root);assert.equal(current.definitionCount,currentPublication.definitionCount)
+ assert.equal(current.schemaRef('tool-inputs','SearchArgs'),'https://schemas.medical-agent.invalid/1.0.0/tool-inputs#/$defs/SearchArgs')
+ assert.equal(current.schemaRef('tool-inputs','ReadArgs'),'https://schemas.medical-agent.invalid/1.0.0/tool-inputs#/$defs/ReadArgs')
+ assert.equal(current.schemaRef('task-tool-read-success'),'https://schemas.medical-agent.invalid/1.0.0/task-tool-read-success')
+ await assert.rejects(mergePublishedCatalogue(baseBytes,extensionBytes,simulationBytes,runtimeBytes,contextBytes,planningBytes,Buffer.concat([taskToolBytes,Buffer.from('\n')])),/Task tool read catalogue digest/)
+ for(const entry of taskTool.schemas)assert.equal(await sha256(await readFile(resolve(root,entry.path))),entry.sha256)
+})
+
+
+test('eighth package publication preserves seventh bytes and publishes only genuine package definitions',async()=>{
+ const contextBytes=await readFile(resolve(root,contextPath))
+ const old=await mergePublishedCatalogue(baseBytes,extensionBytes,simulationBytes,runtimeBytes,contextBytes,planningBytes,taskToolBytes)
+ const full=await mergePublishedCatalogue(baseBytes,extensionBytes,simulationBytes,runtimeBytes,contextBytes,planningBytes,taskToolBytes,taskPackageBytes)
+ assert.equal(old.schemas.length,28);assert.equal(full.schemas.length,29);assert.deepEqual(full.schemas.slice(0,28),old.schemas)
+ const files=new Map<string,Uint8Array>();for(const e of old.schemas)files.set(e.path,await readFile(resolve(root,e.path)))
+ assert.equal((await SchemaCatalogue.create(old,files)).definitionCount,544)
+ const current=await loadProject(root);assert.equal(current.definitionCount,currentPublication.definitionCount)
+ for(const name of ['RolePackage','PromptPackage','ProfilePackage'])assert.equal(current.schemaRef('task-professional-package',name),'urn:medical:task-professional-package:1.0.0#/$defs/'+name)
+ await assert.rejects(mergePublishedCatalogue(baseBytes,extensionBytes,simulationBytes,runtimeBytes,contextBytes,planningBytes,taskToolBytes,Buffer.concat([taskPackageBytes,Buffer.from('\n')])),/package.*digest/i)
+})
+
+ test('N01 package remains independently published in complete copied catalogue', async () => {
+  await copiedPublication(async project => {
+    const catalogue = await loadProject(project)
+    assert.equal(catalogue.schemaRef('task-plan-draft-package','RolePackage'),'urn:medical:task-plan-draft-package:1.0.0#/$defs/RolePackage')
+  })
+ })

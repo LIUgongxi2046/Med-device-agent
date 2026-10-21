@@ -1,0 +1,343 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:task-node-input:1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "tenant_id",
+    "project_id",
+    "task_id",
+    "run_id",
+    "step_id",
+    "graph_id",
+    "question_id",
+    "section_id",
+    "plan_revision",
+    "snapshot_id",
+    "graph_sha256",
+    "plan_sha256",
+    "snapshot_sha256",
+    "replay_sha256",
+    "replay_receipt_sha256",
+    "schema_version",
+    "node_kind",
+    "question_key",
+    "question_text",
+    "replay_artifact",
+    "role_version",
+    "execution_policy_version",
+    "fixed_sources",
+    "node_permissions",
+    "predecessors"
+  ],
+  "properties": {
+    "tenant_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "project_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "task_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "run_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "step_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "graph_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "question_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "section_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "plan_revision": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "snapshot_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "graph_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "plan_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "snapshot_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "replay_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "replay_receipt_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "node_kind": {
+      "const": "N02"
+    },
+    "question_key": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "question_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 16384
+    },
+    "replay_artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact_id",
+        "sha256",
+        "object_version"
+      ],
+      "properties": {
+        "artifact_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "object_version": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        }
+      }
+    },
+    "role_version": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version_id",
+        "content_sha256"
+      ],
+      "properties": {
+        "version_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "content_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      }
+    },
+    "execution_policy_version": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version_id",
+        "content_sha256"
+      ],
+      "properties": {
+        "version_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "content_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      }
+    },
+    "fixed_sources": {
+      "type": "array",
+      "maxItems": 512,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "source_version",
+          "parse_version",
+          "index_version",
+          "approval_revision",
+          "binding_revision",
+          "rights_revision",
+          "purpose"
+        ],
+        "properties": {
+          "source_version": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "parse_version": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "index_version": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "approval_revision": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "binding_revision": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "rights_revision": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "purpose": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Z0-9_]{0,63}$"
+          }
+        }
+      }
+    },
+    "node_permissions": {
+      "type": "array",
+      "maxItems": 256,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "scope",
+          "action",
+          "purpose"
+        ],
+        "properties": {
+          "scope": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "tenant_id",
+              "project_id",
+              "resource_kind",
+              "resource_id"
+            ],
+            "properties": {
+              "tenant_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "project_id": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "resource_kind": {
+                "type": "string",
+                "minLength": 1
+              },
+              "resource_id": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          "action": {
+            "type": "string",
+            "minLength": 1
+          },
+          "purpose": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Z0-9_]{0,63}$"
+          }
+        }
+      }
+    },
+    "predecessors": {
+      "type": "array",
+      "maxItems": 512,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "step_id",
+          "result_artifact_id",
+          "evidence_artifact_id",
+          "result_sha256",
+          "result_receipt_sha256",
+          "evidence_sha256",
+          "evidence_receipt_sha256",
+          "completion_receipt_sha256",
+          "result_object_version",
+          "evidence_object_version"
+        ],
+        "properties": {
+          "step_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "result_artifact_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "evidence_artifact_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "result_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "result_receipt_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "evidence_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "evidence_receipt_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "completion_receipt_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "result_object_version": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "evidence_object_version": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          }
+        }
+      }
+    }
+  }
+}

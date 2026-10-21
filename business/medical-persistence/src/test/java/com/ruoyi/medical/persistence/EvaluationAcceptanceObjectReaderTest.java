@@ -92,5 +92,44 @@ final class EvaluationAcceptanceObjectReaderTest {
  @Test void objectRawHashCannotAuthorizeDifferentRequestedBasis(){code(ErrorCode.CONTENT_MISMATCH,()->reader.source(subject,"1",PROJECT,new PermissionProtocol.Basis(PRIMARY,hash("replacement request")),ROOT_PURPOSE));assertEquals(0,requests.get());}
  @Test void sourceRightsMustMatchExplicitRequestedPurposeBeforeGet(){code(ErrorCode.ACCESS_DENIED,()->reader.source(subject,"1",PROJECT,f.basis(PRIMARY),INPUT_PURPOSE));assertEquals(0,requests.get());}
  @Test void validUtf16JsonIsNotAcceptedAsUtf8Original(){sourceBytes("{}".getBytes(StandardCharsets.UTF_16));assertInstanceOf(java.nio.charset.CharacterCodingException.class,rootCause(assertThrows(Exception.class,this::source)));}
+ /** The control issuer/DB are explicit doubles here; actual bounded loopback GET and reader checks remain real. */
+ final AtomicBoolean controlActive=new AtomicBoolean(true);
+ EvidenceReadAccess controlReader()throws Exception {
+  var control=mock(FormalRunControlAccess.Reads.class);
+  doAnswer(i->{if(!controlActive.get())throw new TenantAccessException(ErrorCode.ACCESS_DENIED);return null;}).when(control).requireActive();
+  when(control.actorId()).thenReturn(ACTOR);when(control.tenantId()).thenReturn(TENANT);
+  doAnswer(i->{control.requireActive();if(!PRIMARY.equals(i.getArgument(0))||!f.basis(PRIMARY).content_sha256().equals(i.getArgument(1)))throw new TenantAccessException(ErrorCode.ACCESS_DENIED);return null;}).when(control).requireVersion(anyString(),anyString());
+  when(control.execute(any())).thenAnswer(i->{control.requireActive();stateReads.incrementAndGet();Function<EnterpriseAccess.Admission,Object> operation=i.getArgument(0);return f.transaction(()->operation.apply(f.admission));});
+  when(transport.readControlDocument(eq(control),anyInt(),any(),any())).thenAnswer(i->{
+   assertFalse(TransactionSynchronizationManager.isActualTransactionActive());assertEquals(EvaluationAcceptanceInputSchema.MAXIMUM_DOCUMENT_BYTES,(int)i.getArgument(1));
+   var guard=(S3ObjectReader.Admission)i.getArgument(2);beforeTransport.run();
+   var lease=new S3ObjectReader.TimedAdmission(){public void requireCurrent(){control.requireActive();guard.requireCurrent();}public Duration remainingTime(){requireCurrent();return Duration.ofMinutes(2);}};
+   lease.requireCurrent();SourceUploadTransport.DocumentRead<Object> callback=i.getArgument(3);Object result;
+   try(var actual=new S3ObjectReader(URI.create("http://127.0.0.1:"+server.getAddress().getPort()),"fixture","us-east-1",S3ObjectReader.Network.LOCAL_LOOPBACK,StaticCredentialsProvider.create(AwsBasicCredentials.create("synthetic-local-id","synthetic-local-secret")),spool,EvaluationAcceptanceInputSchema.MAXIMUM_DOCUMENT_BYTES,16)){result=callback.apply(actual,lease);}afterTransport.run();lease.requireCurrent();return result;
+  });
+  when(subject.user()).thenThrow(new AssertionError("Control path must not read browser session"));
+  when(f.admission.subject()).thenThrow(new AssertionError("Control read must not synthesize session"));
+  return EvidenceReadAccess.control(control);
+ }
+ @Test void controlOriginalReadUsesBoundedGetWithoutBrowserSession()throws Exception {
+  var control=controlReader();var document=reader.sourceEvidence(control,"1",PROJECT,f.basis(PRIMARY),ROOT_PURPOSE);
+  assertEquals(f.basis(PRIMARY),document.basis());assertTrue(requests.get()>1);assertTrue(stateReads.get()>requests.get());
+  f.transaction(()->{document.requireCurrent(f.admission);return null;});verify(access,never()).execute(any(),any());verify(transport,never()).readDocument(any(),anyString(),anyInt(),any(),any());
+ }
+ @Test void controlReadRechecksCurrentGrantBetweenPhysicalSegments()throws Exception {
+  var control=controlReader();onGet=()->allowed.set(false);code(ErrorCode.ACCESS_DENIED,()->reader.sourceEvidence(control,"1",PROJECT,f.basis(PRIMARY),ROOT_PURPOSE));assertEquals(1,requests.get());
+ }
+ @Test void controlReadRechecksCapabilityBetweenPhysicalSegments()throws Exception {
+  var control=controlReader();onGet=()->controlActive.set(false);code(ErrorCode.ACCESS_DENIED,()->reader.sourceEvidence(control,"1",PROJECT,f.basis(PRIMARY),ROOT_PURPOSE));assertEquals(1,requests.get());
+ }
+ @Test void exactControlPinIsCheckedBeforeAnySourceStateOrGet()throws Exception {
+  var control=controlReader();int before=stateReads.get();
+  code(ErrorCode.ACCESS_DENIED,()->reader.sourceEvidence(control,"1",PROJECT,new PermissionProtocol.Basis(id(909),f.basis(PRIMARY).content_sha256()),ROOT_PURPOSE));
+  code(ErrorCode.ACCESS_DENIED,()->reader.sourceEvidence(control,"1",PROJECT,new PermissionProtocol.Basis(PRIMARY,hash("different version bytes")),ROOT_PURPOSE));
+  assertEquals(before,stateReads.get());assertEquals(0,requests.get());
+ }
+ @Test void closedControlCannotStartOriginalGet()throws Exception {
+  var control=controlReader();controlActive.set(false);code(ErrorCode.ACCESS_DENIED,()->reader.sourceEvidence(control,"1",PROJECT,f.basis(PRIMARY),ROOT_PURPOSE));assertEquals(0,requests.get());
+ }
  @AfterEach void cleanup()throws Exception{if(server!=null)server.stop(0);if(spool!=null){try(var paths=Files.list(spool)){assertEquals(0,paths.count(),"Actual S3 reader must release its private partial/complete files");}Files.deleteIfExists(spool);}assertFalse(TransactionSynchronizationManager.isActualTransactionActive());assertEquals(ErrorCode.ACCESS_DENIED,assertThrows(TenantAccessException.class,TenantScope::requireCurrent).code());}
 }

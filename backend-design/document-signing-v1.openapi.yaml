@@ -1,0 +1,98 @@
+openapi: 3.1.0
+info:
+  title: Human document signing additive contract
+  version: 1.0.0
+  description: Internal approval only. No external electronic seal, regulatory submission, or healthcare agreement acceptance. Legacy schema documents and their digests are unchanged.
+components:
+  parameters:
+    Context: {name: X-Context-Revision, in: header, required: true, schema: {type: string, pattern: '^(0|[1-9][0-9]*)$'}}
+    Version: {name: X-Schema-Version, in: header, required: true, schema: {const: '1.0.0'}}
+    HistoryVersion: {name: X-Schema-Version, in: header, required: true, schema: {const: '1.1.0'}}
+    Key: {name: Idempotency-Key, in: header, required: true, schema: {type: string, minLength: 1, maxLength: 128}}
+    Csrf: {name: X-CSRF-TOKEN, in: header, required: true, schema: {type: string, minLength: 1}}
+    Id: {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+    Project: {name: project, in: path, required: true, schema: {type: string, format: uuid}}
+    Revision: {name: X-Document-Revision, in: header, required: true, schema: {type: string, format: uuid}}
+    Purpose: {name: X-Signing-Purpose, in: header, required: true, schema: {type: string, pattern: '^[A-Z][A-Z0-9_]{0,63}$'}}
+  responses:
+    Result:
+      description: Versioned envelope with schema_version, request_id, resource_revision and data. All responses are no-store.
+      content:
+        application/json:
+          schema:
+            oneOf:
+              - {$ref: '../business/medical-persistence/src/main/resources/document-signing-v1.schema.json#/$defs/Envelope'}
+              - {$ref: '../business/medical-persistence/src/main/resources/document-signing-v1.schema.json#/$defs/HistoryEnvelope'}
+    Error:
+      description: Standard identity error envelope. Missing provider/policy is SIGNING_POLICY_UNCONFIGURED, never success. Unknown exchange outcome requires a new challenge, not retrying a code.
+paths:
+  /api/projects/{project}/signing-policies:
+    post:
+      operationId: createSigningPolicyDraft
+      parameters: [{$ref: '#/components/parameters/Project'}, {$ref: '#/components/parameters/Context'}, {$ref: '#/components/parameters/Version'}, {$ref: '#/components/parameters/Key'}, {$ref: '#/components/parameters/Csrf'}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '../business/medical-persistence/src/main/resources/document-signing-v1.schema.json#/$defs/Policy'}}}}
+      responses: {'200': {$ref: '#/components/responses/Result'}, default: {$ref: '#/components/responses/Error'}}
+  /api/projects/{project}/signing-policy-approvals:
+    post:
+      operationId: approveSigningPolicyIndependently
+      parameters: [{$ref: '#/components/parameters/Project'}, {$ref: '#/components/parameters/Context'}, {$ref: '#/components/parameters/Version'}, {$ref: '#/components/parameters/Key'}, {$ref: '#/components/parameters/Csrf'}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '../business/medical-persistence/src/main/resources/document-signing-v1.schema.json#/$defs/PolicyApproval'}}}}
+      responses: {'200': {$ref: '#/components/responses/Result'}, default: {$ref: '#/components/responses/Error'}}
+  /api/documents/{id}/signing-policy:
+    get:
+      operationId: readApprovedSigningPolicy
+      parameters: [{$ref: '#/components/parameters/Id'}, {$ref: '#/components/parameters/Context'}, {$ref: '#/components/parameters/Version'}, {$ref: '#/components/parameters/Revision'}, {$ref: '#/components/parameters/Purpose'}]
+      responses: {'200': {$ref: '#/components/responses/Result'}, default: {$ref: '#/components/responses/Error'}}
+  /api/documents/{id}/signing-readiness:
+    get:
+      operationId: RV-08
+      description: Returns ReadinessReady or ReadinessBlocked. ready_for_reauthentication does not mean signed or authorized to skip final human confirmation. Missing fresh reauthentication always remains a gate.
+      parameters: [{$ref: '#/components/parameters/Id'}, {$ref: '#/components/parameters/Context'}, {$ref: '#/components/parameters/Version'}, {$ref: '#/components/parameters/Revision'}, {$ref: '#/components/parameters/Purpose'}]
+      responses: {'200': {$ref: '#/components/responses/Result'}, default: {$ref: '#/components/responses/Error'}}
+  /api/reauthentication-challenges:
+    post:
+      operationId: BX-14
+      parameters: [{$ref: '#/components/parameters/Context'}, {$ref: '#/components/parameters/Version'}, {$ref: '#/components/parameters/Key'}, {$ref: '#/components/parameters/Csrf'}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '../business/medical-persistence/src/main/resources/document-signing-v1.schema.json#/$defs/ReauthRequest'}}}}
+      responses: {'200': {$ref: '#/components/responses/Result'}, default: {$ref: '#/components/responses/Error'}}
+  /api/reauthentication-challenges/{id}:
+    get:
+      operationId: recoverSigningChallenge
+      description: Current user/session-only ChallengeStatus. Recovers a lost verified callback response without exchanging a code again. Does not return secrets or authorization URLs.
+      parameters: [{$ref: '#/components/parameters/Id'}, {$ref: '#/components/parameters/Context'}, {$ref: '#/components/parameters/Version'}]
+      responses: {'200': {$ref: '#/components/responses/Result'}, default: {$ref: '#/components/responses/Error'}}
+  /api/signing/oidc/callback:
+    get:
+      operationId: verifySigningOidcCallback
+      description: Dedicated registered callback additive to ID-02, retaining the current authenticated application session. Only code and state query parameters are accepted. Server exchanges the code once and verifies the signed ID token; this endpoint never logs in another subject or signs a document.
+      parameters: [{name: code, in: query, required: true, schema: {type: string, maxLength: 8192}}, {name: state, in: query, required: true, schema: {type: string, maxLength: 256}}]
+      responses: {'200': {$ref: '#/components/responses/Result'}, default: {$ref: '#/components/responses/Error'}}
+  /api/reauthentication-challenges/{id}/completions:
+    post:
+      operationId: BX-15
+      parameters: [{$ref: '#/components/parameters/Id'}, {$ref: '#/components/parameters/Context'}, {$ref: '#/components/parameters/Version'}, {$ref: '#/components/parameters/Key'}, {$ref: '#/components/parameters/Csrf'}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '../business/medical-persistence/src/main/resources/document-signing-v1.schema.json#/$defs/ReauthCompletion'}}}}
+      responses: {'200': {$ref: '#/components/responses/Result'}, default: {$ref: '#/components/responses/Error'}}
+  /api/documents/{id}/signatures:
+    post:
+      operationId: RV-09
+      description: Requires explicit human_confirmation. Recalculates SG-01 to SG-09, consumes the exact receipt and stores immutable original bytes in one transaction. Returns unchanged legacy SignatureDetail fields; duplicate identical authorized requests recover the same signature.
+      parameters: [{$ref: '#/components/parameters/Id'}, {$ref: '#/components/parameters/Context'}, {$ref: '#/components/parameters/Version'}, {$ref: '#/components/parameters/Key'}, {$ref: '#/components/parameters/Csrf'}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '../business/medical-persistence/src/main/resources/document-signing-v1.schema.json#/$defs/SignatureInput'}}}}
+      responses: {'200': {$ref: '#/components/responses/Result'}, default: {$ref: '#/components/responses/Error'}}
+    get:
+      operationId: BX-16-inline-v1.1
+      description: Explicit 1.1.0 negotiation returns closed SignatureHistory with inline unchanged SignatureDetail items. Does not impersonate the legacy RecordPage/ArtifactRef shape. Fixed document revision, complete bounded result up to 100 purposes; excess is CONTEXT_LIMIT, not truncated success. No query parameters.
+      parameters: [{$ref: '#/components/parameters/Id'}, {$ref: '#/components/parameters/Context'}, {$ref: '#/components/parameters/HistoryVersion'}, {$ref: '#/components/parameters/Revision'}]
+      responses: {'200': {$ref: '#/components/responses/Result'}, default: {$ref: '#/components/responses/Error'}}
+  /api/documents/{id}/signature-operations:
+    get:
+      operationId: recoverDocumentSignature
+      parameters: [{$ref: '#/components/parameters/Id'}, {$ref: '#/components/parameters/Context'}, {$ref: '#/components/parameters/Version'}, {$ref: '#/components/parameters/Revision'}, {$ref: '#/components/parameters/Key'}]
+      responses: {'200': {$ref: '#/components/responses/Result'}, default: {$ref: '#/components/responses/Error'}}
+  /api/documents/{id}/signatures/{signature}/snapshot:
+    get:
+      operationId: readImmutableSignedSnapshot
+      description: SignedSnapshot includes exact persisted canonical manifest_json and body_sha256, after current source-aware document authorization and byte-for-byte verification of persisted signed body against the genuine fixed body read. manifest_json UTF-8 hash equals signature.manifest_sha256. No authentication secrets are returned.
+      parameters: [{$ref: '#/components/parameters/Id'}, {name: signature, in: path, required: true, schema: {type: string, format: uuid}}, {$ref: '#/components/parameters/Context'}, {$ref: '#/components/parameters/Version'}, {$ref: '#/components/parameters/Revision'}]
+      responses: {'200': {$ref: '#/components/responses/Result'}, default: {$ref: '#/components/responses/Error'}}

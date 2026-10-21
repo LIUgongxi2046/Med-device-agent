@@ -10,7 +10,6 @@ import ssl
 from urllib.parse import urlsplit
 import aiohttp
 from .host import RuntimeBlocked, strict_json, private_directory, uuid
-from .private_bridge import PrivateBridgeServer
 
 class HttpControl:
     def __init__(self, origin: str, tls: ssl.SSLContext, sockets: Path, maximum_bytes=16*1024*1024):
@@ -42,6 +41,8 @@ class HttpControl:
 
     async def open(self,binding,reference,dispatch):
         return await self._request('open',{'binding':binding.wire(),'reference':reference,'dispatch':dispatch})
+    async def admit(self,binding,session):
+        return await self._request('admit',{'binding':binding.wire(),'session_id':session})
     async def heartbeat(self,binding,session):
         reply=await self._request('heartbeat',{'binding':binding.wire(),'session_id':session})
         if reply != {'binding':binding.wire(),'session_id':session,'admission':'CURRENT'}: raise RuntimeBlocked('LEASE_NOT_CURRENT')
@@ -53,15 +54,15 @@ class HttpControl:
     async def failed(self,binding,session,reason,process_exited):
         await self._request('failure',{'binding':binding.wire(),'session_id':session,'reason':reason,'host_process_exited':process_exited})
     async def open_bridge(self,binding,session,job):
-        return await PrivateBridgeServer(self.sockets,binding,session,self.forward,self.maximum_bytes).start()
+        raise RuntimeBlocked('INDEPENDENT_SUPERVISOR_BRIDGE_REQUIRED')
 
     @asynccontextmanager
-    async def forward(self,binding,session,method,route,body,key):
+    async def forward(self,binding,session,method,route,body,key,observed=None):
         if self.client is None: raise RuntimeBlocked('CONTROL_NOT_STARTED')
         await self.heartbeat(binding,session)
         # The private path is closed by PrivateBridgeServer; the model supplies no
         # tenant, run, step, lease, auth token, provider endpoint or HTTP header.
-        payload={'binding':binding.wire(),'session_id':session,'method':method,'route':route,'body':None if not body else strict_json(body),'idempotency_key':key}
+        payload={'binding':binding.wire(),'session_id':session,'method':method,'route':route,'body':None if not body else strict_json(body),'idempotency_key':key,'model_request_observation':observed}
         async with self.client.post(self.origin+'/internal/v1/professional-runtime/bridge',json=payload,
-                timeout=aiohttp.ClientTimeout(total=300,connect=5,sock_read=30),allow_redirects=False) as response:
+                timeout=aiohttp.ClientTimeout(total=360 if route == '/v1/tools/AT-09' else 300,connect=5,sock_read=360 if route == '/v1/tools/AT-09' else 30),allow_redirects=False) as response:
             yield response

@@ -57,6 +57,11 @@
       SELECT tenant_id,source_version,parse_version,MIN(index_version) AS index_version
       FROM index_manifest
       WHERE status='READY' AND mode IN ('FULLTEXT','HYBRID') AND expected_count&gt;0 AND verified_count=expected_count
+      <if test="fixedSources != null">
+        AND <choose><when test="fixedSources.size() > 0"><foreach collection="fixedSources" item="fixed" open="(" separator=" OR " close=")">
+          (source_version=#{fixed.sourceVersion} AND parse_version=#{fixed.parseVersion} AND index_version=#{fixed.indexVersion})
+        </foreach></when><otherwise>1=0</otherwise></choose>
+      </if>
       GROUP BY tenant_id,source_version,parse_version
     ) ri ON ri.tenant_id=pv.tenant_id AND ri.source_version=pv.source_version AND ri.parse_version=pv.parse_version
     WHERE pv.parse_status='COMPLETE' AND g.upload_status='RECEIVED' AND g.approval_status='APPROVED'
@@ -81,6 +86,13 @@
             AND (pg.resource_id IS NULL OR pg.resource_id=s.source_id)))
       AND (MATCH(c.search_text) AGAINST(#{queryText} IN NATURAL LANGUAGE MODE)&gt;0
         OR s.title LIKE CONCAT('%',#{queryText},'%'))
+    <if test="fixedSources != null">
+      AND <choose><when test="fixedSources.size() > 0"><foreach collection="fixedSources" item="fixed" open="(" separator=" OR " close=")">
+        (sv.source_version=#{fixed.sourceVersion} AND pv.parse_version=#{fixed.parseVersion}
+          AND ri.index_version=#{fixed.indexVersion} AND g.approval_revision=#{fixed.approvalRevision}
+          AND sv.rights_revision=#{fixed.rightsRevision})
+      </foreach></when><otherwise>1=0</otherwise></choose>
+    </if>
     ORDER BY relevance DESC,sv.source_version,pv.parse_version,c.chunk_id
     LIMIT 501
   </select>

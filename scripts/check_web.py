@@ -15,7 +15,8 @@ from local_runtime import settings, verify_application_deployment
 
 
 ROOT = Path(__file__).resolve().parents[1]
-CAPTURE = Path('/Users/liuhaoxian/.agents/skills/haonan-s000-pmp/scripts/capture_check.py')
+from check_support import capture_check_path
+CAPTURE = capture_check_path()
 
 
 def read_metrics(output):

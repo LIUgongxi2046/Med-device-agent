@@ -1,0 +1,528 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:external-erasure:1.0.0",
+  "$defs": {
+    "Scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tenant",
+        "source",
+        "scopeId",
+        "kind",
+        "revision"
+      ],
+      "properties": {
+        "tenant": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._-]{1,160}$"
+        },
+        "source": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._-]{1,160}$"
+        },
+        "scopeId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._-]{1,160}$"
+        },
+        "kind": {
+          "enum": [
+            "OFFLINE",
+            "PROVIDER"
+          ]
+        },
+        "revision": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._-]{1,160}$"
+        }
+      }
+    },
+    "Copy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scope",
+        "copyId",
+        "version",
+        "sha256",
+        "providerOperation",
+        "hold",
+        "retainedUntil"
+      ],
+      "properties": {
+        "scope": {
+          "$ref": "#/$defs/Scope"
+        },
+        "copyId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._-]{1,160}$"
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._-]{1,160}$"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "providerOperation": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9._-]{1,160}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "hold": {
+          "enum": [
+            "CLEAR",
+            "LEGAL",
+            "RETENTION",
+            "UNKNOWN"
+          ]
+        },
+        "retainedUntil": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "Approval": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "scope",
+        "snapshot",
+        "declarer",
+        "approver",
+        "validUntil",
+        "proof"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._-]{1,160}$"
+        },
+        "scope": {
+          "$ref": "#/$defs/Scope"
+        },
+        "snapshot": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._-]{1,160}$"
+        },
+        "declarer": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._-]{1,160}$"
+        },
+        "approver": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._-]{1,160}$"
+        },
+        "validUntil": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "proof": {
+          "enum": [
+            "SIMULATED",
+            "AUTHORITATIVE"
+          ]
+        }
+      }
+    },
+    "InventoryRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "proof",
+        "scope",
+        "cursor"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "1.0.0"
+        },
+        "proof": {
+          "enum": [
+            "SIMULATED",
+            "AUTHORITATIVE"
+          ]
+        },
+        "scope": {
+          "$ref": "#/$defs/Scope"
+        },
+        "cursor": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9._-]{1,160}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "Page": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "proof",
+        "scope",
+        "snapshot",
+        "copies",
+        "coveredOperations",
+        "nextCursor",
+        "authoritative",
+        "observedAt"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "1.0.0"
+        },
+        "proof": {
+          "enum": [
+            "SIMULATED",
+            "AUTHORITATIVE"
+          ]
+        },
+        "scope": {
+          "$ref": "#/$defs/Scope"
+        },
+        "snapshot": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._-]{1,160}$"
+        },
+        "copies": {
+          "type": "array",
+          "maxItems": 10000,
+          "items": {
+            "$ref": "#/$defs/Copy"
+          }
+        },
+        "coveredOperations": {
+          "type": "array",
+          "maxItems": 10000,
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9._-]{1,160}$"
+          }
+        },
+        "nextCursor": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9._-]{1,160}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "authoritative": {
+          "type": "boolean"
+        },
+        "observedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "HoldRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "proof",
+        "scope",
+        "copyId",
+        "version"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "1.0.0"
+        },
+        "proof": {
+          "enum": [
+            "SIMULATED",
+            "AUTHORITATIVE"
+          ]
+        },
+        "scope": {
+          "$ref": "#/$defs/Scope"
+        },
+        "copyId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._-]{1,160}$"
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._-]{1,160}$"
+        }
+      }
+    },
+    "Delete": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "proof",
+        "key",
+        "approval",
+        "copy"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "1.0.0"
+        },
+        "proof": {
+          "enum": [
+            "SIMULATED",
+            "AUTHORITATIVE"
+          ]
+        },
+        "key": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._-]{1,160}$"
+        },
+        "approval": {
+          "$ref": "#/$defs/Approval"
+        },
+        "copy": {
+          "$ref": "#/$defs/Copy"
+        }
+      }
+    },
+    "Receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "proof",
+        "key",
+        "scope",
+        "copyId",
+        "copyVersion",
+        "sha256",
+        "outcome",
+        "providerReceipt",
+        "observedAt"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "1.0.0"
+        },
+        "proof": {
+          "enum": [
+            "SIMULATED",
+            "AUTHORITATIVE"
+          ]
+        },
+        "key": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._-]{1,160}$"
+        },
+        "scope": {
+          "$ref": "#/$defs/Scope"
+        },
+        "copyId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._-]{1,160}$"
+        },
+        "copyVersion": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._-]{1,160}$"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "outcome": {
+          "enum": [
+            "ACKNOWLEDGED",
+            "ALREADY_ABSENT",
+            "UNKNOWN",
+            "RETAINED"
+          ]
+        },
+        "providerReceipt": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9._-]{1,160}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "observedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "RecoveryRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "proof",
+        "scope",
+        "key"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "1.0.0"
+        },
+        "proof": {
+          "enum": [
+            "SIMULATED",
+            "AUTHORITATIVE"
+          ]
+        },
+        "scope": {
+          "$ref": "#/$defs/Scope"
+        },
+        "key": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._-]{1,160}$"
+        }
+      }
+    },
+    "Recovery": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "proof",
+        "scope",
+        "key",
+        "receipt"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "1.0.0"
+        },
+        "proof": {
+          "enum": [
+            "SIMULATED",
+            "AUTHORITATIVE"
+          ]
+        },
+        "scope": {
+          "$ref": "#/$defs/Scope"
+        },
+        "key": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._-]{1,160}$"
+        },
+        "receipt": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Receipt"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "Absence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "proof",
+        "scope",
+        "snapshot",
+        "observedAt",
+        "productionPurgeAllowed"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "1.0.0"
+        },
+        "proof": {
+          "enum": [
+            "SIMULATED",
+            "AUTHORITATIVE"
+          ]
+        },
+        "scope": {
+          "$ref": "#/$defs/Scope"
+        },
+        "snapshot": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._-]{1,160}$"
+        },
+        "observedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "productionPurgeAllowed": {
+          "type": "boolean"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "proof": {
+                "const": "SIMULATED"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "productionPurgeAllowed": {
+                "const": false
+              }
+            }
+          }
+        }
+      ]
+    },
+    "EraseRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "authorityId",
+        "scopeId",
+        "copy"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "1.0.0"
+        },
+        "authorityId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._-]{1,160}$"
+        },
+        "scopeId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._-]{1,160}$"
+        },
+        "copy": {
+          "$ref": "#/$defs/Copy"
+        }
+      }
+    }
+  }
+}

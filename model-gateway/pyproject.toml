@@ -8,6 +8,9 @@ version = "1.0.0"
 requires-python = ">=3.12"
 dependencies = ["openai==3.24.0", "medical-contracts==1.0.0"]
 
+[tool.setuptools]
+script-files = ["task_gateway_entrypoint.py", "plan_draft_gateway_entrypoint.py", "section_writer_gateway_entrypoint.py", "document_review_gateway_entrypoint.py"]
+
 [tool.setuptools.packages.find]
 where = ["src"]
 

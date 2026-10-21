@@ -39,6 +39,7 @@ import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetBucketVersioningRequest;
 import software.amazon.awssdk.services.s3.model.ListObjectVersionsRequest;
 import static io.qdrant.client.ConditionFactory.matchKeyword;
@@ -110,7 +111,11 @@ final class SourceDeletionStores {
                         if(result.getStatus()!=UpdateStatus.Completed) mismatch();
                         long remaining=guard.call(() -> client.countAsync(store.collection(),filter,true,TIMEOUT).get(30,TimeUnit.SECONDS));
                         if(remaining!=0) mismatch();
-                        stores.addObject().put("store_id",store.collection()).put("remaining","0");
+                        stores.addObject().put("store_id",store.collection()).put("remaining","0")
+                            .put("tenant_id",tenant).put("source_version",target.sourceVersion())
+                            .put("parse_version",target.parseVersion()).put("index_version",target.indexVersion())
+                            .put("provider_operation_id",Long.toString(result.getOperationId()))
+                            .put("provider_status","Completed").put("exact_count_verified",true);
                     }
                 }
                 guard.call(() -> { mapper.withdrawIndex(values); return null; });
@@ -118,9 +123,16 @@ final class SourceDeletionStores {
             case "CACHE" -> {
                 String pattern=policy.cacheNamespace()+":"+tenant+":"+target.sourceVersion()+":*";
                 var keys=guard.call(() -> cacheKeys(pattern));
-                for(String key:keys) guard.call(() -> redis.getKeys().delete(key));
+                var cacheEvidence=stores.addObject().put("store_id","REDIS").put("scope_pattern",pattern);
+                var receipts=cacheEvidence.putArray("copy_receipts");
+                for(String key:keys) {
+                    long removed=guard.call(() -> redis.getKeys().delete(key));
+                    if(removed<0||removed>1)mismatch();
+                    receipts.addObject().put("cache_key",key).put("removed_count",Long.toString(removed))
+                        .put("observation",removed==1?"DELETE_ACKNOWLEDGED":"ALREADY_ABSENT");
+                }
                 if(!guard.call(() -> cacheKeys(pattern)).isEmpty()) mismatch();
-                stores.addObject().put("store_id","REDIS").put("remaining","0");
+                cacheEvidence.put("remaining","0");
             }
             case "DIAGNOSTIC" -> {
                 String prefix=policy.diagnostics().prefix()+tenant+"/"+target.sourceVersion()+"/";
@@ -135,8 +147,105 @@ final class SourceDeletionStores {
         return evidence;
     }
 
+    /** Read-only independent approval probe. It never erases or treats a declaration as observation. */
+    JsonNode observeAuthority(String tenant,List<SourceGovernanceProtocol.DeletionItemRow> targets,
+            Guard guard,com.ruoyi.medical.persistence.mapper.SourceDeletionMapper mapper,Map<String,Object> values) throws Exception {
+        var report=schema.json.object().put("schema_version","2.0.0").put("complete",true);
+        var observations=report.putArray("observations");
+        for(var row:targets) {
+            var target=SourceDeletionTarget.read(row,schema.governance);
+            var v=new java.util.HashMap<>(values);v.put("sourceVersion",target.sourceVersion());
+            v.put("parseVersion",target.parseVersion());v.put("indexVersion",target.indexVersion());v.put("objectKey",target.objectKey());
+            switch(target.kind()) {
+                case "ORIGINAL" -> {
+                    var keys=new java.util.TreeSet<String>();keys.add(target.objectKey());
+                    for(var copy:guard.call(()->mapper.originalCopies(v)))keys.add(Objects.toString(copy.get("object_key")));
+                    for(var part:guard.call(()->mapper.originalParts(v)))keys.add(Objects.toString(part.get("object_key")));
+                    if(keys.size()>policy.maximumEntries())capacity();
+                    for(var store:policy.originals())for(String key:keys)observations.add(observeVersions(store,key,true,guard));
+                }
+                case "PARSED" -> {
+                    observations.add(observeVersions(policy.parsed(),target.objectKey(),true,guard));
+                    observations.addObject().put("store_id","MYSQL_PARSED").put("copy_count",guard.call(()->mapper.remainingParsed(v)).toString());
+                }
+                case "FULLTEXT" -> observations.addObject().put("store_id","MYSQL_FULLTEXT")
+                    .put("copy_count",guard.call(()->mapper.remainingFulltext(v)).toString());
+                case "VECTOR" -> {
+                    var filter=Filter.newBuilder().addMust(matchKeyword("tenant_id",tenant))
+                        .addMust(matchKeyword("source_version",target.sourceVersion()))
+                        .addMust(matchKeyword("parse_version",target.parseVersion()))
+                        .addMust(matchKeyword("index_version",target.indexVersion())).build();
+                    for(var store:policy.vectors())try(var client=new QdrantClient(QdrantGrpcClient.newBuilder(store.host(),store.port(),store.tls())
+                            .withApiKey(Files.readString(store.apiKeyFile(),StandardCharsets.UTF_8).stripTrailing()).build())) {
+                        long count=guard.call(()->client.countAsync(store.collection(),filter,true,TIMEOUT).get(30,TimeUnit.SECONDS));
+                        observations.addObject().put("store_id",store.collection()).put("copy_count",Long.toString(count))
+                            .put("source_version",target.sourceVersion()).put("index_version",target.indexVersion());
+                    }
+                }
+                case "CACHE" -> {
+                    var keys=guard.call(()->cacheKeys(policy.cacheNamespace()+":"+tenant+":"+target.sourceVersion()+":*"));
+                    observations.addObject().put("store_id","REDIS").set("keys",schema.json.tree(keys));
+                }
+                case "DIAGNOSTIC" -> {
+                    observations.add(observeVersions(policy.diagnostics(),policy.diagnostics().prefix()+tenant+"/"+target.sourceVersion()+"/",false,guard));
+                    observations.addObject().put("store_id","MYSQL_DIAGNOSTIC").put("copy_count",guard.call(()->mapper.remainingDiagnostics(v)).toString());
+                }
+                default -> mismatch();
+            }
+        }
+        String source=targets.get(0).sourceVersion();
+        // Registry keys alone are not a complete-copy inventory. Independently enumerate the
+        // entire declared object-store scope to detect unregistered copies as well.
+        var objectScopes=new ArrayList<SourceDeletionPolicy.ObjectStore>(policy.originals());
+        objectScopes.add(policy.parsed());objectScopes.add(policy.diagnostics());
+        for(var store:objectScopes)try(var client=client(store)) {
+            var observed=inventory(client,store,tenant,source,guard.now(),guard);
+            observations.add(observed);if(!observed.path("complete").asBoolean(false))report.put("complete",false);
+        }
+        for(var backup:policy.backups())try(var client=client(backup.store())) {
+            var observed=inventory(client,backup.store(),tenant,source,guard.now(),guard);
+            observations.add(observed);if(!observed.path("complete").asBoolean(false))report.put("complete",false);
+        }
+        report.put("observed_at",guard.now().toString());return report;
+    }
+
+    private JsonNode observeVersions(SourceDeletionPolicy.ObjectStore store,String key,boolean exact,Guard guard)throws Exception {
+        requireKey(store,key);var observation=schema.json.object().put("store_id",store.id()).put("scope",key);
+        var copies=observation.putArray("copies");
+        try(var client=client(store)) {
+            if(!"Enabled".equals(guard.call(()->client.getBucketVersioning(GetBucketVersioningRequest.builder().bucket(store.bucket()).build())).statusAsString()))
+                throw new TenantAccessException(ErrorCode.DEPENDENCY_UNAVAILABLE);
+            for(var copy:versions(client,store,key,exact,guard))copies.addObject().put("object_key",copy.key())
+                .put("object_version",copy.version()).put("delete_marker",copy.marker());
+        }
+        observation.put("listing_exhausted",true);return observation;
+    }
+
+    JsonNode confirmSourceScopesAbsent(String tenant,String source,Guard guard)throws Exception {
+        var result=schema.json.object().put("tenant_id",tenant).put("source_version",source);
+        var objects=result.putArray("objects");
+        var scopes=new ArrayList<SourceDeletionPolicy.ObjectStore>(policy.originals());scopes.add(policy.parsed());scopes.add(policy.diagnostics());
+        for(var store:scopes)try(var client=client(store)) {
+            var inventory=inventory(client,store,tenant,source,guard.now(),guard);
+            SourceCopyInventory.requireAbsent(inventory);objects.add(inventory);
+        }
+        var vectors=result.putArray("vectors");
+        var filter=Filter.newBuilder().addMust(matchKeyword("tenant_id",tenant)).addMust(matchKeyword("source_version",source)).build();
+        for(var store:policy.vectors())try(var client=new QdrantClient(QdrantGrpcClient.newBuilder(store.host(),store.port(),store.tls())
+                .withApiKey(Files.readString(store.apiKeyFile(),StandardCharsets.UTF_8).stripTrailing()).build())) {
+            if(guard.call(()->client.countAsync(store.collection(),filter,true,TIMEOUT).get(30,TimeUnit.SECONDS))!=0)
+                throw new TenantAccessException(ErrorCode.REFERENCE_HELD);
+            vectors.addObject().put("host",store.host()).put("port",store.port()).put("collection",store.collection()).put("remaining","0");
+        }
+        String pattern=policy.cacheNamespace()+":"+tenant+":"+source+":*";
+        if(!guard.call(()->cacheKeys(pattern)).isEmpty())throw new TenantAccessException(ErrorCode.REFERENCE_HELD);
+        result.putObject("cache").put("scope_pattern",pattern).put("remaining","0");
+        result.put("observed_at",guard.now().toString());return result;
+    }
+
     JsonNode confirmBackups(String tenant,SourceDeletionTarget target,Instant primaryConfirmed,Instant now,Guard guard) throws Exception {
-        var evidence=schema.json.object(); var stores=evidence.putArray("stores");
+        var evidence=schema.json.object().put("schema_version","2.0.0").put("tenant_id",tenant)
+            .put("source_version",target.sourceVersion()).put("config_revision",policy.revision()); var stores=evidence.putArray("stores");
         for(var backup:policy.backups()) {
             var store=backup.store();
             try(var client=client(store)) {
@@ -159,6 +268,7 @@ final class SourceDeletionStores {
                 if(through.isBefore(primaryConfirmed) || through.isAfter(now)) throw new TenantAccessException(ErrorCode.ACTION_STALE);
                 var copies=catalogue.required("copies"); if(copies.size()>policy.maximumEntries()) capacity();
                 var identities=new HashSet<String>();
+                var observations=schema.json.object().putArray("copies");
                 for(var copy:copies) {
                     String object=copy.required("object_key").textValue(),version=copy.required("object_version").textValue();
                     requireKey(store,object);
@@ -166,10 +276,45 @@ final class SourceDeletionStores {
                     if(WireValues.utcTime(copy.required("expires_at").textValue()).isAfter(now))
                         throw new TenantAccessException(ErrorCode.ACTION_STALE);
                     var present=versions(client,store,object,true,guard);
-                    if(present.stream().anyMatch(value -> value.version().equals(version) && !value.marker()))
+                    var observation=observations.addObject().put("object_key",object).put("object_version",version)
+                        .put("sha256",copy.required("sha256").textValue()).put("observation","ALREADY_ABSENT")
+                        .put("expires_at",copy.required("expires_at").textValue());
+                    if(present.stream().anyMatch(value -> value.version().equals(version) && !value.marker())) {
+                        var head=guard.call(() -> client.headObject(HeadObjectRequest.builder().bucket(store.bucket())
+                            .key(object).versionId(version).build()));
+                        if(!version.equals(head.versionId()))mismatch();
+                        // Never delete a shared archive or an object whose ownership is merely inferred
+                        // from its path. Backup owner metadata and signed catalogue must agree.
+                        if(!tenant.equals(head.metadata().get("tenant-id"))
+                                ||!target.sourceVersion().equals(head.metadata().get("source-version")))
+                            throw new TenantAccessException(ErrorCode.DEPENDENCY_UNAVAILABLE);
+                        if("ON".equals(head.objectLockLegalHoldStatusAsString())
+                                ||head.objectLockRetainUntilDate()!=null && head.objectLockRetainUntilDate().isAfter(guard.now()))
+                            throw new TenantAccessException(ErrorCode.REFERENCE_HELD);
+                        // Provider metadata can extend, but can never shorten, signed retention.
+                        String providerExpiry=head.metadata().get("retention-expires-at");
+                        if(providerExpiry==null)throw new TenantAccessException(ErrorCode.RETENTION_UNCONFIGURED);
+                        if(WireValues.utcTime(providerExpiry).isAfter(guard.now()))
+                            throw new TenantAccessException(ErrorCode.REFERENCE_HELD);
+                        String actual=guard.call(() -> readSha256(client,store.bucket(),object,version,policy.maximumObjectBytes()));
+                        if(!copy.required("sha256").textValue().equals(actual))mismatch();
+                        var response=guard.call(() -> client.deleteObject(DeleteObjectRequest.builder().bucket(store.bucket())
+                            .key(object).versionId(version).build()));
+                        if(!response.sdkHttpResponse().isSuccessful()||response.responseMetadata().requestId()==null
+                                ||response.responseMetadata().requestId().isBlank())mismatch();
+                        observation.put("observation","DELETE_ACKNOWLEDGED_AND_ABSENT")
+                            .put("provider_request_id",response.responseMetadata().requestId());
+                    }
+                    if(versions(client,store,object,true,guard).stream().anyMatch(value -> value.version().equals(version)&&!value.marker()))
                         throw new TenantAccessException(ErrorCode.REFERENCE_HELD);
+                    observation.put("absence_confirmed",true).put("observed_at",guard.now().toString());
                 }
-                stores.addObject().put("store_id",store.id()).put("inventory_revision",catalogue.required("inventory_revision").textValue())
+                // The signed historical catalogue alone cannot rule out omitted live versions.
+                // Enumerate the entire configured backup data scope, never just listed catalogue keys.
+                var inventory=inventory(client,store,tenant,target.sourceVersion(),now,guard);
+                SourceCopyInventory.requireAbsent(inventory);
+                var proof=stores.addObject();proof.set("copy_observations",observations);proof.set("live_inventory",inventory);
+                proof.put("store_id",store.id()).put("inventory_revision",catalogue.required("inventory_revision").textValue())
                     .put("catalogue_sha256",DigestUtils.sha256Hex(bytes)).put("remaining","0");
             }
         }
@@ -240,10 +385,29 @@ final class SourceDeletionStores {
                 String digest=guard.call(() -> readSha256(client,store.bucket(),version.key(),version.version(),policy.maximumObjectBytes()));
                 if(!expected.equals(digest)) mismatch();
             }
-            for(var version:versions) guard.call(() -> client.deleteObject(DeleteObjectRequest.builder()
-                .bucket(store.bucket()).key(version.key()).versionId(version.version()).build()));
+            // Inspect every version's lock state before any delete. Never bypass governance retention.
+            for(var version:versions) if(!version.marker()) {
+                var head=guard.call(() -> client.headObject(HeadObjectRequest.builder().bucket(store.bucket())
+                    .key(version.key()).versionId(version.version()).build()));
+                if(!version.version().equals(head.versionId())) mismatch();
+                if("ON".equals(head.objectLockLegalHoldStatusAsString()) || head.objectLockRetainUntilDate()!=null
+                        && head.objectLockRetainUntilDate().isAfter(guard.now()))
+                    throw new TenantAccessException(ErrorCode.REFERENCE_HELD);
+            }
+            var evidence=schema.json.object(); var receipts=evidence.putArray("copy_receipts");
+            for(var version:versions) {
+                var response=guard.call(() -> client.deleteObject(DeleteObjectRequest.builder()
+                    .bucket(store.bucket()).key(version.key()).versionId(version.version()).build()));
+                if(!response.sdkHttpResponse().isSuccessful() || response.responseMetadata().requestId()==null
+                        || response.responseMetadata().requestId().isBlank()) mismatch();
+                receipts.addObject().put("object_key",version.key()).put("object_version",version.version())
+                    .put("delete_marker",version.marker()).put("provider_request_id",response.responseMetadata().requestId())
+                    .put("delete_acknowledged",true);
+            }
             if(!versions(client,store,key,exact,guard).isEmpty()) mismatch();
-            var evidence=schema.json.object(); evidence.put("store_id",store.id()); evidence.put("deleted_versions",Integer.toString(versions.size()));
+            for(var receipt:receipts)((ObjectNode)receipt).put("absence_confirmed",true);
+            evidence.put("observation",versions.isEmpty()?"ALREADY_ABSENT":"DELETE_ACKNOWLEDGED_AND_ABSENT");
+            evidence.put("store_id",store.id()); evidence.put("deleted_versions",Integer.toString(versions.size()));
             evidence.put("object_key",key); if(expected!=null) evidence.put("content_sha256",expected);
             evidence.put("remaining","0"); return evidence;
         }
@@ -264,6 +428,29 @@ final class SourceDeletionStores {
             keyMarker=response.nextKeyMarker(); versionMarker=response.nextVersionIdMarker();
         }
         throw new TenantAccessException(ErrorCode.FILE_TOO_LARGE);
+    }
+
+    private JsonNode inventory(S3Client client,SourceDeletionPolicy.ObjectStore store,String tenant,String source,
+            Instant now,Guard guard) throws Exception {
+        if(!"Enabled".equals(guard.call(()->client.getBucketVersioning(GetBucketVersioningRequest.builder().bucket(store.bucket()).build())).statusAsString()))
+            throw new TenantAccessException(ErrorCode.DEPENDENCY_UNAVAILABLE);
+        var copies=new ArrayList<SourceCopyInventory.Copy>();
+        for(var version:versions(client,store,store.prefix(),false,guard)) {
+            if(version.marker()) { copies.add(new SourceCopyInventory.Copy(version.key(),version.version(),true,null,null,null,null,null));continue; }
+            var head=guard.call(() -> client.headObject(HeadObjectRequest.builder().bucket(store.bucket())
+                .key(version.key()).versionId(version.version()).build()));
+            if(!version.version().equals(head.versionId()))mismatch();
+            var metadata=head.metadata(); Instant expiry=null; Boolean hold=null;
+            String expiryText=metadata.get("retention-expires-at");
+            if(expiryText!=null)try{expiry=WireValues.utcTime(expiryText);}catch(RuntimeException invalid){/* Unknown, not expired. */}
+            if(head.objectLockRetainUntilDate()!=null && (expiry==null||head.objectLockRetainUntilDate().isAfter(expiry)))
+                expiry=head.objectLockRetainUntilDate();
+            String lock=head.objectLockLegalHoldStatusAsString();
+            if("ON".equals(lock))hold=true;else if("OFF".equals(lock))hold=false;
+            copies.add(new SourceCopyInventory.Copy(version.key(),version.version(),false,metadata.get("tenant-id"),
+                metadata.get("source-version"),metadata.get("sha256"),expiry,hold));
+        }
+        return SourceCopyInventory.produce(schema.json,store.id(),store.prefix(),tenant,source,now,copies,true);
     }
 
     private S3Client client(SourceDeletionPolicy.ObjectStore store) throws Exception {
@@ -306,7 +493,10 @@ final class SourceDeletionStores {
     private static void mismatch() { throw new TenantAccessException(ErrorCode.CONTENT_MISMATCH); }
     private static void capacity() { throw new TenantAccessException(ErrorCode.FILE_TOO_LARGE); }
     private record Version(String key,String version,boolean marker) { }
-    @FunctionalInterface interface Guard { <T> T call(Action<T> action) throws Exception; }
+    @FunctionalInterface interface Guard {
+        <T> T call(Action<T> action) throws Exception;
+        default Instant now() throws Exception { throw new TenantAccessException(ErrorCode.DEPENDENCY_UNAVAILABLE); }
+    }
     @FunctionalInterface interface Action<T> { T run() throws Exception; }
 
     private static final class SourceDeletionSchemaSupport {

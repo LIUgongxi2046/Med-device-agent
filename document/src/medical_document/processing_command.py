@@ -32,7 +32,8 @@ class ProcessingCommand(BaseModel):
     config_sha256: Hash
     worker_id: Identifier
     lease_generation: U64
-    format: Literal["DOCX", "PDF", "XLSX", "CSV", "TXT", "MARKDOWN", "PPTX"]
+    format: Literal["DOCX", "PDF", "XLSX", "CSV", "TXT", "MARKDOWN", "PPTX", "IMAGE", "HTML"]
+    html_parser_revision: Literal["HTML-STATIC-TEXT-1"] | None = None
     original_sha256: Hash
     size_bytes: U64
     source_path: str
@@ -40,6 +41,8 @@ class ProcessingCommand(BaseModel):
     scanner_release_path: str
     scanner_release_sha256: Hash
     output_directory: str
+    complex_release_path: str | None = None
+    complex_release_sha256: Hash | None = None
 
     @field_validator("attempt_id", "run_id", "source_version", "parse_version", "config_revision", "worker_id")
     @classmethod
@@ -89,7 +92,7 @@ def execute(command_path: Path, result_path: Path, parser: NativeParser | None =
         raise ValueError("PROCESSING_COMMAND_LIMIT")
     command = ProcessingCommand.model_validate_json(original_command)
     # 命令采用唯一规范表示，重复字段及非规范字节在执行以前拒绝。
-    if rfc8785.dumps(command.model_dump(mode="json")) != original_command:
+    if rfc8785.dumps(command.model_dump(mode="json", exclude_unset=True)) != original_command:
         raise ValueError("PROCESSING_COMMAND_NOT_CANONICAL")
     output = private_directory(Path(command.output_directory))
     result_path = result_path.absolute()
@@ -111,10 +114,23 @@ def execute(command_path: Path, result_path: Path, parser: NativeParser | None =
     if scanner.release_sha256 != command.scanner_release_sha256:
         raise ValueError("SCANNER_RELEASE_CHANGED")
     catalogue = SchemaCatalogue(Path(command.catalogue_root).resolve(strict=True))
+    complex_parser = None
+    if (command.complex_release_path is None) != (command.complex_release_sha256 is None):
+        raise ValueError("OCR_RELEASE_BINDING_INVALID")
+    if command.complex_release_path is not None:
+        from .complex_parse import ComplexParser
+        complex_bytes = private_file(Path(command.complex_release_path)).read_bytes()
+        if len(complex_bytes) > 2097152:
+            raise ValueError("OCR_RELEASE_LIMIT")
+        complex_parser = ComplexParser(complex_bytes, command.complex_release_sha256)
     if parser is None:
-        parser = NativeParser(catalogue)
+        parser = NativeParser(catalogue, complex_parser)
+    elif getattr(parser.complex_parser, "release_sha256", None) != command.complex_release_sha256:
+        raise ValueError("OCR_RELEASE_BINDING_INVALID")
     if parser.bindings.catalogue.digests != catalogue.digests:
         raise ValueError("PROCESSING_CATALOGUE_CHANGED")
+    if (command.format == "HTML") != (command.html_parser_revision == "HTML-STATIC-TEXT-1"):
+        raise ValueError("HTML_PARSER_BINDING_INVALID")
     request = SourceInput(source, command.format, command.source_version, command.parse_version,
         command.original_sha256, data_kind="REGISTERED", page_basis="ORIGINAL")
     scanned = parser.scan_and_parse(request, scanner.release.model_dump(mode="json"), command_path.parent)

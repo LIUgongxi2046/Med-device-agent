@@ -1,0 +1,168 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:source-verifier-coverage:1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "node_kind",
+    "input_sha256",
+    "session_id",
+    "target_revision",
+    "target_sha256",
+    "rule_revision",
+    "findings_sha256",
+    "coverage_complete",
+    "required_claim_ids",
+    "required_rule_ids",
+    "checks",
+    "independent_reads"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "node_kind": {
+      "const": "N05"
+    },
+    "input_sha256": {
+      "$ref": "#/$defs/Hash"
+    },
+    "session_id": {
+      "$ref": "#/$defs/Id"
+    },
+    "target_revision": {
+      "$ref": "#/$defs/Id"
+    },
+    "target_sha256": {
+      "$ref": "#/$defs/Hash"
+    },
+    "rule_revision": {
+      "$ref": "#/$defs/Id"
+    },
+    "findings_sha256": {
+      "$ref": "#/$defs/Hash"
+    },
+    "coverage_complete": {
+      "type": "boolean"
+    },
+    "required_claim_ids": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/Id"
+      }
+    },
+    "required_rule_ids": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/Id"
+      }
+    },
+    "checks": {
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind",
+              "id",
+              "reviewed",
+              "originals_complete",
+              "locator_valid",
+              "receipt_ids"
+            ],
+            "properties": {
+              "kind": {
+                "const": "CLAIM"
+              },
+              "id": {
+                "$ref": "#/$defs/Id"
+              },
+              "reviewed": {
+                "type": "boolean"
+              },
+              "originals_complete": {
+                "type": "boolean"
+              },
+              "locator_valid": {
+                "type": "boolean"
+              },
+              "receipt_ids": {
+                "type": "array",
+                "uniqueItems": true,
+                "items": {
+                  "$ref": "#/$defs/Id"
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind",
+              "id",
+              "reviewed",
+              "original_read"
+            ],
+            "properties": {
+              "kind": {
+                "const": "RULE"
+              },
+              "id": {
+                "$ref": "#/$defs/Id"
+              },
+              "reviewed": {
+                "type": "boolean"
+              },
+              "original_read": {
+                "type": "boolean"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind",
+              "id",
+              "reviewed"
+            ],
+            "properties": {
+              "kind": {
+                "enum": [
+                  "TARGET_TEXT",
+                  "TARGET_FIELD",
+                  "TARGET_NODE"
+                ]
+              },
+              "id": {
+                "$ref": "#/$defs/Id"
+              },
+              "reviewed": {
+                "const": false
+              }
+            }
+          }
+        ]
+      }
+    },
+    "independent_reads": {
+      "type": "object"
+    }
+  },
+  "$defs": {
+    "Id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "Hash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    }
+  }
+}

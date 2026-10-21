@@ -1,5 +1,5 @@
 <template>
-  <details class="review-return">
+  <details class="review-return" ref="panel">
     <summary>文稿退回修改</summary>
     <p v-if="error" role="alert">{{ error }}</p>
     <p v-if="loading" role="status">正在核查固定版本的审查信息…</p>
@@ -18,7 +18,7 @@
       <template v-else>
         <p v-if="!canDecide">当前没有此正文的退回修改权限，可以继续阅读有权访问的历史。</p>
         <el-button :disabled="busy||!canDecide" @click="loadBasis">核查退回条件</el-button>
-        <section v-if="basis">
+        <section v-if="basis&&canDecide">
           <h4>{{ ready?'退回条件已就绪':'暂不能退回' }}</h4>
           <ul v-if="basis.blockers.length"><li v-for="blocker in basis.blockers" :key="blocker">{{ blockers[blocker] }}</li></ul>
           <p>正式检查的当前有效性尚未核验。可以要求补充资料，但不能据此确认审查、签发或重新提交审查。</p>
@@ -31,6 +31,7 @@
             <p v-if="assignees?.items.length===0">没有可分派成员，暂不能退回。</p>
             <el-checkbox v-model="confirmed">确认退回这份已保存正文，按以上意见分派补充</el-checkbox>
             <el-button type="primary" :disabled="busy||!ready||!confirmed||!assignee" @click="prepare">退回修改</el-button>
+            <el-button :disabled="busy" @click="discardInputs">放弃未提交意见</el-button>
           </el-form>
         </section>
       </template>
@@ -49,9 +50,28 @@ import {canonicalDocumentValue} from '@/api/medical/document-body'
 import {sourceDigest} from '@/api/medical/content-digest'
 import {reviewAllowed,reviewAssignmentsAllowed,reviewAvailability,readReviewBasis,readReviewHistory,readReviewAssignments,readReviewAssignees,reviewInputIssues,verifyReviewPending,writeReviewReturn,recoverReviewReturn,retainReview,restoreReview,forgetReview} from '@/api/medical/document-review-return'
 import type {ReviewBasis,ReviewHistory,ReviewAssignments,ReviewAssignees,ReviewReceipt,ReviewRequest,PendingReviewReturn} from '@/api/medical/document-review-return'
+import {matchesReturnHandoff} from '@/api/medical/document-review-workspace'
+import type {LocalReturnHandoff} from '@/api/medical/document-review-workspace'
 import DocumentReviewAssignments from './document-review-assignments.vue'
 const props=defineProps<{session:MedicalSession;snapshot:DocumentSnapshot;active:boolean;dirty:boolean;taskId?:string|undefined}>()
 const emit=defineEmits<{returned:[receipt:ReviewReceipt]}>(),user=useUserStore()
+const panel=ref<HTMLDetailsElement|null>(null)
+function openFromReview(handoff?:LocalReturnHandoff,contextKey='') {
+  if(panel.value){panel.value.open=true;panel.value.scrollIntoView?.({block:'nearest',behavior:'smooth'})}
+  if(!handoff)return true
+  let retainedPending:PendingReviewReturn|null=null
+  try{retainedPending=restoreReview(props.session,props.snapshot.document_id)}catch{error.value='未复制草稿：原退回恢复记录无法核验，请先处理恢复状态。';return false}
+  if(!canDecide.value||busy.value||props.dirty||document.hidden||pending.value||retainedPending){
+    error.value='未复制草稿：请先核查权限、版本及原请求恢复状态。原请求和已有意见保持不变。';return false
+  }
+  const expectedContextKey=canonicalDocumentValue([props.session.user.user_id,props.session.current_context])
+  if(contextKey!==expectedContextKey||!matchesReturnHandoff(handoff,props.snapshot,expectedContextKey)){
+    error.value='未复制草稿：固定版本或当前上下文已经变化，请重新核对。';return false
+  }
+  if(reason.value||assignee.value){error.value='未复制草稿：已有未提交意见或责任人，请先处理或明确放弃已有输入。';return false}
+  reason.value=handoff.reason;confirmed.value=false;error.value='';return true
+}
+defineExpose({openFromReview})
 const enabled=ref(false),checked=ref(false),loading=ref(false),error=ref(''),reason=ref(''),assignee=ref(''),confirmed=ref(false),lookupStatus=ref('')
 const basis=ref<ReviewBasis|null>(null),history=ref<ReviewHistory|null>(null),assignments=ref<ReviewAssignments|null>(null),assignees=ref<ReviewAssignees|null>(null),pending=ref<PendingReviewReturn|null>(null),receipt=ref<ReviewReceipt|null>(null)
 const busy=computed(()=>loading.value||user.medicalWriting),canDecide=computed(()=>enabled.value&&props.active&&reviewAllowed(props.session,props.snapshot))
@@ -65,17 +85,23 @@ function live(g:number,s:MedicalSession){return alive&&props.active&&!document.h
 async function read<T>(work:(s:MedicalSession,signal:AbortSignal)=>Promise<T>,apply:(v:T)=>void){if(!enabled.value||!props.active||busy.value||document.hidden)return;const g=generation,s=props.session;loading.value=true;error.value='';try{const value=await work(s,controller.signal);if(live(g,s))apply(value)}catch(e){if(live(g,s))error.value=e instanceof Error?e.message:'审查信息读取失败'}finally{if(live(g,s))loading.value=false}}
 function loadHistory(){return read((s,signal)=>readReviewHistory(s,props.snapshot,signal),v=>{history.value=v})}
 function loadAssignments(){if(!canReadAssignments.value)return;return read((s,signal)=>readReviewAssignments(s,props.snapshot,signal),v=>{assignments.value=v})}
-function loadBasis(){if(!canDecide.value||pending.value||busy.value)return;basis.value=null;assignees.value=null;confirmed.value=false;assignee.value='';return read(async(s,signal)=>{const b=await readReviewBasis(s,props.snapshot,signal);const members=b.return_available?await readReviewAssignees(s,props.snapshot,signal):null;return {b,members}},v=>{basis.value=v.b;assignees.value=v.members})}
+function loadBasis(){if(!canDecide.value||pending.value||busy.value)return;basis.value=null;assignees.value=null;confirmed.value=false;return read(async(s,signal)=>{const b=await readReviewBasis(s,props.snapshot,signal);const members=b.return_available?await readReviewAssignees(s,props.snapshot,signal):null;return {b,members}},v=>{basis.value=v.b;assignees.value=v.members})}
 watch([reason,assignee],()=>{confirmed.value=false},{flush:'sync'})
 async function prepare(){const b=basis.value,s=props.session;if(!ready.value||!b||!s.current_context||busy.value||pending.value||!confirmed.value)return;if(!assignees.value?.items.some(item=>item.user_id===assignee.value)){error.value='请选择当前真实目录中的责任成员';return}const body:ReviewRequest=JSON.parse(JSON.stringify({document_revision:b.document_revision,expected_revision:b.revision,expected_task_revision:b.task_head_revision,reason:reason.value,assignee_id:assignee.value,basis:b}));const issues=reviewInputIssues(body);if(issues.length){error.value=issues.join('\n');return}const g=generation;loading.value=true;try{const original={actor:s.user.user_id,context:{...s.current_context},key:crypto.randomUUID(),body};const digest=await sourceDigest(original);if(!live(g,s))return;const p={...original,digest};retainReview(s,props.snapshot.document_id,p);pending.value=p;lookupStatus.value=''}catch(e){if(live(g,s))error.value=e instanceof Error?e.message:'无法保留原退回请求'}finally{if(live(g,s))loading.value=false}if(pending.value&&live(g,s))await send()}
 function completed(s:MedicalSession,r:ReviewReceipt){receipt.value=r;forgetReview(s,props.snapshot.document_id);pending.value=null;basis.value=null;assignees.value=null;history.value=null;assignments.value=null;reason.value='';assignee.value='';confirmed.value=false}
 async function send(){const p=pending.value,s=props.session;if(!p||!canDecide.value||busy.value||!sameContext.value||!confirmed.value||document.hidden)return;const g=generation;let completedReceipt:ReviewReceipt|null=null;ownsWrite=true;user.medicalWriting=true;error.value='';try{const value=await writeReviewReturn(s,p,controller.signal);if(live(g,s)){completed(s,value);completedReceipt=value}}catch(e){if(live(g,s))error.value=e instanceof Error?e.message:'退回结果未知，原请求已保留'}finally{if(ownsWrite){ownsWrite=false;user.medicalWriting=false}}if(completedReceipt&&live(g,s))emit('returned',completedReceipt)}
 async function recover(){const p=pending.value;if(!p||!enabled.value||!props.active)return;const g=generation,s=props.session;let completedReceipt:ReviewReceipt|null=null;await read((s,signal)=>recoverReviewReturn(s,p,signal),v=>{lookupStatus.value=v?'FOUND':'NOT_FOUND';if(v){completed(s,v);completedReceipt=v}});if(completedReceipt&&live(g,s))emit('returned',completedReceipt)}
-function clear(){generation++;controller.abort();controller=new AbortController();enabled.value=false;checked.value=false;loading.value=false;basis.value=null;history.value=null;assignments.value=null;assignees.value=null;pending.value=null;receipt.value=null;reason.value='';assignee.value='';confirmed.value=false;lookupStatus.value='';error.value=''}
-async function reset(){clear();if(!alive||!props.active||document.hidden||!props.session.current_context)return;const g=generation,s=props.session;loading.value=true;try{const available=await reviewAvailability(s,controller.signal);if(!live(g,s))return;enabled.value=available;checked.value=true;if(available){const p=restoreReview(s,props.snapshot.document_id);if(p){await verifyReviewPending(s,p,false);if(live(g,s))pending.value=p}}}catch(e){if(live(g,s)){checked.value=true;error.value=e instanceof Error?e.message:'服务状态读取失败'}}finally{if(live(g,s))loading.value=false}}
-watch(()=>[props.session,canonicalDocumentValue(props.session.current_context),props.snapshot.document_id,props.snapshot.document_revision,props.active],reset,{immediate:true,flush:'sync'})
-function visibility(){void reset()}function unload(e:BeforeUnloadEvent){if(pending.value||ownsWrite){e.preventDefault();e.returnValue=''}}
-document.addEventListener('visibilitychange',visibility);window.addEventListener('beforeunload',unload)
-onBeforeUnmount(()=>{alive=false;clear();document.removeEventListener('visibilitychange',visibility);window.removeEventListener('beforeunload',unload)})
+function discardInputs(){reason.value='';assignee.value='';confirmed.value=false}
+// Only unsent inputs survive a temporary UI suspension, never its server basis or consent.
+const inputScope=computed(()=>canonicalDocumentValue([props.session.user.user_id,props.session.current_context,props.snapshot.project_id,props.snapshot.document_id,props.snapshot.document_revision,props.snapshot.body.sha256]))
+let retainedScope:string|null=null
+function clear(preserveInputs=false){generation++;controller.abort();controller=new AbortController();enabled.value=false;checked.value=false;loading.value=false;basis.value=null;history.value=null;assignments.value=null;assignees.value=null;pending.value=null;receipt.value=null;if(!preserveInputs)discardInputs();confirmed.value=false;lookupStatus.value='';error.value=''}
+async function reset(){const scope=inputScope.value;clear(retainedScope===scope&&reviewAllowed(props.session,props.snapshot));retainedScope=scope;if(!alive||!props.active||document.hidden||!props.session.current_context)return;const g=generation,s=props.session;loading.value=true;try{const available=await reviewAvailability(s,controller.signal);if(!live(g,s))return;enabled.value=available;checked.value=true;if(available){const p=restoreReview(s,props.snapshot.document_id);if(p){await verifyReviewPending(s,p,false);if(live(g,s))pending.value=p}}}catch(e){if(live(g,s)){checked.value=true;error.value=e instanceof Error?e.message:'服务状态读取失败'}}finally{if(live(g,s))loading.value=false}}
+watch(()=>[props.session,inputScope.value,props.active],reset,{immediate:true,flush:'sync'})
+watch(()=>reviewAllowed(props.session,props.snapshot),allowed=>{if(!allowed){generation++;controller.abort();controller=new AbortController();loading.value=false;discardInputs();basis.value=null;assignees.value=null}},{flush:'sync'})
+function invalidate(){retainedScope=null;clear()}
+function visibility(){void reset()}function unload(e:BeforeUnloadEvent){if(reason.value||assignee.value||pending.value||ownsWrite){e.preventDefault();e.returnValue=''}}
+document.addEventListener('visibilitychange',visibility);window.addEventListener('beforeunload',unload);window.addEventListener('medical-context-invalidated',invalidate)
+onBeforeUnmount(()=>{alive=false;clear();document.removeEventListener('visibilitychange',visibility);window.removeEventListener('beforeunload',unload);window.removeEventListener('medical-context-invalidated',invalidate)})
 </script>
 <style scoped>.review-return{padding:16px;margin-top:24px;border:1px solid #DCE3EC;border-radius:8px;color:#243247}.review-return summary{font-weight:600;cursor:pointer}.review-return pre{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;line-height:1.6}.review-return p{overflow-wrap:anywhere}.review-return .el-button{margin:8px}.review-return .el-select{width:100%}.review-return article{padding:12px 0;border-top:1px solid #E9EDF3}@media(max-width:650px){.review-return{padding:12px}.review-return .el-button{max-width:100%;height:auto;min-height:32px;white-space:normal}}</style>

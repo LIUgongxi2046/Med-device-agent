@@ -8,6 +8,7 @@
         <tags-view v-if="needTagsView" />
       </div>
       <app-main />
+      <gru-global-entry v-if="userStore.medicalMode && userStore.medicalSession" />
       <settings ref="settingRef" />
     </div>
   </div>
@@ -20,6 +21,7 @@ import { AppMain, Navbar, Settings, TagsView } from './components'
 import useAppStore from '@/store/modules/app'
 import useSettingsStore from '@/store/modules/settings'
 import useUserStore from '@/store/modules/user'
+import GruGlobalEntry from '@/views/medical/gru-global-entry.vue'
 
 const settingsStore = useSettingsStore()
 const userStore = useUserStore()

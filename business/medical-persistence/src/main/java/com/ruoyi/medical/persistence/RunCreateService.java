@@ -52,6 +52,42 @@ public final class RunCreateService {
 
     public JsonNode create(ApplicationSessionIdentity.Verified subject, String context, String key, String taskId, byte[] body) {
         WireValues.uuid(taskId); json.headers(context, key);
+        var initial = access.execute(subject, admission -> ThrowingSupplier.of(() -> {
+            if (!context.equals(admission.context().context_revision())) fail(ErrorCode.CONTEXT_CHANGED);
+            var request = schema.request(body);
+            var fixed = tasks.fixedTask(admission, taskId);
+            resources.require(admission, new PermissionProtocol.Scope(admission.context().tenant_id(),
+                    fixed.head().projectId(), "TASK", taskId), "task.run", PURPOSE);
+            var values = new HashMap<String,Object>();
+            values.put("userId", admission.actorId()); values.put("projectId", fixed.head().projectId());
+            values.put("taskId", taskId); values.put("key", key); values.put("operationName", "RN-01");
+            var previous = mapper.operation(values);
+            if (previous.size() > 1) mismatch();
+            // Original receipt recovery never depends on freshly preparing publication/model objects.
+            if (!previous.isEmpty()) return new Preparation(fixed, request, true);
+            RunCreateSchema.requireReady(fixed.head(), request);
+            return new Preparation(fixed, request, false);
+        }).get());
+        if (initial.recovery()) return createWithin(subject, context, key, taskId, body, null, null);
+        var prepared = ThrowingSupplier.of(() -> Objects.requireNonNull(requireProvider(providers)
+                .prepare(subject, context, initial.task(), initial.request()))).get();
+        return createWithin(subject, context, key, taskId, body, prepared, null);
+    }
+
+    JsonNode continueRun(ApplicationSessionIdentity.Verified subject, String context, String key,
+            RunContinuationService.Authority continuation) {
+        var fixed = access.execute(subject, a -> ThrowingSupplier.of(() -> {
+            var task = tasks.fixedTask(a, continuation.taskId()); continuation.requireCurrent(a, task, continuation.request()); return task;
+        }).get());
+        var prepared = ThrowingSupplier.of(() -> requireProvider(providers).prepareContinuation(subject, context, fixed, continuation.request(), continuation)).get();
+        byte[] body = ThrowingSupplier.of(() -> json.canonical(json.tree(continuation.request())).getBytes(java.nio.charset.StandardCharsets.UTF_8)).get();
+        return createWithin(subject, context, key, continuation.taskId(), body, prepared, continuation);
+    }
+
+    private record Preparation(TaskService.VerifiedTask task, RunCreateSchema.Create request, boolean recovery) { }
+
+    private JsonNode createWithin(ApplicationSessionIdentity.Verified subject, String context, String key,
+            String taskId, byte[] body, RunCreateAdmission prepared, RunContinuationService.Authority continuation) {
         return access.execute(subject, admission -> ThrowingSupplier.of(() -> {
             if (!context.equals(admission.context().context_revision())) fail(ErrorCode.CONTEXT_CHANGED);
             var request = schema.request(body); var fixed = tasks.fixedTask(admission, taskId); var head = fixed.head();
@@ -59,6 +95,7 @@ public final class RunCreateService {
             var taskScope = new PermissionProtocol.Scope(tenant, project, "TASK", taskId);
             var grant = resources.require(admission, taskScope, "task.run", PURPOSE);
             var values = new HashMap<String,Object>(); values.put("userId", actor); values.put("projectId", project); values.put("taskId", taskId);
+            values.put("operationName", continuation == null ? "RN-01" : "RN-05-RUN");
             values.put("key", key); values.put("requestHash", schema.requestHash(taskId, request)); values.put("manifest", schema.manifestSha256());
             var previous = mapper.operation(values); if (previous.size() > 1) mismatch();
             if (!previous.isEmpty()) {
@@ -73,16 +110,16 @@ public final class RunCreateService {
                 if (!grant.equals(resources.require(admission, taskScope, "task.run", PURPOSE))) fail(ErrorCode.SCOPE_STALE);
                 return response;
             }
-            RunCreateSchema.requireReady(head, request);
+            if (continuation == null) RunCreateSchema.requireReady(head, request); else continuation.requireCurrent(admission, fixed, request);
             if (!List.of("ACTIVE").equals(permissions.projectStatus(project))) fail(ErrorCode.ACCESS_DENIED);
             if (!mapper.activeRun(values).isEmpty()) fail(ErrorCode.STEP_NOT_READY);
             values.put("taskRevision", request.task_revision()); values.put("budgetRevision", request.budget_revision());
             values.put("expectedRevision", request.expected_revision());
             var attempts = mapper.attempts(values);
             // RN-05 owns all later attempts and their predecessor/unknown-invocation checks.
-            if (!attempts.isEmpty()) fail(ErrorCode.STEP_NOT_READY);
+            if (continuation == null && !attempts.isEmpty()) fail(ErrorCode.STEP_NOT_READY);
             var plan = plans.readFixed(admission, fixed, request.plan_revision(), true);
-            var planProof = plans.execution(admission, fixed, plan);
+            var planProof = continuation == null ? plans.execution(admission, fixed, plan) : plans.executionContinuation(admission, fixed, plan, continuation);
             var release = releases.read(admission, head.agentReleaseId(), PURPOSE);
             if (!"PUBLISHED".equals(release.agent().status())) fail(ErrorCode.DEPENDENCY_UNAVAILABLE);
             if (!"COMPLETED".equals(release.evaluation().status())) fail(ErrorCode.EVALUATION_STALE);
@@ -90,14 +127,15 @@ public final class RunCreateService {
             var now = Objects.requireNonNull(permissions.databaseTime());
             var budget = budgets.require(admission, values, now, release.content().manifest().limits().currency());
             String runId = id(), principalId = id(), operationId = id(), commandId = id(), requestId = id();
-            var provider = requireProvider(providers);
-            var proof = Objects.requireNonNull(provider.require(admission, fixed, plan, releaseScope, request, runId, principalId));
+            if (prepared == null) fail(ErrorCode.DEPENDENCY_UNAVAILABLE);
+            var proof = Objects.requireNonNull(prepared.require(admission, fixed, plan, releaseScope, request, runId, principalId));
             var replay = Objects.requireNonNull(proof.replayManifest());
             // The missing C06 consumer must publish the complete replay contract, not label an unrelated valid schema as replay evidence.
             if (!"urn:medical:replay-manifest:1.0.0".equals(replay.schemaRef())) mismatch();
             var rebound = shared.bindPublished(replay.schemaRef(), replay.schemaSha256(), replay.canonicalBytes());
             if (!rebound.equals(replay)) mismatch();
             var replayNode = schema.read(replay.canonicalJson());
+            if (continuation != null) continuation.requireReplay(replayNode);
             requireReplay(replayNode, tenant, project, actor, taskId, runId, head.agentReleaseId(), request);
             var scopeManifest = authority.scopeManifest(json.canonical(proof.scopeManifest()), tenant, project, actor, runId, "TASK");
             var principal = authority.principalManifest(json.canonical(proof.principalManifest()), tenant, project, actor, runId, principalId, scopeManifest);
@@ -107,7 +145,7 @@ public final class RunCreateService {
             if (!retention.equals(retentionVersion.id()) || retentionVersion.ownerProjectId() != null && !project.equals(retentionVersion.ownerProjectId())) mismatch();
             WireValues.hash(retentionVersion.sha256());
             values.put("runId", runId); values.put("principalId", principalId); values.put("operationId", operationId); values.put("commandId", commandId);
-            values.put("attempt", "1"); values.put("workflowId", tenant + "/" + runId); values.put("now", now);
+            values.put("attempt", continuation == null ? "1" : continuation.attempt()); values.put("parentRunId", continuation == null ? null : continuation.parentRunId()); values.put("expectedStatus", head.status()); values.put("workflowId", tenant + "/" + runId); values.put("now", now);
             values.put("classification", identity.classification()); values.put("streamId", id()); values.put("retentionRevision", retention);
             values.put("authorityManifest", authority.manifestSha256()); values.put("scopeManifest", authority.canonical(scopeManifest));
             values.put("principalManifest", authority.canonical(principal)); values.put("replayManifest", replay.canonicalJson());
@@ -143,6 +181,7 @@ public final class RunCreateService {
                     || !List.of("ACTIVE").equals(permissions.projectStatus(project)) || !grant.equals(resources.require(admission, taskScope, "task.run", PURPOSE))) fail(ErrorCode.SCOPE_STALE);
             for (var permission : authority.permissions(principal)) resources.require(admission, permission.scope(), permission.action(), permission.purpose());
             proof.requireUnchanged();
+            if (continuation != null) continuation.record(admission, response, replayNode);
             return response;
         }).get());
     }

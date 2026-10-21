@@ -1,3 +1,4 @@
+import { publicationFixture } from './publication-fixture.js'
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
@@ -8,6 +9,7 @@ import { loadProject } from '../src/load-project.js'
 import { sha256 } from '../src/catalogue.js'
 
 const root = resolve('../..')
+const currentPublication = await publicationFixture(root)
 const catalogue = await loadProject(root)
 const dataset = decodeDataset(catalogue, JSON.parse(await readFile(resolve(root, 'data-design/sample_dataset.json'), 'utf-8')))
 
@@ -18,7 +20,7 @@ test('业务全部定义使用各自固定URN身份', async () => {
     assert.equal(catalogue.schemaRef(name), document.$id)
     for (const definition of Object.keys(document.$defs)) assert.equal(catalogue.schemaRef(name, definition), `${document.$id}#/$defs/${definition}`)
   }
-  assert.equal(catalogue.definitionCount, 503)
+  assert.equal(catalogue.definitionCount, currentPublication.definitionCount)
 })
 
 test('获授权原件摘要通过模板Schema校验并保持固定摘要', async () => {

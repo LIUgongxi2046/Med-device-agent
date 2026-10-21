@@ -30,6 +30,9 @@ public final class RunTokenAuthority {
     private final RunTokenSigningKeyStore signing;
     private final ServiceCertificateIdentity services;
     private final FormalModelVerificationBootstrap modelVerification;
+    private final FormalTaskNodeAuthority taskNodes;
+    private final TaskPlanDraftTokenAuthority planDraft;
+    private final DocumentReviewTokenAuthority documentReview;
 
     public RunTokenAuthority(DataSource data,TenantTransaction transactions,PermissionMapper permissions,PermissionAuthority authorization,
             RunTokenAuthoritySchema schema,RunTokenPolicyStore policies,RunTokenSigningKeyStore signing,ServiceCertificateIdentity services) {
@@ -38,7 +41,22 @@ public final class RunTokenAuthority {
     public RunTokenAuthority(DataSource data,TenantTransaction transactions,PermissionMapper permissions,PermissionAuthority authorization,
             RunTokenAuthoritySchema schema,RunTokenPolicyStore policies,RunTokenSigningKeyStore signing,ServiceCertificateIdentity services,
             FormalModelVerificationBootstrap modelVerification) {
-        this.modelVerification=modelVerification;
+        this(data,transactions,permissions,authorization,schema,policies,signing,services,modelVerification,null);
+    }
+    public RunTokenAuthority(DataSource data,TenantTransaction transactions,PermissionMapper permissions,PermissionAuthority authorization,
+            RunTokenAuthoritySchema schema,RunTokenPolicyStore policies,RunTokenSigningKeyStore signing,ServiceCertificateIdentity services,
+            FormalModelVerificationBootstrap modelVerification,FormalTaskNodeAuthority taskNodes) {
+        this(data,transactions,permissions,authorization,schema,policies,signing,services,modelVerification,taskNodes,null);
+    }
+    public RunTokenAuthority(DataSource data,TenantTransaction transactions,PermissionMapper permissions,PermissionAuthority authorization,
+            RunTokenAuthoritySchema schema,RunTokenPolicyStore policies,RunTokenSigningKeyStore signing,ServiceCertificateIdentity services,
+            FormalModelVerificationBootstrap modelVerification,FormalTaskNodeAuthority taskNodes,TaskPlanDraftTokenAuthority planDraft) {
+        this(data,transactions,permissions,authorization,schema,policies,signing,services,modelVerification,taskNodes,planDraft,null);
+    }
+    public RunTokenAuthority(DataSource data,TenantTransaction transactions,PermissionMapper permissions,PermissionAuthority authorization,
+            RunTokenAuthoritySchema schema,RunTokenPolicyStore policies,RunTokenSigningKeyStore signing,ServiceCertificateIdentity services,
+            FormalModelVerificationBootstrap modelVerification,FormalTaskNodeAuthority taskNodes,TaskPlanDraftTokenAuthority planDraft,DocumentReviewTokenAuthority documentReview) {
+        this.documentReview=documentReview;this.modelVerification=modelVerification; this.taskNodes=taskNodes; this.planDraft=planDraft;
         store=new RunTokenAuthorityStore(data); jdbc=new JdbcTemplate(data);
         this.transactions=Objects.requireNonNull(transactions); this.permissions=Objects.requireNonNull(permissions);
         this.authorization=Objects.requireNonNull(authorization); this.schema=Objects.requireNonNull(schema);
@@ -49,8 +67,10 @@ public final class RunTokenAuthority {
         Objects.requireNonNull(operation); Objects.requireNonNull(action);
         var service=services.require(request);
         var verified=policies.verify(token);
-        return transaction(verified.tenantId(),verified.initiatorId(),verified.authEpoch(),current -> {
-            var admission=require(verified,service,action.stepId(),action.generation(),current);
+        // Existing action authorization uses within-bound totals. Creating a new paid
+        // invocation still requires its independent exact priced atomic reservation.
+        return transaction(request,verified.tenantId(),verified.initiatorId(),verified.runId(),verified.stepId(),verified.authEpoch(),false,(current,taskNode) -> {
+            var admission=require(verified,service,action.stepId(),action.generation(),current,taskNode);
             if(!admission.run().id().equals(action.runId()) || !verified.actionScope().contains(action.action())) denied(ErrorCode.ACCESS_DENIED);
             requirePermission(admission,action.scope(),action.action(),action.purpose());
             var binding=store.action(admission.run(),admission.step(),action.actionId());
@@ -58,10 +78,13 @@ public final class RunTokenAuthority {
                     || !binding.arguments().equals(action.argumentsSha256()) || !binding.kind().equals(action.kind())
                     || !binding.tool().equals(action.toolVersion()) || !List.of("BOUND","RESERVED","DISPATCHING","IN_FLIGHT").contains(binding.state()))
                 denied(ErrorCode.ACTION_STALE);
+            // Publication/input preparation can be nontrivial; do not enter the business
+            // operation using the earlier admission timestamp after a lease/token expires.
+            if(!store.now().isBefore(admission.step().expires())||!store.now().isBefore(utc(verified.expiresAt())))denied(ErrorCode.LEASE_STALE);
             var result=operation.apply(new Admission(admission.run().tenant(),admission.run().project(),admission.run().actor(),
                 admission.run().principal(),admission.run().id(),admission.step().id(),action.actionId(),action.generation(),admission.now(),
                 current.authEpoch(),current.governanceEpoch(),verified.actionScope(),service.serviceUri(),
-                schema.permissions(admission.principal()).stream().filter(p->verified.actionScope().contains(p.action())).toList()));
+                effectivePermissions(admission,verified.actionScope()),admission.taskNode()));
             // 返回之前核查当前配置和期限，业务写入与准入使用同一个企业事务。
             requirePermission(admission,action.scope(),action.action(),action.purpose()); requireExecution(admission);
             policies.verify(token); recheckService(request,service);
@@ -73,39 +96,66 @@ public final class RunTokenAuthority {
     public Issued issue(HttpServletRequest request,IssueRequest input) throws Exception {
         Objects.requireNonNull(input);
         var service=services.require(request);
-        return transaction(input.tenantId(),input.initiatorId(),null,current -> {
+        return transaction(request,input.tenantId(),input.initiatorId(),input.runId(),input.stepId(),null,true,(current,taskNode) -> {
             var policy=policies.read();
-            var admission=base(input.runId(),input.initiatorId(),input.stepId(),input.generation(),service,policy.policy().audience());
+            var admission=base(input.runId(),input.initiatorId(),input.stepId(),input.generation(),service,policy.policy().audience(),taskNode);
             requireActions(admission,input.actions());
             return issueWithin(request,service,admission,input.actions(),input.lifetime(),current,policy,null);
         });
     }
 
     public Lease claimStep(HttpServletRequest request,ClaimRequest input) throws Exception {
+        return claim(request,input,null,null,null,null);
+    }
+
+    /** TASK scheduler-only claim. A caller cannot mint this committed command proof.
+     * The ordinary public claim path and its expired-lease semantics are unchanged. */
+    Lease claimReserved(HttpServletRequest request,ClaimRequest input,TaskRunDispatchReservation.Pending reservation) throws Exception {
+        return claim(request,input,Objects.requireNonNull(reservation),null,null,null);
+    }
+    /** N03 deterministic command claim. Only the original privately minted committed reservation is accepted. */
+    Lease claimStrictFieldReserved(HttpServletRequest request,ClaimRequest input,TaskStrictFieldDispatchReservation.Pending reservation) throws Exception {
+        return claim(request,input,null,Objects.requireNonNull(reservation),null,null);
+    }
+    Lease claimWriterReserved(HttpServletRequest request,ClaimRequest input,TaskSectionWriterDispatchReservation.Pending reservation) throws Exception {return claim(request,input,null,null,Objects.requireNonNull(reservation),null);}
+    Lease claimVerifierReserved(HttpServletRequest request,ClaimRequest input,TaskSourceVerifierDispatchReservation.Pending reservation) throws Exception {return claim(request,input,null,null,null,Objects.requireNonNull(reservation));}
+
+    private Lease claim(HttpServletRequest request,ClaimRequest input,TaskRunDispatchReservation.Pending reservation,TaskStrictFieldDispatchReservation.Pending strictField,TaskSectionWriterDispatchReservation.Pending writer,TaskSourceVerifierDispatchReservation.Pending verifier) throws Exception {
         Objects.requireNonNull(input); var service=services.require(request);
-        return transaction(input.tenantId(),input.initiatorId(),null,current -> {
+        return transaction(request,input.tenantId(),input.initiatorId(),input.runId(),input.stepId(),null,true,(current,taskNode) -> {
             var policy=policies.read();
-            var admission=base(input.runId(),input.initiatorId(),input.stepId(),null,service,policy.policy().audience());
+            var admission=base(input.runId(),input.initiatorId(),input.stepId(),null,service,policy.policy().audience(),taskNode);
             var step=admission.step();
             if(!step.revision().equals(input.expectedRevision()) || !("READY".equals(step.status()) && step.owner()==null && step.expires()==null
                     || "RUNNING".equals(step.status()) && step.expires()!=null && !step.expires().isAfter(store.now()))) denied(ErrorCode.LEASE_STALE);
-            requireActions(admission,schema.permissions(admission.principal()).stream().map(RunTokenAuthoritySchema.Permission::action).distinct().toList());
+            requireActions(admission,nodePermissions(admission).stream().map(RunTokenAuthoritySchema.Permission::action).distinct().toList());
             var expires=leaseExpiry(input.lifetime(),policy,store.now());
+            if(reservation!=null)reservation.before(taskNode,input,service,admission.run(),step);
+            if(strictField!=null)strictField.before(taskNode,input,service,admission.run(),step);
+            if(writer!=null)writer.before(taskNode,input,service,admission.run(),step);
+            if(verifier!=null)verifier.before(taskNode,input,service,admission.run(),step);
             WireValues.revision(step.generation().add(BigInteger.ONE).toString());
             store.claim(admission.run(),step,service.serviceUri(),expires);
             var currentStep=store.step(admission.run(),step.id());
             if(!"RUNNING".equals(currentStep.status()) || !service.serviceUri().equals(currentStep.owner()) || !expires.equals(currentStep.expires())
                     || !step.generation().add(BigInteger.ONE).equals(currentStep.generation())
                     || !step.revision().add(BigInteger.ONE).equals(currentStep.revision())) denied(ErrorCode.CONTENT_MISMATCH);
-            return leaseReceipt(request,service,admission.run(),currentStep,policy,"run.step.claim","run.step_leased");
+            if(admission.planDraft()!=null)planDraft.bindClaimedHost(admission.run(),currentStep);
+            if(admission.documentReview()!=null)documentReview.bindClaimedHost(admission.run(),currentStep);
+            var lease=leaseReceipt(request,service,admission.run(),currentStep,policy,"run.step.claim","run.step_leased");
+            if(reservation!=null)reservation.after(taskNode,lease);
+            if(strictField!=null)strictField.after(taskNode,lease);
+            if(writer!=null)writer.after(taskNode,lease);
+            if(verifier!=null)verifier.after(taskNode,lease);
+            return lease;
         });
     }
 
     public Lease renewStep(HttpServletRequest request,String token,Duration lifetime) throws Exception {
         var service=services.require(request); var verified=policies.verify(token);
-        return transaction(verified.tenantId(),verified.initiatorId(),verified.authEpoch(),current -> {
+        return transaction(request,verified.tenantId(),verified.initiatorId(),verified.runId(),verified.stepId(),verified.authEpoch(),false,(current,taskNode) -> {
             var original=store.token(verified.initiatorId(),verified.jti());
-            var admission=require(verified,service,verified.stepId(),original.generation(),current);
+            var admission=require(verified,service,verified.stepId(),original.generation(),current,taskNode);
             requireActions(admission,verified.actionScope());
             var policy=policies.read(); var expires=leaseExpiry(lifetime,policy,store.now());
             if(!expires.isAfter(admission.step().expires())) denied(ErrorCode.LEASE_STALE);
@@ -139,9 +189,9 @@ public final class RunTokenAuthority {
 
     public Issued renew(HttpServletRequest request,String token,Duration lifetime) throws Exception {
         var service=services.require(request); var verified=policies.verify(token);
-        return transaction(verified.tenantId(),verified.initiatorId(),verified.authEpoch(),current -> {
+        return transaction(request,verified.tenantId(),verified.initiatorId(),verified.runId(),verified.stepId(),verified.authEpoch(),false,(current,taskNode) -> {
             var original=store.token(verified.initiatorId(),verified.jti());
-            var admission=require(verified,service,verified.stepId(),original.generation(),current);
+            var admission=require(verified,service,verified.stepId(),original.generation(),current,taskNode);
             requireActions(admission,verified.actionScope());
             return issueWithin(request,service,admission,verified.actionScope(),lifetime,current,policies.read(),verified.jti());
         });
@@ -181,10 +231,10 @@ public final class RunTokenAuthority {
     }
 
     private Checked require(RunTokenSignature.Verified verified,ServiceCertificateIdentity.Verified service,String step,BigInteger generation,
-            TenantWatermarks current) throws Exception {
+            TenantWatermarks current,FormalTaskNodeAuthority.Verified taskNode) throws Exception {
         if(verified.stepId()==null || step==null || generation==null || !verified.stepId().equals(step)
                 || !verified.authEpoch().equals(current.authEpoch())) denied(ErrorCode.ACCESS_DENIED);
-        var admission=base(verified.runId(),verified.initiatorId(),step,generation,service,verified.audience());
+        var admission=base(verified.runId(),verified.initiatorId(),step,generation,service,verified.audience(),taskNode);
         var token=store.token(verified.initiatorId(),verified.jti()); var policy=policies.read();
         if(!verified.jti().equals(token.jti()) || !admission.run().principal().equals(token.principal())
                 || !Objects.equals(verified.projectId(),token.project()) || !Objects.equals(verified.projectId(),admission.run().project())
@@ -199,7 +249,13 @@ public final class RunTokenAuthority {
         return admission;
     }
 
+    // Retain the legacy metadata-only path and its tests. It cannot acquire a TASK proof.
     private Checked base(String runId,String actor,String stepId,BigInteger generation,ServiceCertificateIdentity.Verified service,String audience)
+            throws Exception {
+        return base(runId,actor,stepId,generation,service,audience,null);
+    }
+
+    private Checked base(String runId,String actor,String stepId,BigInteger generation,ServiceCertificateIdentity.Verified service,String audience,FormalTaskNodeAuthority.Verified taskNode)
             throws Exception {
         var run=store.run(runId,actor); var step=store.step(run,stepId); var now=store.now();
         if(!"ACTIVE".equals(run.principalStatus()) || !"RUNNING".equals(run.status()) || !actor.equals(run.executionActor())
@@ -221,11 +277,29 @@ public final class RunTokenAuthority {
                 if(!schema.permissions(principal).equals(bootstrap.nodePermissions()))denied(ErrorCode.CONTENT_MISMATCH);
             }
         }
+        TaskPlanDraftRuntimeAuthority.Bootstrap planBootstrap=null;
+        if("SYSTEM_JOB".equals(run.kind())) {
+            var drafts=jdbc.query("SELECT j.run_id FROM system_job_run j JOIN task_plan_draft_job d ON d.tenant_id=j.tenant_id AND d.run_id=j.run_id WHERE j.tenant_id=? AND j.run_id=? AND j.initiator_id=? AND j.job_type='PLAN_DRAFT' AND j.target_kind='TASK' AND j.target_id=d.task_id AND j.target_revision=d.task_revision FOR UPDATE",(r,n)->r.getString(1),run.tenant(),run.id(),actor);
+            if(drafts.size()>1)denied(ErrorCode.CONTENT_MISMATCH);
+            if(drafts.size()==1){
+                if(planDraft==null)denied(ErrorCode.DEPENDENCY_UNAVAILABLE);
+                planBootstrap=planDraft.require(run.tenant(),actor,run.id(),stepId,step.roleSha256(),service.serviceUri(),audience);
+                if(!schema.permissions(principal).equals(planBootstrap.nodePermissions()))denied(ErrorCode.CONTENT_MISMATCH);
+            }
+        }
+        DocumentReviewRuntimeAuthority.Bootstrap documentBootstrap=null;
+        if("SYSTEM_JOB".equals(run.kind())) {
+            var reviews=jdbc.query("SELECT j.run_id FROM system_job_run j JOIN document_review_execution d ON d.tenant_id=j.tenant_id AND d.run_id=j.run_id WHERE j.tenant_id=? AND j.run_id=? AND j.initiator_id=? AND j.job_type='CHECK_DOCUMENT' AND j.target_kind='DOCUMENT' AND j.target_id=d.document_id AND j.target_revision=d.document_revision FOR UPDATE",(r,n)->r.getString(1),run.tenant(),run.id(),actor);
+            if(reviews.size()>1)denied(ErrorCode.CONTENT_MISMATCH);
+            if(reviews.size()==1){if(documentReview==null)denied(ErrorCode.DEPENDENCY_UNAVAILABLE);documentBootstrap=documentReview.require(run.tenant(),actor,run.id(),stepId,step.roleSha256(),service.serviceUri(),audience);if(!schema.permissions(principal).equals(documentBootstrap.nodePermissions()))denied(ErrorCode.CONTENT_MISMATCH);}
+        }
         if(!step.roleSha256().equals(step.registeredSha256()) || !"CAPABILITY_VERSION".equals(step.entityKind())
                 || step.roleProject()!=null && !step.roleProject().equals(run.project()) || !"1.0.0".equals(step.roleSchema()))denied(ErrorCode.OBJECT_UNAVAILABLE);
-        if(bootstrap==null && (!"PUBLISHED".equals(step.roleStatus()) || !List.of("ACTIVE","PUBLISHED").contains(step.configurationStatus())
+        if(taskNode!=null && !"TASK".equals(run.kind()))denied(ErrorCode.ACCESS_DENIED);
+        if(taskNode!=null) taskNode.requireIdentity(run.tenant(),actor,run.id(),stepId,step.roleSha256(),service.serviceUri(),audience);
+        if(bootstrap==null && taskNode==null && planBootstrap==null && documentBootstrap==null && (!"PUBLISHED".equals(step.roleStatus()) || !List.of("ACTIVE","PUBLISHED").contains(step.configurationStatus())
                 || !schema.manifestSha256().equals(step.roleManifest())))denied(ErrorCode.OBJECT_UNAVAILABLE);
-        schema.role(step.roleScope(),principal);
+        if(taskNode==null && planBootstrap==null && documentBootstrap==null) schema.role(step.roleScope(),principal);
         var binding=single(permissions.currentBinding(actor));
         if(!actor.equals(binding.userId()) || !"ACTIVE".equals(binding.status())) denied(ErrorCode.ACCESS_DENIED);
         List<String> account;
@@ -243,13 +317,16 @@ public final class RunTokenAuthority {
               AND valid_from<=UTC_TIMESTAMP(6) AND (valid_to IS NULL OR valid_to>UTC_TIMESTAMP(6)) FOR UPDATE
             """,(r,n)->r.getString(1),run.tenant(),actor);
         if(members.size()!=1 || run.project()!=null && !"ACTIVE".equals(single(permissions.projectStatus(run.project())))) denied(ErrorCode.ACCESS_DENIED);
-        var checked=new Checked(run,step,principal,binding.mode(),now,bootstrap);
+        var checked=new Checked(run,step,principal,binding.mode(),now,bootstrap,taskNode,planBootstrap,documentBootstrap);
         requireExecution(checked);
         return checked;
     }
 
     private void requireExecution(Checked admission) throws Exception {
         if(admission.bootstrap()!=null)admission.bootstrap().requireUnchanged();
+        if(admission.taskNode()!=null)admission.taskNode().requireUnchanged();
+        if(admission.planDraft()!=null)admission.planDraft().requireUnchanged();
+        if(admission.documentReview()!=null)admission.documentReview().requireUnchanged();
         var run=admission.run();
         if("TASK".equals(run.kind())) {
             if(run.task()==null || run.project()==null) denied(ErrorCode.OBJECT_UNAVAILABLE);
@@ -262,7 +339,7 @@ public final class RunTokenAuthority {
 
     private void requireActions(Checked admission,List<String> actions) throws Exception {
         if(actions==null || actions.isEmpty() || new java.util.HashSet<>(actions).size()!=actions.size()) denied(ErrorCode.ACCESS_DENIED);
-        var allowed=schema.permissions(admission.principal());
+        var allowed=nodePermissions(admission);
         for(String action:actions) {
             if(action==null || !action.matches("[a-z][a-z0-9_.-]{0,63}")) denied(ErrorCode.ACCESS_DENIED);
             var requested=allowed.stream().filter(value -> action.equals(value.action())).toList();
@@ -272,20 +349,42 @@ public final class RunTokenAuthority {
     }
 
     private void requirePermission(Checked admission,PermissionProtocol.Scope scope,String action,String purpose) throws Exception {
-        if(!schema.permissions(admission.principal()).contains(new RunTokenAuthoritySchema.Permission(scope,action,purpose))) denied(ErrorCode.ACCESS_DENIED);
+        if(!nodePermissions(admission).contains(new RunTokenAuthoritySchema.Permission(scope,action,purpose))) denied(ErrorCode.ACCESS_DENIED);
         authorization.requireResource(scope,admission.run().actor(),admission.mode(),action,purpose,
             permissions.resourceGrants(admission.run().actor(),action),store.now());
     }
 
-    private <T> T transaction(String tenant,String actor,BigInteger expectedAuth,CheckedOperation<T> operation) {
+    private List<RunTokenAuthoritySchema.Permission> nodePermissions(Checked admission) throws Exception {
+        if(admission.documentReview()!=null)return RuntimeNodePermissions.intersect(schema.permissions(admission.principal()),admission.documentReview().nodePermissions(),admission.documentReview().nodePermissions().stream().map(RunTokenAuthoritySchema.Permission::action).distinct().toList());
+        if(admission.planDraft()!=null)return RuntimeNodePermissions.intersect(schema.permissions(admission.principal()),admission.planDraft().nodePermissions(),admission.planDraft().nodePermissions().stream().map(RunTokenAuthoritySchema.Permission::action).distinct().toList());
+        if(admission.taskNode()==null)return schema.permissions(admission.principal());
+        var node=admission.taskNode().nodePermissions();
+        return RuntimeNodePermissions.intersect(schema.permissions(admission.principal()),node,
+            node.stream().map(RunTokenAuthoritySchema.Permission::action).distinct().toList());
+    }
+    private List<RunTokenAuthoritySchema.Permission> effectivePermissions(Checked admission,List<String> actions) throws Exception {
+        return RuntimeNodePermissions.intersect(schema.permissions(admission.principal()),nodePermissions(admission),actions);
+    }
+    private <T> T transaction(HttpServletRequest request,String tenant,String actor,String run,String step,BigInteger expectedAuth,boolean requireAvailable,CheckedOperation<T> operation) throws Exception {
+        if(documentReview!=null && documentReview.supports(tenant,actor,run))
+            return documentReview.execute(request,tenant,actor,run,step,expectedAuth,current->operation.apply(current,null));
+        if(planDraft!=null && planDraft.supports(tenant,actor,run))
+            return planDraft.execute(request,tenant,actor,run,step,expectedAuth,current->operation.apply(current,null));
+        if(taskNodes!=null && taskNodes.supports(tenant,actor,run))
+            return taskNodes.execute(request,tenant,actor,run,step,expectedAuth,requireAvailable,operation::apply);
         WireValues.uuid(tenant); WireValues.uuid(actor);
         var epochs=store.epochs(tenant);
         if(expectedAuth!=null && !expectedAuth.equals(epochs.authEpoch())) denied(ErrorCode.SCOPE_STALE);
         try(var scope=TenantScope.open(new TenantScope.Identity(tenant,actor,BigInteger.ZERO,epochs.authEpoch(),epochs.governanceEpoch()))) {
-            return transactions.execute(current -> ThrowingSupplier.of(() -> operation.apply(current)).get());
+            return transactions.execute(current -> ThrowingSupplier.of(() -> operation.apply(current,null)).get());
         }
     }
 
+    boolean documentReviewCompleted(Admission admission)throws Exception{return documentReview!=null&&documentReview.completedIfActive(admission);}
+    DocumentReviewRuntimeAuthority.Verified documentReviewRuntime(ActionRequest action)throws Exception{if(documentReview==null)denied(ErrorCode.DEPENDENCY_UNAVAILABLE);return documentReview.leased(action);}
+    void requireDocumentReviewAdmission(Admission admission)throws Exception{if(documentReview==null)denied(ErrorCode.DEPENDENCY_UNAVAILABLE);documentReview.requireAdmission(admission);}
+    TaskPlanDraftRuntimeAuthority.Verified planDraftRuntime(ActionRequest action)throws Exception {if(planDraft==null)denied(ErrorCode.DEPENDENCY_UNAVAILABLE);return planDraft.leased(action);}
+    void requirePlanDraftAdmission(Admission admission)throws Exception {if(planDraft==null)denied(ErrorCode.DEPENDENCY_UNAVAILABLE);planDraft.requireAdmission(admission);}
     private static LocalDateTime utc(java.time.Instant value) { return LocalDateTime.ofInstant(value,ZoneOffset.UTC); }
     private static void requirePolicy(RunTokenPolicyStore.Current expected,RunTokenPolicyStore.Current actual) {
         if(!expected.revision().equals(actual.revision()) || !expected.contentSha256().equals(actual.contentSha256())) denied(ErrorCode.SCOPE_STALE);
@@ -297,8 +396,8 @@ public final class RunTokenAuthority {
     }
     private static <T> T single(List<T> values) { if(values.size()!=1) denied(ErrorCode.ACCESS_DENIED); return values.get(0); }
     private static void denied(ErrorCode code) { throw new TenantAccessException(code); }
-    private record Checked(RunTokenAuthorityStore.Run run,RunTokenAuthorityStore.Step step,JsonNode principal,String mode,LocalDateTime now,FormalModelVerificationBootstrap.Verified bootstrap) { }
-    @FunctionalInterface private interface CheckedOperation<T> { T apply(TenantWatermarks current) throws Exception; }
+    private record Checked(RunTokenAuthorityStore.Run run,RunTokenAuthorityStore.Step step,JsonNode principal,String mode,LocalDateTime now,FormalModelVerificationBootstrap.Verified bootstrap,FormalTaskNodeAuthority.Verified taskNode,TaskPlanDraftRuntimeAuthority.Bootstrap planDraft,DocumentReviewRuntimeAuthority.Bootstrap documentReview) { }
+    @FunctionalInterface private interface CheckedOperation<T> { T apply(TenantWatermarks current,FormalTaskNodeAuthority.Verified taskNode) throws Exception; }
     @FunctionalInterface public interface Operation<T> { T apply(Admission admission) throws Exception; }
 
     public record ActionRequest(String runId,String stepId,String actionId,BigInteger generation,String inputSha256,String argumentsSha256,
@@ -340,10 +439,29 @@ public final class RunTokenAuthority {
         private final List<String> delegatedActions;
         private final List<RunTokenAuthoritySchema.Permission> delegatedPermissions;
         private final String serviceUri;
+        private final FormalTaskNodeAuthority.Verified taskNode;
         private Admission(String tenant,String project,String actor,String principal,String run,String step,String action,BigInteger generation,
-                LocalDateTime now,BigInteger auth,BigInteger governance,List<String> delegatedActions,String serviceUri,List<RunTokenAuthoritySchema.Permission> delegatedPermissions) {
-            tenantId=tenant; projectId=project; initiatorId=actor; principalId=principal; runId=run; stepId=step; actionId=action;
+                LocalDateTime now,BigInteger auth,BigInteger governance,List<String> delegatedActions,String serviceUri,List<RunTokenAuthoritySchema.Permission> delegatedPermissions,FormalTaskNodeAuthority.Verified taskNode) {
+            this.taskNode=taskNode;tenantId=tenant; projectId=project; initiatorId=actor; principalId=principal; runId=run; stepId=step; actionId=action;
             leaseGeneration=generation; admittedAt=now; authEpoch=auth; governanceEpoch=governance;this.delegatedActions=List.copyOf(delegatedActions);this.serviceUri=Objects.requireNonNull(serviceUri);this.delegatedPermissions=List.copyOf(delegatedPermissions);
+        }
+        TaskStrictFieldInputAuthority.Verified currentStrictFieldInput()throws Exception {
+            if(taskNode==null)denied(ErrorCode.ACCESS_DENIED);taskNode.requireUnchanged();
+            var input=taskNode.currentStrictFieldInput();input.requireUnchanged();
+            if(!tenantId.equals(input.input().tenantId())||!projectId.equals(input.input().projectId())||!runId.equals(input.input().runId())||!stepId.equals(input.input().stepId()))denied(ErrorCode.ACCESS_DENIED);
+            taskNode.requireUnchanged();return input;
+        }
+        TaskSectionWriterInputAuthority.Verified currentWriterInput()throws Exception {
+            if(taskNode==null)denied(ErrorCode.ACCESS_DENIED);taskNode.requireUnchanged();
+            var input=taskNode.currentWriterInput();input.requireUnchanged();
+            if(!tenantId.equals(input.input().tenantId())||!projectId.equals(input.input().projectId())||!runId.equals(input.input().runId())||!stepId.equals(input.input().stepId()))denied(ErrorCode.ACCESS_DENIED);
+            taskNode.requireUnchanged();return input;
+        }
+        TaskSourceVerifierInputAuthority.Verified currentVerifierInput()throws Exception {
+            if(taskNode==null)denied(ErrorCode.ACCESS_DENIED);taskNode.requireUnchanged();
+            var input=taskNode.currentVerifierInput();input.requireUnchanged();
+            if(!tenantId.equals(input.input().tenantId())||!projectId.equals(input.input().projectId())||!runId.equals(input.input().runId())||!stepId.equals(input.input().stepId()))denied(ErrorCode.ACCESS_DENIED);
+            taskNode.requireUnchanged();return input;
         }
         public List<String> delegatedActions(){return delegatedActions;}
         public List<RunTokenAuthoritySchema.Permission> delegatedPermissions(){return delegatedPermissions;}

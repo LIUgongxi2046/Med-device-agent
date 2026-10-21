@@ -1,0 +1,24 @@
+package com.ruoyi.medical.workflow;
+import com.fasterxml.jackson.databind.*;
+import com.fasterxml.jackson.databind.json.JsonMapper;
+import java.nio.*;
+import java.nio.charset.*;
+import java.util.*;
+import static com.ruoyi.medical.workflow.WorkflowProtocol.*;
+import static com.ruoyi.medical.workflow.TaskRunStageProtocolV2.*;
+/** Separate closed versioned wire. No caller permissions, token or artifact aliases. */
+public final class TaskRunStageSchemaV2 {
+    public static final String ROUTE="/internal/medical/task-run/activities/v2/stages";
+    private final TaskRunActivitySchema records=new TaskRunActivitySchema();
+    private final JsonMapper json=JsonMapper.builder().propertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE).enable(com.fasterxml.jackson.core.StreamReadFeature.STRICT_DUPLICATE_DETECTION).enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS).build();
+    private final com.networknt.schema.JsonSchema schema;
+    public TaskRunStageSchemaV2(){try(var in=Objects.requireNonNull(getClass().getResourceAsStream("/task-run-stage-v2.schema.json"))){schema=com.networknt.schema.JsonSchemaFactory.getInstance(com.networknt.schema.SpecVersion.VersionFlag.V202012).getSchema(json.readTree(in),com.networknt.schema.SchemaValidatorsConfig.builder().formatAssertionsEnabled(true).build());schema.initializeValidators();}catch(Exception e){throw new IllegalStateException("TASK_STAGE_V2_CONTRACT_REQUIRED",e);}}
+    public record Request(String operation,Reference reference,String stageKind,String commandId,FieldCompletionV2 completion){public Request{Objects.requireNonNull(reference);if(reference.executionKind()!=ExecutionKind.TASK||!Set.of("EXECUTE_STAGE","COMMIT_STAGE","RECOVER_STAGE").contains(operation))invalid();if(!"COMMIT_STAGE".equals(operation)){if(!"N03".equals(stageKind)||completion!=null)invalid();com.ruoyi.medical.contracts.WireValues.uuid(commandId);}else{if(stageKind!=null||commandId!=null||completion==null)invalid();completion.require(reference,completion.stageKind(),completion.commandId());}}}
+    public Request read(byte[] bytes)throws Exception{var n=parse(bytes);if(n==null||!schema.validate(n).isEmpty())invalid();String op=n.required("operation").asText();return new Request(op,records.record(n.required("reference"),Reference.class),!op.equals("COMMIT_STAGE")?n.required("stage_kind").textValue():null,!op.equals("COMMIT_STAGE")?n.required("command_id").textValue():null,op.equals("COMMIT_STAGE")?records.record(n.required("completion"),FieldCompletionV2.class):null);}
+    public byte[] request(Request r)throws Exception{var n=json.createObjectNode().put("schema_version","2.0.0").put("operation",r.operation());n.set("reference",json.valueToTree(r.reference()));if(r.completion()!=null)n.set("completion",json.valueToTree(r.completion()));else n.put("stage_kind",r.stageKind()).put("command_id",r.commandId());byte[] bytes=json.writeValueAsBytes(n);read(bytes);return bytes;}
+    public JsonNode response(Request r,Object result){check(r,result);var n=json.createObjectNode().put("schema_version","2.0.0").put("operation",r.operation()).put("run_id",r.reference().runId());n.set("result",json.valueToTree(result));return n;}
+    public Object response(byte[] bytes,Request r)throws Exception{var n=parse(bytes);if(n==null||!n.isObject()||n.size()!=4)invalid();var fields=new HashSet<String>();n.fieldNames().forEachRemaining(fields::add);if(!fields.equals(Set.of("schema_version","operation","run_id","result"))||!n.required("schema_version").isTextual()||!"2.0.0".equals(n.required("schema_version").textValue())||!r.operation().equals(n.required("operation").textValue())||!r.reference().runId().equals(n.required("run_id").textValue()))invalid();Object result=switch(r.operation()){case "EXECUTE_STAGE"->records.record(n.required("result"),FieldCompletionV2.class);case "COMMIT_STAGE"->records.record(n.required("result"),StageCommitV2.class);case "RECOVER_STAGE"->records.record(n.required("result"),StageRecoveryV2.class);default->throw new IllegalArgumentException();};check(r,result);return result;}
+    private static void check(Request r,Object result){if("EXECUTE_STAGE".equals(r.operation())){if(!(result instanceof FieldCompletionV2))invalid();((FieldCompletionV2)result).require(r.reference(),r.stageKind(),r.commandId());}else if("RECOVER_STAGE".equals(r.operation())){if(!(result instanceof StageRecoveryV2))invalid();((StageRecoveryV2)result).require(r.reference(),r.stageKind(),r.commandId());}else{if(!(result instanceof StageCommitV2)||!r.completion().equals(((StageCommitV2)result).completion()))invalid();}}
+    private JsonNode parse(byte[] bytes)throws Exception{return json.readTree(StandardCharsets.UTF_8.newDecoder().onMalformedInput(CodingErrorAction.REPORT).onUnmappableCharacter(CodingErrorAction.REPORT).decode(ByteBuffer.wrap(bytes)).toString());}
+    private static void invalid(){throw new IllegalArgumentException("TASK_STAGE_V2_SCHEMA_INVALID");}
+}

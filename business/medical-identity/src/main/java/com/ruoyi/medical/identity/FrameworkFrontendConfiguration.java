@@ -11,10 +11,20 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 @ConditionalOnProperty(name = "medical.identity.mode", havingValue = "local")
 public class FrameworkFrontendConfiguration implements WebMvcConfigurer {
     public static final List<String> ROUTES = List.of(
+        "/system/user", "/system/role", "/system/menu", "/system/dept", "/system/post",
+        "/system/dict", "/system/config", "/system/notice", "/monitor/online", "/monitor/job",
+        "/monitor/operlog", "/monitor/logininfor", "/monitor/server", "/monitor/cache", "/monitor/cacheList", "/monitor/druid",
+        "/tool/gen", "/tool/swagger", "/tool/build", "/system/user-auth/role/{userId}",
+        "/system/role-auth/user/{roleId}", "/system/dict-data/index/{dictId}",
+        "/monitor/job-log/index/{jobId}", "/tool/gen-edit/index/{tableId}",
         "/access", "/access/denied", "/login", "/account", "/projects", "/projects/new", "/projects/{projectId}",
         "/member-invitations/acceptances",
         "/projects/{projectId}/profile", "/projects/{projectId}/status", "/projects/{projectId}/tasks", "/projects/{projectId}/templates", "/projects/{projectId}/uploads",
         "/projects/{projectId}/tasks/{taskId}/config",
+        "/projects/{projectId}/tasks/{taskId}/field-targets",
+        "/projects/{projectId}/tasks/{taskId}/field-target-capabilities",
+        "/projects/{projectId}/tasks/{taskId}/node-producer-rules",
+        "/projects/{projectId}/task-professional-packages",
         "/projects/{projectId}/tasks/new",
         "/projects/{projectId}/tasks/{taskId}/documents/{documentId}/write",
         "/projects/{projectId}/tasks/{taskId}/documents/{documentId}/review",
@@ -27,9 +37,10 @@ public class FrameworkFrontendConfiguration implements WebMvcConfigurer {
         "/document-save-audit", "/evaluation", "/evaluation/new", "/evaluation/{evaluationId}",
         "/enterprises/members", "/enterprises/roles", "/enterprises/registrations", "/enterprises/registration-reviews", "/enterprises/registration-reviews/{registrationId}",
         "/agents/execution-policies", "/agents/execution-policies/new", "/agents/execution-policies/{versionId}",
-        "/agents/model-runtime", "/agents/retention", "/agents/drafts", "/agents/capabilities", "/agents/capabilities/new", "/agents/capabilities/{recordId}",
+        "/agents/model-runtime", "/agents/retention", "/agents/drafts", "/agents/publication", "/agents/context-bindings",
+        "/agents/capabilities", "/agents/capabilities/new", "/agents/capabilities/{recordId}",
         "/agents", "/agents/simulation-preparation", "/agents/simulation-rules", "/agents/simulation-rules/{ruleVersion}",
-        "/scenarios", "/agents/budgets", "/agents/budgets/new", "/agents/budgets/{budgetId}",
+        "/connections", "/scenarios", "/agents/budgets", "/agents/budgets/new", "/agents/budgets/{budgetId}",
         "/agents/budgets/{budgetId}/decisions", "/agents/budgets/{budgetId}/revisions",
         "/agents/budgets/{budgetId}/revisions/{budgetRevision}"
     );

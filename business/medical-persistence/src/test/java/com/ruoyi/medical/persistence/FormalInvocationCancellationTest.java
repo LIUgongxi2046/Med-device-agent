@@ -3,12 +3,31 @@ import org.junit.jupiter.api.*;import static org.junit.jupiter.api.Assertions.*;
 /** Real cancellation transitions and SQL mutation boundaries; SQL/domain authorities are isolated fixtures. */
 class FormalInvocationCancellationTest {
  FormalInvocationCancellation service;FormalInvocationSchema schema;JdbcTemplate db;EnterpriseAccess.Admission actor;ResourceReadAuthority resources;TenantScope scope;String tenant=id(1),user=id(2),inv=id(3),status="RESERVED",generation="0",receipt;boolean attempt=false,observation=false,orphan=false;String owner=user,key="original-key/?#-0000";
+ final Map<String,Object> preSend=new LinkedHashMap<>();
+ static final String PRE_SEND_SQL="SELECT actual_send_manifest,actual_send_sha256,provider_request_id,usage_receipt_id FROM invocation WHERE tenant_id=? AND invocation_id=? LIMIT 2";
  @BeforeEach void setup()throws Exception{schema=new FormalInvocationSchema();TransactionSynchronizationManager.setActualTransactionActive(true);scope=TenantScope.open(new TenantScope.Identity(tenant,user,BigInteger.ZERO,BigInteger.ONE,BigInteger.ONE));db=mock(JdbcTemplate.class);var jobs=mock(FormalVerificationJobs.class);var reservations=mock(FormalInvocationReservations.class);resources=mock(ResourceReadAuthority.class);service=new FormalInvocationCancellation(mock(javax.sql.DataSource.class),jobs,reservations,resources,schema);var field=FormalInvocationCancellation.class.getDeclaredField("db");field.setAccessible(true);field.set(service,db);actor=mock(EnterpriseAccess.Admission.class,RETURNS_DEEP_STUBS);when(actor.actorId()).thenReturn(user);when(actor.context().tenant_id()).thenReturn(tenant);var job=new FormalVerificationJobs.Job(tenant,id(4),id(5),id(6),user,key,id(7),id(8),id(9),id(10),id(11),id(12),id(13),id(14),id(15),"{}","a".repeat(64),"b".repeat(64),"{}","c".repeat(64),schema.manifestSha256(),LocalDateTime.of(2026,10,18,1,0),"INTERNAL");when(jobs.byRun(tenant,id(7))).thenReturn(job);
+  for(String marker:List.of("actual_send_manifest","actual_send_sha256","provider_request_id","usage_receipt_id"))preSend.put(marker,null);
+  when(db.queryForList(eq(PRE_SEND_SQL),any(Object[].class))).thenAnswer(i->{
+   assertEquals(3,i.getArguments().length);assertEquals(tenant,i.getArgument(1));assertEquals(inv,i.getArgument(2));
+   return List.of(new LinkedHashMap<>(preSend));
+  });
   when(db.query(anyString(),any(RowMapper.class),any(Object[].class))).thenAnswer(i->{String sql=i.getArgument(0);if(sql.startsWith("SELECT run_id"))return List.of(List.of(id(7),owner,id(16)));if(sql.startsWith("SELECT request_sha256"))return List.of();if(sql.startsWith("SELECT audit_id"))return orphan?List.of(id(99)):List.of();if(sql.startsWith("SELECT status,dispatch_generation"))return List.of(List.of(status,generation,"2"));if(sql.startsWith("SELECT attempt_id"))return attempt?List.of(id(17)):List.of();if(sql.startsWith("SELECT reservation_id"))return List.of(List.of(id(18),id(20),"1.00000000","10","1","RESERVED"),List.of(id(19),id(21),"1.00000000","10","1","RESERVED"));if(sql.startsWith("SELECT revision,reserved"))return List.of(List.of("1","1.00000000","10","1"));if(sql.startsWith("SELECT invocation_id FROM formal_invocation_accounting"))return observation?List.of(inv):List.of();if(sql.startsWith("SELECT COUNT(*)"))return List.of(1);if(sql.startsWith("SELECT resource_ref")||sql.startsWith("SELECT payload"))return List.of(receipt);throw new AssertionError(sql);});when(db.query(eq("SELECT UTC_TIMESTAMP(6)"),any(RowMapper.class))).thenReturn(List.of(LocalDateTime.of(2026,10,18,1,2)));when(db.update(anyString(),any(Object[].class))).thenAnswer(i->{String sql=i.getArgument(0);if(sql.startsWith("INSERT INTO formal_invocation_cancellation")){var keys=sql.substring(sql.indexOf('(')+1,sql.indexOf(')')).split(",");for(int n=0;n<keys.length;n++)if(keys[n].equals("receipt_json"))receipt=i.getArgument(n+1);}return 1;});
  }
  @AfterEach void close(){scope.close();TransactionSynchronizationManager.clear();}
  com.fasterxml.jackson.databind.JsonNode run()throws Exception{return service.cancel(actor,inv,key,"Stop this verification");}
  @Test void beforeDispatchReleasesExactlyBothReservedAccounts()throws Exception{var r=run();assertTrue(r.required("reservations_released").booleanValue());assertEquals("CANCELLED",r.required("status").textValue());assertFalse(r.required("provider_termination_confirmed").booleanValue());verify(db,times(2)).update(startsWith("UPDATE budget_account"),any(Object[].class));}
+ @Test void beforeDispatchCannotReleaseWhenAnyActualSendMarkerExists(){
+  for(String marker:List.of("actual_send_manifest","actual_send_sha256","provider_request_id","usage_receipt_id")){
+   preSend.put(marker,"unexpected-send-evidence");
+   assertEquals(ErrorCode.CONTENT_MISMATCH,assertThrows(TenantAccessException.class,this::run).code());
+   verify(db,never()).update(anyString(),any(Object[].class));preSend.put(marker,null);
+  }
+ }
+ @Test void missingPreSendStateCannotReleaseReservations(){
+  doReturn(List.of()).when(db).queryForList(eq(PRE_SEND_SQL),any(Object[].class));
+  assertEquals(ErrorCode.CONTENT_MISMATCH,assertThrows(TenantAccessException.class,this::run).code());
+  verify(db,never()).update(anyString(),any(Object[].class));
+ }
  @Test void afterDispatchNeverReleasesOrClaimsProviderTermination()throws Exception{status="DISPATCHING";generation="1";attempt=true;var r=run();assertFalse(r.required("reservations_released").booleanValue());assertEquals("CANCEL_REQUESTED",r.required("status").textValue());verify(db,never()).update(startsWith("UPDATE budget_account"),any(Object[].class));verify(db,never()).update(startsWith("UPDATE budget_reservation"),any(Object[].class));}
  @Test void unknownObservationRemainsUnknownAndReserved()throws Exception{status="UNKNOWN";generation="1";attempt=true;observation=true;assertEquals("UNKNOWN",run().required("status").textValue());verify(db,never()).update(startsWith("UPDATE budget_account"),any(Object[].class));}
  @Test void mutablePreSendRollbackCannotReleaseActualAttempt(){attempt=true;assertThrows(TenantAccessException.class,this::run);verify(db,never()).update(anyString(),any(Object[].class));}

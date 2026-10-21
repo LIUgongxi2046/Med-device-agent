@@ -1,0 +1,331 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:strict-field-human:1.0.0",
+  "$ref": "#/$defs/Request",
+  "$defs": {
+    "Request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "document_revision",
+        "field_id",
+        "row_id",
+        "expected_revision",
+        "baseline_sha256",
+        "check_id",
+        "strict_artifact_id",
+        "decision",
+        "reason",
+        "question"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "document_revision": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "field_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "row_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "uuid"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "expected_revision": {
+          "type": "string",
+          "pattern": "^[0-9]+$"
+        },
+        "baseline_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "check_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "strict_artifact_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "uuid"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "decision": {
+          "enum": [
+            "CONFIRM",
+            "NOT_APPLICABLE",
+            "REQUEST_EVIDENCE"
+          ]
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000
+        },
+        "question": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1,
+          "maxLength": 4000
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "decision": {
+                "const": "REQUEST_EVIDENCE"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "question": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 4000
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "question": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "decision": {
+                "const": "CONFIRM"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "strict_artifact_id": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "Receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "decision_id",
+        "document_id",
+        "document_revision",
+        "field_id",
+        "row_id",
+        "decision",
+        "revision",
+        "actor_id",
+        "created_at",
+        "baseline_sha256",
+        "reason",
+        "question",
+        "operation_id",
+        "audit_id",
+        "event_id",
+        "state"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "decision_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "document_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "document_revision": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "field_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "row_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "uuid"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "decision": {
+          "enum": [
+            "CONFIRM",
+            "NOT_APPLICABLE",
+            "REQUEST_EVIDENCE"
+          ]
+        },
+        "revision": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]*$"
+        },
+        "actor_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "baseline_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000
+        },
+        "question": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1,
+          "maxLength": 4000
+        },
+        "operation_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "audit_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "event_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "state": {
+          "enum": [
+            "CONFIRMED",
+            "NOT_APPLICABLE",
+            "AWAITING_EVIDENCE"
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "decision": {
+                "const": "CONFIRM"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "state": {
+                "const": "CONFIRMED"
+              },
+              "question": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "decision": {
+                "const": "NOT_APPLICABLE"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "state": {
+                "const": "NOT_APPLICABLE"
+              },
+              "question": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "decision": {
+                "const": "REQUEST_EVIDENCE"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "state": {
+                "const": "AWAITING_EVIDENCE"
+              },
+              "question": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "History": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "receipt",
+        "valid",
+        "invalidation_reason"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "receipt": {
+          "$ref": "#/$defs/Receipt"
+        },
+        "valid": {
+          "type": "boolean"
+        },
+        "invalidation_reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    }
+  }
+}

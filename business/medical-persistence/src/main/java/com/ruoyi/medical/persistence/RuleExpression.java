@@ -99,16 +99,54 @@ public final class RuleExpression {
                 actual.put(key, values.convertValue(attribute.value(), Object.class));
             }
         }
-        if (!unknown.isEmpty()) return new TemplateApplicabilityProtocol.Result("UNKNOWN", unknown);
         var constants = new HashMap<String,Object>();
         for (var constant : compiled.input().constants()) constants.put(constant.key(), values.convertValue(constant.value(), Object.class));
         var context = SimpleEvaluationContext.forReadOnlyDataBinding().build();
         context.setVariable("attributes", java.util.Collections.unmodifiableMap(actual));
         context.setVariable("constants", java.util.Collections.unmodifiableMap(constants));
-        Object result = compiled.expression().getValue(context);
-        if (!(result instanceof Boolean)) invalid();
-        return new TemplateApplicabilityProtocol.Result(Boolean.TRUE.equals(result) ? "APPLICABLE" : "NOT_APPLICABLE", List.of());
+        var result = evaluateNode(compiled.expression().getAST(), context, Set.copyOf(unknown));
+        if (!result.unknown().isEmpty()) return new TemplateApplicabilityProtocol.Result("UNKNOWN", List.copyOf(result.unknown()));
+        if (!(result.value() instanceof Boolean)) invalid();
+        return new TemplateApplicabilityProtocol.Result(Boolean.TRUE.equals(result.value()) ? "APPLICABLE" : "NOT_APPLICABLE", List.of());
     }
+
+    /** Strong Kleene logic: false AND unknown is false; true OR unknown is true.
+     * Unknown is a value, never null/false and never inferred from an empty input list. */
+    private Value evaluateNode(SpelNode node, SimpleEvaluationContext context, Set<String> unknown) {
+        if (node instanceof CompoundExpression) {
+            String variable=node.getChild(0).toStringAST();
+            String key=(String)((StringLiteral)node.getChild(1).getChild(0)).getLiteralValue().getValue();
+            if (variable.equals("#attributes") && unknown.contains(key)) return new Value(null, Set.of(key));
+            return new Value(parser.parseExpression(node.toStringAST()).getValue(context), Set.of());
+        }
+        if (node instanceof BooleanLiteral || node instanceof StringLiteral || node instanceof NullLiteral)
+            return new Value(parser.parseExpression(node.toStringAST()).getValue(context), Set.of());
+        var left=evaluateNode(node.getChild(0),context,unknown);
+        if(node instanceof OperatorNot) {
+            if(!left.unknown().isEmpty())return left;
+            if(!(left.value() instanceof Boolean))invalid();
+            return new Value(!((Boolean)left.value()),Set.of());
+        }
+        var right=evaluateNode(node.getChild(1),context,unknown);
+        var missing=new java.util.LinkedHashSet<String>(left.unknown());missing.addAll(right.unknown());
+        if(node instanceof OpAnd || node instanceof OpOr) {
+            if(left.unknown().isEmpty() && !(left.value() instanceof Boolean)
+                || right.unknown().isEmpty() && !(right.value() instanceof Boolean))invalid();
+            boolean decisive=node instanceof OpOr;
+            if(left.unknown().isEmpty() && Boolean.valueOf(decisive).equals(left.value())
+                || right.unknown().isEmpty() && Boolean.valueOf(decisive).equals(right.value()))return new Value(decisive,Set.of());
+            if(!missing.isEmpty())return new Value(null,missing);
+            return new Value(!decisive,Set.of());
+        }
+        if(!missing.isEmpty())return new Value(null,missing);
+        String op=node instanceof OpEQ?"==":node instanceof OpNE?"!=":node instanceof OpLT?"<":node instanceof OpLE?"<=":node instanceof OpGT?">":node instanceof OpGE?">=":null;
+        if(op==null)invalid();
+        // Keep Spring's own scalar comparison semantics without its boolean coercion of unknowns.
+        var comparison=SimpleEvaluationContext.forReadOnlyDataBinding().build();
+        comparison.setVariable("left",left.value());comparison.setVariable("right",right.value());
+        return new Value(parser.parseExpression("#left "+op+" #right").getValue(comparison),Set.of());
+    }
+    private record Value(Object value, Set<String> unknown) { }
 
     record Compiled(TemplateApplicabilityProtocol.Expression input, SpelExpression expression) { }
     private record Visit(SpelNode node, int depth) { }

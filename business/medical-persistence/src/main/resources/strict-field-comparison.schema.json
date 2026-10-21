@@ -1,0 +1,711 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:strict-field-comparison:1.0.0",
+  "$comment": "Additive pure-computation contract. Supplied IDs, hashes, applicability and receipts are data, not live authority or template completeness proofs. PLAIN_DECIMAL_SCALE_V1 is local to this contract and does not redefine published FieldValue.precision. No publication catalogue or original schema is changed.",
+  "$defs": {
+    "Id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+      "format": "uuid"
+    },
+    "Hash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "Label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "Ids": {
+      "type": "array",
+      "minItems": 0,
+      "maxItems": 1024,
+      "items": {
+        "$ref": "#/$defs/Id"
+      },
+      "uniqueItems": true
+    },
+    "ContextState": {
+      "enum": [
+        "KNOWN_SCOPED",
+        "KNOWN_GLOBAL",
+        "UNRESOLVED"
+      ]
+    },
+    "Applicability": {
+      "enum": [
+        "APPLICABLE",
+        "UNKNOWN"
+      ]
+    },
+    "FieldValue": {
+      "$ref": "https://schemas.medical-agent.invalid/1.0.0/agent-design/artifacts.schema.json#/$defs/FieldValue"
+    },
+    "EvidenceRef": {
+      "$ref": "https://schemas.medical-agent.invalid/1.0.0/agent-design/artifacts.schema.json#/$defs/EvidenceRef"
+    },
+    "FieldComparison": {
+      "$ref": "https://schemas.medical-agent.invalid/1.0.0/agent-design/artifacts.schema.json#/$defs/FieldComparison"
+    },
+    "Identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tenant_id",
+        "project_id",
+        "task_id",
+        "task_revision",
+        "plan_revision",
+        "template_version",
+        "template_sha256",
+        "assignment_id",
+        "assignment_sha256"
+      ],
+      "properties": {
+        "tenant_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "project_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "task_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "task_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "plan_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "template_version": {
+          "$ref": "#/$defs/Id"
+        },
+        "template_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "assignment_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "assignment_sha256": {
+          "$ref": "#/$defs/Hash"
+        }
+      }
+    },
+    "Section": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "section_id",
+        "requirement_node_ids"
+      ],
+      "properties": {
+        "section_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "requirement_node_ids": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1024,
+          "items": {
+            "$ref": "#/$defs/Id"
+          },
+          "uniqueItems": true
+        }
+      }
+    },
+    "SourceExactReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "field_revision",
+        "field_manifest_sha256",
+        "ordinal",
+        "field_kind"
+      ],
+      "properties": {
+        "field_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "field_manifest_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "ordinal": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2147483647
+        },
+        "field_kind": {
+          "enum": [
+            "MODEL",
+            "PTR_NUMBER",
+            "DOCUMENT_NUMBER",
+            "STANDARD_NUMBER",
+            "STANDARD_YEAR"
+          ]
+        }
+      }
+    },
+    "ParsedDecimalEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "evidence_revision",
+        "evidence_sha256",
+        "parser_revision",
+        "parser_sha256",
+        "parser_contract",
+        "raw_text_sha256",
+        "decimal_value",
+        "precision"
+      ],
+      "properties": {
+        "evidence_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "evidence_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "parser_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "parser_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "parser_contract": {
+          "$ref": "#/$defs/Label"
+        },
+        "raw_text_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "decimal_value": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "precision": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      }
+    },
+    "SourceIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "evidence_ref",
+        "source_exact",
+        "parsed_decimal"
+      ],
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/Label"
+        },
+        "evidence_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EvidenceRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "source_exact": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SourceExactReference"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "parsed_decimal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ParsedDecimalEvidence"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "Provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source",
+        "read_receipt_ids",
+        "start_codepoint",
+        "end_codepoint",
+        "raw_text_sha256"
+      ],
+      "properties": {
+        "source": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SourceIdentity"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "read_receipt_ids": {
+          "type": "array",
+          "minItems": 0,
+          "maxItems": 1024,
+          "items": {
+            "$ref": "#/$defs/Id"
+          },
+          "uniqueItems": true
+        },
+        "start_codepoint": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2147483647
+        },
+        "end_codepoint": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2147483647
+        },
+        "raw_text_sha256": {
+          "$ref": "#/$defs/Hash"
+        }
+      }
+    },
+    "TargetEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entry_id",
+        "field_id",
+        "field_definition_id",
+        "section_id",
+        "node_id",
+        "row_id",
+        "model_ids",
+        "condition_ids",
+        "model_context",
+        "condition_context",
+        "applicability",
+        "candidate_value",
+        "provenance"
+      ],
+      "properties": {
+        "entry_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "field_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "field_definition_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "section_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "node_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "row_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "model_ids": {
+          "type": "array",
+          "minItems": 0,
+          "maxItems": 1024,
+          "items": {
+            "$ref": "#/$defs/Id"
+          },
+          "uniqueItems": true
+        },
+        "condition_ids": {
+          "type": "array",
+          "minItems": 0,
+          "maxItems": 1024,
+          "items": {
+            "$ref": "#/$defs/Id"
+          },
+          "uniqueItems": true
+        },
+        "model_context": {
+          "$ref": "#/$defs/ContextState"
+        },
+        "condition_context": {
+          "$ref": "#/$defs/ContextState"
+        },
+        "applicability": {
+          "$ref": "#/$defs/Applicability"
+        },
+        "candidate_value": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "provenance": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Provenance"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "Target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "assessment",
+        "identity",
+        "sections",
+        "entries"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "assessment": {
+          "const": "PROPOSED"
+        },
+        "identity": {
+          "$ref": "#/$defs/Identity"
+        },
+        "sections": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1024,
+          "items": {
+            "$ref": "#/$defs/Section"
+          }
+        },
+        "entries": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 10000,
+          "items": {
+            "$ref": "#/$defs/TargetEntry"
+          }
+        }
+      }
+    },
+    "Rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rule_revision",
+        "rule_id",
+        "rule_sha256",
+        "operator"
+      ],
+      "properties": {
+        "rule_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "rule_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "rule_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "operator": {
+          "$ref": "#/$defs/Label"
+        }
+      }
+    },
+    "SourceObservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "model_ids",
+        "condition_ids",
+        "model_context",
+        "condition_context",
+        "applicability",
+        "value",
+        "provenance"
+      ],
+      "properties": {
+        "model_ids": {
+          "type": "array",
+          "minItems": 0,
+          "maxItems": 1024,
+          "items": {
+            "$ref": "#/$defs/Id"
+          },
+          "uniqueItems": true
+        },
+        "condition_ids": {
+          "type": "array",
+          "minItems": 0,
+          "maxItems": 1024,
+          "items": {
+            "$ref": "#/$defs/Id"
+          },
+          "uniqueItems": true
+        },
+        "model_context": {
+          "$ref": "#/$defs/ContextState"
+        },
+        "condition_context": {
+          "$ref": "#/$defs/ContextState"
+        },
+        "applicability": {
+          "$ref": "#/$defs/Applicability"
+        },
+        "value": {
+          "$ref": "#/$defs/FieldValue"
+        },
+        "provenance": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Provenance"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "EntryRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entry_id",
+        "target_entry_sha256",
+        "rule",
+        "expected_source",
+        "source_observation"
+      ],
+      "properties": {
+        "entry_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "target_entry_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "rule": {
+          "$ref": "#/$defs/Rule"
+        },
+        "expected_source": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SourceIdentity"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "source_observation": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SourceObservation"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "Request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "target_sha256",
+        "expected_identity",
+        "entries"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "target_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "expected_identity": {
+          "$ref": "#/$defs/Identity"
+        },
+        "entries": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 10000,
+          "items": {
+            "$ref": "#/$defs/EntryRequest"
+          }
+        }
+      }
+    },
+    "EntryResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entry_id",
+        "field_id",
+        "field_definition_id",
+        "section_id",
+        "node_id",
+        "row_id",
+        "target_entry_sha256",
+        "rule",
+        "outcome",
+        "result",
+        "reason",
+        "comparison"
+      ],
+      "properties": {
+        "entry_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "field_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "field_definition_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "section_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "node_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "row_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "target_entry_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "rule": {
+          "$ref": "#/$defs/Rule"
+        },
+        "outcome": {
+          "enum": [
+            "COMPUTED",
+            "UNSUPPORTED"
+          ]
+        },
+        "result": {
+          "enum": [
+            "MATCH",
+            "CONFLICT",
+            "MISSING",
+            "UNKNOWN_CONDITION",
+            null
+          ]
+        },
+        "reason": {
+          "enum": [
+            "EXACT_EQUAL",
+            "VALUE_MISMATCH",
+            "MODEL_SET_MISMATCH",
+            "CONDITION_SET_MISMATCH",
+            "UNIT_MISMATCH",
+            "PRECISION_MISMATCH",
+            "SOURCE_IDENTITY_MISMATCH",
+            "EVIDENCE_SCOPE_MISMATCH",
+            "RAW_LEXICAL_EVIDENCE_MISMATCH",
+            "DECIMAL_LEXICAL_MISMATCH",
+            "UNKNOWN_APPLICABILITY",
+            "UNRESOLVED_MODEL_CONTEXT",
+            "UNRESOLVED_CONDITION_CONTEXT",
+            "SOURCE_OBSERVATION_MISSING",
+            "SOURCE_EXPECTATION_MISSING",
+            "CANDIDATE_PROVENANCE_MISSING",
+            "SOURCE_PROVENANCE_MISSING",
+            "ORIGINAL_EVIDENCE_MISSING",
+            "READ_RECEIPTS_MISSING",
+            "SOURCE_EXACT_REFERENCE_MISSING",
+            "PARSED_DECIMAL_EVIDENCE_MISSING",
+            "RAW_VALUE_MISSING",
+            "UNSUPPORTED_OPERATOR",
+            "UNSUPPORTED_VALUE_KIND",
+            "UNSUPPORTED_PROVENANCE",
+            "UNSUPPORTED_PARSER",
+            "UNSUPPORTED_DECIMAL_LEXICAL",
+            "UNSUPPORTED_VALUE_COMPONENTS"
+          ]
+        },
+        "comparison": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FieldComparison"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "Result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "assessment",
+        "coverage",
+        "target_sha256",
+        "request_sha256",
+        "schema_sha256",
+        "identity",
+        "entries"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "assessment": {
+          "const": "COMPUTATION_ONLY"
+        },
+        "coverage": {
+          "const": "EXACT_SUPPLIED_TARGET_ENTRIES"
+        },
+        "target_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "request_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "schema_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "identity": {
+          "$ref": "#/$defs/Identity"
+        },
+        "entries": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 10000,
+          "items": {
+            "$ref": "#/$defs/EntryResult"
+          }
+        }
+      }
+    }
+  }
+}

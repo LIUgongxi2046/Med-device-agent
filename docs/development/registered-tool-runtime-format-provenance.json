@@ -1,0 +1,161 @@
+{
+  "purpose": "Static provenance for the closed AT08 session-format reader. Not runtime execution, deployment or model acceptance evidence.",
+  "python_artifacts": [
+    {
+      "name": "deepseek-harness-sdk",
+      "version": "0.2.1rc2",
+      "url": "https://files.pythonhosted.org/packages/d4/da/97d6b092e5221e13c8560d50d1e5f5c9eb8ad64a75f40196bf340572dd15/deepseek_harness_sdk-0.2.1rc2-py3-none-any.whl",
+      "archive_sha256": "30fc72c67f20ff4b46c6952087ea596fc70c2692001aa372185a24f9866bdc46",
+      "archive_size": 18112
+    },
+    {
+      "name": "deepseek-harness-runtime-bin",
+      "version": "0.2.1rc2",
+      "url": "https://files.pythonhosted.org/packages/01/f3/1f7b9ea37ece210a5e432089bd63d048b2c45acc910561ec5e730c46a532/deepseek_harness_runtime_bin-0.2.1rc2-py3-none-manylinux_2_28_x86_64.whl",
+      "archive_sha256": "0a0a4eb85a22cd9339972e6a5ced77a27ec791353a5b220e3e10b8cdbbdeca39",
+      "archive_size": 94615763
+    }
+  ],
+  "npm_artifacts": [
+    {
+      "name": "@deepseek-ai/dsh-session-persistence-jsonl",
+      "version": "0.2.1-rc.2",
+      "url": "https://registry.npmjs.org/@deepseek-ai/dsh-session-persistence-jsonl/-/dsh-session-persistence-jsonl-0.2.1-rc.2.tgz",
+      "integrity": "sha512-M/3Q0x7EyH6aF7VRUoJBwNj+wg4u93HXWm/isXDVU+DES9lmoHNS1qszoBwpNhsCBSXjicQingRfhKnN9QctJw==",
+      "shasum": "e4fa5b13a59a7b68afbf2c6a0c4b9bc692552427"
+    },
+    {
+      "name": "@deepseek-ai/dsh-agent-loop",
+      "version": "0.2.1-rc.2",
+      "url": "https://registry.npmjs.org/@deepseek-ai/dsh-agent-loop/-/dsh-agent-loop-0.2.1-rc.2.tgz",
+      "integrity": "sha512-dM0tvxTywkTPtXGCQS/FMhigW37JS4g4ChjQFiaBqrMYet8FDbQbMJb8uFFPPpcRnQufzdq7NqJziYwpsaQBOw==",
+      "shasum": "980070f082bbd22b0a446f2dbe732ca23f1f4b04"
+    },
+    {
+      "name": "@deepseek-ai/dsh-session-format",
+      "version": "0.2.1-rc.2",
+      "url": "https://registry.npmjs.org/@deepseek-ai/dsh-session-format/-/dsh-session-format-0.2.1-rc.2.tgz",
+      "integrity": "sha512-Tz/x0EuWXNbB3u+a2+7v46POj6alqgAN8Zq6GqT4EJJ5VUkBPRLpSJ/+jwo2QCN/xQzREP2i3sGigOBsAPDdhA==",
+      "shasum": "acc02c0c7a512241306f7741aced4e9a4c4772cd"
+    },
+    {
+      "name": "@deepseek-ai/dsh-session-format-catalog",
+      "version": "0.2.1-rc.2",
+      "url": "https://registry.npmjs.org/@deepseek-ai/dsh-session-format-catalog/-/dsh-session-format-catalog-0.2.1-rc.2.tgz",
+      "integrity": "sha512-r9yPApy9dsDCg4LJ2ljjRPCaeV37Rthuh6qgAP9mfsjOpUzf8NciKlmUvcszTcCvaJB2E9kSUgtk5zEnTFyzew==",
+      "shasum": "415bbcc5b4dfc8007903fcddd62e0599cf9508c1"
+    },
+    {
+      "name": "@deepseek-ai/dsh-session-format-v3-to-v4",
+      "version": "0.2.1-rc.2",
+      "url": "https://registry.npmjs.org/@deepseek-ai/dsh-session-format-v3-to-v4/-/dsh-session-format-v3-to-v4-0.2.1-rc.2.tgz",
+      "integrity": "sha512-tZJ4aoszBAA6jemqe87mhqYOOkqdazh8xEXXtHMsUftCb7ZLSV0g2ZXFrapQcq9STaxnL+fh1BkO+VkOY6GuOg==",
+      "shasum": "5288455085adeddac630a9a8b08166f2231292b9"
+    },
+    {
+      "name": "@deepseek-ai/dsh-session-format-v1-to-v2",
+      "version": "0.2.1-rc.2",
+      "url": "https://registry.npmjs.org/@deepseek-ai/dsh-session-format-v1-to-v2/-/dsh-session-format-v1-to-v2-0.2.1-rc.2.tgz",
+      "integrity": "sha512-Xx+oL8KglCAcgtgJIWKmxtT8tsNZDghonwjYj1jlxzCMbTklxAt7B2xEBY6mAqq82WYpldr/oapT53oIIjlzNA==",
+      "shasum": "2d24e01af6297bbf4a8c1114578c430176a3aae1"
+    },
+    {
+      "name": "@deepseek-ai/dsh-session-format-v2-to-v3",
+      "version": "0.2.1-rc.2",
+      "url": "https://registry.npmjs.org/@deepseek-ai/dsh-session-format-v2-to-v3/-/dsh-session-format-v2-to-v3-0.2.1-rc.2.tgz",
+      "integrity": "sha512-k0UvSIkIjZAlhgzTbMBMUMFYQa+QurjgRDTt+t3WnlnWAN8VqFzNq5IJPMr7GlY/fsZgW9gH7TytEIZBJBqnng==",
+      "shasum": "dd2ee8a0dc0ccf7c6f6da1ba21f360a7476ff31e"
+    },
+    {
+      "name": "@deepseek-ai/dsh-session",
+      "version": "0.2.1-rc.2",
+      "url": "https://registry.npmjs.org/@deepseek-ai/dsh-session/-/dsh-session-0.2.1-rc.2.tgz",
+      "integrity": "sha512-WDA4lIrXtG5nf1dn2wrA4UzEr7D6e8T3AdPpVSZ7eY4N4ICMDZ0RYuD4GkM+iSb7WkLojdO8ljr0etiIMEbqJg==",
+      "shasum": "148196c115d8b58ad7bbea2e5e0705b6c863a72f"
+    }
+  ],
+  "embedded_sources": [
+    {
+      "package": "session-persistence-jsonl",
+      "version": "0.2.1-rc.2",
+      "entry": "package/lib/index.js",
+      "source_sha256": "973dd78679b2661d6f492343bc22b124ae958aa597d3b36c698a2c650f909984",
+      "size": 147273,
+      "exact_embedded_offset": 141781536
+    },
+    {
+      "package": "agent-loop",
+      "version": "0.2.1-rc.2",
+      "entry": "package/lib/index.js",
+      "source_sha256": "cf57e3ecd487ac5c2553455aaa5cef2c6fb41e6bd61be5aa455675d1d7193033",
+      "size": 74599,
+      "exact_embedded_offset": 134029920
+    },
+    {
+      "package": "session-format",
+      "version": "0.2.1-rc.2",
+      "entry": "package/lib/index.js",
+      "source_sha256": "6c7417ec2cd555e2781197d91c4566c88ffcf2728f362d7a2937859be57226ec",
+      "size": 21069,
+      "exact_embedded_offset": 141734670
+    },
+    {
+      "package": "session-format-catalog",
+      "version": "0.2.1-rc.2",
+      "entry": "package/lib/index.js",
+      "source_sha256": "836bbb772ab505c299f1a4a246164c50c7c08b67ab0d17f1251d7ea2cd8c1818",
+      "size": 5717,
+      "exact_embedded_offset": 141453111
+    },
+    {
+      "package": "session-format-v3-to-v4",
+      "version": "0.2.1-rc.2",
+      "entry": "package/lib/index.js",
+      "source_sha256": "a6b974d110572bd0b16aa7ab09a30d9061944e8dc9f811e8c4a35e4891f83f12",
+      "size": 73133,
+      "exact_embedded_offset": 141658125
+    },
+    {
+      "package": "session-format-v1-to-v2",
+      "version": "0.2.1-rc.2",
+      "entry": "package/lib/index.js",
+      "source_sha256": "b2b401d880bb000017ba8663c4448b501427b23a1cd2f9fdb04cb7ec9d763eff",
+      "size": 33614,
+      "exact_embedded_offset": 141578112
+    },
+    {
+      "package": "session-format-v2-to-v3",
+      "version": "0.2.1-rc.2",
+      "entry": "package/lib/index.js",
+      "source_sha256": "0dc56fb447e9046fc25995bcd08dbac26e832eba6e9eb583ef49d26467c27cd7",
+      "size": 36092,
+      "exact_embedded_offset": 141616617
+    },
+    {
+      "package": "session",
+      "version": "0.2.1-rc.2",
+      "entry": "package/lib/index.js",
+      "source_sha256": "2f5dd07cb5c744a29abbb8003a8a4cefd9e582c6e2538074ca299a0ddd02a3bf",
+      "size": 94982,
+      "exact_embedded_offset": 142953041
+    },
+    {
+      "package": "llm",
+      "version": "0.2.1-rc.2",
+      "entry": "package/lib/index.js",
+      "source_sha256": "d18d8ae4c8d961e628708c1e4698e09716a0ebb80e55a672e0bde1029bec1155",
+      "size": 105272,
+      "exact_embedded_offset": 139124600
+    }
+  ],
+  "physical_format": "UTF-8, newline-terminated V4 header and JSON event rows; sourceEventSeqs uses integers or inclusive [start,end] ranges.",
+  "path": "<job>/home/sessions/<projectKey(<job>/workspace)>/<session UUID>/session.v4.jsonl",
+  "sources": {
+    "writer": "@deepseek-ai/dsh-session-persistence-jsonl@0.2.1-rc.2 lib/index.js:880-960,3270-3312",
+    "row_codec": "@deepseek-ai/dsh-session-format-v1-to-v2@0.2.1-rc.2 lib/index.js:279-326",
+    "v4_codec": "@deepseek-ai/dsh-session-format-v3-to-v4@0.2.1-rc.2 lib/index.js:1050-1100",
+    "tool_call_result": "@deepseek-ai/dsh-agent-loop@0.2.1-rc.2 lib/index.js:680-707",
+    "closure": "@deepseek-ai/dsh-agent-loop@0.2.1-rc.2 lib/index.js:938-1020,1167",
+    "tool_message": "@deepseek-ai/dsh-llm@0.2.1-rc.2 lib/index.js:37,101"
+  }
+}

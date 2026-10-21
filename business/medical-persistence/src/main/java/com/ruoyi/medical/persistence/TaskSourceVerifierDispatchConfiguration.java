@@ -1,0 +1,13 @@
+package com.ruoyi.medical.persistence;
+import com.ruoyi.medical.identity.ServiceCertificateIdentity;
+import javax.sql.DataSource;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.context.annotation.*;
+@Configuration(proxyBeanMethods=false)
+@ConditionalOnProperty(name="medical.professional-runtime.source-verifier-enabled",havingValue="true",matchIfMissing=false)
+class TaskSourceVerifierDispatchConfiguration {
+ @Bean TaskSourceVerifierReviewRecovery taskSourceVerifierReviewRecovery(@Qualifier("masterDataSource")DataSource data,TaskSourceVerifierSchema schema,TaskSourceVerifierInvocationService invocations){return new TaskSourceVerifierReviewRecovery(data,schema,invocations);}
+ @Bean TaskSourceVerifierDispatchReservation taskSourceVerifierDispatchReservation(@Qualifier("masterDataSource")DataSource data,TaskSourceVerifierInputAuthority inputs,@Qualifier("formalRunServiceIdentity")ServiceCertificateIdentity services,PermissionSchema json){return new TaskSourceVerifierDispatchReservation(data,inputs,services,json);}
+ @Bean TaskSourceVerifierDispatchJournal taskSourceVerifierDispatchJournal(@Qualifier("masterDataSource")DataSource data,TaskSourceVerifierSchema schema,PermissionSchema json,TaskRunActivityPreparation preparation,FormalRunRecoveryAccess recovery,TaskRunLaunchRecoveryAuthority launches,TaskRunWorkflowLedger workflow,TaskSourceVerifierDispatchReservation reservations,RunTokenAuthority tokens,TaskSourceVerifierHostBootstrap bootstrap,TaskSourceVerifierObjectLedger objects,TaskSourceVerifierProducerAuthority producers,@Qualifier("sourceVerifierObjectTransport")RuntimeObjectTransport transport,TaskSourceVerifierDeployment deployment){return new TaskSourceVerifierDispatchJournal(data,schema,json,preparation,recovery,launches,workflow,reservations,tokens,bootstrap,objects,producers,transport,deployment);}
+}

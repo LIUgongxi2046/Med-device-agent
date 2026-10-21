@@ -20,6 +20,12 @@ def main():
             forbidden = True
             raise ValueError('SUBAGENT_FORBIDDEN')
     with DeepSeekHarness(provider='enterprise-model', model=spec['model'], reasoning_effort=spec['reasoning_effort'], max_tokens=spec['max_tokens'], cwd=spec['workspace'], runtime_cwd=spec['workspace'], dsh_home=spec['home'], dsh_bin=spec['dsh_bin'], profile='medical-agent', initialize_timeout_seconds=spec['initialize_timeout_seconds'], request_timeout_seconds=spec['request_timeout_seconds'], shutdown_timeout_seconds=spec['shutdown_timeout_seconds']) as harness:
+        # Initialization has created the actual SDK/runtime before the independent
+        # supervisor inspects it. This byte is only a readiness hint, never a proof.
+        ready = int(os.environ['MEDICAL_READY_FD']); gate = int(os.environ['MEDICAL_ADMISSION_FD'])
+        os.write(ready, b'SDK_READY\n'); os.close(ready)
+        if os.read(gate, 1) != b'1': raise ValueError('SUPERVISOR_ADMISSION_REQUIRED')
+        os.close(gate)
         result = harness.run(spec['prompt'], session_id=spec['session_id'], on_notification=observe)
         if forbidden or result.session_id != spec['session_id']: raise ValueError('SESSION_MISMATCH')
     # Context-manager exit waits for the actual SDK process. Never copy arbitrary

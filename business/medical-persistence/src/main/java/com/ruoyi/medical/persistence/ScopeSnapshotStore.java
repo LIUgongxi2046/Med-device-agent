@@ -67,6 +67,33 @@ public final class ScopeSnapshotStore {
     }
 
 
+    /** Task action/profile authority is distinct from the approved policy's actual source-use purpose. */
+    Stored saveForTaskCreation(EnterpriseAccess.Admission admission, TaskProtocol.ValidatedCreate supplied,
+            AgentExecutionPolicyAuthority.VerifiedPolicy policy, String environment, String region,
+            DependencyLineage.Limits limits) throws IOException {
+        Objects.requireNonNull(admission); Objects.requireNonNull(supplied); Objects.requireNonNull(policy);
+        TenantScope.requireSqlAccess(STATEMENT);
+        String tenant = admission.context().tenant_id(), user = admission.actorId();
+        if (!TenantScope.requireCurrent().tenantId().equals(tenant)) denied();
+        TenantScope.requireSubjectParameter(STATEMENT, java.util.Map.of("userId", user));
+        var validated = inputs.create(supplied.canonical_request().getBytes(StandardCharsets.UTF_8));
+        if (!validated.equals(supplied)) mismatch();
+        var request = validated.request(); String project = request.project_id();
+        policy.requireConsumer(admission, project, "TASK_CREATION");
+        var projectScope = new PermissionProtocol.Scope(tenant, project, "PROJECT", project);
+        var grant = authority.require(admission, projectScope, "task.create", "TASK_CREATION");
+        var profile = projects.fixedProfile(admission, project, request.profile_revision(), "TASK_CREATION");
+        if (!"ACTIVE".equals(profile.project().status())) denied();
+        var selected = selections.requireForTaskCreation(admission, validated, policy, environment, region, limits);
+        var result = persist(admission, project, request.profile_revision(), request.scope_selection(), selected, limits);
+        if (!profile.equals(projects.fixedProfile(admission, project, request.profile_revision(), "TASK_CREATION"))
+                || !selected.equals(selections.requireForTaskCreation(admission, validated, policy, environment, region, limits))
+                || !grant.equals(authority.require(admission, projectScope, "task.create", "TASK_CREATION")))
+            throw new TenantAccessException(ErrorCode.SCOPE_STALE);
+        policy.requireConsumer(admission, project, "TASK_CREATION");
+        return result;
+    }
+
     /** Separate business entry: caller also binds configId to its actual current project-owned model revision. */
     Stored saveForModelVerification(EnterpriseAccess.Admission admission, String project, String profileRevision,
             com.ruoyi.medical.contracts.CommonProtocol.SourceScope scope, String configId, String purpose,

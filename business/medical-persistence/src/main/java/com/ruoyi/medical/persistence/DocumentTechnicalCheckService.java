@@ -107,7 +107,7 @@ public final class DocumentTechnicalCheckService {
   } else {var m=registered.get(0);manifestId=m.executionManifestId();same(schema.canonical(manifest),m.canonicalManifest());same(manifestHash,m.manifestSha256());same(schema.manifest(),m.schemaManifest());}
   var input=json.object().put("schema_version","1.0.0").put("tenant_id",h.tenantId()).put("project_id",h.projectId()).put("document_id",document)
    .put("document_revision",h.documentRevision()).put("body_sha256",h.bodySha256()).put("baseline_sha256",schema.hash(prepared.baseline()))
-   .put("body_schema_ref",schema.bodySchemaRef()).put("body_schema_sha256",schema.bodySchemaSha256()).put("execution_manifest_id",manifestId)
+   .put("body_schema_ref",proof.bodyIntent().artifact().schemaRef()).put("body_schema_sha256",proof.bodyIntent().artifact().schemaDocumentSha256()).put("execution_manifest_id",manifestId)
    .put("check_kind","STRUCTURE_FIXED_REFERENCES").put("checker_id","urn:medical:document-technical-check:structure-fixed-references:1.0.0");
   input.set("limits",limits());schema.input(input);
   var now=(LocalDateTime)v.get("now");var c=new Command(id(),id(),id(),manifestId,utc(now),utc(now.plusSeconds(policy.maximumSeconds())),requestHash,context,requestSession,schema.hash(request),
@@ -151,7 +151,7 @@ public final class DocumentTechnicalCheckService {
   for(String version:List.of(check.schemaVersion(),job.schemaVersion(),execution.schemaVersion()))same("1.0.0",version);
   for(String digest:List.of(check.schemaManifest(),job.schemaManifest(),execution.schemaManifest()))same(schema.manifest(),digest);
   for(String classification:List.of(check.classification(),job.classification(),execution.classification()))same(h.classification(),classification);
-  var input=schema.input(c.input());same(h.tenantId(),text(input,"tenant_id"));same(h.projectId(),text(input,"project_id"));same(h.documentId(),text(input,"document_id"));same(h.documentRevision(),text(input,"document_revision"));same(h.bodySha256(),text(input,"body_sha256"));same(c.manifestId(),text(input,"execution_manifest_id"));
+  var input=schema.input(c.input());same(proof.bodyIntent().artifact().schemaRef(),text(input,"body_schema_ref"));same(proof.bodyIntent().artifact().schemaDocumentSha256(),text(input,"body_schema_sha256"));same(h.tenantId(),text(input,"tenant_id"));same(h.projectId(),text(input,"project_id"));same(h.documentId(),text(input,"document_id"));same(h.documentRevision(),text(input,"document_revision"));same(h.bodySha256(),text(input,"body_sha256"));same(c.manifestId(),text(input,"execution_manifest_id"));
   same(schema.hash(c.baseline()),text(input,"baseline_sha256"));same(schema.hash(schema.validate("Request",c.request())),c.bodyHash());same(h.documentRevision(),text(c.request(),"document_revision"));
   same(text(c.baseline().required("header"),"revision"),text(c.request(),"expected_revision"));
   var marks=c.baseline().required("watermarks");same(WireValues.revision(text(marks,"issue_watermark")),check.issueWatermark());same(WireValues.revision(text(marks,"evidence_watermark")),check.evidenceWatermark());
@@ -294,6 +294,7 @@ public final class DocumentTechnicalCheckService {
   same(a.context().tenant_id(),row.tenantId());same(row.projectId(),proof.header().projectId());same(row.documentId(),proof.header().documentId());same(row.documentRevision(),proof.header().documentRevision());
   same("SYNC_REQUEST",row.executionMode());same("1.0.0",row.schemaVersion());same(schema.manifest(),row.schemaManifest());
   var input=schema.input(schema.read(row.canonicalInput()));var result=schema.result(schema.read(row.canonicalFindings()));var coverage=schema.coverage(schema.read(row.canonicalCoverage()));
+  same(proof.bodyIntent().artifact().schemaRef(),text(input,"body_schema_ref"));same(proof.bodyIntent().artifact().schemaDocumentSha256(),text(input,"body_schema_sha256"));
   same(input,result.required("input"));same(coverage,result.required("coverage"));same(row.inputSha256(),schema.hash(input));
   same(row.manifestSha256(),schema.hash(schema.validate("ExecutionManifest",schema.read(row.canonicalManifest()))));
   same(row.documentId(),text(input,"document_id"));same(row.documentRevision(),text(input,"document_revision"));same(row.tenantId(),text(input,"tenant_id"));same(row.projectId(),text(input,"project_id"));same(row.executionManifestId(),text(input,"execution_manifest_id"));same(proof.header().bodySha256(),text(input,"body_sha256"));

@@ -9,6 +9,7 @@ import org.apache.ibatis.annotations.Mapper;
 @Mapper
 public interface UploadTransferMapper {
     List<UploadTransferProtocol.DocumentRow> document(Map<String, Object> values);
+    List<UploadTransferProtocol.BodyPublicationRow> documentBodyPublication(Map<String, Object> values);
     LocalDateTime databaseTime(Map<String, Object> values);
     java.math.BigInteger storedSize(Map<String, Object> values);
     List<UploadTransferProtocol.SessionRow> session(Map<String, Object> values);

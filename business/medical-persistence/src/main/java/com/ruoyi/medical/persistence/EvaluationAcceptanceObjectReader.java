@@ -35,18 +35,23 @@ import org.springframework.util.function.ThrowingSupplier;
   public void requireCurrent(EnterpriseAccess.Admission admission)throws IOException{recheck.require(admission);}
  }
  public VerifiedDocument source(ApplicationSessionIdentity.Verified subject,String context,String project,PermissionProtocol.Basis ref,String purpose)throws Exception{
-  return read(subject,context,new Request(Kind.SOURCE,project,ref,purpose,null,List.of()));
+  return read(EvidenceReadAccess.human(access,subject),context,new Request(Kind.SOURCE,project,ref,purpose,null,List.of()));
  }
  /** The caller must derive child roles from previously verified fixed dataset/expected-item content. */
  public VerifiedDocument artifact(ApplicationSessionIdentity.Verified subject,String context,String project,PermissionProtocol.Basis ref,
    String purpose,String requiredSchema,List<AgentPublicationDependencies.TypedUse> children)throws Exception{
   if(!Set.of(EvaluationSchema.SAMPLE_MANIFEST_REF,EvaluationSchema.EXPECTED_ITEMS_REF).contains(requiredSchema))bad();
+  return read(EvidenceReadAccess.human(access,subject),context,new Request(Kind.ARTIFACT,project,ref,purpose,requiredSchema,children));
+ }
+ VerifiedDocument sourceEvidence(EvidenceReadAccess subject,String context,String project,PermissionProtocol.Basis ref,String purpose)throws Exception{return read(subject,context,new Request(Kind.SOURCE,project,ref,purpose,null,List.of()));}
+ VerifiedDocument artifactEvidence(EvidenceReadAccess subject,String context,String project,PermissionProtocol.Basis ref,String purpose,String requiredSchema,List<AgentPublicationDependencies.TypedUse> children)throws Exception{
+  if(!Set.of(EvaluationSchema.SAMPLE_MANIFEST_REF,EvaluationSchema.EXPECTED_ITEMS_REF).contains(requiredSchema))bad();
   return read(subject,context,new Request(Kind.ARTIFACT,project,ref,purpose,requiredSchema,children));
  }
- private VerifiedDocument read(ApplicationSessionIdentity.Verified subject,String context,Request request)throws Exception{
-  DocumentUploadTransferService.requireOutsideTransaction(subject);
+ private VerifiedDocument read(EvidenceReadAccess subject,String context,Request request)throws Exception{
+  subject.outsideTransaction();subject.requireVersion(request.basis().version_id(),request.basis().content_sha256());
   State initial=state(subject,context,request);S3ObjectReader.Admission guard=()->same(initial,state(subject,context,request));
-  byte[] bytes=transport.readDocument(subject,initial.tenant(),EvaluationAcceptanceInputSchema.MAXIMUM_DOCUMENT_BYTES,guard,(reader,current)->{
+  byte[] bytes=subject.readDocument(transport,initial.tenant(),EvaluationAcceptanceInputSchema.MAXIMUM_DOCUMENT_BYTES,guard,(reader,current)->{
    try(var fixed=reader.readVerified(initial.object(),current)){
     if(!initial.object().equals(fixed.reference())||!request.basis().content_sha256().equals(fixed.fullSha256()))bad();
     int size=Integer.parseInt(initial.object().sizeBytes());byte[] result=new byte[size];
@@ -60,7 +65,7 @@ import org.springframework.util.function.ThrowingSupplier;
   if(request.kind()==Kind.ARTIFACT&&!Arrays.equals(bytes,canonical.getBytes(StandardCharsets.UTF_8)))bad();same(initial,state(subject,context,request));
   return new VerifiedDocument(request.basis(),initial,document,canonical,a->same(initial,state(a,context,request)));
  }
- private State state(ApplicationSessionIdentity.Verified subject,String context,Request request){return access.execute(subject,a->ThrowingSupplier.of(()->state(a,context,request)).get());}
+ private State state(EvidenceReadAccess subject,String context,Request request){return subject.execute(a->ThrowingSupplier.of(()->state(a,context,request)).get());}
  private State state(EnterpriseAccess.Admission a,String context,Request request)throws IOException{
   if(a.simulationWorker()||!context.equals(a.context().context_revision()))throw new TenantAccessException(ErrorCode.CONTEXT_CHANGED);
   WireValues.uuid(request.basis().version_id());WireValues.hash(request.basis().content_sha256());limits.requireConfigured();

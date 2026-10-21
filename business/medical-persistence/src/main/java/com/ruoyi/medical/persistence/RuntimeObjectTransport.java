@@ -33,6 +33,18 @@ public final class RuntimeObjectTransport {
         if(maximumBytes<1||!Files.isDirectory(this.directory,LinkOption.NOFOLLOW_LINKS)||!Files.getPosixFilePermissions(this.directory,LinkOption.NOFOLLOW_LINKS).equals(PosixFilePermissions.fromString("rwx------")))throw new IllegalArgumentException("PRIVATE_RUNTIME_OBJECT_DIRECTORY_REQUIRED");
         this.maximumBytes=maximumBytes;
     }
+    /** Production dispatch must pin this actual deployment, never infer a store from an object key. */
+    StorageBinding storageBinding() {
+        if (deployed == null) throw new TenantAccessException(ErrorCode.DEPENDENCY_UNAVAILABLE);
+        return new StorageBinding(deployed.storageIdentity(), maximumBytes);
+    }
+    record StorageBinding(SourceUploadTransport.StorageIdentity storage, int maximumBytes) {
+        StorageBinding { Objects.requireNonNull(storage); if (maximumBytes < 1) throw new IllegalArgumentException("POSITIVE_STORAGE_BOUND_REQUIRED"); }
+    }
+    void requireStorageBinding(StorageBinding original) {
+        if (!storageBinding().equals(Objects.requireNonNull(original)))
+            throw new TenantAccessException(ErrorCode.SCOPE_STALE);
+    }
     InterfaceProtocol.ObjectRef transfer(RuntimeObjectAttempt attempt,
             S3ObjectReader.Admission current)throws Exception {
         return transferVerified(attempt,current).reference();

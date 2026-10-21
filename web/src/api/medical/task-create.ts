@@ -62,6 +62,23 @@ export async function prepareTaskCreate(session: MedicalSession, body: TaskCreat
   validate(pendingReference, pending); sessionStorage.setItem(storageKey(session, body.project_id), JSON.stringify(pending))
   return pending
 }
+/** Reconstruct metadata-only pending input without creating/replacing an operation or persisting its body. */
+export async function reconstructTaskCreate(session: MedicalSession, pending: PendingTaskCreate, input: unknown): Promise<TaskCreate> {
+  owned(session, pending)
+  const fixed = JSON.parse(JSON.stringify(pending)) as PendingTaskCreate
+  const body = JSON.parse(JSON.stringify(validate<TaskCreate>(taskCreateReference, input))) as TaskCreate
+  const same = () => {
+    owned(session, fixed)
+    const actual = pendingTaskCreate(session, fixed.project_id)
+    if (!actual || JSON.stringify(actual) !== JSON.stringify(fixed)) fail('IDEMPOTENCY_CONFLICT', '原创建操作已变化，不能重建或替换操作键')
+  }
+  same()
+  if (body.project_id !== fixed.project_id || projectTextIssue(body.goal, Number.MAX_SAFE_INTEGER)
+      || await templateValueDigest(body) !== fixed.body_sha256)
+    fail('IDEMPOTENCY_CONFLICT', '重建输入必须与完整原请求摘要一致，不能修改原参数')
+  same()
+  return body
+}
 function receipt(session: MedicalSession, pending: PendingTaskCreate, raw: AxiosResponse<unknown>): CurrentTask {
   owned(session, pending); const response = envelope(raw); const detail = validate<TaskDetail>(taskDetailReference, response.data)
   if (raw.status !== 201 || response.resource_revision !== '1' || detail.project_id !== pending.project_id || detail.snapshot_id === null

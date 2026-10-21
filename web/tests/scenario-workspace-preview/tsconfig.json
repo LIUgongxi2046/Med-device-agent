@@ -1,0 +1,4 @@
+{
+  "extends": "../../tsconfig.medical.json",
+  "include": ["../../src/views/medical/ScenarioPlanningWorkspace.vue", "../../src/views/medical/scenario-planning.ts", "./main.ts"]
+}

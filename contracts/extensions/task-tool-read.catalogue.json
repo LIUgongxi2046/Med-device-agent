@@ -1,0 +1,16 @@
+{
+  "schema_version": "1.0.0",
+  "base_catalogue_sha256": "dcd72acbb7a45775373662e0ffe4557030d4740b0afacdee8375e7768e761915",
+  "schemas": [
+    {
+      "name": "tool-inputs",
+      "path": "agent-design/tool-inputs.schema.json",
+      "sha256": "197f61b9cb8b9fdf6ac8015a25ae46ba360a43a5229918722d12556297fea1d8"
+    },
+    {
+      "name": "task-tool-read-success",
+      "path": "agent-design/tool-read-success.schema.json",
+      "sha256": "27ab37590f3c006bee8e978193e7152de986aa877f521852b70c14ed176643cd"
+    }
+  ]
+}

@@ -143,15 +143,24 @@ final class SourceProcessingWorker {
         command.put("source_version",row.sourceVersion()); command.put("parse_version",row.parseVersion());
         command.put("config_revision",row.configRevision()); command.put("config_sha256",binding.configSha256());
         command.put("worker_id",owner); command.put("lease_generation",row.leaseGeneration().toString());
+        if("HTML".equals(format)){if(!binding.htmlEnabled())mismatch();command.put("html_parser_revision","HTML-STATIC-TEXT-1");}
         command.put("format",format); command.put("original_sha256",row.originalSha256()); command.put("size_bytes",row.sizeBytes().toString());
         command.put("source_path",original.toString()); command.put("catalogue_root",policy.projectRoot().toRealPath().toString());
         command.put("scanner_release_path",binding.scannerReleasePath().toRealPath().toString());
         command.put("scanner_release_sha256",binding.scannerReleaseSha256()); command.put("output_directory",output.toString());
+        if(binding.complexReleasePath()!=null) {
+            command.put("complex_release_path",binding.complexReleasePath().toRealPath().toString());
+            command.put("complex_release_sha256",binding.complexReleaseSha256());
+        }
         return command;
     }
 
     private void verifyCommand(SourceProcessingRow row,JsonNode command) {
         var binding=policy.binding(row.configRevision());
+        if(!format(row.mediaType()).equals(command.required("format").textValue()))mismatch();
+        if("HTML".equals(command.required("format").textValue())) {if(!binding.htmlEnabled() || !"HTML-STATIC-TEXT-1".equals(command.path("html_parser_revision").textValue()))mismatch();}
+        else if(command.has("html_parser_revision"))mismatch();
+        if(!java.util.Objects.equals(binding.complexReleaseSha256(),command.path("complex_release_sha256").textValue())) mismatch();
         for(var entry:Map.of("attempt_id",row.attemptId(),"run_id",row.runId(),"source_version",row.sourceVersion(),
                 "parse_version",row.parseVersion(),"config_revision",row.configRevision(),"config_sha256",binding.configSha256(),
                 "original_sha256",row.originalSha256(),"size_bytes",row.sizeBytes().toString(),
@@ -212,6 +221,9 @@ final class SourceProcessingWorker {
                 values.put("nodeKind",node.required("node_kind").textValue()); values.put("locator",results.canonical(node.required("locator")));
                 var content=json.object(); content.set("object_ref",json.tree(object)); content.put("node_id",node.required("node_id").textValue());
                 content.put("ordinal",ordinal); content.put("quote_hash",node.required("quote_hash").textValue()); content.set("heading_path",node.required("heading_path"));
+                content.set("structure",nodeStructure(bundle,node));
+                if(bundle.required("processor_manifest").has("complex_engine_release_sha256"))
+                    content.set("complex_engine_release_sha256",bundle.required("processor_manifest").required("complex_engine_release_sha256"));
                 values.put("contentRef",results.canonical(content)); values.put("nodeHash",DigestUtils.sha256Hex(results.canonical(node)));
                 values.put("chunkId",chunk.required("chunk_id").textValue()); values.put("quoteHash",chunk.required("quote_hash").textValue());
                 values.put("rawText",chunk.required("raw_text").textValue()); values.put("searchText",chunk.required("search_text").textValue());
@@ -268,7 +280,8 @@ final class SourceProcessingWorker {
                     || !node.required("locator").equals(results.read((String)current.get("chunkLocator")))
                     || !DigestUtils.sha256Hex(results.canonical(node)).equals(current.get("nodeHash"))) mismatch();
             var content=results.read((String)current.get("contentRef"));
-            if(!json.tree(object).equals(content.required("object_ref")) || !node.required("heading_path").equals(content.required("heading_path"))) mismatch();
+            if(!json.tree(object).equals(content.required("object_ref")) || !node.required("heading_path").equals(content.required("heading_path"))
+                    || !nodeStructure(result.bundle(),node).equals(content.required("structure"))) mismatch();
         }
     }
 
@@ -320,10 +333,24 @@ final class SourceProcessingWorker {
         return new S3ObjectWriter.WriteIntent(value.required("write_id").textValue(),value.required("object_key").textValue(),
             value.required("sha256").textValue(),value.required("size_bytes").textValue(),value.required("media_type").textValue());
     }
+    private JsonNode nodeStructure(JsonNode bundle,JsonNode node) {
+        var structures=json.object().putArray("items");
+        var processor=bundle.required("processor_manifest");
+        for(String name:List.of("complex_structure","table_structure","embedded_image_provenance")) {
+            var entries=processor.path(name);
+            if(entries.isArray()) for(var entry:entries) {
+                if(node.required("node_id").equals(entry.path("node_id")) || node.required("locator").equals(entry.path("locator")))
+                    structures.add(entry.deepCopy());
+            }
+        }
+        return structures;
+    }
     private static String format(String media) {
         return switch(media) {
             case "application/vnd.openxmlformats-officedocument.wordprocessingml.document" -> "DOCX";
             case "application/pdf" -> "PDF";
+            case "text/html" -> "HTML";
+            case "image/png", "image/jpeg", "image/tiff" -> "IMAGE";
             case "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" -> "XLSX";
             case "text/csv" -> "CSV";
             case "text/plain" -> "TXT";

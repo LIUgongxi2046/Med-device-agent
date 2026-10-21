@@ -137,8 +137,8 @@ class DocumentComparisonMigrationTests(unittest.TestCase):
         coverage = json.loads((RESOURCES / 'db/migration/coverage.json').read_text())
         self.assertEqual(TABLES, set(coverage['required_tables']['document_comparison']))
         business = sum(map(len, coverage['required_tables'].values()))
-        self.assertEqual(281, business)
-        self.assertEqual(318, business + len(coverage['platform_tables']) + len(coverage['framework_tables']))
+        self.assertEqual(526, business)
+        self.assertEqual(565, business + len(coverage['platform_tables']) + len(coverage['framework_tables']))
 
     def test_068_parser_compatibility_does_not_accept_069(self):
         from test_migration_bundle import parse_068_native_statements

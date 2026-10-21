@@ -64,7 +64,7 @@ class TenantAccessTest {
                 checked++;
             }
         }
-        assertEquals(281, checked);
+        assertEquals(526, checked); // Verified unique coverage manifest entries, including package authoring originals.
         RuntimeException failure = assertThrows(RuntimeException.class, () -> interceptor.getTenantLineHandler().getTenantId());
         assertEquals("ACCESS_DENIED", failure.getMessage());
     }

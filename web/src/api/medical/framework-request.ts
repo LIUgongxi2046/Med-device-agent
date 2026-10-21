@@ -1,3 +1,4 @@
+import { projectFrameworkNativeWrite } from '@/components/Medical/FrameworkBindingNativeProjection'
 import type { AxiosResponse, InternalAxiosRequestConfig } from 'axios'
 import useUserStore from '@/store/modules/user'
 import { tansParams } from '@/utils/ruoyi'
@@ -11,7 +12,10 @@ export function prepareFrameworkRequest(config: InternalAxiosRequestConfig): voi
   if (!user.medicalMode || session === null || user.frameworkNavigation === null || document.hidden) {
     fail('AUTHENTICATION_REQUIRED', '原管理操作需要重新核查当前账户')
   }
-  const original = config.url
+  // Native download helpers use trusted relative module paths; normalize only the same closed prefixes.
+  const supplied = config.url
+  const original = typeof supplied === 'string' && frameworkPrefixes.some(prefix => supplied.startsWith(prefix.slice(1)))
+    ? '/' + supplied : supplied
   if (typeof original !== 'string' || !frameworkPrefixes.some(prefix => original.startsWith(prefix))
       || config.auth !== undefined) fail('ACCESS_DENIED', '原管理请求地址未获准')
   const target = new URL(original, location.origin)
@@ -19,6 +23,7 @@ export function prepareFrameworkRequest(config: InternalAxiosRequestConfig): voi
       || user.frameworkNavigation.user_id !== session.user.user_id) {
     fail('ACCESS_DENIED', '原管理请求与当前账户不一致')
   }
+  config.data = projectFrameworkNativeWrite(config.method, '/api' + target.pathname, config.data)
   config.url = '/api' + original
   if (config.method === 'get' && config.params) {
     const parameters = tansParams(config.params)
@@ -29,8 +34,16 @@ export function prepareFrameworkRequest(config: InternalAxiosRequestConfig): voi
   config.medicalFrameworkIdentity = { actor: session.user.user_id, generation: user.medicalGeneration }
   config.headers.set('X-Schema-Version', '1.0.0', true)
   config.headers.set('Cache-Control', 'no-store', true)
+  if (session.current_context !== null) config.headers.set('X-Context-Revision', session.current_context.context_revision, true)
+  if ((/^\/monitor\/job\/(run|changeStatus)$/.test(target.pathname)
+      || /^\/monitor\/job(?:\/[0-9]+)?$/.test(target.pathname) && !['get', 'head', 'options'].includes(config.method ?? 'get'))
+      && !config.headers.has('Idempotency-Key')) {
+    config.headers.set('Idempotency-Key', crypto.randomUUID(), true)
+  }
   // 原请求实例负责传输；仅将当前Cookie和CSRF接入原管理方法。
-  if (!['get', 'head', 'options'].includes(config.method ?? 'get')) {
+  if (!['get', 'head', 'options'].includes(config.method ?? 'get')
+      || /^\/tool\/gen\/(genCode|synchDb)\//.test(target.pathname)
+      || /^\/monitor\/logininfor\/unlock\//.test(target.pathname)) {
     config.headers.set(session.csrf.header_name, session.csrf.token, true)
   }
   config.headers.delete(['isToken', 'repeatSubmit', 'interval'])

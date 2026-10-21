@@ -35,7 +35,7 @@ public final class EvaluationRuleAuthority {
         String tenant=admission.context().tenant_id();
         if(!tenant.equals(TenantScope.requireCurrent().tenantId()))denied(ErrorCode.ACCESS_DENIED);
         authority.require(admission,new PermissionProtocol.Scope(tenant,null,"RULE",ref.version_id()),"rule.read",EvaluationReferences.PURPOSE);
-        var values=Map.<String,Object>of("userId",admission.subject().user().user_id(),"ruleId",ref.version_id(),"upstreamId",ref.version_id());
+        var values=Map.<String,Object>of("userId",admission.actorId(),"ruleId",ref.version_id(),"upstreamId",ref.version_id());
         // This query joins rule_version, rule_definition and registry entity_kind='RULE_VERSION', and locks the fixed row.
         if(!mapper.simulationBinding(values).isEmpty())mismatch();
         var rows=mapper.definition(values);

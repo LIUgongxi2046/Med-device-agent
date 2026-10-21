@@ -46,4 +46,5 @@ class FormalModelInvocationMigrationTests(unittest.TestCase):
    actual=Path(folder)/FILE;actual.write_bytes(self.path.read_bytes())
    prior=Path(folder)/'068-document-technical-check.sql'
    prior.write_text(self.path.with_name(prior.name).read_text().replace("'DOCUMENT_TECHNICAL_CHECK'","'UNAPPROVED_JOB'"))
-   with self.assertRaisesRegex(ValueError,'076_PRIOR_WORKFLOW_CHECK_CHANGED'):parse_076_native_statements(actual)
+   # Original-byte pinning must reject the changed job set before AST comparison.
+   with self.assertRaisesRegex(ValueError,'076_PRIOR_ORIGINAL_BYTES_CHANGED'):parse_076_native_statements(actual)

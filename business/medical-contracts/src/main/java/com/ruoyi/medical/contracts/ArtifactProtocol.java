@@ -29,7 +29,7 @@ public final class ArtifactProtocol {
                                        String snapshotId, List<String> targetSectionIds, String dependencyAccessSetId,
                                        String contentSha256, ArtifactOutput output) {
         public ProfessionalArtifact {
-            constant(schemaVersion, "1.0.0"); ids(tenantId, runId, stepId, dependencyAccessSetId);
+            if (!"1.0.0".equals(schemaVersion) && !"2.0.0".equals(schemaVersion)) invalid(); ids(tenantId, runId, stepId, dependencyAccessSetId);
             nullableIds(projectId, planRevision, snapshotId); targetSectionIds = copyIds(targetSectionIds);
             if (executionKind == null) invalid();
             if (executionKind == ExecutionKind.TASK) ids(projectId, planRevision, snapshotId);

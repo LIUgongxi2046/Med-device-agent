@@ -23,8 +23,9 @@ public final class DocumentTechnicalCheckEngine {
         if(!schema.hash(body).equals(input.required("body_sha256").textValue()))mismatch();
         boolean valid=true;
         try{
-            var verified=DocumentBodySemantics.verify(schema.catalogue(),body,limits);
-            var published=schema.catalogue().bind("interfaces",verified,"DocumentBody");
+            var declaration=schema.catalogue().requirePublished(input.required("body_schema_ref").asText(),input.required("body_schema_sha256").asText());
+            var verified=DocumentBodySemantics.verify(schema.catalogue(),body,limits,declaration.schemaRef(),declaration.schemaSha256());
+            var published=schema.catalogue().bind(declaration.name(),verified,"DocumentBody");
             if(!org.apache.commons.codec.digest.DigestUtils.sha256Hex(published.canonicalBytes()).equals(input.required("body_sha256").textValue()))mismatch();
         }catch(SchemaRejection failure){if(failure.code()!=ErrorCode.SCHEMA_INVALID)throw failure;valid=false;}
          catch(TenantAccessException failure){if(failure.code()!=ErrorCode.SCHEMA_INVALID)throw failure;valid=false;}

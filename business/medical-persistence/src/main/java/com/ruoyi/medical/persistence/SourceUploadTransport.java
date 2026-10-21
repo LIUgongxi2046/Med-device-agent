@@ -34,6 +34,19 @@ final class SourceUploadTransport {
     private final SourceUploadTransportPolicy policy;
     private final URI endpoint;
     private final String bucket;
+    private final StorageIdentity storageIdentity;
+    /** Secret-free identity of the already loaded operational object-store configuration. */
+    record StorageIdentity(String serviceId, String scope, String endpoint, String bucket, String region, String policyRevision) {
+        StorageIdentity {
+            var uri = URI.create(endpoint);
+            if (serviceId == null || serviceId.isBlank() || !"LOCAL_PRIVATE_OBJECT_STORAGE".equals(scope)
+                    || uri.getUserInfo() != null || uri.getQuery() != null || uri.getFragment() != null
+                    || uri.getHost() == null || bucket == null || bucket.isBlank() || region == null || region.isBlank())
+                throw new IllegalArgumentException("EXACT_SECRET_FREE_STORAGE_IDENTITY_REQUIRED");
+            com.ruoyi.medical.contracts.WireValues.uuid(policyRevision);
+        }
+    }
+    StorageIdentity storageIdentity() { return storageIdentity; }
     private final StaticCredentialsProvider objectCredentials;
     private final Path directory;
     private final RedissonClient redis;
@@ -64,6 +77,8 @@ final class SourceUploadTransport {
         if (!Files.getPosixFilePermissions(directory, LinkOption.NOFOLLOW_LINKS).equals(PosixFilePermissions.fromString("rwx------")))
             throw new IllegalArgumentException("分段接收目录权限无效");
         endpoint = URI.create(deployment.required("endpoint").textValue()); bucket = deployment.required("bucket").textValue();
+        storageIdentity = new StorageIdentity(deployment.required("service_id").textValue(),
+            deployment.required("scope").textValue(), endpoint.toASCIIString(), bucket, policy.region(), policy.revision());
         objectCredentials = StaticCredentialsProvider.create(AwsBasicCredentials.create(
             credentials.required("access_key").textValue(), credentials.required("secret_key").textValue()));
         writer = new S3ObjectWriter(endpoint, bucket, policy.region(), S3ObjectReader.Network.LOCAL_LOOPBACK, objectCredentials,
@@ -119,6 +134,21 @@ final class SourceUploadTransport {
                     directory, policy.segmentBytes(), policy.demand(), writer, concurrency, limits, receivingSubject, deadlines,
                     policy.admissionInterval(), checkingSubject).map(reference -> new PartResponse(200, documents.receipt(subject, mutation)));
             }, slot -> slot.ifPresent(TransferConcurrency.PartLease::close), true).subscribeOn(checkingSubject));
+    }
+
+    /** Internal capture import uses the same part reservation, byte verification and live
+     * upload authority as a user upload. It never installs a source or rights approval. */
+    void receiveCapturedSource(ApplicationSessionIdentity.Verified subject,String context,String key,String uploadId,byte[] bytes)throws Exception {
+        if(bytes.length<1||bytes.length>8388608)throw new TenantAccessException(com.ruoyi.medical.contracts.ErrorCode.FILE_TOO_LARGE);
+        String hash=com.ruoyi.medical.contracts.WireValues.sha256(bytes);
+        var mutation=new SourceUploadService.PartRequest(context,key,uploadId,1,hash,bytes.length);
+        String tenant=sources.startPart(subject,mutation);
+        try(var slot=concurrency.tryPart(tenant,uploadId,1,limits)) {
+            if(slot==null){if(sources.partReplay(subject,mutation).status()!=200)throw new TenantAccessException(com.ruoyi.medical.contracts.ErrorCode.STEP_NOT_READY);return;}
+            var receiver=new UploadPartReceiver(access,uploads,mapper,sources.partAuthority(mutation,slot));
+            receiver.receiveStream(subject,context,uploadId,1,hash,bytes.length,new java.io.ByteArrayInputStream(bytes),directory,policy.segmentBytes(),writer,concurrency,limits);
+            sources.partReceipt(subject,mutation);
+        }
     }
 
     int segmentBytes() { return policy.segmentBytes(); }
@@ -240,6 +270,75 @@ final class SourceUploadTransport {
                 var reader = new S3ObjectReader(endpoint, bucket, policy.region(), S3ObjectReader.Network.LOCAL_LOOPBACK,
                     objectCredentials, directory, maximumBytes, policy.segmentBytes())) {
             return reading.apply(reader, lease);
+        }
+    }
+
+    /** Bounded pre-step original reads, not a leased worker or browser session. */
+    <T>T readControlDocument(FormalRunControlAccess.Reads control,int maximumBytes,
+            S3ObjectReader.Admission current,DocumentRead<T> reading)throws Exception {
+        java.util.Objects.requireNonNull(control).requireActive();
+        if(org.springframework.transaction.support.TransactionSynchronizationManager.isActualTransactionActive())
+            throw new TenantAccessException(com.ruoyi.medical.contracts.ErrorCode.CONTEXT_CHANGED);
+        S3ObjectReader.Admission guarded=()->{control.requireActive();current.requireCurrent();control.requireActive();};
+        guarded.requireCurrent();
+        try(var lease=concurrency.acquire(control.tenantId(),control.actorId(),limits,guarded);
+                var reader=new S3ObjectReader(endpoint,bucket,policy.region(),S3ObjectReader.Network.LOCAL_LOOPBACK,
+                    objectCredentials,directory,maximumBytes,policy.segmentBytes())) {
+            var result=reading.apply(reader,lease);guarded.requireCurrent();return result;
+        }
+    }
+
+    /** Exact PLAN_DRAFT bootstrap reads; no human or leased TASK identity is fabricated. */
+    <T>T readPlanDraftDocument(TaskPlanDraftControlAccess.Reads control,int maximumBytes,
+            S3ObjectReader.Admission current,DocumentRead<T> reading)throws Exception {
+        java.util.Objects.requireNonNull(control).requireActive();
+        if(org.springframework.transaction.support.TransactionSynchronizationManager.isActualTransactionActive())
+            throw new TenantAccessException(com.ruoyi.medical.contracts.ErrorCode.CONTEXT_CHANGED);
+        S3ObjectReader.Admission guarded=()->{control.requireActive();current.requireCurrent();control.requireActive();};
+        guarded.requireCurrent();
+        try(var lease=concurrency.acquire(control.tenantId(),control.actorId(),limits,guarded);
+                var reader=new S3ObjectReader(endpoint,bucket,policy.region(),S3ObjectReader.Network.LOCAL_LOOPBACK,
+                    objectCredentials,directory,maximumBytes,policy.segmentBytes())) {
+            var guard=lease.guard(guarded);var result=reading.apply(reader,guard);guard.requireCurrent();return result;
+        }
+    }
+
+    <T>T readDocumentReviewDocument(DocumentReviewControlAccess.Reads control,int maximumBytes,
+            S3ObjectReader.Admission current,DocumentRead<T> reading)throws Exception {
+        java.util.Objects.requireNonNull(control).requireActive();
+        if(org.springframework.transaction.support.TransactionSynchronizationManager.isActualTransactionActive())
+            throw new TenantAccessException(com.ruoyi.medical.contracts.ErrorCode.CONTEXT_CHANGED);
+        S3ObjectReader.Admission guarded=()->{control.requireActive();current.requireCurrent();control.requireActive();};
+        guarded.requireCurrent();
+        try(var lease=concurrency.acquire(control.tenantId(),control.actorId(),limits,guarded);
+                var reader=new S3ObjectReader(endpoint,bucket,policy.region(),S3ObjectReader.Network.LOCAL_LOOPBACK,
+                    objectCredentials,directory,maximumBytes,policy.segmentBytes())) {
+            var guard=lease.guard(guarded);var result=reading.apply(reader,guard);guard.requireCurrent();return result;
+        }
+    }
+
+    <T>T readEvaluationDocument(FormalEvaluationControlAccess.Reads control,int maximumBytes,
+            S3ObjectReader.Admission current,DocumentRead<T> reading)throws Exception {
+        java.util.Objects.requireNonNull(control).requireActive();
+        if(org.springframework.transaction.support.TransactionSynchronizationManager.isActualTransactionActive())
+            throw new TenantAccessException(com.ruoyi.medical.contracts.ErrorCode.CONTEXT_CHANGED);
+        S3ObjectReader.Admission guarded=()->{control.requireActive();current.requireCurrent();control.requireActive();};
+        guarded.requireCurrent();
+        try(var lease=concurrency.acquire(control.tenantId(),control.actorId(),limits,guarded);
+                var reader=new S3ObjectReader(endpoint,bucket,policy.region(),S3ObjectReader.Network.LOCAL_LOOPBACK,
+                    objectCredentials,directory,maximumBytes,policy.segmentBytes())) {
+            var guard=lease.guard(guarded);var result=reading.apply(reader,guard);guard.requireCurrent();return result;
+        }
+    }
+
+    /** TASK access is re-entered by current before every physical segment and after delivery. */
+    <T>T readTaskDocument(String tenant,String actor,int maximumBytes,S3ObjectReader.Admission current,
+            DocumentRead<T> reading)throws Exception {
+        requireJobOutsideTransaction(tenant,actor); current.requireCurrent();
+        try(var lease=concurrency.acquire(tenant,actor,limits,current);
+                var reader=new S3ObjectReader(endpoint,bucket,policy.region(),S3ObjectReader.Network.LOCAL_LOOPBACK,
+                    objectCredentials,directory,maximumBytes,policy.segmentBytes())) {
+            var guard=lease.guard(current);var result=reading.apply(reader,guard);guard.requireCurrent();return result;
         }
     }
 

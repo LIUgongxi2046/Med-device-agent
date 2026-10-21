@@ -56,6 +56,7 @@
         <el-descriptions-item label="生产准入">尚未批准</el-descriptions-item>
       </el-descriptions>
       <div class="evaluation-actions"><el-button :disabled="busy || dirty()" @click="refresh(false)">重新读取完整批次</el-button><el-button :disabled="busy || dirty()" @click="refresh(true)">刷新评分历史与结果</el-button></div>
+      <n01-plan-preparation :evaluation="view" :disabled="busy" />
       <el-tabs v-model="tab">
         <el-tab-pane label="总览、比较与审计" name="overview"><evaluation-insights :view="view" /></el-tab-pane>
         <el-tab-pane label="固定定义与来源" name="definition">
@@ -122,6 +123,7 @@ import EvaluationDefinition from './evaluation-definition.vue'
 import EvaluationScoreEditor from './evaluation-score-editor.vue'
 import EvaluationDefinitionForm from './evaluation-definition-form.vue'
 import EvaluationInsights from './evaluation-insights.vue'
+import N01PlanPreparation from './n01-plan-preparation.vue'
 const user = useUserStore(), route = useRoute(), router = useRouter()
 const session = computed<MedicalSession | null>(() => user.medicalSession)
 const target = computed(() => typeof route.params.evaluationId === 'string' ? route.params.evaluationId : null)

@@ -23,6 +23,7 @@
     "gen_table_column"
   ],
   "native_sql_migrations": [
+    "102-strict-comparison-governance.sql",
     "db/migration/027-template-definition.sql",
     "db/migration/032-task-plan-content.sql",
     "db/migration/034-ruoyi-management-tables.sql",
@@ -71,13 +72,91 @@
     "db/migration/083-formal-evaluation-runtime.sql",
     "db/migration/084-formal-evaluation-policy.sql",
     "db/migration/085-model-verification-input.sql",
-    "db/migration/087-model-enablement-policy-preparation.sql"
+    "db/migration/087-model-enablement-policy-preparation.sql",
+    "db/migration/089-formal-evaluation-exact-input-object.sql",
+    "db/migration/090-formal-evaluation-plan-preparation.sql",
+    "db/migration/091-formal-evaluation-node-input-object.sql",
+    "db/migration/092-task-run-bootstrap.sql",
+    "db/migration/093-task-delegation-rule.sql",
+    "db/migration/094-task-run-replay-governance.sql",
+    "db/migration/095-task-run-planned-graph.sql",
+    "db/migration/096-task-field-target.sql",
+    "db/migration/097-task-node-input.sql",
+    "db/migration/098-task-node-producer.sql",
+    "db/migration/099-task-professional-runtime.sql",
+    "db/migration/100-task-professional-package-authoring.sql",
+    "db/migration/101-task-plan-draft.sql",
+    "db/migration/103-task-strict-field.sql",
+    "db/migration/104-task-strict-field-typed.sql",
+    "db/migration/105-task-plan-draft-launch.sql",
+    "db/migration/106-plan-draft-invocation.sql",
+    "db/migration/107-task-strict-field-output.sql",
+    "db/migration/108-task-section-writer.sql",
+    "db/migration/109-task-section-writer-invocation.sql",
+    "db/migration/110-task-section-writer-runtime.sql",
+    "db/migration/111-task-section-writer-producer.sql",
+    "db/migration/112-document-initial-writer-input.sql",
+    "db/migration/113-task-section-writer-dispatch.sql",
+    "db/migration/114-task-source-verifier.sql",
+    "db/migration/116-task-source-verifier-runtime.sql",
+    "db/migration/118-task-source-verifier-invocation.sql",
+    "db/migration/122-document-professional-review.sql",
+    "db/migration/123-task-candidate-assembly-objects.sql",
+    "db/migration/124-document-check-execution.sql",
+    "db/migration/125-document-review-runtime.sql",
+    "db/migration/126-document-review-invocation.sql",
+    "db/migration/127-document-review-context-read.sql",
+    "db/migration/128-task-candidate-assembly-check.sql",
+    "db/migration/130-template-application-decisions.sql",
+    "db/migration/131-document-candidate-adoption.sql",
+    "db/migration/132-document-adoption-output.sql",
+    "db/migration/133-professional-issue-lifecycle.sql",
+    "db/migration/134-human-evidence-review.sql",
+    "db/migration/135-strict-field-human-decisions.sql",
+    "db/migration/136-shared-fact-lifecycle.sql",
+    "db/migration/137-document-review-confirmations.sql",
+    "db/migration/138-candidate-comparison.sql",
+    "db/migration/139-version-change-impact.sql",
+    "db/migration/140-document-signing.sql",
+    "db/migration/141-task-run-continuation.sql",
+    "db/migration/142-formal-evaluation-jobs.sql",
+    "db/migration/143-formal-evaluation-node-runtime.sql",
+    "db/migration/144-formal-evaluation-professional-completion.sql",
+    "db/migration/145-formal-evaluation-invocation.sql",
+    "db/migration/146-formal-evaluation-context-read.sql",
+    "db/migration/147-formal-evaluation-runtime-objects.sql",
+    "db/migration/148-scenario-specification-governance.sql",
+    "db/migration/149-formal-evaluation-call-exact-input.sql",
+    "db/migration/150-formal-evaluation-tool-receipts.sql",
+    "db/migration/152-formal-evaluation-stage-input.sql",
+    "db/migration/156-dense-retrieval.sql",
+    "db/migration/157-export-layout-recovery.sql",
+    "db/migration/158-task-deterministic-execution.sql",
+    "db/migration/159-formal-evaluation-deterministic.sql",
+    "db/migration/160-task-success-reuse.sql",
+    "db/migration/162-gru-execution.sql",
+    "db/migration/163-approved-web-acquisition.sql",
+    "db/migration/167-customer-connector.sql",
+    "db/migration/171-source-copy-authority.sql",
+    "db/migration/172-business-operations-feedback.sql",
+    "db/migration/175-framework-job-command.sql",
+    "db/migration/176-framework-binding-governance.sql",
+    "db/migration/177-knowledge-rule-feedback.sql",
+    "db/migration/178-framework-form-publication.sql"
   ],
   "native_alter_migrations": [
-    "db/migration/057-simulation-model-configuration.sql",
     "db/migration/017-member-identity-mode.sql",
     "db/migration/024-operation-retention.sql",
-    "db/migration/053-run-token-authority.sql"
+    "db/migration/053-run-token-authority.sql",
+    "db/migration/057-simulation-model-configuration.sql",
+    "db/migration/123-task-candidate-assembly-objects.sql",
+    "db/migration/128-task-candidate-assembly-check.sql",
+    "db/migration/133-professional-issue-lifecycle.sql",
+    "db/migration/140-document-signing.sql",
+    "db/migration/141-task-run-continuation.sql",
+    "db/migration/142-formal-evaluation-jobs.sql",
+    "db/migration/144-formal-evaluation-professional-completion.sql",
+    "db/migration/166-scenario-large-author-contract.sql"
   ],
   "native_xml_migrations": [
     "db/migration/036-task-plan-relations.xml"
@@ -109,7 +188,9 @@
     "platform_enterprise_registration",
     "platform_enterprise_registration_audit",
     "platform_enterprise_registration_decision",
-    "platform_enterprise_registration_decision_audit"
+    "platform_enterprise_registration_decision_audit",
+    "platform_framework_job_command",
+    "platform_framework_job_revision"
   ],
   "required_tables": {
     "document_return_for_revision": [
@@ -496,6 +577,387 @@
       "formal_evaluation_context_decision",
       "formal_evaluation_context_state",
       "formal_evaluation_execution_context"
+    ],
+    "formal_evaluation_exact_input_object": [
+      "formal_evaluation_exact_input_intent",
+      "formal_evaluation_exact_input_attempt",
+      "formal_evaluation_exact_input_registered"
+    ],
+    "formal_evaluation_plan_preparation": [
+      "formal_evaluation_plan_preparation_intent",
+      "formal_evaluation_plan_preparation_attempt",
+      "formal_evaluation_plan_preparation_registered"
+    ],
+    "task_run_bootstrap": [
+      "task_run_replay_intent",
+      "task_run_replay_attempt",
+      "task_run_replay_registration",
+      "task_run_workflow_launch",
+      "task_run_workflow_attempt",
+      "task_run_workflow_acceptance"
+    ],
+    "task_delegation": [
+      "task_delegation_rule",
+      "task_delegation_state",
+      "task_delegation_decision"
+    ],
+    "task_run_replay_governance": [
+      "task_run_replay_governance_manifest",
+      "task_run_replay_governance_member",
+      "task_run_replay_governance_edge"
+    ],
+    "formal_evaluation_node_input_object": [
+      "formal_evaluation_node_input_intent",
+      "formal_evaluation_node_input_attempt",
+      "formal_evaluation_node_input_registered"
+    ],
+    "task_field_target": [
+      "task_field_mapping_revision",
+      "task_field_mapping_head",
+      "task_field_source_read_receipt",
+      "task_field_target_intent",
+      "task_field_target_entry",
+      "task_field_target_attempt",
+      "task_field_target_registration",
+      "task_field_target_input_capability",
+      "task_field_target_input_capability_state",
+      "task_field_target_input_capability_decision"
+    ],
+    "task_run_planned_graph": [
+      "task_run_planned_graph",
+      "task_run_planned_edge"
+    ],
+    "task_node_input": [
+      "task_node_input_intent",
+      "task_node_input_attempt",
+      "task_node_input_registered"
+    ],
+    "task_node_producer": [
+      "task_node_producer_rule",
+      "task_node_producer_state",
+      "task_node_producer_decision"
+    ],
+    "task_professional_runtime": [
+      "professional_runtime_supervision",
+      "runtime_professional_object_binding"
+    ],
+    "task_professional_package_authoring": [
+      "task_package_authoring_intent",
+      "task_package_authoring_registration",
+      "task_package_authoring_rejection"
+    ],
+    "strict_comparison_governance": [
+      "strict_comparison_policy_revision",
+      "strict_comparison_policy_state",
+      "strict_comparison_policy_decision",
+      "strict_decimal_evidence_revision"
+    ],
+    "task_plan_draft": [
+      "task_plan_draft_job",
+      "task_plan_draft_object_intent",
+      "task_plan_draft_object_attempt",
+      "task_plan_draft_candidate",
+      "task_plan_draft_check",
+      "task_plan_draft_tool_receipt",
+      "task_plan_draft_origin",
+      "task_plan_draft_runtime_prepare"
+    ],
+    "task_plan_draft_launch": [
+      "task_plan_draft_launch_intent",
+      "task_plan_draft_launch_attempt",
+      "task_plan_draft_launch_receipt",
+      "task_plan_draft_completion"
+    ],
+    "task_plan_draft_invocation": [
+      "task_plan_draft_exact_intent",
+      "task_plan_draft_exact_attempt",
+      "task_plan_draft_exact_registration"
+    ],
+    "task_strict_field": [
+      "task_strict_field_input",
+      "task_strict_field_source_read",
+      "task_strict_field_result"
+    ],
+    "task_strict_field_typed": [
+      "task_strict_field_context_revision",
+      "task_strict_field_context_decision",
+      "task_strict_field_typed_revision",
+      "task_strict_field_typed_decision",
+      "task_strict_field_context_state",
+      "task_strict_field_typed_state",
+      "task_strict_field_typed_intent",
+      "task_strict_field_typed_registration"
+    ],
+    "task_section_writer_producer": [
+      "task_section_writer_producer_rule",
+      "task_section_writer_producer_state",
+      "task_section_writer_producer_decision"
+    ],
+    "task_strict_field_output": [
+      "task_strict_field_rule_set",
+      "task_strict_field_output_intent",
+      "task_strict_field_output_registration",
+      "task_strict_field_method_read"
+    ],
+    "task_section_writer": [
+      "task_section_writer_object_intent",
+      "task_section_writer_object_attempt",
+      "task_section_writer_object",
+      "task_section_writer_input",
+      "task_section_writer_submission"
+    ],
+    "task_section_writer_invocation": [
+      "task_section_writer_exact_intent",
+      "task_section_writer_exact_attempt",
+      "task_section_writer_exact_registration"
+    ],
+    "task_section_writer_runtime": [
+      "task_section_writer_runtime_prepare"
+    ],
+    "document_initial_revision": [
+      "document_initial_intent",
+      "document_initial_object",
+      "document_initial_registration"
+    ],
+    "task_source_verifier": [
+      "task_source_verifier_object_intent",
+      "task_source_verifier_object_attempt",
+      "task_source_verifier_object",
+      "task_source_verifier_input",
+      "task_source_verifier_producer_rule",
+      "task_source_verifier_producer_state",
+      "task_source_verifier_producer_decision",
+      "task_source_verifier_rule_set",
+      "task_source_verifier_submission",
+      "task_source_verifier_issue_proposal"
+    ],
+    "task_source_verifier_runtime": [
+      "task_source_verifier_runtime_prepare",
+      "task_source_verifier_context_read",
+      "task_source_verifier_independent_read"
+    ],
+    "task_source_verifier_invocation": [
+      "task_source_verifier_exact_intent",
+      "task_source_verifier_exact_attempt",
+      "task_source_verifier_exact_registration"
+    ],
+    "document_professional_review": [
+      "document_review_intent",
+      "document_review_object_intent",
+      "document_review_object_attempt",
+      "document_review_object",
+      "document_review_result"
+    ],
+    "task_candidate_assembly": [
+      "task_candidate_assembly_producer_rule",
+      "task_candidate_assembly_producer_state",
+      "task_candidate_assembly_producer_decision",
+      "task_candidate_assembly_object_intent",
+      "task_candidate_assembly_object_attempt",
+      "task_candidate_assembly_object",
+      "task_candidate_assembly_rule_set"
+    ],
+    "document_check_execution": [
+      "document_review_execution",
+      "document_review_launch_intent",
+      "document_review_launch_attempt",
+      "document_review_launch_receipt",
+      "document_review_completion"
+    ],
+    "document_review_runtime": [
+      "document_review_runtime_prepare"
+    ],
+    "document_review_invocation": [
+      "document_review_exact_intent",
+      "document_review_exact_attempt",
+      "document_review_exact_registration"
+    ],
+    "document_review_context_read": [
+      "document_review_context_read",
+      "document_review_independent_read"
+    ],
+    "template_application": [
+      "template_application_head",
+      "template_application_decision"
+    ],
+    "document_candidate_adoption": [
+      "document_adoption_preview",
+      "document_adoption_intent",
+      "document_adoption_completion"
+    ],
+    "document_adoption_output": [
+      "document_adoption_save",
+      "document_adoption_output"
+    ],
+    "professional_issue_lifecycle": [
+      "professional_issue_decision",
+      "professional_issue_occurrence"
+    ],
+    "human_evidence_review": [
+      "human_evidence_batch",
+      "human_evidence_decision"
+    ],
+    "strict_field_human": [
+      "strict_field_human_decision",
+      "strict_field_human_head",
+      "strict_field_evidence_question"
+    ],
+    "shared_fact_lifecycle": [
+      "shared_fact_policy",
+      "shared_fact_proposal",
+      "shared_fact_verification",
+      "shared_fact_adoption",
+      "shared_fact_lifecycle_operation",
+      "shared_fact_policy_head",
+      "shared_fact_proposal_head",
+      "shared_fact_adopted_head",
+      "shared_fact_check_rule",
+      "shared_fact_check"
+    ],
+    "document_review_confirmations": [
+      "document_review_confirmation_receipt",
+      "document_review_revision_assignment",
+      "document_review_resubmission"
+    ],
+    "candidate_comparison": [
+      "candidate_comparison_intent",
+      "candidate_comparison_completion"
+    ],
+    "version_change_impact": [
+      "change_proposal_scope",
+      "change_impact_decision",
+      "change_revision_entry",
+      "change_impact_application",
+      "change_impact_operation",
+      "change_impact_resolution"
+    ],
+    "document_signing": [
+      "document_signing_policy",
+      "document_signing_policy_approval",
+      "document_signing_policy_head",
+      "document_signing_challenge_binding",
+      "document_signing_callback",
+      "document_signed_content",
+      "document_signing_operation"
+    ],
+    "task_run_continuation": [
+      "task_run_preruntime_termination",
+      "task_input_continuation",
+      "task_run_continuation"
+    ],
+    "formal_evaluation_jobs": [
+      "formal_evaluation_job",
+      "formal_evaluation_launch_intent",
+      "formal_evaluation_launch_attempt",
+      "formal_evaluation_launch_receipt"
+    ],
+    "formal_evaluation_node_runtime": [
+      "formal_evaluation_node_dispatch",
+      "formal_evaluation_runtime_prepare",
+      "formal_evaluation_node_outcome",
+      "formal_evaluation_host_launch_attempt",
+      "formal_evaluation_node_waiting",
+      "formal_evaluation_cell_outcome",
+      "formal_evaluation_cancel_intent"
+    ],
+    "formal_evaluation_professional_completion": [
+      "formal_evaluation_professional_completion"
+    ],
+    "formal_evaluation_invocation": [
+      "formal_evaluation_invocation_context"
+    ],
+    "formal_evaluation_context_read": [
+      "formal_evaluation_context_read"
+    ],
+    "formal_evaluation_runtime_objects": [
+      "formal_evaluation_runtime_object_intent",
+      "formal_evaluation_runtime_object_attempt",
+      "formal_evaluation_runtime_object_registered"
+    ],
+    "scenario_specification": [
+      "scenario_record",
+      "scenario_task_entry"
+    ],
+    "formal_evaluation_call_exact_input": [
+      "formal_evaluation_call_exact_intent",
+      "formal_evaluation_call_exact_attempt",
+      "formal_evaluation_call_exact_registration"
+    ],
+    "formal_evaluation_tool_receipts": [
+      "formal_evaluation_tool_receipt",
+      "formal_evaluation_tool_question"
+    ],
+    "formal_evaluation_stage_input": [
+      "formal_evaluation_case_original",
+      "formal_evaluation_case_approval",
+      "formal_evaluation_stage_input_intent",
+      "formal_evaluation_stage_input_attempt",
+      "formal_evaluation_stage_input_registered"
+    ],
+    "export_layout_recovery": [
+      "export_layout_profile",
+      "export_layout_verification"
+    ],
+    "task_deterministic_execution": [
+      "task_deterministic_execution"
+    ],
+    "formal_evaluation_deterministic": [
+      "formal_evaluation_deterministic_object_intent",
+      "formal_evaluation_deterministic_object_attempt",
+      "formal_evaluation_deterministic_object_registered",
+      "formal_evaluation_deterministic_execution",
+      "formal_evaluation_deterministic_outcome"
+    ],
+    "dense_retrieval": [
+      "dense_index_configuration",
+      "dense_operation",
+      "dense_budget_reservation",
+      "dense_index_vector",
+      "dense_operation_source"
+    ],
+    "task_success_reuse": [
+      "task_run_success_reuse",
+      "task_run_assembly_success_reuse"
+    ],
+    "gru_execution": [
+      "gru_execution_action",
+      "gru_execution_message",
+      "gru_owner_memory",
+      "gru_execution_presentation_context"
+    ],
+    "approved_web_acquisition": [
+      "approved_web_query",
+      "approved_web_query_decision",
+      "approved_web_acquisition",
+      "approved_web_candidate"
+    ],
+    "customer_connector": [
+      "customer_connector_head",
+      "customer_connector_definition",
+      "customer_connector_decision",
+      "customer_connector_cursor",
+      "customer_connector_run",
+      "customer_connector_item"
+    ],
+    "operations_feedback": [
+      "operations_feedback_event"
+    ],
+    "source_copy_authority": [
+      "source_copy_authority"
+    ],
+    "framework_binding": [
+      "framework_binding_manifest",
+      "framework_binding_approval",
+      "framework_binding_operation"
+    ],
+    "knowledge_feedback": [
+      "knowledge_feedback_origin",
+      "knowledge_feedback_event"
+    ],
+    "framework_form_publication": [
+      "framework_form_schema",
+      "framework_form_approval",
+      "framework_form_operation"
     ]
   }
 }

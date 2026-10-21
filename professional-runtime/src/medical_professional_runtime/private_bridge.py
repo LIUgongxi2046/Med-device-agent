@@ -5,16 +5,23 @@ business authorization decision: the server rechecks lease/grants per request.
 """
 import asyncio
 import hmac
+import inspect
 import os
 from pathlib import Path
 import re
 import secrets
+import stat
 from aiohttp import web
 from .host import RuntimeBlocked, private_directory, strict_json, uuid
 
 class PrivateBridgeServer:
-    def __init__(self, socket_root: Path, binding, session: str, forward, maximum_bytes: int):
-        private_directory(socket_root)
+    def __init__(self, socket_root: Path, binding, session: str, forward, maximum_bytes: int, runtime_gid=None):
+        if runtime_gid is None:private_directory(socket_root)
+        else:
+            # Provisioned out of band, never relaxed here: runtime may traverse
+            # only its private session directory, not enumerate or modify siblings.
+            info=socket_root.lstat()
+            if not stat.S_ISDIR(info.st_mode) or socket_root.resolve()!=socket_root or info.st_uid!=os.getuid() or info.st_gid!=runtime_gid or stat.S_IMODE(info.st_mode)!=0o710:raise RuntimeBlocked('SUPERVISOR_SOCKET_PARENT_REQUIRED')
         self.binding=binding; self.session=uuid(session); self.forward=forward; self.maximum_bytes=maximum_bytes
         self.directory=socket_root / self.session.replace('-','')
         self.directory.mkdir(mode=0o700, exist_ok=False)
@@ -23,7 +30,7 @@ class PrivateBridgeServer:
         self.token=secrets.token_urlsafe(48)
         fd=os.open(self.token_path,os.O_WRONLY|os.O_CREAT|os.O_EXCL|os.O_NOFOLLOW,0o600)
         with os.fdopen(fd,'w') as stream: stream.write(self.token)
-        self.runner=None; self.closed=False; self.active=set(); self.guard=None
+        self.runner=None; self.closed=False; self.active=set(); self.guard=None; self.model_observer=None
 
     async def start(self):
         app=web.Application(client_max_size=self.maximum_bytes)
@@ -60,6 +67,9 @@ class PrivateBridgeServer:
             try: uuid(route.removeprefix('/v1/model-results/'))
             except (ValueError,RuntimeBlocked): raise web.HTTPBadRequest()
         else: raise web.HTTPNotFound()
+        if route=='/v1/model-contexts':
+            if self.model_observer is None:raise web.HTTPServiceUnavailable()
+            if request.headers.get('Transfer-Encoding') is not None or request.content_length is None or not 0<request.content_length<=self.maximum_bytes:raise web.HTTPRequestEntityTooLarge(max_size=self.maximum_bytes,actual_size=request.content_length or 0)
         body=await request.read()
         if request.method=='POST':
             if request.content_type!='application/json': raise web.HTTPUnsupportedMediaType()
@@ -71,12 +81,18 @@ class PrivateBridgeServer:
             try: uuid(key)
             except (ValueError,TypeError,AttributeError,RuntimeBlocked): raise web.HTTPBadRequest()
         if self.guard is None: raise web.HTTPServiceUnavailable()
-        try: self.guard()
+        try:
+            checked=self.guard()
+            if inspect.isawaitable(checked): await checked
         except Exception: raise web.HTTPServiceUnavailable() from None
+        observed=None
+        if route=='/v1/model-contexts':
+            try:observed=await self.model_observer.capture(request,body)
+            except Exception:raise web.HTTPServiceUnavailable() from None
         task=asyncio.current_task(); self.active.add(task)
         try:
             # Forward is a context-managed, one-shot mTLS request, not a retry loop.
-            async with self.forward(self.binding,self.session,request.method,route,body,key) as source:
+            async with self.forward(self.binding,self.session,request.method,route,body,key,observed) as source:
                 if source.status != 200: raise web.HTTPBadGateway()
                 content_type=source.headers.get('Content-Type','')
                 if content_type.split(';')[0].strip() not in ('application/json','text/event-stream'): raise web.HTTPBadGateway()

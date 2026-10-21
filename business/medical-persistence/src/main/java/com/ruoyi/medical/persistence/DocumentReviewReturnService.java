@@ -295,6 +295,11 @@ public final class DocumentReviewReturnService {
         if(!context.equals(admission.context().context_revision())) fail(ErrorCode.CONTEXT_CHANGED);
         documents.requireCurrent(admission,fixed);
     }
+    /** Shared assignee eligibility for formal batches; caller stays the real admission subject. */
+    List<PermissionProtocol.GrantRow> eligibleAssignee(EnterpriseAccess.Admission admission, DocumentReadService.FixedRead fixed, String assignee) throws Exception {
+        var values = new HashMap<String,Object>(); values.put("projectId",fixed.header().projectId()); values.put("documentId",fixed.header().documentId());
+        return targetEligibility(admission,fixed,assignee,values);
+    }
     private List<PermissionProtocol.GrantRow> targetEligibility(EnterpriseAccess.Admission admission,DocumentReadService.FixedRead fixed,
             String assignee,Map<String,Object> values) throws Exception {
         // The current reviewer remains the transaction subject; this inspects bounded target eligibility only.

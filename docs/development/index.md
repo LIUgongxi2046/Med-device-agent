@@ -303,22 +303,22 @@ BACK-OBJECT-PAGING-01、ObjectContentPaging、ObjectContentPagingTest、IC-05-OB
 | IMP-11 | 模板目录、字段及适用条件 | RequirementNode、模板、UNKNOWN、BACK-TEMPLATE-DEFINITION-01、TemplateProtocol、TemplateDefinitionSchema、templates.schema.json、十三文档、十一字段、重复行、附件、TP-01/02 | FR-05、FR-09；AC-18/45/46/50/57 | [IMP-11.md](IMP-11.md) |
 | IMP-12 | 项目任务、来源快照与计划决定 | C04、TaskRevision、ScopeSnapshot、SourceScope、PlanCandidate、task_input_revision、plan_content_revision、BACK-TASK-PLAN-01、BACK-TASK-STORAGE-01、BACK-TASK-SOURCE-CANDIDATE-01、BACK-SCOPE-MANIFEST-01、ScopeSnapshotSchema、ScopeSnapshotManifest、ScopeSnapshotMember、SnapshotRequirement、requireCandidate、snapshotCandidate | FR-04、FR-09；AC-07/08/18/31/37 | [IMP-12.md](IMP-12.md) |
 | IMP-13 | Temporal 调度、等待、取消与恢复 | C11、Temporal、local_temporal、Signal、lease、run、execution_registry、system_job_run | FR-02、FR-09；AC-04/20/21/39/41/44 | [IMP-13.md](IMP-13.md) |
-| IMP-14 | Harness profile、工具与内部适配 | C12、medical-agent、TypeScript | FR-02、FR-09；AC-23/24/26/27/28 | docs/development/IMP-14.md |
+| IMP-14 | Harness profile、工具与内部适配 | C12、medical-agent、TypeScript | FR-02、FR-09；AC-23/24/26/27/28 | [IMP-14.md](IMP-14.md) |
 | IMP-15 | 规划、研究、生成和独立检查节点 | N00—N09、EvidenceBundle、guard | FR-04、FR-09；AC-18/19/20/25/39 | docs/development/IMP-15.md |
-| IMP-16 | 同版正文、候选比较及连续编辑 | S09、Editor、CAS、AST | FR-05、FR-09；AC-22/38 | docs/development/IMP-16.md |
+| IMP-16 | 同版正文、候选比较及连续编辑 | S09、Editor、CAS、AST | FR-05、FR-09；AC-22/38 | [IMP-16.md](IMP-16.md) |
 | IMP-17 | 产品技术要求及指标方法 | PTR、型号、指标、方法 | FR-05；AC-09/10/47/48/49 | docs/development/IMP-17.md |
 | IMP-18 | 注册目录、监管综述及质量体系 | 六章、38节点、QMS | FR-05；AC-45 | docs/development/IMP-18.md |
 | IMP-19 | 非临床研究、基本原则与风险 | 研究、基本原则、风险 | FR-05；AC-50/51/52 | docs/development/IMP-19.md |
 | IMP-20 | 临床评价与免评价资料 | 临床、免评价、对比 | FR-05；AC-53 | docs/development/IMP-20.md |
 | IMP-21 | 说明书与独立标签样稿 | IFU、标签、警示 | FR-05；AC-49/54 | docs/development/IMP-21.md |
 | IMP-22 | IVD、变更和延续路径 | IVD、注册路径、模板 | FR-05；AC-46 | docs/development/IMP-22.md |
-| IMP-23 | 当前正文检查、人工审查与签发 | CHECK_DOCUMENT、S11、SG | FR-05、FR-09；AC-09/11/19/25/48 | docs/development/IMP-23.md |
+| IMP-23 | 当前正文检查、人工审查与签发 | CHECK_DOCUMENT、S11、SG | FR-05、FR-09；AC-09/11/19/25/48 | [IMP-23.md](IMP-23.md) |
 | IMP-24 | 共享事实、依据更新与撤权影响 | FactUsage、权限水位、影响 | FR-01、FR-03、FR-05；AC-35/40/54/55/57 | docs/development/IMP-24.md |
 | IMP-25 | Gru、显式采纳、摘要和习惯 | Gru、建议、选区、记忆 | FR-04、FR-09；AC-37/38/43 | docs/development/IMP-25.md |
-| IMP-26 | 固定成品导出与成果转存 | C08、DOCX、PDF、转存 | FR-03、FR-05、FR-09；AC-34/42/47/56 | docs/development/IMP-26.md |
-| IMP-27 | 运行工作区、公开流与人工继续 | S06、SSE、Last-Event-ID、待办 | FR-04、FR-09；AC-08/21/39/40/41/44 | docs/development/IMP-27.md |
-| IMP-28 | 评测、运营、反馈与能力发布 | C06、EVAL、CP、发布清单 | FR-02、FR-06；AC-03/12/13/27 | docs/development/IMP-28.md |
-| IMP-29 | 场景目录与未定义场景控制 | 场景、入口、规格 | FR-07；AC-14/15 | docs/development/IMP-29.md |
+| IMP-26 | 固定成品导出与成果转存 | C08、DOCX、PDF、转存 | FR-03、FR-05、FR-09；AC-34/42/47/56 | [IMP-26.md](IMP-26.md) |
+| IMP-27 | 运行工作区、公开流与人工继续 | S06、SSE、Last-Event-ID、待办 | FR-04、FR-09；AC-08/21/39/40/41/44 | [IMP-27.md](IMP-27.md) |
+| IMP-28 | 评测、运营、反馈与能力发布 | C06、EVAL、CP、发布清单 | FR-02、FR-06；AC-03/12/13/27 | [IMP-28.md](IMP-28.md) |
+| IMP-29 | 场景目录与未定义场景控制 | 场景、入口、规格 | FR-07；AC-14/15 | [IMP-29.md](IMP-29.md) |
 | IMP-30 | 客户 B/S 连接与真实同步 | B/S、映射、同步、SEC-28 | FR-08；AC-17 | docs/development/IMP-30.md |
 | IMP-31 | 法规比较场景 | 法规、版本、比较 | FR-07；AC-14 | docs/development/IMP-31.md |
 | IMP-32 | 报告生成场景 | 报告、用途、成品 | FR-07；AC-14 | docs/development/IMP-32.md |
@@ -328,10 +328,10 @@ BACK-OBJECT-PAGING-01、ObjectContentPaging、ObjectContentPagingTest、IC-05-OB
 | IMP-36 | 环境、监控、制品与恢复准备 | 部署、秘密、trace、备份、BACK-LOCAL-DELETION-STORAGE-01、local_vector_storage、local_deletion_runtime、check_local_database_restore | FR-08；NFR-02/06/07/15 | [IMP-36.md](IMP-36.md) |
 | IMP-37 | 注册业务与边界集成验收 | TEST、EDGE、QA、下游使用、check_full_function_inventory、full-functional-report、IC-04-AUTH-ERRORS | AC-01—57 中本项55项；IC-37 | [IMP-37.md](IMP-37.md) |
 | IMP-38 | 安全配对与制品检查 | SEC、TH、合法与拒绝 | NFR-03/11/13；IC-38 | docs/development/IMP-38.md |
-| IMP-39 | 非功能、兼容与恢复验收 | NTEST、SLO、RTO、RPO | NFR-01—17 中本项14项；IC-39 | docs/development/IMP-39.md |
-| IMP-40 | SaaS 发布与使用交接 | SaaS、迁移、用户说明 | R08、FR-08；IC-40 | docs/development/IMP-40.md |
-| IMP-41 | 私有化部署与维护交接 | 私有化、升级、运维 | R08、FR-08；IC-41 | docs/development/IMP-41.md |
-| IMP-42 | 配套服务与责任交接 | 服务、权限、专业审核 | R08、FR-08；IC-42 | docs/development/IMP-42.md |
+| IMP-39 | 非功能、兼容与恢复验收 | NTEST、SLO、RTO、RPO | NFR-01—17 中本项14项；IC-39 | [IMP-39.md](IMP-39.md) |
+| IMP-40 | SaaS 发布与使用交接 | SaaS、迁移、用户说明 | R08、FR-08；IC-40 | [IMP-40.md](IMP-40.md) |
+| IMP-41 | 私有化部署与维护交接 | 私有化、升级、运维 | R08、FR-08；IC-41 | [IMP-41.md](IMP-41.md) |
+| IMP-42 | 配套服务与责任交接 | 服务、权限、专业审核 | R08、FR-08；IC-42 | [IMP-42.md](IMP-42.md) |
 
 IMP-04的本地账户管理检索字段为BACK-LOCAL-MANAGEMENT-01、LOCAL-01—06、LocalAccountManagement、LocalAccountManagementController、LocalAccountSchema、LocalAccountProtocol、LocalManagementPolicy、platform_local_operation、platform_local_audit、management-request.js、hmacKeyId；主记录路径为docs/development/IMP-04.md，关联IMP-01/02/03/05/06。
 

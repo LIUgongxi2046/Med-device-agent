@@ -94,8 +94,8 @@ const ids = new Set<string>(ARTIFACT_WIRE_FIELDS.Id)
 const arrays = new Set<string>(ARTIFACT_WIRE_FIELDS.Ids)
 const evidence = new Set<string>([...ARTIFACT_WIRE_FIELDS.EvidenceRef, ...ARTIFACT_WIRE_FIELDS.EvidenceRefs])
 
-function validateWire(value: JsonValue): void {
-  if (Array.isArray(value)) { for (const child of value) validateWire(child); return }
+export function validateArtifactWire(value: JsonValue): void {
+  if (Array.isArray(value)) { for (const child of value) validateArtifactWire(child); return }
   if (value === null || typeof value !== 'object') return
   for (const [field, child] of Object.entries(value)) {
     // 原始 Schema 已验证 EvidenceRef，文本来源身份不能转换为生产 UUID。
@@ -108,7 +108,7 @@ function validateWire(value: JsonValue): void {
     if (field === 'decimal_value' && child !== null) decimalValue(child, 38, 12)
     if (field === 'cost_amount') decimalValue(child, 24, 8)
     if (field === 'created_at') utcTime(child)
-    validateWire(child)
+    validateArtifactWire(child)
   }
 }
 export interface ArtifactBinding<T> { readonly schemaRef: string; readonly schemaSha256: string; readonly canonicalJson: string; read(): T }
@@ -123,6 +123,6 @@ export function bindArtifact(catalogue: SchemaCatalogue, definition: keyof Artif
     for (const id of parsed) uuidValue(id)
   }
   if (definition === 'Decimal') decimalValue(parsed, 38, 12)
-  if (definition !== 'EvidenceRef' && definition !== 'EvidenceRefs') validateWire(parsed)
+  if (definition !== 'EvidenceRef' && definition !== 'EvidenceRefs') validateArtifactWire(parsed)
   return Object.freeze({ ...saved, read: (): unknown => JSON.parse(saved.canonicalJson) })
 }

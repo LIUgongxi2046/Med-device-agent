@@ -54,26 +54,38 @@ public final class TaskPlanService {
     private final IdentityDirectoryPolicy identity;
     private final PlatformMemberIdentityStatus memberIdentities;
     private final SchemaCatalogue shared;
+    private final TaskSourcePurposeAuthority sourcePurposes;
 
     public TaskPlanService(EnterpriseAccess access, TaskService taskService, TaskMapper tasks, TaskPlanWriteMapper mapper,
             PermissionMapper permissions, TemplateMapper templates, ResourceReadAuthority resources, PermissionAuthority authority,
             TemplateApplicabilityService applicability, TemplateVersionStore templateStore, TemplateDependencyPolicy policy,
             TaskInputSchema inputs, PermissionSchema json, ScopeSnapshotSchema snapshots, SourceReadAuthority sources,
             TaskPlanPolicy plans, TaskPlanRelationStore relations, DependencyLineage lineage, IdentityDirectoryPolicy identity,
-            PlatformMemberIdentityStatus memberIdentities)
+            PlatformMemberIdentityStatus memberIdentities, TaskSourcePurposeAuthority sourcePurposes)
             throws IOException, java.security.NoSuchAlgorithmException {
         this.access = access; this.taskService = taskService; this.tasks = tasks; this.mapper = mapper; this.permissions = permissions;
         this.templates = templates; this.resources = resources; this.authority = authority; this.applicability = applicability;
         this.templateStore = templateStore; this.policy = policy; this.inputs = inputs; this.json = json; this.snapshots = snapshots;
         this.sources = sources; this.plans = plans; this.relations = relations; this.lineage = lineage; this.identity = identity;
+        this.sourcePurposes = sourcePurposes;
         this.memberIdentities = memberIdentities; shared = SchemaCatalogue.fromClasspath();
     }
 
     record Reply(JsonNode envelope, int httpStatus, String planRevision) { }
 
     Reply save(ApplicationSessionIdentity.Verified subject, String context, String key, String taskId, byte[] body) {
-        json.headers(context, key); WireValues.uuid(taskId);
-        return access.execute(subject, admission -> ThrowingSupplier.of(() -> {
+        json.headers(context,key);WireValues.uuid(taskId);
+        return access.execute(subject,admission->ThrowingSupplier.of(()->saveWithin(admission,context,key,taskId,body)).get());
+    }
+
+    /** Same TK-03 writer inside an already authenticated human transaction, enabling
+     * atomic candidate adoption + immutable origin without a second TenantScope. */
+    Reply saveWithin(EnterpriseAccess.Admission admission,String context,String key,String taskId,byte[] body)throws Exception {
+        json.headers(context,key);WireValues.uuid(taskId);
+        var subject=admission.subject();
+        if(!org.springframework.transaction.support.TransactionSynchronizationManager.isActualTransactionActive()
+                ||!admission.context().tenant_id().equals(TenantScope.requireCurrent().tenantId())
+                ||!subject.user().user_id().equals(TenantScope.requireCurrent().subjectId()))fail(ErrorCode.ACCESS_DENIED);
             current(admission, context); var input = inputs.plan(body);
             var fixed = taskService.fixedTask(admission, taskId); var head = fixed.head(); var values = values(admission, head);
             var scope = scope(head); var grant = resources.require(admission, scope, "plan.write", PURPOSE);
@@ -161,7 +173,6 @@ public final class TaskPlanService {
                     || !"COMPLETED".equals(completed.get(0).state()) || !Integer.valueOf(201).equals(completed.get(0).httpStatus())
                     || !response.equals(inputs.read(completed.get(0).responseRef()))) mismatch();
             return new Reply(response, 201, id);
-        }).get());
     }
 
     Reply read(ApplicationSessionIdentity.Verified subject, String context, String taskId, String planRevision) {
@@ -298,10 +309,47 @@ public final class TaskPlanService {
         var manifest = snapshots.require(stored.manifest(), stored.manifestHash(), admission.context().tenant_id(), project, snapshotId,
                 profileId, stored.authEpoch(), stored.governanceEpoch(), validated.request().scope_selection(), tasks.members(user, project, snapshotId));
         var proof = new java.util.ArrayList<SourceReadProtocol.VerifiedSource>();
+        String dataPurpose = manifest.members().isEmpty() ? purpose : sourcePurposes.requireHistorical(admission, validated, purpose);
         for (var member : manifest.members()) {
             var actual = sources.require(admission, new SourceReadProtocol.ReadRequirement(member.source_version(), member.rights_revision(), project,
                     snapshotId, member.parse_version(), null, formal ? SourceReadProtocol.Use.FORMAL : SourceReadProtocol.Use.HISTORY,
-                    purpose, policy.environment(), policy.region(), null));
+                    dataPurpose, policy.environment(), policy.region(), null));
+            // Retain the original entry-action controls in addition to actual data-use rights and grants.
+            resources.require(admission, new PermissionProtocol.Scope(admission.context().tenant_id(), project, "PROJECT", project), "project.read", purpose);
+            resources.require(admission, new PermissionProtocol.Scope(actual.source().tenantId(), actual.source().ownerProjectId(), "SOURCE", actual.source().sourceId()), "source.read", purpose);
+            ScopeSnapshotSchema.requireSource(member, actual); var selected = actual.selection();
+            if (selected == null || !member.index_version().equals(selected.indexVersion()) || !member.approval_revision().equals(selected.approvalRevision())
+                    || !member.binding_revision().equals(selected.bindingRevision())) mismatch();
+            proof.add(actual);
+        }
+        return List.copyOf(proof);
+    }
+
+    /** Same fixed source validation, entered only through a private PLAN_DRAFT control proof. */
+    List<SourceReadProtocol.VerifiedSource> sourceProofPlanDraft(EnterpriseAccess.Admission admission, String project, String task,
+            String revision, String snapshotId, String profileId, boolean formal, String purpose) throws IOException {
+        if(!admission.planDraftWorker())throw new TenantAccessException(ErrorCode.ACCESS_DENIED);
+        admission.planDraftProof().requireSourceScope(project,task,revision,snapshotId,profileId);
+        ProjectSchema.text(purpose, 128);
+        String user = admission.actorId(); var original = tasks.input(user, project, task, revision);
+        if (original.size() != 1) mismatch(); var input = original.get(0); var validated = inputs.create(input.requestJson().getBytes(StandardCharsets.UTF_8));
+        if (!"1.0.0".equals(input.schemaVersion()) || !inputs.manifestSha256().equals(input.manifest())
+                || !input.requestHash().equals(validated.request_sha256()) || !input.scopeHash().equals(validated.scope_sha256())
+                || !project.equals(validated.request().project_id()) || !profileId.equals(validated.request().profile_revision())
+                || !json.tree(validated.request().scope_selection()).equals(inputs.read(input.scopeJson()))) mismatch();
+        var rows = tasks.snapshot(user, project, snapshotId); if (rows.size() != 1) mismatch(); var stored = rows.get(0);
+        if (!stored.manifestHash().equals(stored.registryHash())) mismatch();
+        var manifest = snapshots.require(stored.manifest(), stored.manifestHash(), admission.context().tenant_id(), project, snapshotId,
+                profileId, stored.authEpoch(), stored.governanceEpoch(), validated.request().scope_selection(), tasks.members(user, project, snapshotId));
+        var proof = new java.util.ArrayList<SourceReadProtocol.VerifiedSource>();
+        String dataPurpose = manifest.members().isEmpty() ? purpose : sourcePurposes.requireHistorical(admission, validated, purpose);
+        for (var member : manifest.members()) {
+            var actual = sources.require(admission, new SourceReadProtocol.ReadRequirement(member.source_version(), member.rights_revision(), project,
+                    snapshotId, member.parse_version(), null, formal ? SourceReadProtocol.Use.FORMAL : SourceReadProtocol.Use.HISTORY,
+                    dataPurpose, policy.environment(), policy.region(), null));
+            // Retain the original entry-action controls in addition to actual data-use rights and grants.
+            resources.require(admission, new PermissionProtocol.Scope(admission.context().tenant_id(), project, "PROJECT", project), "project.read", purpose);
+            resources.require(admission, new PermissionProtocol.Scope(actual.source().tenantId(), actual.source().ownerProjectId(), "SOURCE", actual.source().sourceId()), "source.read", purpose);
             ScopeSnapshotSchema.requireSource(member, actual); var selected = actual.selection();
             if (selected == null || !member.index_version().equals(selected.indexVersion()) || !member.approval_revision().equals(selected.approvalRevision())
                     || !member.binding_revision().equals(selected.bindingRevision())) mismatch();
@@ -344,6 +392,22 @@ public final class TaskPlanService {
         var values = new HashMap<String,Object>(); values.put("userId", admission.subject().user().user_id()); values.put("ownerId", id);
         return memberIdentities.active(bindingView(binding))
                 && authority.taskSelection(admission.context().tenant_id(), projectId, id, binding.mode(), mapper.ownerGrants(values), now).all();
+    }
+
+    boolean creationOwnerEligiblePlanDraft(EnterpriseAccess.Admission admission,String projectId,String id)throws IOException {
+        if(!admission.planDraftWorker()||!admission.planDraftProof().job().project().equals(projectId))fail(ErrorCode.ACCESS_DENIED);
+        var now=Objects.requireNonNull(permissions.databaseTime());var binding=ownerIdentity(admission,id,now);
+        var values=new HashMap<String,Object>();values.put("userId",admission.actorId());values.put("ownerId",id);
+        return memberIdentities.active(bindingView(binding))
+                &&authority.taskSelection(admission.context().tenant_id(),projectId,id,binding.mode(),mapper.ownerGrants(values),now).all();
+    }
+
+    boolean creationOwnerEligibleEvaluation(EnterpriseAccess.Admission admission,String projectId,String id)throws IOException {
+        if(!admission.evaluationWorker()||!admission.evaluationProof().job().projectId().equals(projectId))fail(ErrorCode.ACCESS_DENIED);
+        var now=Objects.requireNonNull(permissions.databaseTime());var binding=ownerIdentity(admission,id,now);
+        var values=new HashMap<String,Object>();values.put("userId",admission.actorId());values.put("ownerId",id);
+        return memberIdentities.active(bindingView(binding))
+                &&authority.taskSelection(admission.context().tenant_id(),projectId,id,binding.mode(),mapper.ownerGrants(values),now).all();
     }
 
     private PermissionProtocol.BindingRow ownerIdentity(EnterpriseAccess.Admission admission, String id, java.time.LocalDateTime now) {
@@ -392,8 +456,36 @@ public final class TaskPlanService {
     // RN-01 repeats current template, rule, source and owner checks for the fixed confirmed plan.
     Confirmation execution(EnterpriseAccess.Admission admission, TaskService.VerifiedTask fixed,
             TaskPlanWriteProtocol.View plan) throws IOException {
+        if (!"READY".equals(fixed.head().status())) fail(ErrorCode.PLAN_STALE);
+        return executionConfirmed(admission, fixed, plan);
+    }
+    Confirmation executionContinuation(EnterpriseAccess.Admission admission, TaskService.VerifiedTask fixed,
+            TaskPlanWriteProtocol.View plan, RunContinuationService.Authority continuation) throws IOException {
+        continuation.requireCurrent(admission, fixed, continuation.request());
+        return executionConfirmed(admission, fixed, plan);
+    }
+    private Confirmation executionConfirmed(EnterpriseAccess.Admission admission, TaskService.VerifiedTask fixed,
+            TaskPlanWriteProtocol.View plan) throws IOException {
         var head = fixed.head();
-        if (!"READY".equals(head.status()) || !"CONFIRMED".equals(plan.status())
+        if (!"CONFIRMED".equals(plan.status())
+                || !head.taskRevision().equals(plan.taskRevision()) || !head.planRevision().equals(plan.planRevision())
+                || !head.templateVersion().equals(plan.templateVersion()) || !head.snapshotId().equals(plan.snapshotId())
+                || !head.profileRevision().equals(plan.profileRevision())) fail(ErrorCode.PLAN_STALE);
+        var missing = inputs.read(fixed.input().missingRequirements());
+        if (!missing.isArray() || !missing.isEmpty()) fail(ErrorCode.SOURCE_NOT_READY);
+        var target = applicability.requireTarget(admission, head.projectId(), head.profileRevision(), fixed.input().documentType(), head.templateVersion(), PURPOSE);
+        var validation = validate(admission, plan.content(), target.view().template(), target.view().conditions(), head.projectId(), true);
+        plans.requireConfirmable(validation);
+        return new Confirmation(target, validation,
+                sourceProof(admission, head.projectId(), head.taskId(), head.taskRevision(), head.snapshotId(), head.profileRevision(), true),
+                confirmationOwners(admission, head, plan.content()));
+    }
+
+    // SG-03 repeats the same approved template, plan, source and owner gates at signing.
+    Confirmation signing(EnterpriseAccess.Admission admission, TaskService.VerifiedTask fixed,
+            TaskPlanWriteProtocol.View plan) throws IOException {
+        var head = fixed.head();
+        if (!"SIGN_PENDING".equals(head.status()) || !"CONFIRMED".equals(plan.status())
                 || !head.taskRevision().equals(plan.taskRevision()) || !head.planRevision().equals(plan.planRevision())
                 || !head.templateVersion().equals(plan.templateVersion()) || !head.snapshotId().equals(plan.snapshotId())
                 || !head.profileRevision().equals(plan.profileRevision())) fail(ErrorCode.PLAN_STALE);

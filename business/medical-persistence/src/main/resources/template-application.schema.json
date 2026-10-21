@@ -1,0 +1,400 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:template-application:1.0.0",
+  "$ref": "#/$defs/FixedView",
+  "$defs": {
+    "ConditionResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scope",
+        "target_id",
+        "rule_revision",
+        "engine_revision",
+        "input_keys",
+        "status",
+        "unknown_input_keys"
+      ],
+      "properties": {
+        "scope": {
+          "enum": [
+            "PROFILE",
+            "TEMPLATE",
+            "NODE",
+            "FIELD",
+            "ATTACHMENT"
+          ]
+        },
+        "target_id": {
+          "$ref": "urn:medical:templates:1.0.0#/$defs/Id"
+        },
+        "rule_revision": {
+          "$ref": "urn:medical:templates:1.0.0#/$defs/NullableBasis"
+        },
+        "engine_revision": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "input_keys": {
+          "$ref": "urn:medical:templates:1.0.0#/$defs/Keys"
+        },
+        "status": {
+          "$ref": "urn:medical:templates:1.0.0#/$defs/Applicability"
+        },
+        "unknown_input_keys": {
+          "$ref": "urn:medical:templates:1.0.0#/$defs/Keys"
+        }
+      }
+    },
+    "TemplateView": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "template",
+        "applicability",
+        "conditions",
+        "missing_requirements",
+        "dependency_authorizations_sha256",
+        "machine_conditions",
+        "human_decisions"
+      ],
+      "properties": {
+        "template": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "tenant_id",
+            "template_version",
+            "status",
+            "revision",
+            "content",
+            "content_sha256",
+            "base_version",
+            "reason",
+            "authority_grant_id",
+            "authority_revision",
+            "created_by",
+            "created_at",
+            "dependency_refs"
+          ],
+          "properties": {
+            "tenant_id": {
+              "$ref": "urn:medical:template-operations:1.0.0#/$defs/Stored/properties/tenant_id"
+            },
+            "template_version": {
+              "$ref": "urn:medical:template-operations:1.0.0#/$defs/Stored/properties/template_version"
+            },
+            "status": {
+              "const": "APPROVED"
+            },
+            "revision": {
+              "allOf": [
+                {
+                  "$ref": "urn:medical:templates:1.0.0#/$defs/Count"
+                },
+                {
+                  "pattern": "^[1-9][0-9]*$"
+                }
+              ]
+            },
+            "content": {
+              "$ref": "urn:medical:template-operations:1.0.0#/$defs/Stored/properties/content"
+            },
+            "content_sha256": {
+              "$ref": "urn:medical:template-operations:1.0.0#/$defs/Stored/properties/content_sha256"
+            },
+            "base_version": {
+              "$ref": "urn:medical:template-operations:1.0.0#/$defs/Stored/properties/base_version"
+            },
+            "reason": {
+              "$ref": "urn:medical:template-operations:1.0.0#/$defs/Stored/properties/reason"
+            },
+            "authority_grant_id": {
+              "$ref": "urn:medical:template-operations:1.0.0#/$defs/Stored/properties/authority_grant_id"
+            },
+            "authority_revision": {
+              "$ref": "urn:medical:template-operations:1.0.0#/$defs/Stored/properties/authority_revision"
+            },
+            "created_by": {
+              "$ref": "urn:medical:template-operations:1.0.0#/$defs/Stored/properties/created_by"
+            },
+            "created_at": {
+              "$ref": "urn:medical:template-operations:1.0.0#/$defs/Stored/properties/created_at"
+            },
+            "dependency_refs": {
+              "$ref": "urn:medical:template-operations:1.0.0#/$defs/Stored/properties/dependency_refs"
+            }
+          }
+        },
+        "applicability": {
+          "$ref": "urn:medical:templates:1.0.0#/$defs/Applicability"
+        },
+        "conditions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ConditionResult"
+          }
+        },
+        "missing_requirements": {
+          "type": "array",
+          "items": {
+            "$ref": "https://schemas.medical-agent.invalid/1.0.0/backend-design/resource-details.schema.yaml#/$defs/Requirement"
+          }
+        },
+        "dependency_authorizations_sha256": {
+          "$ref": "urn:medical:templates:1.0.0#/$defs/Hash"
+        },
+        "machine_conditions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ConditionResult"
+          }
+        },
+        "human_decisions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/HumanDecision"
+          }
+        }
+      }
+    },
+    "FixedQuery": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "project_id",
+        "profile_revision",
+        "document_type"
+      ],
+      "properties": {
+        "project_id": {
+          "$ref": "urn:medical:templates:1.0.0#/$defs/Id"
+        },
+        "profile_revision": {
+          "$ref": "urn:medical:templates:1.0.0#/$defs/Id"
+        },
+        "document_type": {
+          "$ref": "urn:medical:templates:1.0.0#/$defs/DocumentType"
+        }
+      }
+    },
+    "HumanDecisionInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "project_id",
+        "profile_revision",
+        "document_type",
+        "template_sha256",
+        "baseline_sha256",
+        "expected_revision",
+        "scope",
+        "target_id",
+        "applicability",
+        "required",
+        "reason"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "project_id": {
+          "$ref": "urn:medical:templates:1.0.0#/$defs/Id"
+        },
+        "profile_revision": {
+          "$ref": "urn:medical:templates:1.0.0#/$defs/Id"
+        },
+        "document_type": {
+          "$ref": "urn:medical:templates:1.0.0#/$defs/DocumentType"
+        },
+        "template_sha256": {
+          "$ref": "urn:medical:templates:1.0.0#/$defs/Hash"
+        },
+        "baseline_sha256": {
+          "$ref": "urn:medical:templates:1.0.0#/$defs/Hash"
+        },
+        "expected_revision": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        "scope": {
+          "enum": [
+            "TEMPLATE",
+            "NODE"
+          ]
+        },
+        "target_id": {
+          "$ref": "urn:medical:templates:1.0.0#/$defs/Id"
+        },
+        "applicability": {
+          "enum": [
+            "APPLICABLE",
+            "NOT_APPLICABLE"
+          ]
+        },
+        "required": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "scope": {
+                "const": "TEMPLATE"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "required": {
+                "type": "null"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "required": {
+                "type": "boolean"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "HumanDecision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "decision_id",
+        "operation_id",
+        "template_version",
+        "request",
+        "resulting_revision",
+        "actor_id",
+        "created_at",
+        "authority_grant_id",
+        "authority_revision",
+        "baseline"
+      ],
+      "properties": {
+        "decision_id": {
+          "$ref": "urn:medical:templates:1.0.0#/$defs/Id"
+        },
+        "operation_id": {
+          "$ref": "urn:medical:templates:1.0.0#/$defs/Id"
+        },
+        "template_version": {
+          "$ref": "urn:medical:templates:1.0.0#/$defs/Id"
+        },
+        "request": {
+          "$ref": "#/$defs/HumanDecisionInput"
+        },
+        "resulting_revision": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        "actor_id": {
+          "$ref": "urn:medical:templates:1.0.0#/$defs/Id"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "authority_grant_id": {
+          "$ref": "urn:medical:templates:1.0.0#/$defs/Id"
+        },
+        "authority_revision": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        "baseline": {
+          "$ref": "#/$defs/TemplateView"
+        }
+      }
+    },
+    "FixedView": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "project_id",
+        "profile_revision",
+        "profile_sha256",
+        "template",
+        "baseline_sha256",
+        "decision_revision",
+        "decisions",
+        "professional_approval"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "project_id": {
+          "$ref": "urn:medical:templates:1.0.0#/$defs/Id"
+        },
+        "profile_revision": {
+          "$ref": "urn:medical:templates:1.0.0#/$defs/Id"
+        },
+        "profile_sha256": {
+          "$ref": "urn:medical:templates:1.0.0#/$defs/Hash"
+        },
+        "template": {
+          "$ref": "#/$defs/TemplateView"
+        },
+        "baseline_sha256": {
+          "$ref": "urn:medical:templates:1.0.0#/$defs/Hash"
+        },
+        "decision_revision": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        "decisions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/HumanDecision"
+          }
+        },
+        "professional_approval": {
+          "const": false
+        }
+      }
+    },
+    "HumanDecisionReceipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "operation_id",
+        "decision",
+        "professional_approval"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "operation_id": {
+          "$ref": "urn:medical:templates:1.0.0#/$defs/Id"
+        },
+        "decision": {
+          "$ref": "#/$defs/HumanDecision"
+        },
+        "professional_approval": {
+          "const": false
+        }
+      }
+    }
+  }
+}

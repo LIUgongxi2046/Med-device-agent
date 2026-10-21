@@ -25,9 +25,14 @@ public final class TemplateApplicabilitySchema {
     private final SchemaCatalogue shared;
     private final PermissionSchema json;
     private final String ruleManifest;
+    private final String applicationManifest;
 
     public TemplateApplicabilitySchema(PermissionSchema json) throws IOException, NoSuchAlgorithmException {
         this.json = json; shared = SchemaCatalogue.fromClasspath();
+        try(var input=Objects.requireNonNull(getClass().getResourceAsStream("/template-application.schema.json"))) {
+            applicationManifest=DigestUtils.sha256Hex(input.readAllBytes());
+            shared.requirePublished("urn:medical:template-application:1.0.0",applicationManifest);
+        }
         var identity = json.object(); identity.put("schema_version", "1.0.0");
         for (String path : List.of("rule-expressions.schema.json", "templates.schema.json", "backend-design/interfaces.schema.yaml")) {
             try (var input = Objects.requireNonNull(getClass().getClassLoader().getResourceAsStream(path))) {
@@ -90,7 +95,14 @@ public final class TemplateApplicabilitySchema {
         var result = json.tree(new InterfaceProtocol.Envelope("1.0.0", requestId, revision, data));
         shared.validate("interfaces", result, "Envelope"); return result;
     }
+    void verifyEnvelope(JsonNode value) { shared.validate("interfaces",value,"Envelope"); }
     void verify(String name, JsonNode value) { shared.validate("template-applicability", value, name); }
+    void verifyApplication(String name, JsonNode value) { shared.validate("template-application", value, name); }
+    // Read compatibility only: B27 previously stamped this exact immutable receipt shape.
+    static boolean applicationManifestMatches(String actual,String current) {
+        return current.equals(actual) || "06f3f94b5108b33d43b412a86417364d1529ba5d62405a0fa2112e2e68102624".equals(actual);
+    }
+    String applicationManifestSha256() { return applicationManifest; }
     String ruleManifestSha256() { return ruleManifest; }
     private static void invalid() { throw new SchemaRejection(ErrorCode.SCHEMA_INVALID); }
 }

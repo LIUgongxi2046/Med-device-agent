@@ -1,0 +1,290 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:task-delegation:1.0.0",
+  "$defs": {
+    "Author": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "project_id",
+        "release_id",
+        "publication_approval_sha256",
+        "execution_policy",
+        "role_version",
+        "budget_revision",
+        "currency",
+        "maximum_amount",
+        "maximum_tokens",
+        "maximum_calls",
+        "operations",
+        "valid_from",
+        "valid_until",
+        "classification",
+        "reason"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "project_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "release_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "publication_approval_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "execution_policy": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "version_id",
+            "content_sha256"
+          ],
+          "properties": {
+            "version_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "content_sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          }
+        },
+        "role_version": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "version_id",
+            "content_sha256"
+          ],
+          "properties": {
+            "version_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "content_sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          }
+        },
+        "budget_revision": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "currency": {
+          "type": "string",
+          "pattern": "^[A-Z]{3}$"
+        },
+        "maximum_amount": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]{0,15})(\\.[0-9]{1,6})?$"
+        },
+        "maximum_tokens": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]{0,19}$"
+        },
+        "maximum_calls": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]{0,19}$"
+        },
+        "operations": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 64,
+          "uniqueItems": true,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "selector",
+              "action",
+              "purpose",
+              "artifact_kinds",
+              "model_version"
+            ],
+            "properties": {
+              "selector": {
+                "enum": [
+                  "TASK",
+                  "REGISTERED_ARTIFACT",
+                  "MODEL_CONFIG"
+                ]
+              },
+              "action": {
+                "enum": [
+                  "task.read",
+                  "task.run",
+                  "artifact.register",
+                  "artifact.read",
+                  "model.send"
+                ]
+              },
+              "purpose": {
+                "type": "string",
+                "pattern": "^[A-Z][A-Z0-9_]{0,63}$"
+              },
+              "artifact_kinds": {
+                "type": "array",
+                "uniqueItems": true,
+                "maxItems": 8,
+                "items": {
+                  "enum": [
+                    "REPLAY_MANIFEST",
+                    "STEP_ENVELOPE",
+                    "STEP_RESULT",
+                    "EVIDENCE_BUNDLE",
+                    "FIELD_CHECK_RESULT",
+                    "SECTION_CANDIDATE",
+                    "REVIEW_FINDINGS",
+                    "ASSEMBLY_MANIFEST"
+                  ]
+                }
+              },
+              "model_version": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "version_id",
+                      "content_sha256"
+                    ],
+                    "properties": {
+                      "version_id": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "content_sha256": {
+                        "type": "string",
+                        "pattern": "^[a-f0-9]{64}$"
+                      }
+                    }
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "valid_from": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "valid_until": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "classification": {
+          "enum": [
+            "PUBLIC",
+            "INTERNAL",
+            "RESTRICTED",
+            "PERSONAL_HEALTH"
+          ]
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+        }
+      }
+    },
+    "Decide": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "rule_id",
+        "content_sha256",
+        "expected_revision",
+        "decision",
+        "reason"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "rule_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "content_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "expected_revision": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]{0,19}$"
+        },
+        "decision": {
+          "enum": [
+            "APPROVE",
+            "REJECT",
+            "DISABLE"
+          ]
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+        }
+      }
+    },
+    "Receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "rule_id",
+        "operation_id",
+        "content_sha256",
+        "request_sha256",
+        "status",
+        "revision"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "rule_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "operation_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "content_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "request_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "status": {
+          "enum": [
+            "DRAFT",
+            "APPROVED",
+            "REJECTED",
+            "DISABLED"
+          ]
+        },
+        "revision": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]{0,19}$"
+        }
+      }
+    }
+  }
+}

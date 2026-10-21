@@ -51,7 +51,7 @@
           type="primary"
           plain
           icon="Plus"
-          @click="openCreateTable"
+          v-if="!medicalMode" @click="openCreateTable"
           v-hasRole="['admin']"
         >创建</el-button>
       </el-col>
@@ -146,6 +146,9 @@
 </template>
 
 <script setup name="Gen">
+const medicalMode = import.meta.env.VITE_APP_ENV === 'medical'
+import frameworkRequest from '@/utils/request'
+
 import { listTable, previewTable, delTable, genCode, synchDb } from "@/api/tool/gen"
 import router from "@/router"
 import importTable from "./importTable"
@@ -220,12 +223,16 @@ function handleGenTable(row) {
     return
   }
   if (row.genType === "1") {
+    if (medicalMode) { proxy.$modal.msgWarning("当前环境不允许向服务器路径生成代码，请使用下载方式"); return }
     genCode(row.tableName).then(response => {
       proxy.$modal.msgSuccess("成功生成到自定义路径：" + row.genPath)
     })
   } else {
     const zipName = Array.isArray(tbNames) ? "ruoyi.zip" : tbNames + ".zip"
-    proxy.$download.zip("/tool/gen/batchGenCode?tables=" + tbNames, zipName)
+    if (medicalMode) {
+      frameworkRequest.get('/tool/gen/batchGenCode', { params: { tables: Array.isArray(tbNames) ? tbNames.join(',') : tbNames }, responseType: 'blob' })
+        .then(blob => proxy.$download.saveAs(blob, zipName))
+    } else proxy.$download.zip("/tool/gen/batchGenCode?tables=" + tbNames, zipName)
   }
 }
 

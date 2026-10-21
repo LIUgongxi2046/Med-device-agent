@@ -1,3 +1,6 @@
+import { loadModule as loadNavigationModule } from '../../web/tests/formal-capability/helpers.mjs'
+const sourceReturnApi = (await loadNavigationModule('source-return-navigation')).api
+const evidenceNavigationApi = (await loadNavigationModule('document-evidence-navigation')).api
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import vm from 'node:vm'
@@ -12,7 +15,7 @@ const current={snapshot:{document_revision:id(3),allowed_actions:[],body:{sha256
 function harness(query=id(4),history=async()=>({snapshot:{document_revision:id(4)},body:{fields:[],evidence_links:[]}})){
  const calls=[],fails=[],cleanup=[],scope=Vue.effectScope(),props=Vue.reactive({session:{user:{user_id:id(1)},current_context:{context_revision:'1'}},projectId:id(2),documentId:id(3),active:true,reviewMode:false,historyRevisionRequest:query}),user=Vue.reactive({medicalWriting:false})
  const documents={readSavedDocument:async()=>current,readSavedDocumentRevision:async(...args)=>{calls.push(args);return history(...args)}}
- function require(path){if(path==='vue')return {...Vue,onBeforeUnmount:f=>cleanup.push(f)};if(path==='@/store/modules/user')return {default:()=>user};if(path.endsWith('/protocol'))return {fail:code=>{fails.push(code);throw Error(code)}};if(path.endsWith('/task-workspace'))return workspace;if(path.endsWith('/documents'))return documents;if(path.endsWith('/document-body'))return {DocumentEditBuffer:class {constructor(body){this.body=body;this.dirty=false}invalidate(){}},canonicalDocumentValue:JSON.stringify};if(path.endsWith('/document-session-drafts'))return {documentDraftKey:()=>'',resumeDocumentDraft:()=>null,retainDocumentDraft:()=>true};return {}}
+ function require(path){if(path.endsWith('/source-return-navigation'))return sourceReturnApi;if(path.endsWith('/document-evidence-navigation'))return evidenceNavigationApi;if(path==='vue-router')return {useRoute:()=>({path:'',query:{}}),useRouter:()=>({push(){}})};if(path==='vue')return {...Vue,onBeforeUnmount:f=>cleanup.push(f)};if(path==='@/store/modules/user')return {default:()=>user};if(path.endsWith('/protocol'))return {fail:code=>{fails.push(code);throw Error(code)}};if(path.endsWith('/task-workspace'))return workspace;if(path.endsWith('/documents'))return documents;if(path.endsWith('/document-body'))return {DocumentEditBuffer:class {constructor(body){this.body=body;this.dirty=false}invalidate(){}},canonicalDocumentValue:JSON.stringify};if(path.endsWith('/document-session-drafts'))return {documentDraftKey:()=>'',resumeDocumentDraft:()=>null,retainDocumentDraft:()=>true};return {}}
  const {descriptor}=parse(read('web/src/views/medical/document-editor.vue')),out={};vm.runInNewContext(transpile(compileScript(descriptor,{id:'history'}).content),{exports:out,require,AbortController,window:{addEventListener(){},removeEventListener(){}}})
  const b=scope.run(()=>out.default.setup(props,{expose(){},emit(){}}))
  return {b,props,calls,fails,user,async ready(){await Vue.nextTick();await Promise.resolve()},close(){cleanup.forEach(f=>f());scope.stop()}}

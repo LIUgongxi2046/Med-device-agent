@@ -84,7 +84,7 @@ public final class RetrievalSchema {
 
     JsonNode read(String value) throws IOException { return reader.readTree(value); }
     JsonNode locator(String value) throws IOException {
-        var result = reader.readTree(value); shared.validate("dataset", result, "locator"); return result;
+        var result = reader.readTree(value); SourceLocatorSchema.validate(shared, result); return result;
     }
     String manifestSha256() { return manifest; }
     void verify(String definition, JsonNode value) { if (value == null || !definition(definition).validate(value).isEmpty()) invalid(); }

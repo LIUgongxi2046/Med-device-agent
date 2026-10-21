@@ -11,7 +11,8 @@ import check_source_index_build as builds
 
 
 ROOT = builds.ROOT
-CAPTURE = Path("/Users/liuhaoxian/.agents/skills/haonan-s000-pmp/scripts/capture_check.py")
+from check_support import capture_check_path
+CAPTURE = capture_check_path()
 TESTS = {"RunTokenSigningKeyStoreTest": 4, "RunTokenPolicyStoreTest": 18, "RunTokenSignatureTest": 42}
 
 

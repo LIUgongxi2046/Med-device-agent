@@ -1,3 +1,5 @@
+import { loadModule as loadSourceReturnModule } from '../formal-capability/helpers.mjs'
+const sourceReturnApi = (await loadSourceReturnModule('source-return-navigation')).api
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
@@ -17,7 +19,7 @@ function compile(source,imports){const result={};vm.runInNewContext(transpile(co
 function mount(){
  const props=Vue.reactive({session:{user:{user_id:id(1)},current_context:{tenant_id:id(6),context_revision:'1',auth_epoch:'1',governance_epoch:'1'},action_summary:[]},projectId:id(3),documentId:id(2),active:true,reviewMode:false})
  const user=Vue.reactive({medicalWriting:false}),history=[],pending=defer()
- const imports=path=>{if(path==='vue')return Vue;if(path==='@/store/modules/user')return {default:()=>user};if(path.endsWith('/protocol'))return {fail:code=>{throw Error(code)}}
+ const imports=path=>{if(path==='vue')return Vue;if(path.endsWith('/source-return-navigation'))return sourceReturnApi;if(path==='vue-router')return {useRoute:()=>({path:'',query:{}}),useRouter:()=>({push(){}})};if(path==='@/store/modules/user')return {default:()=>user};if(path.endsWith('/protocol'))return {fail:code=>{throw Error(code)}}
   if(path.endsWith('/task-workspace'))return {workspaceHistoryRevision:value=>({revision:typeof value==='string'?value:null,issue:''})}
   if(path.endsWith('/documents'))return {readSavedDocument:async()=>saved,readSavedDocumentRevision:async(...args)=>{history.push(args);return pending.promise}}
   if(path.endsWith('/document-body'))return {canonicalDocumentValue:JSON.stringify,DocumentEditBuffer:class{constructor(body){this.body=body;this.dirty=false}invalidate(){}}}

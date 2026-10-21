@@ -1,0 +1,381 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.medical-agent.invalid/2.0.0/source-evidence",
+  "title": "SourceEvidenceV2",
+  "$ref": "#/$defs/EvidenceRef",
+  "$defs": {
+    "EvidenceRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "tenant_id",
+        "project_id",
+        "source_id",
+        "source_version",
+        "parse_version",
+        "chunk_id",
+        "locator_kind",
+        "locator",
+        "quote_hash",
+        "approval_revision"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "2.0.0"
+        },
+        "tenant_id": {
+          "$ref": "https://schemas.medical-agent.invalid/1.0.0/data-design/dataset.schema.json#/$defs/id"
+        },
+        "project_id": {
+          "$ref": "https://schemas.medical-agent.invalid/1.0.0/data-design/dataset.schema.json#/$defs/id"
+        },
+        "source_id": {
+          "$ref": "https://schemas.medical-agent.invalid/1.0.0/data-design/dataset.schema.json#/$defs/id"
+        },
+        "source_version": {
+          "$ref": "https://schemas.medical-agent.invalid/1.0.0/data-design/dataset.schema.json#/$defs/id"
+        },
+        "parse_version": {
+          "$ref": "https://schemas.medical-agent.invalid/1.0.0/data-design/dataset.schema.json#/$defs/id"
+        },
+        "chunk_id": {
+          "$ref": "https://schemas.medical-agent.invalid/1.0.0/data-design/dataset.schema.json#/$defs/id"
+        },
+        "locator_kind": {
+          "enum": [
+            "PDF",
+            "DOCX",
+            "XLSX",
+            "CSV",
+            "TXT",
+            "MARKDOWN",
+            "PPTX",
+            "IMAGE",
+            "HTML"
+          ]
+        },
+        "locator": {
+          "$ref": "#/$defs/locator"
+        },
+        "quote_hash": {
+          "$ref": "https://schemas.medical-agent.invalid/1.0.0/data-design/dataset.schema.json#/$defs/hash"
+        },
+        "approval_revision": {
+          "$ref": "https://schemas.medical-agent.invalid/1.0.0/data-design/dataset.schema.json#/$defs/id"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "locator_kind": {
+                "const": "PDF"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "locator": {
+                "properties": {
+                  "kind": {
+                    "const": "PDF"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "locator_kind": {
+                "const": "DOCX"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "locator": {
+                "properties": {
+                  "kind": {
+                    "const": "DOCX"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "locator_kind": {
+                "const": "XLSX"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "locator": {
+                "properties": {
+                  "kind": {
+                    "const": "XLSX"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "locator_kind": {
+                "const": "CSV"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "locator": {
+                "properties": {
+                  "kind": {
+                    "const": "CSV"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "locator_kind": {
+                "const": "TXT"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "locator": {
+                "properties": {
+                  "kind": {
+                    "const": "TXT"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "locator_kind": {
+                "const": "MARKDOWN"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "locator": {
+                "properties": {
+                  "kind": {
+                    "const": "MARKDOWN"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "locator_kind": {
+                "const": "PPTX"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "locator": {
+                "properties": {
+                  "kind": {
+                    "const": "PPTX"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "locator_kind": {
+                "const": "IMAGE"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "locator": {
+                "properties": {
+                  "kind": {
+                    "const": "IMAGE"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "locator_kind": {
+                "const": "HTML"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "locator": {
+                "properties": {
+                  "kind": {
+                    "const": "HTML"
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "locator": {
+      "oneOf": [
+        {
+          "$ref": "https://schemas.medical-agent.invalid/1.0.0/data-design/dataset.schema.json#/$defs/locator"
+        },
+        {
+          "$ref": "#/$defs/ImageLocator"
+        },
+        {
+          "$ref": "#/$defs/HtmlLocator"
+        }
+      ]
+    },
+    "ImageLocator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "kind",
+        "frame_index",
+        "original_sha256",
+        "coordinate_system",
+        "width",
+        "height",
+        "x0",
+        "y0",
+        "x1",
+        "y1"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "kind": {
+          "const": "IMAGE"
+        },
+        "frame_index": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 999
+        },
+        "original_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "coordinate_system": {
+          "const": "ORIGINAL_TOP_LEFT_NORMALIZED"
+        },
+        "width": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100000
+        },
+        "height": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100000
+        },
+        "x0": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "y0": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "x1": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "y1": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      }
+    },
+    "HtmlLocator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "kind",
+        "original_sha256",
+        "address"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "kind": {
+          "const": "HTML"
+        },
+        "original_sha256": {
+          "$ref": "https://schemas.medical-agent.invalid/1.0.0/data-design/dataset.schema.json#/$defs/hash"
+        },
+        "address": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "element_path",
+            "text_start",
+            "text_end"
+          ],
+          "properties": {
+            "kind": {
+              "const": "HTML_ELEMENT"
+            },
+            "element_path": {
+              "type": "string",
+              "pattern": "^(/[a-z][a-z0-9:-]*\\[[1-9][0-9]*\\])+$",
+              "maxLength": 8192
+            },
+            "text_start": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "text_end": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        }
+      }
+    }
+  }
+}

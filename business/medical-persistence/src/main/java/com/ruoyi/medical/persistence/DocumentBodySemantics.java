@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.ruoyi.medical.contracts.ErrorCode;
 import com.ruoyi.medical.contracts.InterfaceBindings;
+import com.ruoyi.medical.contracts.DocumentEvidenceBindings;
 import com.ruoyi.medical.contracts.InterfaceProtocol;
 import com.ruoyi.medical.contracts.SchemaCatalogue;
 import com.ruoyi.medical.contracts.TypedSchemaBindings;
@@ -38,20 +39,26 @@ public final class DocumentBodySemantics {
     static SchemaCatalogue.ValidatedPayload published(SchemaCatalogue schemas, SchemaCatalogue.PublishedSchema required,
             byte[] bytes, Limits limits) throws IOException {
         Objects.requireNonNull(required); Objects.requireNonNull(bytes); Objects.requireNonNull(limits);
-        if (!schemas.schemaRef("interfaces", "DocumentBody").equals(required.schemaRef())) invalid();
+        var declared = schemas.requirePublished(required.schemaRef(), required.schemaSha256());
+        if (!java.util.Set.of("interfaces", "document-body-v2").contains(declared.name()) || !"DocumentBody".equals(declared.definition())) invalid();
         var payload = schemas.bindPublished(required.schemaRef(), required.schemaSha256(), bytes);
-        verify(schemas, JSON.readTree(payload.canonicalJson()), limits);
+        verify(schemas, JSON.readTree(payload.canonicalJson()), limits, required.schemaRef(), required.schemaSha256());
         // 正文制品保存规范字节，版本摘要与完整对象摘要保持相同。
         if (!Arrays.equals(bytes, payload.canonicalBytes())) throw new TenantAccessException(ErrorCode.CONTENT_MISMATCH);
         return payload;
     }
     public static JsonNode verify(SchemaCatalogue schemas, JsonNode value, Limits limits) throws IOException {
+        return verify(schemas, value, limits, schemas.schemaRef("interfaces", "DocumentBody"), schemas.schemaDigest("interfaces"));
+    }
+    /** The declared publication must come from the actual approved role or registered body schema,
+     * never from an untrusted payload version. The legacy overload remains strictly v1. */
+    public static JsonNode verify(SchemaCatalogue schemas, JsonNode value, Limits limits,
+            String declaredRef, String declaredSha) throws IOException {
         Objects.requireNonNull(schemas); Objects.requireNonNull(limits);
         var original = Objects.requireNonNull(value).deepCopy();
         unicode(original);
-        schemas.validate("interfaces", original, "DocumentBody");
+        var body = DocumentEvidenceBindings.bind(schemas, InterfaceBindings.DOCUMENT_BODY, original, declaredRef, declaredSha).read();
         if (original.required("nodes").size() > limits.maximumNodes()) capacity();
-        var body = TypedSchemaBindings.bind(schemas, InterfaceBindings.DOCUMENT_BODY, original).read();
         var relationships = new Relationships(limits.maximumRelationships());
         var nodes = new LinkedHashMap<String,InterfaceProtocol.Node>();
         var graph = new DefaultDirectedGraph<String,DefaultEdge>(DefaultEdge.class);

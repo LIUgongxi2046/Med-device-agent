@@ -4,18 +4,63 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": {"types": "./src/catalogue.ts", "default": "./lib/catalogue.js"},
-    "./errors": {"types": "./src/errors.ts", "default": "./lib/errors.js"},
-    "./wire": {"types": "./src/wire.ts", "default": "./lib/wire.js"},
-    "./dataset": {"types": "./src/dataset.ts", "default": "./lib/dataset.js"},
-    "./model-stream": {"types": "./src/model-stream.ts", "default": "./lib/model-stream.js"},
-    "./interfaces-common": {"types": "./src/interfaces-common.ts", "default": "./lib/interfaces-common.js"},
-    "./interfaces": {"types": "./src/interfaces.ts", "default": "./lib/interfaces.js"},
-    "./interface-bindings": {"types": "./src/interface-bindings.ts", "default": "./lib/interface-bindings.js"},
-    "./artifacts": {"types": "./src/artifacts.ts", "default": "./lib/artifacts.js"},
-    "./resource-details": {"types": "./src/resource-details.ts", "default": "./lib/resource-details.js"}
+    ".": {
+      "types": "./src/catalogue.ts",
+      "default": "./lib/catalogue.js"
+    },
+    "./errors": {
+      "types": "./src/errors.ts",
+      "default": "./lib/errors.js"
+    },
+    "./wire": {
+      "types": "./src/wire.ts",
+      "default": "./lib/wire.js"
+    },
+    "./dataset": {
+      "types": "./src/dataset.ts",
+      "default": "./lib/dataset.js"
+    },
+    "./model-stream": {
+      "types": "./src/model-stream.ts",
+      "default": "./lib/model-stream.js"
+    },
+    "./interfaces-common": {
+      "types": "./src/interfaces-common.ts",
+      "default": "./lib/interfaces-common.js"
+    },
+    "./interfaces": {
+      "types": "./src/interfaces.ts",
+      "default": "./lib/interfaces.js"
+    },
+    "./interface-bindings": {
+      "types": "./src/interface-bindings.ts",
+      "default": "./lib/interface-bindings.js"
+    },
+    "./artifacts": {
+      "types": "./src/artifacts.ts",
+      "default": "./lib/artifacts.js"
+    },
+    "./resource-details": {
+      "types": "./src/resource-details.ts",
+      "default": "./lib/resource-details.js"
+    },
+    "./source-evidence": {
+      "types": "./src/source-evidence.ts",
+      "default": "./lib/source-evidence.js"
+    },
+    "./artifacts-v2": {
+      "types": "./src/artifacts-v2.ts",
+      "default": "./lib/artifacts-v2.js"
+    },
+    "./document-evidence": {
+      "types": "./src/document-evidence.ts",
+      "default": "./lib/document-evidence.js"
+    }
   },
-  "files": ["lib", "src"],
+  "files": [
+    "lib",
+    "src"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "prepare": "npm run build",
@@ -31,5 +76,9 @@
     "json-canonicalize": "3.0.1",
     "yaml": "2.9.1"
   },
-  "devDependencies": {"@types/node": "24.10.1", "tsx": "4.23.15", "typescript": "5.9.3"}
+  "devDependencies": {
+    "@types/node": "24.10.1",
+    "tsx": "4.23.15",
+    "typescript": "5.9.3"
+  }
 }

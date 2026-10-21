@@ -68,6 +68,13 @@
                sv.rights_revision,sv.original_sha256,v.content_sha256 AS registered_sha256,v.owner_project_id AS registered_project_id
         FROM source_version sv JOIN source s ON s.tenant_id=sv.tenant_id AND s.source_id=sv.source_id
         JOIN version_registry v ON v.tenant_id=sv.tenant_id AND v.version_id=sv.source_version WHERE sv.source_version=#{id}
+        <!-- Only actual adapter-confirmed ownership revocation removes imported-source access.
+             Connector disablement, credential expiry and disconnected transport do not. -->
+        AND NOT EXISTS (
+            SELECT 1 FROM source_upload_result cu
+            JOIN customer_connector_item ci ON ci.tenant_id=cu.tenant_id AND ci.project_id=cu.project_id AND ci.upload_id=cu.upload_id
+            WHERE cu.tenant_id=sv.tenant_id AND cu.source_version=sv.source_version AND ci.state='REVOKED'
+        )
     </select>
     <select id="rights" resultMap="rights" useCache="false" flushCache="true">
         SELECT r.tenant_id,r.rights_revision,r.source_version,r.purpose,r.allowed_actions,r.providers,r.regions,r.valid_from,r.valid_to,

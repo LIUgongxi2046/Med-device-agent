@@ -1,0 +1,319 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:task-registered-waiting:2.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "receipt_id",
+    "tenant_id",
+    "project_id",
+    "actor_id",
+    "run_id",
+    "step_id",
+    "session_id",
+    "input_id",
+    "supervision_receipt_id",
+    "input_sha256",
+    "input_receipt_sha256",
+    "supervision_sha256",
+    "deployment_sha256",
+    "protocol_sha256",
+    "binding",
+    "node_input",
+    "tool_document",
+    "trace",
+    "session_launch",
+    "deployment",
+    "dispatch",
+    "schema_version",
+    "kind",
+    "classification",
+    "outcome",
+    "outputs",
+    "invocations"
+  ],
+  "properties": {
+    "receipt_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "tenant_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "project_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "actor_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "run_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "step_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "session_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "input_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "supervision_receipt_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "input_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "input_receipt_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "supervision_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "deployment_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "protocol_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tenant_id",
+        "run_id",
+        "step_id",
+        "action_id",
+        "lease_generation",
+        "input_sha256",
+        "step_envelope_sha256"
+      ],
+      "properties": {
+        "tenant_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "run_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "step_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "action_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "lease_generation": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "input_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "step_envelope_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "node_input": {
+      "type": "object"
+    },
+    "tool_document": {
+      "type": "object"
+    },
+    "trace": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "format",
+        "call_seq",
+        "result_seq",
+        "turn_end_seq",
+        "turn",
+        "step",
+        "path",
+        "content_base64",
+        "sha256",
+        "archive_sha256",
+        "archive_content_base64"
+      ],
+      "properties": {
+        "format": {
+          "const": "DSH_SESSION_V4_0.2.1rc2"
+        },
+        "call_seq": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "result_seq": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "turn_end_seq": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "turn": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "step": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024
+        },
+        "content_base64": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2796204
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "archive_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "archive_content_base64": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 5592408
+        }
+      }
+    },
+    "session_launch": {
+      "type": "object"
+    },
+    "deployment": {
+      "type": "object"
+    },
+    "dispatch": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "run_id",
+        "step_id",
+        "action_id",
+        "command_id",
+        "step_envelope_artifact_id",
+        "lease_generation",
+        "input_sha256",
+        "step_envelope_sha256"
+      ],
+      "properties": {
+        "run_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "step_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "action_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "command_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "step_envelope_artifact_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "lease_generation": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "input_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "step_envelope_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "schema_version": {
+      "const": "2.0.0"
+    },
+    "kind": {
+      "const": "TASK_TOOL_WAITING_COMPLETION"
+    },
+    "classification": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "outcome": {
+      "const": "WAITING_INPUT"
+    },
+    "outputs": {
+      "type": "array",
+      "maxItems": 0
+    },
+    "invocations": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 1024,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "invocation_id",
+          "accounting_sha256",
+          "result_registration_sha256",
+          "capture_registration_sha256"
+        ],
+        "properties": {
+          "invocation_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "accounting_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "result_registration_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "capture_registration_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        }
+      }
+    }
+  }
+}

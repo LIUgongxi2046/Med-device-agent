@@ -1,0 +1,24 @@
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import {createRequire} from 'node:module'
+import {readFileSync} from 'node:fs'
+import vm from 'node:vm'
+import {webRoot,actor,tick} from './fixtures.mjs'
+const require=createRequire(webRoot+'/package.json'),vue=require('vue'),ts=require('typescript')
+function setup(sharedUser){
+ const user=sharedUser??vue.reactive({medicalSession:actor(),medicalWriting:false}),route=vue.reactive({params:{projectId:'p',taskId:'t'},fullPath:'/task'}),active=vue.ref(true),listeners=new Map(),cleanups=[],doc={hidden:false,addEventListener:(n,f)=>listeners.set(n,f),removeEventListener:n=>listeners.delete(n)}
+ const source=readFileSync(webRoot+'/src/api/medical/use-task-field-target-page.ts','utf8'),code=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText,exports={},state={resets:0,boots:0,sensitive:'visible'}
+ vm.runInNewContext(code,{exports,AbortController,Error,JSON,document:doc,window:{addEventListener:(n,f)=>listeners.set(n,f),removeEventListener:n=>listeners.delete(n)},require:name=>name==='vue'?{...vue,onBeforeUnmount:f=>cleanups.push(f)}:name==='vue-router'?{useRoute:()=>route}:name==='@/store/modules/user'?{default:()=>user}:name==='./route-read'?{useMedicalRouteRead:()=>active}:{}})
+ const scope=vue.effectScope(),page=scope.run(()=>exports.useFieldTargetPage('test',()=>{state.resets++;state.sensitive=null},async()=>{state.boots++}));scope.run(()=>page.start());return {page,user,route,active,doc,listeners,state,stop:()=>{for(const c of cleanups)c();scope.stop()}}
+}
+test('same-object authorization/context mutations invalidate old response generation',async()=>{for(const change of [x=>x.user.medicalSession.current_context.auth_epoch='2',x=>x.user.medicalSession.action_summary.push({action:'task.run'})]){const x=setup();let finish,applied=false;const job=x.page.run(async(_signal,current)=>{await new Promise(resolve=>finish=resolve);if(current())applied=true});change(x);finish();await job;assert.equal(applied,false);assert.equal(x.state.sensitive,null);x.stop()}})
+test('route replacement invalidates old response and never applies its result',async()=>{const x=setup();let finish,applied=false;const job=x.page.run(async(_signal,current)=>{await new Promise(resolve=>finish=resolve);if(current())applied=true});x.route.fullPath='/other-task';finish();await job;assert.equal(applied,false);assert.equal(x.page.loading.value,false);x.stop()})
+test('visibility/pagehide/offline clear presentation without touching persisted original request',async()=>{for(const event of ['visibilitychange','pagehide','offline']){const x=setup();x.state.sensitive='visible';if(event==='visibilitychange')x.doc.hidden=true;x.listeners.get(event)();assert.equal(x.state.sensitive,null);x.stop()}})
+test('hidden page cannot dispatch reads/writes and visibility return bootstraps once',async()=>{const x=setup();x.doc.hidden=true;x.listeners.get('visibilitychange')();let writes=0;await x.page.run(async()=>{writes++},true);assert.equal(writes,0);const count=x.state.boots;x.doc.hidden=false;x.listeners.get('visibilitychange')();await tick();assert.equal(x.state.boots,count+1);x.stop()})
+test('unknown write releases write lock but old cleared generation cannot apply result',async()=>{const x=setup();let finish,applied=false;const job=x.page.run(async(_signal,current)=>{await new Promise(resolve=>finish=resolve);if(current())applied=true},true);assert.equal(x.user.medicalWriting,true);x.doc.hidden=true;x.listeners.get('visibilitychange')();finish();await job;assert.equal(applied,false);assert.equal(x.user.medicalWriting,false);x.stop()})
+test('read errors remain explicit and do not imply success',async()=>{const x=setup();await x.page.run(async()=>{throw Error('当前配置缺失')});assert.equal(x.page.error.value,'当前配置缺失');assert.equal(x.page.loading.value,false);x.stop()})
+
+test('verification failure clears sensitive data but shows only a safe generic notice',async()=>{const x=setup();x.state.sensitive='private';x.listeners.get('medical-failure')({detail:{message:'other tenant secret'}});assert.equal(x.state.sensitive,null);assert.match(x.page.error.value,/请求结果未能核验/);assert.equal(x.page.error.value.includes('secret'),false);x.stop()})
+test('hidden verification failure never displays stale error content',async()=>{const x=setup();x.doc.hidden=true;x.listeners.get('medical-failure')({detail:{message:'secret'}});assert.equal(x.page.error.value,'');x.stop()})
+
+test('new mounted page defers initial read until an older page write settles',async()=>{const old=setup();let finish;const work=old.page.run(async()=>{await new Promise(resolve=>finish=resolve)},true);const newer=setup(old.user);assert.equal(newer.state.boots,0);old.stop();finish();await work;assert.equal(newer.state.boots,1);assert.equal(newer.user.medicalWriting,false);newer.stop()})

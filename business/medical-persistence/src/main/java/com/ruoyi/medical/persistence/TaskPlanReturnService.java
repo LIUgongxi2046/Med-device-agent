@@ -46,8 +46,9 @@ public final class TaskPlanReturnService {
 
     JsonNode basis(ApplicationSessionIdentity.Verified subject, String context, String taskId, String decision) {
         WireValues.uuid(taskId); PermissionSchema.revision(context);
+        var release = prepareRelease(subject, context, taskId, decision);
         return access.execute(subject, admission -> ThrowingSupplier.of(() -> {
-            current(admission, context); var prepared = prepare(admission, taskId, decision);
+            current(admission, context); var prepared = prepare(admission, taskId, decision, release);
             var result = json.tree(new InterfaceProtocol.Envelope("1.0.0", UUID.randomUUID().toString(),
                     prepared.head().revision().toString(), json.tree(prepared.baseline())));
             shared.validate("interfaces", result, "Envelope"); return result;
@@ -56,8 +57,21 @@ public final class TaskPlanReturnService {
 
     JsonNode decide(ApplicationSessionIdentity.Verified subject, String context, String key, String taskId, byte[] body) {
         json.headers(context, key); WireValues.uuid(taskId);
+        var request = ThrowingSupplier.of(() -> schema.request(body.clone())).get();
+        // Original recovery precedes all live publication/model checks and all object I/O.
+        var recovered = access.execute(subject, admission -> ThrowingSupplier.of(() -> {
+            current(admission, context); var fixed = tasks.fixedTask(admission, taskId);
+            resources.require(admission, scope(fixed.head()), "plan.confirm", PURPOSE);
+            var values = values(admission, fixed.head()); values.put("key", key);
+            var rows = mapper.operation(values); if (rows.size() > 1) mismatch();
+            if (rows.isEmpty()) return null;
+            if (!rows.get(0).requestSha256().equals(requestHash(taskId, request))) fail(ErrorCode.IDEMPOTENCY_CONFLICT);
+            return replay(admission, fixed, values, rows.get(0), request);
+        }).get());
+        if (recovered != null) return recovered;
+        var release = prepareRelease(subject, context, taskId, request.decision());
         return access.execute(subject, admission -> ThrowingSupplier.of(() -> {
-            current(admission, context); var request = schema.request(body); var fixed = tasks.fixedTask(admission, taskId);
+            current(admission, context); var fixed = tasks.fixedTask(admission, taskId);
             var values = values(admission, fixed.head()); resources.require(admission, scope(fixed.head()), "plan.confirm", PURPOSE);
             var canonical = json.object(); canonical.put("operation_id", "TK-04"); canonical.put("task_id", taskId);
             canonical.set("input", json.tree(request)); values.put("requestHash", hash(json.canonical(canonical))); values.put("key", key);
@@ -67,7 +81,7 @@ public final class TaskPlanReturnService {
                 if (!original.requestSha256().equals(values.get("requestHash"))) fail(ErrorCode.IDEMPOTENCY_CONFLICT);
                 return replay(admission, fixed, values, original, request);
             }
-            var prepared = prepare(admission, taskId, request.decision()); var head = prepared.head();
+            var prepared = prepare(admission, taskId, request.decision(), release); var head = prepared.head();
             if (!head.revision().toString().equals(request.expectedRevision())) fail(ErrorCode.REVISION_CONFLICT);
             if (!prepared.plan().planRevision().equals(request.targetRevision())) fail(ErrorCode.PLAN_STALE);
             if (!prepared.baseline().equals(request.baselineManifest())) fail(ErrorCode.SCOPE_STALE);
@@ -136,7 +150,31 @@ public final class TaskPlanReturnService {
         }).get());
     }
 
-    private Prepared prepare(EnterpriseAccess.Admission admission, String taskId, String decision) throws IOException {
+    private TaskPlanConfirmationStore.External prepareRelease(ApplicationSessionIdentity.Verified subject, String context,
+            String taskId, String decision) {
+        if (!Set.of("RETURN", "CONFIRM").contains(decision)) throw new com.ruoyi.medical.contracts.SchemaRejection(ErrorCode.SCHEMA_INVALID);
+        if (!"CONFIRM".equals(decision)) return null;
+        var basis = access.execute(subject, admission -> ThrowingSupplier.of(() -> {
+            current(admission, context); var fixed = tasks.fixedTask(admission, taskId);
+            resources.require(admission, scope(fixed.head()), "plan.confirm", PURPOSE);
+            if (!"PLAN_PENDING".equals(fixed.head().status())) fail(ErrorCode.REVISION_CONFLICT);
+            var head = plans.planHead(values(admission, fixed.head())); if (head == null) fail(ErrorCode.PLAN_STALE);
+            var draft = plans.readFixed(admission, fixed, head.planRevision(), false);
+            if (!"DRAFT".equals(draft.status()) || !fixed.head().taskRevision().equals(draft.taskRevision())) fail(ErrorCode.PLAN_STALE);
+            return new ReleaseBasis(fixed,draft,confirmations.requiresOrigin(admission,fixed,draft));
+        }).get());
+        return ThrowingSupplier.of(() -> confirmations.prepareExternal(subject,context,basis.task(),basis.draft(),basis.originRequired())).get();
+    }
+
+    private record ReleaseBasis(TaskService.VerifiedTask task,TaskPlanWriteProtocol.View draft,boolean originRequired) { }
+
+    private String requestHash(String taskId, TaskPlanDecisionProtocol.Request request) throws IOException {
+        var canonical = json.object(); canonical.put("operation_id", "TK-04"); canonical.put("task_id", taskId);
+        canonical.set("input", json.tree(request)); return hash(json.canonical(canonical));
+    }
+
+    private Prepared prepare(EnterpriseAccess.Admission admission, String taskId, String decision,
+            TaskPlanConfirmationStore.External release) throws IOException {
         if (!Set.of("RETURN", "CONFIRM").contains(decision)) throw new com.ruoyi.medical.contracts.SchemaRejection(ErrorCode.SCHEMA_INVALID);
         var fixed = tasks.fixedTask(admission, taskId); var head = fixed.head();
         var grant = resources.require(admission, scope(head), "plan.confirm", PURPOSE);
@@ -145,7 +183,7 @@ public final class TaskPlanReturnService {
         var plan = plans.readFixed(admission, fixed, planHead.planRevision(), false);
         if (!"DRAFT".equals(plan.status()) || !head.taskRevision().equals(plan.taskRevision())) fail(ErrorCode.PLAN_STALE);
         var common = authorizations(admission, head, grant);
-        var confirmation = "CONFIRM".equals(decision) ? confirmations.prepare(admission, fixed, plan, common) : null;
+        var confirmation = "CONFIRM".equals(decision) ? confirmations.prepareVerified(admission,fixed,plan,common,release) : null;
         var authorizations = confirmation == null ? common : confirmation.authorizations();
         var input = fixed.input(); var baseline = new TaskPlanDecisionProtocol.Baseline("1.0.0", head.tenantId(), head.projectId(), taskId,
                 head.taskRevision(), plan.planRevision(), plan.contentSha256(), head.snapshotId(), head.templateVersion(), head.profileRevision(),

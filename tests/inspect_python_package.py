@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 import platform
 import sys
+import sysconfig
 
 from medical_contracts import ArtifactBindings, DatasetBindings, ErrorCode, InterfaceBindings, ModelStreamBindings, ResourceBindings, SchemaCatalogue
 import medical_contracts
@@ -12,7 +13,8 @@ import medical_contracts
 ROOT = Path(__file__).resolve().parents[1]
 wheel = Path(sys.argv[1]).resolve(strict=True)
 installed = Path(medical_contracts.__file__).resolve(strict=True).parent
-if not installed.is_relative_to(ROOT / ".lld-data-work/venv/lib/python3.12/site-packages"):
+site_packages = Path(sysconfig.get_path("purelib")).resolve(strict=True)
+if sys.prefix == sys.base_prefix or not site_packages.is_relative_to(Path(sys.prefix).resolve()) or not installed.is_relative_to(site_packages):
     raise ValueError("共享库没有从登记 Python 环境的安装制品读取")
 package = distribution("medical-contracts")
 if package.version != "1.0.0" or "pydantic==2.13.5" not in package.requires:

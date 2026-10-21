@@ -12,7 +12,8 @@ from zipfile import ZipFile
 from local_runtime import ROOT, RUNTIME, migrate, mysql, settings
 
 
-CAPTURE = Path("/Users/liuhaoxian/.agents/skills/haonan-s000-pmp/scripts/capture_check.py")
+from check_support import capture_check_path
+CAPTURE = capture_check_path()
 RESOURCES = ROOT / "business/medical-data/src/main/resources"
 MIGRATION = RESOURCES / "db/migration/036-task-plan-relations.xml"
 

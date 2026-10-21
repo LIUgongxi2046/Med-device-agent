@@ -29,7 +29,7 @@ export async function loadModule(name, overrides = {}) {
   bundles.set(name, result.outputFiles[0].text)
  }
  const module = { exports: {} }, events = [], store = overrides.sessionStorage ?? storage()
- const context = vm.createContext({ module, exports: module.exports, require, console, crypto: webcrypto, TextEncoder, TextDecoder, AbortController, structuredClone,
+ const context = vm.createContext({ module, exports: module.exports, require, console, Error, crypto: webcrypto, TextEncoder, TextDecoder, AbortController, structuredClone,
   sessionStorage: store, window: { dispatchEvent: event => events.push(event) }, CustomEvent: class { constructor(type, details) { this.type = type; this.detail = details.detail } }, __request: overrides.request ?? {}, ...overrides.globals })
  new vm.Script(bundles.get(name), { filename: name + '.cjs' }).runInContext(context)
  return { api: module.exports, store, events, context }
@@ -50,7 +50,7 @@ export function setupVue(name, overrides = {}) {
  const user = overrides.user ?? vue.reactive({ medicalSession: null, medicalWriting: false }), route = overrides.route ?? vue.reactive({ params: {} }), routes = []
  let guard
  const dependencies = { '@/store/modules/user': { default: () => user }, 'vue-router': { useRouter: () => ({ push: async value => { routes.push(value) } }), useRoute: () => route, onBeforeRouteLeave: fn => { guard = fn } }, ...overrides.modules }
- vm.runInNewContext(code, { exports, require: target => target === 'vue' ? { ...vue, onBeforeUnmount: fn => cleanups.push(fn) } : dependencies[target] ?? {}, console, AbortController, TextEncoder,
+ vm.runInNewContext(code, { exports, require: target => target === 'vue' ? { ...vue, onBeforeUnmount: fn => cleanups.push(fn) } : dependencies[target] ?? {}, console, Error, AbortController, TextEncoder,
   ...overrides.globals, document: Object.assign(doc,overrides.doc ?? {}), window: { addEventListener: (name,fn) => listeners.set(name,fn), removeEventListener: name => listeners.delete(name) }, HTMLInputElement: class {} })
  const state = scope.run(() => exports.default.setup({}, { expose() {} }))
  return { state, user, route, doc, listeners, routes, guard: (...args) => guard?.(...args), stop: () => { for (const fn of cleanups) fn(); scope.stop() } }

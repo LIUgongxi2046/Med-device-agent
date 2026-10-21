@@ -79,3 +79,14 @@ test('missing original actor after reload or tampered pending cannot initiate ev
  const other={...s,user:{...s.user,user_id:id(81)}};await assert.rejects(f.a.recoverCapability(()=>other,p,signal()),e=>e.code==='CONTENT_MISMATCH');assert.equal(f.calls.length,0)
  const bad={...p,body:{...p.body,reason:'tampered'}};await assert.rejects(f.a.recoverCapability(()=>s,bad,signal()));assert.equal(f.calls.length,0)
 })
+test('ROLE API accepts verified narrow inheritance and sends only the unchanged fixed declaration contract', async () => {
+ const f = await fixture((call, d) => response(receipt(d, call.body), '1', 201)), s = session()
+ s.action_summary.push({ action: 'artifact.register', resource_kind: 'ENTERPRISE', resource_id: id(2), project_id: null })
+ const resource = { actor: id(1), context: plain(s.current_context), label: '真实项目', scope: { tenant_id: id(2), project_id: id(8), resource_kind: 'PROJECT', resource_id: id(8) } }
+ const body = { ...requestBody(f.d, 'ROLE'), project_id: id(8), tool_scope: { schema_version: '1.0.0', permissions: [{ scope: resource.scope, action: 'artifact.register', purpose: 'EVALUATION_RESULTS' }] } }
+ await assert.rejects(f.a.createCapability(() => s, body, signal(), () => {}), e => e.code === 'ACCESS_DENIED')
+ assert.equal(f.calls.length, 0); assert.equal(f.store.map.size, 0)
+ const result = await f.a.createCapability(() => s, body, signal(), () => {}, [resource])
+ assert.equal(f.calls.length, 1); assert.deepEqual(f.calls[0].body, body)
+ assert.equal('resources' in f.calls[0].body, false); assert.equal(result.pending.body.tool_scope.permissions[0].purpose, 'EVALUATION_RESULTS')
+})

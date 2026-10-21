@@ -1,0 +1,123 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:document-review-confirmation:1.0.0",
+  "description": "Additive B09 recovery, resubmission and formal review receipt contract. Existing BX13 ReviewBatch and DecisionBatch remain unchanged. RV07 is exactly a one-target ReviewBatch. History never represents unverified rows as valid signing authority.",
+  "$defs": {
+    "Resubmit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "document_revision",
+        "expected_revision",
+        "expected_task_revision",
+        "check_ids",
+        "evidence_watermark",
+        "issue_watermark",
+        "assignment_ids"
+      ],
+      "properties": {
+        "document_revision": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "expected_revision": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        "expected_task_revision": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        "check_ids": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "evidence_watermark": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        "issue_watermark": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        "assignment_ids": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 100,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      }
+    },
+    "ResubmissionReceipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "document_id",
+        "document_revision",
+        "revision",
+        "task_revision",
+        "task_status",
+        "resubmission_ids",
+        "assignment_ids"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "document_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "document_revision": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "revision": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        "task_revision": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        "task_status": {
+          "enum": [
+            "RETURNED",
+            "REVIEW_PENDING"
+          ]
+        },
+        "resubmission_ids": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 100,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "assignment_ids": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 100,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      }
+    }
+  }
+}

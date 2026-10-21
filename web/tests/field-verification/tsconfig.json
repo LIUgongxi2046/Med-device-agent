@@ -1,0 +1,4 @@
+{
+  "extends": "../../tsconfig.medical.json",
+  "include": ["../../src/views/medical/document-field-verification.vue", "../../src/api/medical/document-field-verification.ts", "../field-verification-preview/**/*.ts", "../field-verification-preview/**/*.vue", "../../src/medical.d.ts", "../../node_modules/vue-cropper/shims-vue.d.ts"]
+}

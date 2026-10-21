@@ -64,7 +64,7 @@
                icon="Delete"
                :disabled="multiple"
                @click="handleDelete"
-               v-hasPermi="['monitor:job:remove']"
+               v-if="!medicalMode" v-hasPermi="['monitor:job:remove']"
             >删除</el-button>
          </el-col>
          <el-col :span="1.5">
@@ -73,7 +73,7 @@
                plain
                icon="Delete"
                @click="handleClean"
-               v-hasPermi="['monitor:job:remove']"
+               v-if="!medicalMode" v-hasPermi="['monitor:job:remove']"
             >清空</el-button>
          </el-col>
          <el-col :span="1.5">
@@ -138,6 +138,8 @@
 </template>
 
 <script setup name="JobLog">
+const medicalMode = import.meta.env.VITE_APP_ENV === 'medical'
+
 import JobDetail from './detail'
 import { getJob } from "@/api/monitor/job"
 import { listJobLog, delJobLog, cleanJobLog } from "@/api/monitor/jobLog"
@@ -231,7 +233,7 @@ function handleClean() {
 
 /** 导出按钮操作 */
 function handleExport() {
-  proxy.download("monitor/jobLog/export", {
+  proxy.download("/monitor/jobLog/export", {
     ...queryParams.value,
   }, `job_log_${new Date().getTime()}.xlsx`)
 }

@@ -41,7 +41,7 @@ import org.springframework.stereotype.Component;
   var runtimeRoots=new TreeMap<String,PermissionProtocol.Basis>();collect(manifest.path("runtime_manifest"),runtimeRoots,a,project);collect(manifest.path("human_checkpoints"),runtimeRoots,a,project);
   for(var ref:runtimeRoots.values())uses.add(new AgentPublicationDependencies.DependencyUse(ref,"AGENT_PUBLICATION"));
   try{var catalogue=SchemaCatalogue.fromClasspath();schemas(manifest,catalogue);}catch(java.security.NoSuchAlgorithmException e){throw new IOException(e);}
-  var full=dependencies.requireByUse(a,project,uses);auth.set("dependencies",full.authorizations());var versions=new TreeSet<>(full.versionIds());versions.add(policy.version_id());return new Checked(List.copyOf(versions),auth);
+  var full=dependencies.requireByUse(a,project,uses);auth.set("dependencies",full.authorizations());var versions=new TreeSet<>(full.requiredVersionIds());versions.add(policy.version_id());return new Checked(List.copyOf(versions),auth);
  }
  private void collect(JsonNode node,Map<String,PermissionProtocol.Basis> result,EnterpriseAccess.Admission a,String project)throws IOException {
   if(node.isObject()){

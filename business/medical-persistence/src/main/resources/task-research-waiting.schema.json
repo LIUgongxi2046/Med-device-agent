@@ -1,0 +1,712 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.medical-agent.invalid/1.0.0/task-research-waiting.schema.json",
+  "$defs": {
+    "Id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "Hash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "Revision": {
+      "type": "string",
+      "pattern": "^[1-9][0-9]{0,19}$"
+    },
+    "Rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rule_version",
+        "rule_sha256"
+      ],
+      "properties": {
+        "rule_version": {
+          "$ref": "#/$defs/Id"
+        },
+        "rule_sha256": {
+          "$ref": "#/$defs/Hash"
+        }
+      }
+    },
+    "Check": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "check_id",
+        "receipt_sha256",
+        "rule_version",
+        "outcome"
+      ],
+      "properties": {
+        "check_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "receipt_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "rule_version": {
+          "$ref": "#/$defs/Id"
+        },
+        "outcome": {
+          "enum": [
+            "SATISFIED",
+            "NOT_SATISFIED",
+            "UNKNOWN"
+          ]
+        }
+      }
+    },
+    "Cause": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "kind",
+        "tenant_id",
+        "project_id",
+        "task_id",
+        "run_id",
+        "step_id",
+        "action_id",
+        "session_id",
+        "input_artifact_id",
+        "profile_revision",
+        "assignee_id",
+        "created_by",
+        "plan_revision",
+        "graph_id",
+        "snapshot_id",
+        "question_id",
+        "section_id",
+        "input_sha256",
+        "input_receipt_sha256",
+        "candidate_sha256",
+        "profile_sha256",
+        "plan_sha256",
+        "graph_sha256",
+        "replay_sha256",
+        "snapshot_sha256",
+        "rule_authority_sha256",
+        "source_read_receipts_sha256",
+        "model_invocation_receipts_sha256",
+        "lease_generation",
+        "question_key",
+        "classification",
+        "reason_codes",
+        "requirement_ids",
+        "completion_checks",
+        "rule_versions",
+        "source_read_receipts",
+        "model_invocations",
+        "supervision_receipt_id",
+        "supervision_sha256",
+        "deployment_sha256"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "kind": {
+          "const": "TASK_RESEARCH_WAITING"
+        },
+        "tenant_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "project_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "task_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "run_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "step_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "action_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "session_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "input_artifact_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "profile_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "assignee_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "created_by": {
+          "$ref": "#/$defs/Id"
+        },
+        "plan_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "graph_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "snapshot_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "question_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "section_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "input_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "input_receipt_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "candidate_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "profile_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "plan_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "graph_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "replay_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "snapshot_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "rule_authority_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "source_read_receipts_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "model_invocation_receipts_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "lease_generation": {
+          "$ref": "#/$defs/Revision"
+        },
+        "question_key": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "classification": {
+          "enum": [
+            "PUBLIC",
+            "INTERNAL",
+            "RESTRICTED",
+            "PERSONAL_HEALTH"
+          ]
+        },
+        "reason_codes": {
+          "type": "array",
+          "maxItems": 64,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Z0-9_]{1,64}$"
+          },
+          "minItems": 1
+        },
+        "requirement_ids": {
+          "type": "array",
+          "maxItems": 512,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/Id"
+          }
+        },
+        "completion_checks": {
+          "type": "array",
+          "maxItems": 512,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/Check"
+          }
+        },
+        "rule_versions": {
+          "type": "array",
+          "maxItems": 512,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/Rule"
+          }
+        },
+        "source_read_receipts": {
+          "type": "array",
+          "maxItems": 512,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/SourceReceipt"
+          }
+        },
+        "model_invocations": {
+          "type": "array",
+          "maxItems": 1024,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/InvocationReceipt"
+          }
+        },
+        "supervision_receipt_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "supervision_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "deployment_sha256": {
+          "$ref": "#/$defs/Hash"
+        }
+      }
+    },
+    "Decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "waiting_item_id",
+        "expected_revision",
+        "cause_sha256",
+        "decision",
+        "reason"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "waiting_item_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "expected_revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "cause_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "decision": {
+          "const": "REQUIRE_NEW_RUN"
+        },
+        "reason": {
+          "type": "string",
+          "pattern": ".*\\S.*",
+          "minLength": 1,
+          "maxLength": 1024
+        }
+      }
+    },
+    "Recovery": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "original_idempotency_key",
+        "original_request"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "original_idempotency_key": {
+          "type": "string",
+          "pattern": "^[!-~]{16,128}$"
+        },
+        "original_request": {
+          "$ref": "#/$defs/Decision"
+        }
+      }
+    },
+    "Receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "waiting_item_id",
+        "status",
+        "revision",
+        "cause_sha256",
+        "resolution_id",
+        "required_next_step",
+        "can_resume_frozen_run",
+        "human_checkpoint_approved",
+        "operation_id",
+        "audit_id",
+        "event_id",
+        "created_by",
+        "tenant_id",
+        "project_id",
+        "task_id",
+        "run_id",
+        "step_id",
+        "action_id",
+        "input_artifact_id",
+        "request_sha256",
+        "schema_manifest_sha256",
+        "created_at",
+        "classification"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "waiting_item_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "status": {
+          "enum": [
+            "WAITING_INPUT",
+            "STALE"
+          ]
+        },
+        "revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "cause_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "resolution_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "required_next_step": {
+          "const": "REQUIRE_NEW_RUN"
+        },
+        "can_resume_frozen_run": {
+          "const": false
+        },
+        "human_checkpoint_approved": {
+          "const": false
+        },
+        "operation_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "audit_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "event_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "created_by": {
+          "$ref": "#/$defs/Id"
+        },
+        "tenant_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "project_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "task_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "run_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "step_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "action_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "input_artifact_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "request_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "schema_manifest_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "classification": {
+          "enum": [
+            "PUBLIC",
+            "INTERNAL",
+            "RESTRICTED",
+            "PERSONAL_HEALTH"
+          ]
+        }
+      }
+    },
+    "View": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "waiting_item_id",
+        "status",
+        "revision",
+        "cause_sha256",
+        "resolution_id",
+        "required_next_step",
+        "can_resume_frozen_run",
+        "human_checkpoint_approved",
+        "tenant_id",
+        "project_id",
+        "task_id",
+        "run_id",
+        "step_id",
+        "action_id",
+        "lease_generation",
+        "session_id",
+        "input_artifact_id",
+        "input_sha256",
+        "input_receipt_sha256",
+        "candidate_sha256",
+        "plan_revision",
+        "plan_sha256",
+        "profile_revision",
+        "profile_sha256",
+        "snapshot_id",
+        "snapshot_sha256",
+        "question_id",
+        "section_id",
+        "assignee_id",
+        "reason_codes",
+        "requirement_ids",
+        "completion_checks",
+        "rule_versions",
+        "source_read_receipts_sha256",
+        "model_invocation_receipts_sha256",
+        "allowed_decisions",
+        "source_read_receipts",
+        "model_invocations",
+        "supervision_receipt_id",
+        "supervision_sha256",
+        "deployment_sha256"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "waiting_item_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "status": {
+          "enum": [
+            "WAITING_INPUT",
+            "STALE"
+          ]
+        },
+        "revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "cause_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "resolution_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "required_next_step": {
+          "const": "REQUIRE_NEW_RUN"
+        },
+        "can_resume_frozen_run": {
+          "const": false
+        },
+        "human_checkpoint_approved": {
+          "const": false
+        },
+        "tenant_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "project_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "task_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "run_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "step_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "action_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "lease_generation": {
+          "$ref": "#/$defs/Revision"
+        },
+        "session_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "input_artifact_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "input_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "input_receipt_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "candidate_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "plan_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "plan_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "profile_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "profile_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "snapshot_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "snapshot_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "question_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "section_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "assignee_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "reason_codes": {
+          "type": "array",
+          "maxItems": 64,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Z0-9_]{1,64}$"
+          },
+          "minItems": 1
+        },
+        "requirement_ids": {
+          "type": "array",
+          "maxItems": 512,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/Id"
+          }
+        },
+        "completion_checks": {
+          "type": "array",
+          "maxItems": 512,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/Check"
+          }
+        },
+        "rule_versions": {
+          "type": "array",
+          "maxItems": 512,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/Rule"
+          }
+        },
+        "source_read_receipts_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "model_invocation_receipts_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "allowed_decisions": {
+          "type": "array",
+          "maxItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "const": "REQUIRE_NEW_RUN"
+          }
+        },
+        "source_read_receipts": {
+          "type": "array",
+          "maxItems": 512,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/SourceReceipt"
+          }
+        },
+        "model_invocations": {
+          "type": "array",
+          "maxItems": 1024,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/InvocationReceipt"
+          }
+        },
+        "supervision_receipt_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "supervision_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "deployment_sha256": {
+          "$ref": "#/$defs/Hash"
+        }
+      }
+    },
+    "SourceReceipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "read_receipt_id",
+        "receipt_sha256"
+      ],
+      "properties": {
+        "read_receipt_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "receipt_sha256": {
+          "$ref": "#/$defs/Hash"
+        }
+      }
+    },
+    "InvocationReceipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "invocation_id",
+        "accounting_sha256",
+        "result_registration_sha256",
+        "capture_registration_sha256"
+      ],
+      "properties": {
+        "invocation_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "accounting_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "result_registration_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "capture_registration_sha256": {
+          "$ref": "#/$defs/Hash"
+        }
+      }
+    }
+  }
+}

@@ -35,7 +35,7 @@ class DocumentReadMetadataAuthorizationTest {
         var stateConstructor=stateType.getDeclaredConstructors()[0]; stateConstructor.setAccessible(true);
         var header=mock(DocumentReadProtocol.Header.class);when(header.documentId()).thenReturn(DOCUMENT);when(header.documentRevision()).thenReturn(REVISION);
         Object state=stateConstructor.newInstance(header,"1",java.util.Map.of(),java.util.Map.of(),HASH,
-                new DocumentReadProtocol.Watermarks(BigInteger.ONE,BigInteger.ONE),List.of(),List.of(),List.of(),List.of(),List.of(),List.of(),"1","1");
+                new DocumentReadProtocol.Watermarks(BigInteger.ONE,BigInteger.ONE),List.of(),List.of(),List.of(),List.of(),List.of(),List.of(),"1","1",true);
         var proofConstructor=DocumentReadService.MetadataRead.class.getDeclaredConstructor(stateType);proofConstructor.setAccessible(true);
         var proof=proofConstructor.newInstance(state);
         assertEquals(ErrorCode.ACCESS_DENIED,assertThrows(TenantAccessException.class,()->service.requireMetadataCurrent(admission,proof)).code());

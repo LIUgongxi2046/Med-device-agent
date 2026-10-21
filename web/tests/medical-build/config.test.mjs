@@ -15,4 +15,5 @@ test('medical start and build explicitly select medical mode without private env
 test('legacy production mode is not forced into medical mode', async () => {
   const config = await resolveConfig({ root: web, configFile: web + 'vite.config.js' }, 'build', 'production')
   assert.equal(config.define['import.meta.env.VITE_APP_ENV'], undefined)
+  assert.equal(JSON.parse(config.define['import.meta.env.VITE_APP_TITLE']), process.env.VITE_APP_TITLE || '若依管理系统')
 })

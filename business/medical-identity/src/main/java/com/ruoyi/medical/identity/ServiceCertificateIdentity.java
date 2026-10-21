@@ -44,6 +44,31 @@ public final class ServiceCertificateIdentity {
         return verify(chain, trust);
     }
 
+    /** Outbound server identity, independent of inbound/client-auth semantics. Revalidate
+     * the actual peer chain against current registration and CRLs even for reused sessions. */
+    public Verified requireServer(SSLSession session) throws IOException, GeneralSecurityException {
+        Objects.requireNonNull(session);
+        Trust trust = Objects.requireNonNull(currentTrust.read());
+        if (!trust.protocols().contains(session.getProtocol()) || !trust.ciphers().contains(session.getCipherSuite()))
+            throw new SecurityException("SERVICE_TLS_POLICY_REQUIRED");
+        var chain = new ArrayList<X509Certificate>();
+        for (var certificate : session.getPeerCertificates()) {
+            if (!(certificate instanceof X509Certificate x509)) throw new SecurityException("SERVICE_X509_REQUIRED");
+            chain.add(x509);
+        }
+        return verify(chain, trust, "1.3.6.1.5.5.7.3.1", "SERVICE_SERVER_CERTIFICATE_REQUIRED");
+    }
+
+    /** Handshake-only chain proof. Hostname/protocol validation is additionally mandatory
+     * in the concrete X509ExtendedTrustManager; this method alone is not transport proof. */
+    public Verified requireServer(X509Certificate[] chain) throws IOException, GeneralSecurityException {
+        return verify(List.of(chain.clone()), Objects.requireNonNull(currentTrust.read()),
+            "1.3.6.1.5.5.7.3.1", "SERVICE_SERVER_CERTIFICATE_REQUIRED");
+    }
+    Verified requireClientCertificate(X509Certificate[] chain) throws IOException, GeneralSecurityException {
+        return verify(List.of(chain.clone()), Objects.requireNonNull(currentTrust.read()));
+    }
+
     public Verified require(HttpServletRequest request) throws IOException, GeneralSecurityException {
         Objects.requireNonNull(request);
         if (!request.isSecure() || request.getHeader("Cookie") != null || request.getHeader("Origin") != null) {
@@ -61,13 +86,17 @@ public final class ServiceCertificateIdentity {
     }
 
     private Verified verify(List<X509Certificate> supplied, Trust trust) throws GeneralSecurityException {
+        return verify(supplied, trust, "1.3.6.1.5.5.7.3.2", "SERVICE_CLIENT_CERTIFICATE_REQUIRED");
+    }
+
+    private Verified verify(List<X509Certificate> supplied, Trust trust, String requiredEku, String failure) throws GeneralSecurityException {
         if (supplied.isEmpty()) throw new SecurityException("SERVICE_X509_REQUIRED");
         X509Certificate leaf = supplied.get(0);
         leaf.checkValidity();
         boolean[] usage = leaf.getKeyUsage();
         if (leaf.getBasicConstraints() != -1 || usage == null || usage.length == 0 || !usage[0]
-                || leaf.getExtendedKeyUsage() == null || !leaf.getExtendedKeyUsage().contains("1.3.6.1.5.5.7.3.2")) {
-            throw new SecurityException("SERVICE_CLIENT_CERTIFICATE_REQUIRED");
+                || leaf.getExtendedKeyUsage() == null || !leaf.getExtendedKeyUsage().contains(requiredEku)) {
+            throw new SecurityException(failure);
         }
         var anchors = new HashSet<TrustAnchor>();
         for (var certificate : trust.authorities()) {

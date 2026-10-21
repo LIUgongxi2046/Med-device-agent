@@ -1,0 +1,230 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.medical-agent.invalid/2.0.0/task-tool-read-success",
+  "title": "TaskToolReadSuccessV2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "kind",
+    "action_id",
+    "tool_id",
+    "status",
+    "summary",
+    "coverage",
+    "next_cursor",
+    "read_receipt",
+    "payload"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "2.0.0"
+    },
+    "kind": {
+      "const": "TASK_READ_RESULT"
+    },
+    "action_id": {
+      "$ref": "#/$defs/Id"
+    },
+    "tool_id": {
+      "enum": [
+        "AT-01",
+        "AT-02"
+      ]
+    },
+    "status": {
+      "const": "SUCCEEDED"
+    },
+    "summary": {
+      "type": "string"
+    },
+    "coverage": {
+      "$ref": "#/$defs/Coverage"
+    },
+    "next_cursor": {
+      "type": "null"
+    },
+    "read_receipt": {
+      "$ref": "#/$defs/ReadReceipt"
+    },
+    "payload": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/SearchResult"
+        },
+        {
+          "$ref": "#/$defs/SourceResult"
+        }
+      ]
+    }
+  },
+  "$defs": {
+    "Id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "Hash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "EvidenceRef": {
+      "$ref": "https://schemas.medical-agent.invalid/2.0.0/source-evidence#/$defs/EvidenceRef"
+    },
+    "Coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "requested_scope_sha256",
+        "delivered_scope_sha256",
+        "complete"
+      ],
+      "properties": {
+        "requested_scope_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "delivered_scope_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "complete": {
+          "type": "boolean"
+        }
+      }
+    },
+    "SearchResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "retrieval_id",
+        "match_status",
+        "evidence_refs",
+        "missing_requirement_ids"
+      ],
+      "properties": {
+        "kind": {
+          "const": "SEARCH"
+        },
+        "retrieval_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "match_status": {
+          "enum": [
+            "FOUND",
+            "EMPTY"
+          ]
+        },
+        "evidence_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/EvidenceRef"
+          }
+        },
+        "missing_requirement_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/Id"
+          }
+        }
+      }
+    },
+    "SourceResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "evidence_ref",
+        "content",
+        "read_receipt_id"
+      ],
+      "properties": {
+        "kind": {
+          "const": "SOURCE"
+        },
+        "evidence_ref": {
+          "$ref": "#/$defs/EvidenceRef"
+        },
+        "content": {
+          "type": "string",
+          "minLength": 1
+        },
+        "read_receipt_id": {
+          "$ref": "#/$defs/Id"
+        }
+      }
+    },
+    "ReadReceipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "receipt_id",
+        "receipt_sha256"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "RETRIEVAL_OPERATION",
+            "SOURCE_READ"
+          ]
+        },
+        "receipt_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "receipt_sha256": {
+          "$ref": "#/$defs/Hash"
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "tool_id": {
+            "const": "AT-01"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "$ref": "#/$defs/SearchResult"
+          },
+          "read_receipt": {
+            "properties": {
+              "kind": {
+                "const": "RETRIEVAL_OPERATION"
+              }
+            }
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "payload": {
+            "$ref": "#/$defs/SourceResult"
+          },
+          "read_receipt": {
+            "properties": {
+              "kind": {
+                "const": "SOURCE_READ"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "properties": {
+        "coverage": {
+          "properties": {
+            "complete": {
+              "const": true
+            }
+          }
+        }
+      }
+    }
+  ]
+}

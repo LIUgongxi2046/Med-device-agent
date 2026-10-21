@@ -39,6 +39,12 @@ public final class FormalEvaluationContextPackages {
   var read=transport.readDocument(subject,expected.tenant,MAX,guard,(reader,current)->content.readVerifiedComplete(subject,expected.intent,reader,current,MAX,UUID.randomUUID().toString()));
   var holder=new java.util.concurrent.atomic.AtomicReference<byte[]>();read.consume(bytes->{if(!expected.artifact.content_sha256().equals(org.apache.commons.codec.digest.DigestUtils.sha256Hex(bytes)))bad();holder.set(bytes);});var receipts=read.receiptIds();guard.requireCurrent();if(receipts.isEmpty())bad();return new Read(expected,holder.get(),receipts);
  }
+ Read read(FormalEvaluationControlAccess.Reads reads,Plan expected)throws Exception{
+  var access=EvidenceReadAccess.evaluation(reads);access.outsideTransaction();
+  S3ObjectReader.Admission guard=()->reads.execute(a->ThrowingSupplier.of(()->{samePlan(a,expected);return null;}).get());guard.requireCurrent();
+  var read=transport.readEvaluationDocument(reads,MAX,guard,(reader,current)->content.readVerifiedComplete(access,expected.intent,reader,current,MAX,UUID.randomUUID().toString()));
+  var holder=new java.util.concurrent.atomic.AtomicReference<byte[]>();read.consume(bytes->{if(!expected.artifact.content_sha256().equals(org.apache.commons.codec.digest.DigestUtils.sha256Hex(bytes)))bad();holder.set(bytes.clone());});guard.requireCurrent();if(read.receiptIds().isEmpty())bad();return new Read(expected,holder.get(),read.receiptIds());
+ }
  private void samePlan(EnterpriseAccess.Admission a,Plan expected)throws Exception{if(!expected.tenant.equals(a.context().tenant_id())||!expected.actor.equals(a.actorId())||!expected.digest.equals(plan(a,expected.context,expected.project,expected.artifact,expected.schemaRef,expected.schemaHash).digest))throw new TenantAccessException(ErrorCode.SCOPE_STALE);}
  private static <T>T one(List<T> values){if(values.size()!=1)bad();return values.get(0);}static String max(String... values){var order=List.of("PUBLIC","INTERNAL","RESTRICTED","PERSONAL_HEALTH");int n=0;for(var v:values){int i=order.indexOf(v);if(i<0)bad();n=Math.max(n,i);}return order.get(n);}private static void bad(){throw new TenantAccessException(ErrorCode.CONTENT_MISMATCH);}
 }

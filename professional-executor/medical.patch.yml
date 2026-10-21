@@ -7,6 +7,10 @@
         socketPath: !!js dshHomePath('../.build-work/professional.sock')
         tokenPath: !!js dshHomePath('../.build-work/professional.token')
         inventoryPath: !!js dshHomePath('../.build-work/professional-inventory.json')
+        # For an approved Researcher v2 deployment, explicitly set:
+        # evidenceToolContracts: { AT-01: 2.0.0, AT-02: 2.0.0 }
+        # Publish matching tool/role schemas and update configuration/inventory hashes.
+        # Omitting this mapping retains strict v1; it grants no capability approval.
         role: Planner
         model: SIMULATION
         contextWindow: 32768
@@ -27,7 +31,7 @@
           AT-06: 10000
           AT-07: 10000
           AT-08: 10000
-          AT-09: 30000
+          AT-09: 360000
           AT-10: 10000
         allowedPluginNames:
           - 'cordis:include'
@@ -37,6 +41,8 @@
           - '@deepseek-ai/dsh-llm'
           - '@deepseek-ai/dsh-session'
           - '@deepseek-ai/dsh-session-projection'
+          - '@deepseek-ai/dsh-fs-local'
+          - '@deepseek-ai/dsh-working-directory'
           - '@deepseek-ai/dsh-system-prompt'
           - '@deepseek-ai/dsh-tools'
           - '@deepseek-ai/dsh-agent'

@@ -24,13 +24,14 @@ final class SourceDeletionAccess {
     private final SourceGovernanceMapper governance;
     private final SourceDeletionMapper mapper;
     private final SourceDeletionPolicy policy;
+    private final SourceCopyAuthority copyAuthority;
 
     SourceDeletionAccess(DataSource data, TenantTransaction transactions, TenantMemberMapper members,
             PermissionMapper permissions, PermissionAuthority authority, SourceGovernanceMapper governance,
-            SourceDeletionMapper mapper, SourceDeletionPolicy policy) {
+            SourceDeletionMapper mapper, SourceDeletionPolicy policy,SourceCopyAuthority copyAuthority) {
         jdbc=new JdbcTemplate(data); this.transactions=transactions; this.members=members;
         this.permissions=permissions; this.authority=authority; this.governance=governance;
-        this.mapper=mapper; this.policy=policy;
+        this.mapper=mapper; this.policy=policy;this.copyAuthority=copyAuthority;
     }
 
     <T> T execute(String tenant,String itemId,Operation<T> operation) {
@@ -87,6 +88,7 @@ final class SourceDeletionAccess {
                     denied(ErrorCode.ACTION_STALE);
                 if(governance.blockingReferenceCount(values).signum()!=0 || mapper.additionalReferenceCount(values).signum()!=0)
                     denied(ErrorCode.REFERENCE_HELD);
+                values.put("copyAuthority",copyAuthority.requireCurrent(item.sourceVersion(),policy));
                 values.put("now",now); values.put("leaseSeconds",policy.lease().toSeconds());
                 values.put("governanceEpoch",watermarks.governanceEpoch());
                 values.put("expectedRevision",item.itemRevision());

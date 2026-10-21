@@ -1,0 +1,196 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "check_id",
+    "target_kind",
+    "target_id",
+    "target_revision",
+    "input_sha256",
+    "rule_manifest_id",
+    "status",
+    "coverage",
+    "findings",
+    "issue_ids",
+    "evidence_watermark",
+    "issue_watermark",
+    "invalidation_reason",
+    "check_kind",
+    "professional_coverage_complete",
+    "professional_approval"
+  ],
+  "properties": {
+    "check_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "target_kind": {
+      "enum": [
+        "DOCUMENT",
+        "CANDIDATE",
+        "CANDIDATE_SET"
+      ]
+    },
+    "target_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "target_revision": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "input_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "rule_manifest_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "status": {
+      "enum": [
+        "QUEUED",
+        "RUNNING",
+        "SUCCEEDED",
+        "WAITING_INPUT",
+        "FAILED",
+        "CANCELLED"
+      ]
+    },
+    "coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "selection_sha256",
+        "delivered_sha256",
+        "complete",
+        "next_cursor"
+      ],
+      "properties": {
+        "selection_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "delivered_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "complete": {
+          "const": true
+        },
+        "next_cursor": {
+          "type": "null"
+        }
+      }
+    },
+    "findings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact_id",
+        "sha256",
+        "schema_ref",
+        "coverage"
+      ],
+      "properties": {
+        "artifact_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "schema_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "coverage": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "selection_sha256",
+            "delivered_sha256",
+            "complete",
+            "next_cursor"
+          ],
+          "properties": {
+            "selection_sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "delivered_sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "complete": {
+              "const": true
+            },
+            "next_cursor": {
+              "type": "null"
+            }
+          }
+        }
+      }
+    },
+    "issue_ids": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "format": "uuid"
+      }
+    },
+    "evidence_watermark": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)$"
+    },
+    "issue_watermark": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)$"
+    },
+    "invalidation_reason": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "check_kind": {
+      "enum": [
+        "DOCUMENT_PROFESSIONAL",
+        "CANDIDATE_PROFESSIONAL",
+        "CROSS_FILE_STRUCTURE",
+        "STRUCTURE_FIXED_REFERENCES"
+      ]
+    },
+    "professional_coverage_complete": {
+      "type": "boolean"
+    },
+    "professional_approval": {
+      "const": false
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:check-detail:1.1.0",
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "check_kind": {
+            "enum": [
+              "CROSS_FILE_STRUCTURE",
+              "STRUCTURE_FIXED_REFERENCES"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "professional_coverage_complete": {
+            "const": false
+          }
+        }
+      }
+    }
+  ]
+}

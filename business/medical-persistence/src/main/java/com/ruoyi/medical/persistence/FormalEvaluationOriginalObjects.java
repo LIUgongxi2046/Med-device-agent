@@ -17,12 +17,14 @@ public final class FormalEvaluationOriginalObjects {
  public FormalEvaluationOriginalObjects(EnterpriseAccess access,ArtifactContentService content,SourceUploadTransport transport,
    ArtifactRegistryMapper artifacts,SourceReadMapper sources,DependencyLineage lineage,EvaluationReferences references,
    EvaluationDependencyPolicy policy,int maximumBytes){this.access=access;this.content=content;this.transport=transport;this.artifacts=artifacts;this.sources=sources;this.lineage=lineage;this.references=references;this.policy=policy;if(maximumBytes<1||maximumBytes>16777216)throw new IllegalArgumentException("EVALUATION_OBJECT_LIMIT_INVALID");this.maximumBytes=maximumBytes;}
- Verified read(ApplicationSessionIdentity.Verified actor,String context,String project,Artifact expected)throws Exception {
+ Verified read(ApplicationSessionIdentity.Verified actor,String context,String project,Artifact expected)throws Exception {return read(EvidenceReadAccess.human(access,actor),context,project,expected);}
+ Verified read(EvidenceReadAccess actor,String context,String project,Artifact expected)throws Exception {
+  actor.requireVersion(expected.artifactId(),expected.sha256());
   if(TransactionSynchronizationManager.isActualTransactionActive())throw new TenantAccessException(ErrorCode.CONTEXT_CHANGED);
-  var intent=access.execute(actor,a->ThrowingSupplier.of(()->intent(a,context,project,expected)).get());
-  S3ObjectReader.Admission guard=()->access.execute(actor,a->ThrowingSupplier.of(()->{if(!intent.equals(intent(a,context,project,expected)))throw new TenantAccessException(ErrorCode.SCOPE_STALE);return null;}).get());
-  String tenant=access.execute(actor,a->a.context().tenant_id());
-  var read=transport.readDocument(actor,tenant,maximumBytes,guard,(reader,current)->content.readVerifiedComplete(actor,intent,reader,current,maximumBytes,UUID.randomUUID().toString()));
+  var intent=actor.execute(a->ThrowingSupplier.of(()->intent(a,context,project,expected)).get());
+  S3ObjectReader.Admission guard=()->actor.execute(a->ThrowingSupplier.of(()->{if(!intent.equals(intent(a,context,project,expected)))throw new TenantAccessException(ErrorCode.SCOPE_STALE);return null;}).get());
+  String tenant=actor.execute(a->a.context().tenant_id());
+  var read=actor.readDocument(transport,tenant,maximumBytes,guard,(reader,current)->content.readVerifiedComplete(actor,intent,reader,current,maximumBytes,UUID.randomUUID().toString()));
   var verified=new Verified(expected,read);verified.requireCurrent();return verified;
  }
  private ContentReadProtocol.ReadIntent intent(EnterpriseAccess.Admission a,String context,String project,Artifact expected)throws Exception {
@@ -44,6 +46,7 @@ public final class FormalEvaluationOriginalObjects {
   Artifact reference(){return expected;}
   void requireCurrent(){read.consume(bytes->{if(!expected.sha256().equals(org.apache.commons.codec.digest.DigestUtils.sha256Hex(bytes)))bad();});if(read.receiptIds().isEmpty())bad();}
   byte[] bytes(){var value=new java.util.concurrent.atomic.AtomicReference<byte[]>();read.consume(bytes->{if(!expected.sha256().equals(org.apache.commons.codec.digest.DigestUtils.sha256Hex(bytes)))bad();value.set(bytes);});return value.get();}
+  List<String> dependencyVersions(){return read.dependencyVersions();}
   List<String> receiptIds(){requireCurrent();return List.copyOf(read.receiptIds());}
  }
  private static <T>T one(List<T> values){if(values.size()!=1)bad();return values.get(0);}private static void bad(){throw new TenantAccessException(ErrorCode.CONTENT_MISMATCH);}

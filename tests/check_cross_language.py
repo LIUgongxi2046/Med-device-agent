@@ -67,7 +67,7 @@ def main():
         "locator_sha256": locators,
         "text_ranges": text_ranges,
         "schema_scalar_sha256": scalar_digests,
-        "definition_count": sum(len(schema["$defs"]) for schema in catalogue.schemas.values()),
+        "definition_count": sum(len(schema.get("$defs", {})) for schema in catalogue.schemas.values()),
         "error_codes": error_codes,
         "technical_wire": {
             "execution_uuid": str(uuid_value(execution_id)),

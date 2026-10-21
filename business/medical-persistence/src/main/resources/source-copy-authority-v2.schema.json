@@ -1,0 +1,12 @@
+{
+ "$schema":"https://json-schema.org/draft/2020-12/schema",
+ "$id":"urn:medical:source-copy-authority:2.0.0",
+ "$defs":{
+  "Declare":{"type":"object","additionalProperties":false,"required":["schema_version","kind","configuration_sha256","external_scopes","all_copy_locations_declared","reason","valid_until"],"properties":{
+   "schema_version":{"const":"2.0.0"},"kind":{"const":"DECLARE"},"configuration_sha256":{"type":"string","pattern":"^[a-f0-9]{64}$"},
+   "external_scopes":{"type":"array","maxItems":100,"items":{"type":"object","additionalProperties":false,"required":["scope_id","kind"],"properties":{"scope_id":{"type":"string","minLength":1,"maxLength":128},"kind":{"enum":["OFFLINE","PROVIDER","OTHER"]}}}},
+   "all_copy_locations_declared":{"const":true},"reason":{"type":"string","minLength":1,"maxLength":2000},"valid_until":{"type":"string","format":"date-time"}}},
+  "Decide":{"type":"object","additionalProperties":false,"required":["schema_version","kind","declaration_id","declaration_sha256","reason"],"properties":{
+   "schema_version":{"const":"2.0.0"},"kind":{"enum":["APPROVE","REVOKE"]},"declaration_id":{"type":"string","format":"uuid"},"declaration_sha256":{"type":"string","pattern":"^[a-f0-9]{64}$"},"reason":{"type":"string","minLength":1,"maxLength":2000}}}
+ }
+}

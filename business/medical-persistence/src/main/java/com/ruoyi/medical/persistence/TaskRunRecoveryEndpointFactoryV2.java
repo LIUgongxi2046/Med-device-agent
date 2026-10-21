@@ -1,0 +1,7 @@
+package com.ruoyi.medical.persistence;
+import com.ruoyi.medical.workflow.*;
+import jakarta.servlet.http.HttpServletRequest;
+import javax.sql.DataSource;
+public record TaskRunRecoveryEndpointFactoryV2(DataSource data,TaskRunActivityPreparation preparation,TaskNodeInputAuthority inputs,FormalTaskNodeAuthority nodes,FormalRunRecoveryAccess recovery,TaskRunLaunchRecoveryAuthority launchAuthority,TaskRunWorkflowLedger launches,TaskRunWorkflowProtocolBinding protocols,TaskRunDispatchReservation reservations,TaskRuntimeJournal runtime,TaskResearchCommitService commits,TaskRunWaitingCommitService waiting,TaskResearchCompletionAuthority results,TaskRegisteredToolWaitingCompletion waitingResults,WaitingWorkflowDeploymentV2 deployment,PermissionSchema json,TaskRunLifecycleService lifecycle,TaskRunGraphService graphs,TaskRunStageCommitServiceV2 stages,TaskStrictFieldExecutionBridge stageExecution){
+    public TaskRunRecoveryActivitiesV2 create(HttpServletRequest http){return new TaskRunRecoveryActivityAdapterV2(http,data,preparation,inputs,nodes,recovery,launchAuthority,launches,protocols,reservations,runtime,commits,waiting,results,waitingResults,deployment,json,lifecycle,graphs,stages,stageExecution);}
+}

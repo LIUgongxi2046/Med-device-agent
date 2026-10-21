@@ -4,10 +4,12 @@ import os
 from pathlib import Path
 import subprocess
 import sys
+from run_migration import resolve_java
 
 
 ROOT = Path(__file__).resolve().parents[1]
-CAPTURE = Path("/Users/liuhaoxian/.agents/skills/haonan-s000-pmp/scripts/capture_check.py")
+from check_support import capture_check_path
+CAPTURE = capture_check_path()
 
 
 def main():
@@ -42,7 +44,7 @@ def main():
     runtime.append("business/ruoyi-admin/src/main/resources/application-medical-local.yml")
     runtime.append("business/ruoyi-admin/src/main/resources/logback-medical.xml")
     runtime.append("business/ruoyi-admin/src/main/resources/i18n/messages.properties")
-    common = ["scripts/check_migration.py", "LLD-后端.md", "backend-design/接口补充设计.md", "backend-design/interfaces.openapi.yaml", *schemas]
+    common = ["scripts/check_migration.py", "scripts/check_support.py", "scripts/capture_check.py", "tests/migration_source_parser.py", "tests/test_simulation_input_artifact_migration.py", "tests/migration_076_compat.py", "tests/migration_099_compat.py", "LLD-后端.md", "backend-design/接口补充设计.md", "backend-design/interfaces.openapi.yaml", *schemas]
     artifacts = []
     if args.check == "build":
         check_id, kind, timeout = "IC-03-JAVA", "UNIT", 1800
@@ -82,7 +84,7 @@ def main():
             ".implementation-work/maven-repository/com/fasterxml/jackson/core/jackson-databind/2.21.4/jackson-databind-2.21.4.jar",
             ".implementation-work/maven-repository/com/fasterxml/jackson/core/jackson-core/2.21.4/jackson-core-2.21.4.jar",
             ".implementation-work/maven-repository/com/fasterxml/jackson/core/jackson-annotations/2.21/jackson-annotations-2.21.jar",
-            ".implementation-work/toolchains/jdk-17.0.20.1+1/Contents/Home/bin/java"])
+            str(resolve_java(ROOT))])
         command = [sys.executable, "tests/test_migration_bundle.py"]
     elif args.check == "entrypoint":
         check_id, kind, timeout = "IC-03-MIGRATION-CLI", "UNIT", 600

@@ -1,0 +1,246 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:document-candidate-adoption:1.0.0",
+  "$defs": {
+    "Id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "Hash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "Revision": {
+      "type": "string",
+      "pattern": "^[1-9][0-9]{0,18}$"
+    },
+    "Ids": {
+      "type": "array",
+      "uniqueItems": true,
+      "maxItems": 10000,
+      "items": {
+        "$ref": "#/$defs/Id"
+      }
+    },
+    "PreviewInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "document_id",
+        "base_document_revision",
+        "expected_document_revision",
+        "candidate_sha256",
+        "mode",
+        "selected_node_ids"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "document_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "base_document_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "expected_document_revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "candidate_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "mode": {
+          "enum": [
+            "INITIAL",
+            "SELECTED_NODES"
+          ]
+        },
+        "selected_node_ids": {
+          "$ref": "#/$defs/Ids"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "mode": {
+                "const": "INITIAL"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "selected_node_ids": {
+                "maxItems": 0
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "selected_node_ids": {
+                "minItems": 1
+              }
+            }
+          }
+        }
+      ]
+    },
+    "ConfirmInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "pending_action_id",
+        "arguments_sha256",
+        "expected_action_revision",
+        "confirm"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "pending_action_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "arguments_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "expected_action_revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "confirm": {
+          "const": true
+        }
+      }
+    },
+    "Result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "adoption_id",
+        "candidate_id",
+        "document_id",
+        "document_revision",
+        "pending_action_id",
+        "operation_id",
+        "check_document_intent_id",
+        "body_sha256",
+        "professional_approval"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "adoption_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "candidate_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "document_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "document_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "pending_action_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "operation_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "check_document_intent_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "body_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "professional_approval": {
+          "const": false
+        }
+      }
+    },
+    "Preview": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "candidate_id",
+        "pending_action_id",
+        "document_id",
+        "base_document_revision",
+        "action_revision",
+        "expected_document_revision",
+        "arguments_sha256",
+        "candidate_sha256",
+        "result_body_sha256",
+        "expires_at",
+        "mode",
+        "selected_node_ids",
+        "replaced_node_ids",
+        "inserted_node_ids",
+        "check_ids",
+        "professional_approval"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "candidate_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "pending_action_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "document_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "base_document_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "action_revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "expected_document_revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "arguments_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "candidate_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "result_body_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "expires_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "mode": {
+          "enum": [
+            "INITIAL",
+            "SELECTED_NODES"
+          ]
+        },
+        "selected_node_ids": {
+          "$ref": "#/$defs/Ids"
+        },
+        "replaced_node_ids": {
+          "$ref": "#/$defs/Ids"
+        },
+        "inserted_node_ids": {
+          "$ref": "#/$defs/Ids"
+        },
+        "check_ids": {
+          "$ref": "#/$defs/Ids"
+        },
+        "professional_approval": {
+          "const": false
+        }
+      }
+    }
+  }
+}

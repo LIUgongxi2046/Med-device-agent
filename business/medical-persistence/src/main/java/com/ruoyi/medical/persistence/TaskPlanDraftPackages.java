@@ -1,0 +1,113 @@
+package com.ruoyi.medical.persistence;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.ruoyi.medical.contracts.*;
+import com.ruoyi.medical.persistence.mapper.*;
+import java.math.BigInteger;
+import java.util.*;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.util.function.ThrowingSupplier;
+
+/** Dedicated N01 registered immutable package GET under the exact PLAN_DRAFT read intersection.
+ * Neither an artifact UUID, a host role nor a compiled prompt is a read grant. */
+public final class TaskPlanDraftPackages {
+    private static final String PURPOSE="AGENT_PUBLICATION";
+    private final ArtifactRegistryMapper artifacts;private final SourceReadMapper sources;private final DependencyLineage lineage;
+    private final ArtifactSourceAuthority authority;private final AgentPublicationDependencies governance;
+    private final EvaluationReferences profiles;private final EvaluationDependencyPolicy policy;private final SourceUploadTransport transport;
+    public TaskPlanDraftPackages(ArtifactRegistryMapper artifacts,SourceReadMapper sources,DependencyLineage lineage,
+            ArtifactSourceAuthority authority,AgentPublicationDependencies governance,EvaluationReferences profiles,
+            EvaluationDependencyPolicy policy,SourceUploadTransport transport){
+        this.artifacts=artifacts;this.sources=sources;this.lineage=lineage;this.authority=authority;
+        this.governance=governance;this.profiles=profiles;this.policy=policy;this.transport=transport;
+    }
+    private record State(String tenant,String actor,String project,PermissionProtocol.Basis artifact,
+            InterfaceProtocol.ObjectRef object,String schemaRef,String schemaSha256,String digest,List<ArtifactRegistryProtocol.MemberRow> contentMembers) { }
+    public final class Read {
+        private final State original;private final byte[] bytes;
+        private Read(State original,byte[] bytes){this.original=original;this.bytes=bytes.clone();}
+        public byte[] bytes(){return bytes.clone();}public PermissionProtocol.Basis artifact(){return original.artifact();}
+        public List<ArtifactRegistryProtocol.MemberRow> contentMembers(){return original.contentMembers();}
+        public String schemaRef(){return original.schemaRef();}public String schemaSha256(){return original.schemaSha256();}
+        public JsonNode canonicalPins()throws Exception{return new com.fasterxml.jackson.databind.ObjectMapper().valueToTree(Map.of(
+            "artifact",original.artifact(),"object_ref",original.object(),"schema_ref",original.schemaRef(),"schema_sha256",original.schemaSha256(),"authorization_sha256",original.digest(),"content_members",original.contentMembers()));}
+        public void requireCurrent(EnterpriseAccess.Admission a)throws Exception {
+            if(!original.equals(state(a,original.project(),original.artifact(),SourceReadProtocol.Use.REVIEW,PURPOSE,null)))stale();
+            if(!original.artifact().content_sha256().equals(WireValues.sha256(bytes)))bad();
+        }
+        /** Only the separately leased private N01 action may request model transmission. */
+        public JsonNode requireModelSend(EnterpriseAccess.Admission a,String purpose,String provider,TaskPlanDraftRuntimeAuthority.Verified input)throws Exception {
+            Objects.requireNonNull(input);requireCurrent(input.admission());var sent=state(a,original.project(),original.artifact(),SourceReadProtocol.Use.MODEL_SEND,purpose,provider,input);
+            return new com.fasterxml.jackson.databind.ObjectMapper().valueToTree(Map.of("artifact",sent.artifact(),"object_ref",sent.object(),"authorization_sha256",sent.digest()));
+        }
+    }
+    public Read readControl(TaskPlanDraftControlAccess.Reads reads,String project,PermissionProtocol.Basis artifact)throws Exception {
+        if(TransactionSynchronizationManager.isActualTransactionActive())throw new TenantAccessException(ErrorCode.CONTEXT_CHANGED);
+        reads.requireVersion(artifact.version_id(),artifact.content_sha256());
+        State original=reads.execute(a->ThrowingSupplier.of(()->state(a,project,artifact,SourceReadProtocol.Use.REVIEW,PURPOSE,null)).get());
+        S3ObjectReader.Admission guard=()->reads.execute(a->ThrowingSupplier.of(()->{if(!original.equals(state(a,project,artifact,SourceReadProtocol.Use.REVIEW,PURPOSE,null)))stale();return null;}).get());
+        byte[] bytes=transport.readTaskDocument(original.tenant(),original.actor(),TaskInvocationContextSchema.MAXIMUM_BYTES,guard,(reader,current)->{
+            try(var object=reader.readVerified(original.object(),current)){
+                if(!original.object().equals(object.reference())||!artifact.content_sha256().equals(object.fullSha256()))bad();
+                int size=Integer.parseInt(original.object().sizeBytes());byte[] result=new byte[size];
+                for(int offset=0;offset<size;){current.requireCurrent();int count=Math.min(S3ObjectReader.MAX_SEGMENT_BYTES,size-offset);System.arraycopy(object.chunk(offset,count),0,result,offset,count);offset+=count;current.requireCurrent();}return result;
+            }
+        });if(!artifact.content_sha256().equals(WireValues.sha256(bytes)))bad();guard.requireCurrent();return new Read(original,bytes);
+    }
+    /** Current authorization for an originally persisted physical read. It does not read
+     * bytes, mint a Read, or make a caller-supplied pin into physical evidence. */
+    JsonNode requireCurrentPins(EnterpriseAccess.Admission a,String project,JsonNode pins,String purpose,String provider,TaskPlanDraftRuntimeAuthority.Verified input)throws Exception {
+        Objects.requireNonNull(input);requireReviewedPins(input.admission(),project,pins);var b=pins.required("artifact");
+        var basis=new PermissionProtocol.Basis(b.required("version_id").textValue(),b.required("content_sha256").textValue());
+        var transmitted=state(a,project,basis,SourceReadProtocol.Use.MODEL_SEND,purpose,provider,input);
+        return new com.fasterxml.jackson.databind.ObjectMapper().valueToTree(Map.of("artifact",transmitted.artifact(),"object_ref",transmitted.object(),"authorization_sha256",transmitted.digest()));
+    }
+    void requireReviewedPins(EnterpriseAccess.Admission a,String project,JsonNode pins)throws Exception {
+        var b=pins.required("artifact");var basis=new PermissionProtocol.Basis(b.required("version_id").textValue(),b.required("content_sha256").textValue());
+        var original=state(a,project,basis,SourceReadProtocol.Use.REVIEW,PURPOSE,null);
+        var expected=new com.fasterxml.jackson.databind.ObjectMapper().valueToTree(Map.of("artifact",original.artifact(),"object_ref",original.object(),"schema_ref",original.schemaRef(),"schema_sha256",original.schemaSha256(),"authorization_sha256",original.digest(),"content_members",original.contentMembers()));
+        if(!expected.equals(pins))stale();
+    }
+    private State state(EnterpriseAccess.Admission a,String project,PermissionProtocol.Basis artifact,SourceReadProtocol.Use use,String purpose,String provider)throws Exception {return state(a,project,artifact,use,purpose,provider,null);}
+    private State state(EnterpriseAccess.Admission a,String project,PermissionProtocol.Basis artifact,SourceReadProtocol.Use use,String purpose,String provider,TaskPlanDraftRuntimeAuthority.Verified input)throws Exception {
+        if(use==SourceReadProtocol.Use.MODEL_SEND&&input==null)deny();
+        var job=input==null?a.planDraftProof().job():input.job();if(input==null)a.planDraftProof().requireActive();
+        else {var identity=a.formalProof().identity();if(!"PLAN_DRAFT".equals(identity.executionKind())||!job.run().equals(identity.run())||!job.step().equals(identity.step())||!input.actionId().equals(identity.action()))deny();}
+        if(!project.equals(job.project())||!a.actorId().equals(job.actor()))deny();policy.requireConfigured();
+        if(input!=null){input.requireUnchanged();if(use!=SourceReadProtocol.Use.MODEL_SEND||!job.tenant().equals(input.job().tenant())||!project.equals(input.job().project())||!job.run().equals(input.job().run())||!job.step().equals(input.stepId()))deny();}
+        var declared=governance.require(a,project,List.of(artifact),PURPOSE);var row=one(artifacts.artifact(artifact.version_id()));var binding=one(artifacts.binding(artifact.version_id()));
+        if(!job.tenant().equals(row.tenantId())||!artifact.content_sha256().equals(row.sha256())||!row.sha256().equals(row.contentSha256())
+                ||row.projectId()!=null&&!project.equals(row.projectId()))bad();
+        var reference=StoredObjectReferences.decode(row.storedObject(),row.reference());
+        if(!reference.objectKey().startsWith("tenants/"+job.tenant()+"/")||reference.objectKey().contains("..")
+                ||row.sizeBytes().signum()<=0||row.sizeBytes().compareTo(BigInteger.valueOf(TaskInvocationContextSchema.MAXIMUM_BYTES))>0)bad();
+        var graph=lineage.inspect(artifact.version_id(),policy.limits());var required=new TreeMap<String,ArtifactRegistryProtocol.ReadRequirement>();var leaves=new ArrayList<SourceReadProtocol.ReadRequirement>();
+        for(var version:graph.versions().values()){
+            if(version.projectId()!=null&&!project.equals(version.projectId()))deny();
+            var source=sources.source(version.id());if(source.size()>1)bad();
+            if(!source.isEmpty()){var s=source.get(0);leaves.add(input==null?new SourceReadProtocol.ReadRequirement(s.sourceVersion(),s.rightsRevision(),project,null,null,null,use,purpose,policy.environment(),policy.region(),provider):modelRequirement(s,input,purpose,policy.environment(),policy.region(),provider));}
+            if("ARTIFACT".equals(version.entityKind())){
+                var b=one(artifacts.binding(version.id()));var p=profiles.profile(b.schemaRef(),PURPOSE,b.resourceKind());
+                required.put(version.id(),new ArtifactRegistryProtocol.ReadRequirement(new PermissionProtocol.Scope(job.tenant(),b.projectId(),p.resourceKind(),b.resourceId()),p.action(),purpose,b.schemaRef(),b.schemaDocumentSha256(),p.artifactSchemaManifest(),policy.limits()));
+            }
+        }
+        var root=required.remove(artifact.version_id());if(root==null)bad();leaves.sort(Comparator.comparing(SourceReadProtocol.ReadRequirement::sourceVersion));
+        var checked=authority.require(a,artifact.version_id(),root,leaves,new VersionResourceProtocol.ReadContext(use,null),required);
+        if(input!=null){for(var leaf:leaves)requireModelSelection(input,checked.sources().get(leaf.sourceVersion()),purpose);input.requireUnchanged();}
+        String digest=WireValues.sha256(ContentReadAuthorization.canonicalBytes(Map.of("tenant",job.tenant(),"actor",a.actorId(),"project",project,"artifact",row,"binding",binding,"permissions",checked,"governance",declared.authorizations(),"purpose",purpose,"use",use)));
+        return new State(job.tenant(),a.actorId(),project,artifact,reference,binding.schemaRef(),binding.schemaDocumentSha256(),digest,List.copyOf(checked.registration().manifest().members()));
+    }
+    static SourceReadProtocol.ReadRequirement modelRequirement(SourceReadProtocol.SourceRow source,TaskPlanDraftRuntimeAuthority.Verified input,String purpose,String environment,String region,String provider)throws Exception {
+        input.requireUnchanged();var fixed=fixed(input,source.sourceVersion());
+        if(!input.job().tenant().equals(source.tenantId())||!fixed.rights().rightsRevision().equals(source.rightsRevision())||source.ownerProjectId()!=null&&!input.job().project().equals(source.ownerProjectId()))deny();
+        return new SourceReadProtocol.ReadRequirement(source.sourceVersion(),source.rightsRevision(),input.job().project(),snapshot(input),fixed.selection().parseVersion(),null,SourceReadProtocol.Use.MODEL_SEND,purpose,environment,region,provider);
+    }
+    static void requireModelSelection(TaskPlanDraftRuntimeAuthority.Verified input,SourceReadProtocol.VerifiedSource current,String purpose)throws Exception {
+        input.requireUnchanged();if(current==null||current.selection()==null)deny();var fixed=fixed(input,current.source().sourceVersion());
+        if(!fixed.selection().equals(current.selection())||!fixed.rights().rightsRevision().equals(current.rights().rightsRevision())||!fixed.source().originalSha256().equals(current.source().originalSha256()))deny();
+    }
+    private static String snapshot(TaskPlanDraftRuntimeAuthority.Verified input)throws Exception{return new com.fasterxml.jackson.databind.ObjectMapper().readTree(input.job().admissionJson()).required("scope_snapshot_id").textValue();}
+    private static SourceReadProtocol.VerifiedSource fixed(TaskPlanDraftRuntimeAuthority.Verified input,String source)throws Exception {input.requireUnchanged();var rows=input.current().current().sources().stream().filter(f->f.source().sourceVersion().equals(source)).toList();if(rows.size()!=1||rows.get(0).selection()==null)deny();return rows.get(0);}
+    private static <T>T one(List<T> values){if(values.size()!=1)bad();return values.get(0);}
+    private static void deny(){throw new TenantAccessException(ErrorCode.ACCESS_DENIED);}private static void bad(){throw new TenantAccessException(ErrorCode.CONTENT_MISMATCH);}private static void stale(){throw new TenantAccessException(ErrorCode.SCOPE_STALE);}
+}

@@ -88,7 +88,7 @@ public final class ArtifactContentService {
 
     final class CompleteRead {
         private final ArtifactContentService service;
-        private final ApplicationSessionIdentity.Verified subject;
+        private final EvidenceReadAccess subject;
         private final ContentReadProtocol.ReadIntent intent;
         private final String authorization;
         private final byte[] bytes;
@@ -96,6 +96,10 @@ public final class ArtifactContentService {
 
         private CompleteRead(ArtifactContentService service, ApplicationSessionIdentity.Verified subject, ContentReadProtocol.ReadIntent intent,
                 String authorization, byte[] bytes, List<String> receipts) {
+            this(service,EvidenceReadAccess.human(service.access,subject),intent,authorization,bytes,receipts);
+        }
+        private CompleteRead(ArtifactContentService service,EvidenceReadAccess subject,ContentReadProtocol.ReadIntent intent,
+                String authorization,byte[] bytes,List<String> receipts) {
             this.service = service; this.subject = subject; this.intent = intent; this.authorization = authorization;
             this.bytes = bytes.clone(); this.receipts = List.copyOf(receipts);
         }
@@ -119,11 +123,23 @@ public final class ArtifactContentService {
             service.requireCurrent(subject, intent, authorization); return payload;
         }
 
+        /** Exact current source-rights pins are part of the original read, not inferred lineage edges. */
+        List<String> dependencyVersions() {
+            var current=service.admit(subject,intent);
+            if(!authorization.equals(current.authorization()))throw new TenantAccessException(ErrorCode.SCOPE_STALE);
+            var ids=new java.util.TreeSet<String>(current.verified().versions().keySet());ids.add(intent.artifactId());
+            for(var source:current.verified().sources().values())ids.add(source.rights().rightsRevision());
+            return List.copyOf(ids);
+        }
         List<String> receiptIds() { service.requireCurrent(subject, intent, authorization); return receipts; }
     }
 
     CompleteRead readVerifiedComplete(ApplicationSessionIdentity.Verified subject, ContentReadProtocol.ReadIntent intent,
             S3ObjectReader reader, S3ObjectReader.TimedAdmission transport, int maximumBytes, String requestId) throws Exception {
+        return readVerifiedComplete(EvidenceReadAccess.human(access,subject),intent,reader,transport,maximumBytes,requestId);
+    }
+    CompleteRead readVerifiedComplete(EvidenceReadAccess subject,ContentReadProtocol.ReadIntent intent,
+            S3ObjectReader reader,S3ObjectReader.TimedAdmission transport,int maximumBytes,String requestId)throws Exception {
         Objects.requireNonNull(subject); Objects.requireNonNull(intent); Objects.requireNonNull(reader); Objects.requireNonNull(transport);
         WireValues.uuid(requestId);
         if (TransactionSynchronizationManager.isActualTransactionActive()) throw new TenantAccessException(ErrorCode.CONTEXT_CHANGED);
@@ -155,27 +171,34 @@ public final class ArtifactContentService {
         }
     }
 
-    private Admission admit(ApplicationSessionIdentity.Verified subject, ContentReadProtocol.ReadIntent intent) {
-        return access.execute(subject, admission -> ThrowingSupplier.of(() -> {
+    private Admission admit(ApplicationSessionIdentity.Verified subject,ContentReadProtocol.ReadIntent intent){return admit(EvidenceReadAccess.human(access,subject),intent);}
+    private Admission admit(EvidenceReadAccess subject,ContentReadProtocol.ReadIntent intent) {
+        return subject.execute(admission -> ThrowingSupplier.of(() -> {
             if (!intent.contextRevision().equals(admission.context().context_revision())) throw new TenantAccessException(ErrorCode.CONTEXT_CHANGED);
             var verified = authority.require(admission, intent.artifactId(), intent.artifact(), intent.sources(), intent.context(), intent.upstreamArtifacts());
-            return new Admission(verified, ContentReadAuthorization.digest(admission, intent, verified));
+            subject.requireVersion(intent.artifactId(),verified.registration().artifact().sha256());
+            return new Admission(verified, ContentReadAuthorization.digest(admission, intent, verified,subject));
         }).get());
     }
 
     private String requireCurrent(ApplicationSessionIdentity.Verified subject, ContentReadProtocol.ReadIntent intent, String original) {
+        return requireCurrent(EvidenceReadAccess.human(access,subject),intent,original);
+    }
+    private String requireCurrent(EvidenceReadAccess subject,ContentReadProtocol.ReadIntent intent,String original) {
         String current = admit(subject, intent).authorization();
         if (!original.equals(current)) throw new TenantAccessException(ErrorCode.SCOPE_STALE);
         return current;
     }
 
-    private String save(ApplicationSessionIdentity.Verified subject, ContentReadProtocol.ReadIntent intent, String original,
-            ObjectContentPaging.Page page, String requestId) {
-        return access.execute(subject, admission -> ThrowingSupplier.of(() -> {
+    private String save(ApplicationSessionIdentity.Verified subject,ContentReadProtocol.ReadIntent intent,String original,ObjectContentPaging.Page page,String requestId){return save(EvidenceReadAccess.human(access,subject),intent,original,page,requestId);}
+    private String save(EvidenceReadAccess subject,ContentReadProtocol.ReadIntent intent,String original,
+            ObjectContentPaging.Page page,String requestId) {
+        return subject.execute(admission -> ThrowingSupplier.of(() -> {
             var verified = authority.require(admission, intent.artifactId(), intent.artifact(), intent.sources(), intent.context(), intent.upstreamArtifacts());
-            if (!original.equals(ContentReadAuthorization.digest(admission, intent, verified))) throw new TenantAccessException(ErrorCode.SCOPE_STALE);
+            subject.requireVersion(intent.artifactId(),verified.registration().artifact().sha256());
+            if (!original.equals(ContentReadAuthorization.digest(admission, intent, verified,subject))) throw new TenantAccessException(ErrorCode.SCOPE_STALE);
             var registered = verified.registration(); var artifact = registered.artifact(); var binding = registered.binding();
-            String user = admission.subject().user().user_id(), receiptId = UUID.randomUUID().toString(), auditId = UUID.randomUUID().toString();
+            String user = admission.actorId(), receiptId = UUID.randomUUID().toString(), auditId = UUID.randomUUID().toString();
             var values = new HashMap<String, Object>(); values.put("userId", user); values.put("receiptId", receiptId); values.put("auditId", auditId);
             var time = Objects.requireNonNull(mapper.databaseTime(values));
             var header = new ContentReadProtocol.HeaderRow(artifact.tenantId(), artifact.projectId(), receiptId, binding.resourceId(), artifact.artifactId(),

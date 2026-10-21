@@ -7,6 +7,16 @@ import org.apache.ibatis.annotations.Mapper;
 
 @Mapper
 public interface TemplateMapper {
+    List<String> applicationHead(Map<String,Object> values);
+    int insertApplicationHead(Map<String,Object> values);
+    int advanceApplicationHead(Map<String,Object> values);
+    List<String> applicationDecisions(Map<String,Object> values);
+    List<String> applicationDecision(Map<String,Object> values);
+    int saveApplicationDecision(Map<String,Object> values);
+    List<com.ruoyi.medical.persistence.SelectionOperationRow> applicationOperation(Map<String,Object> values);
+    int saveApplicationOperation(Map<String,Object> values);
+    List<String> applicationAudit(Map<String,Object> values);
+    List<String> applicationEvent(Map<String,Object> values);
     int insertVersion(Map<String,Object> values);
     int insertTemplate(Map<String,Object> values);
     int insertDefinition(Map<String,Object> values);

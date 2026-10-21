@@ -1,0 +1,129 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:task-source-read-receipt:2.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "body",
+    "receipt_sha256"
+  ],
+  "properties": {
+    "body": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "kind",
+        "receipt_id",
+        "action_id",
+        "request",
+        "identity",
+        "evidence_ref",
+        "source_owner_project_id",
+        "processing_project_id",
+        "processing_attempt_id",
+        "original_object",
+        "parsed_object",
+        "processing_command_sha256",
+        "processing_result_sha256",
+        "processor_manifest_sha256",
+        "source_authorization_sha256",
+        "provenance_sha256",
+        "delivered_range",
+        "scope_sha256",
+        "created_at",
+        "classification",
+        "action_request",
+        "token_sha256",
+        "original_read",
+        "parsed_read"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "2.0.0"
+        },
+        "kind": {
+          "const": "TASK_SOURCE_READ_RECEIPT"
+        },
+        "receipt_id": {
+          "type": "string"
+        },
+        "action_id": {
+          "type": "string"
+        },
+        "request": {
+          "type": "object"
+        },
+        "identity": {
+          "type": "object"
+        },
+        "evidence_ref": {
+          "type": "object"
+        },
+        "source_owner_project_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "processing_project_id": {
+          "type": "string"
+        },
+        "processing_attempt_id": {
+          "type": "string"
+        },
+        "original_object": {
+          "type": "object"
+        },
+        "parsed_object": {
+          "type": "object"
+        },
+        "processing_command_sha256": {
+          "type": "string"
+        },
+        "processing_result_sha256": {
+          "type": "string"
+        },
+        "processor_manifest_sha256": {
+          "type": "string"
+        },
+        "source_authorization_sha256": {
+          "type": "string"
+        },
+        "provenance_sha256": {
+          "type": "string"
+        },
+        "delivered_range": {
+          "type": "object"
+        },
+        "scope_sha256": {
+          "type": "string"
+        },
+        "created_at": {
+          "type": "string"
+        },
+        "classification": {
+          "type": "string"
+        },
+        "action_request": {
+          "type": "object"
+        },
+        "token_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "original_read": {
+          "type": "object"
+        },
+        "parsed_read": {
+          "type": "object"
+        }
+      }
+    },
+    "receipt_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    }
+  },
+  "$comment": "New local contract: receipt_sha256 and scope_sha256 use TaskSourceIdentity type-tagged lossless numeric identity before JCS. Persisted envelope must preserve every validated numeric value exactly. Historical source processing hashes remain unchanged."
+}

@@ -25,8 +25,9 @@ export interface ExportItem {
   status: 'QUEUED' | 'RUNNING' | 'VERIFYING' | 'SUCCEEDED' | 'FAILED' | 'CANCEL_REQUESTED' | 'CANCELLED'
   artifact_id: string | null; validation_artifact_id: string | null; downloadable: boolean
   validation: { schema_version: '1.0.0'; format: ExportFormat; sha256: string; size_bytes: string; input_sha256: string
-    verified_node_ids: string[]; plan_sha256: string; channel_check: 'APPROVED' | 'PENDING_REVIEW'
+    verified_node_ids: string[]; plan_sha256: string; channel_check: 'APPROVED' | 'PENDING_REVIEW' | 'UNKNOWN'
     visual_check: 'PASSED' | 'NOT_RUN'; converter_revision: string; font_manifest_revision: string } | null
+  layout_verification?: { verification_id: string; actor_id: string; created_at: string; verification: { channel_check: 'APPROVED' | 'REJECTED' | 'UNKNOWN'; visual_check: 'PASSED' | 'FAILED' | 'NOT_RUN' } }
   revision: string; created_at: string; updated_at: string
 }
 export interface ExportView {
@@ -195,4 +196,54 @@ export async function downloadExportItem(session: MedicalSession, item: ExportIt
     DOCX: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', PDF: 'application/pdf', MARKDOWN: 'text/markdown'
   }
   return new Blob([response.data], { type: mediaTypes[item.format] })
+}
+
+export interface ExportLayoutProfile {
+  schema_version: '1.0.0'; document_revision: string; format_profile_revision: string; numbering_rule_revision: string
+  channel_name: string | null; channel_specification_artifact_id: string | null; channel_specification_sha256: string | null
+  toc_title: string; toc_depth: number; page_number_start: number; attachment_node_ids: string[]
+}
+export interface ExportLayoutProfileView { profile_id: string; sha256: string; channel_check: 'UNKNOWN'; profile: ExportLayoutProfile }
+export interface ExportLayoutVerification {
+  schema_version: '1.0.0'; expected_revision: string; output_sha256: string; channel_profile_revision: string
+  channel_check: 'APPROVED' | 'REJECTED' | 'UNKNOWN'; visual_check: 'PASSED' | 'FAILED' | 'NOT_RUN'
+  evidence_artifact_id: string | null; evidence_sha256: string | null; notes: string; previous_verification_id: string | null
+}
+export interface ExportLayoutVerificationView {
+  verification_id: string; actor_id: string; created_at: string; verification: ExportLayoutVerification
+}
+export async function authorExportLayout(session: MedicalSession, documentId: string, input: ExportLayoutProfile,
+  idempotencyKey: string, signal: AbortSignal): Promise<ExportLayoutProfileView> {
+  validate(reference + 'LayoutProfile', input)
+  const response = envelope(await request.post('/api/documents/' + documentId + '/export-layout-profiles', input,
+    { medical: 'envelope', signal, headers: headers(session, idempotencyKey) }))
+  return validate<ExportLayoutProfileView>(reference + 'LayoutProfileView', response.data)
+}
+export async function readExportLayout(session: MedicalSession, documentId: string, revision: string, profileId: string,
+  signal: AbortSignal): Promise<ExportLayoutProfileView> {
+  const response = envelope(await request.get('/api/documents/' + documentId + '/export-layout-profiles/' + profileId,
+    { medical: 'envelope', signal, params: { document_revision: revision }, headers: headers(session) }))
+  const result = validate<ExportLayoutProfileView>(reference + 'LayoutProfileView', response.data)
+  if (result.profile_id !== profileId || result.profile.document_revision !== revision) fail('CONTENT_MISMATCH', '版式规则不属于当前文稿版本')
+  return result
+}
+export async function recordExportLayoutVerification(session: MedicalSession, itemId: string, input: ExportLayoutVerification,
+  idempotencyKey: string, signal: AbortSignal): Promise<ExportLayoutVerificationView> {
+  validate(reference + 'VerificationInput', input)
+  const response = envelope(await request.post('/api/export-items/' + itemId + '/layout-verifications', input,
+    { medical: 'envelope', signal, headers: headers(session, idempotencyKey) }))
+  return validate<ExportLayoutVerificationView>(reference + 'VerificationView', response.data)
+}
+export async function readExportLayoutVerifications(session: MedicalSession, itemId: string, signal: AbortSignal): Promise<ExportLayoutVerificationView[]> {
+  const response = envelope(await request.get('/api/export-items/' + itemId + '/layout-verifications',
+    { medical: 'envelope', signal, headers: headers(session) }))
+  return validate<{items: ExportLayoutVerificationView[]}>(reference + 'LayoutVerificationHistory', response.data).items
+}
+export async function downloadExportForReview(session: MedicalSession, item: ExportItem, signal: AbortSignal): Promise<Blob> {
+  if (item.status !== 'SUCCEEDED' || item.validation === null) fail('ACTION_STALE', '尚无可核验文件')
+  const response = await request.get('/api/export-items/' + item.export_item_id + '/review-content',
+    { responseType: 'arraybuffer', signal, headers: headers(session), medical: 'auth' })
+  if (!(response.data instanceof ArrayBuffer) || await documentBytesDigest(response.data) !== item.validation.sha256)
+    fail('CONTENT_MISMATCH', '待核验文件与成品摘要不一致')
+  return new Blob([response.data])
 }

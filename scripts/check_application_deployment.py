@@ -7,7 +7,8 @@ import sys
 from local_runtime import ROOT, verify_application_deployment
 
 
-CAPTURE = Path("/Users/liuhaoxian/.agents/skills/haonan-s000-pmp/scripts/capture_check.py")
+from check_support import capture_check_path
+CAPTURE = capture_check_path()
 sys.path.insert(0, str(CAPTURE.parent))
 from capture_check import run_check
 

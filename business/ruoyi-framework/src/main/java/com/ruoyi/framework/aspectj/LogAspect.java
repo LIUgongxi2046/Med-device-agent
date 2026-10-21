@@ -42,6 +42,12 @@ import com.ruoyi.system.domain.SysOperLog;
 @Component
 public class LogAspect
 {
+    @org.springframework.beans.factory.annotation.Value("${medical.identity.mode:}")
+    private String medicalIdentityMode;
+    private static final String[] MEDICAL_EXCLUDE_PROPERTIES = {
+        "configValue", "noticeContent", "operParam", "jsonResult", "errorMsg", "secret", "secretValue",
+        "apiKey", "accessToken", "refreshToken", "token", "tokenId", "sessionId", "credentialSha256", "password_hash"
+    };
     private static final Logger log = LoggerFactory.getLogger(LogAspect.class);
 
     /** 排除敏感属性字段 */
@@ -112,7 +118,7 @@ public class LogAspect
             if (e != null)
             {
                 operLog.setStatus(BusinessStatus.FAIL.ordinal());
-                operLog.setErrorMsg(StringUtils.substring(Convert.toStr(e.getMessage(), ExceptionUtil.getExceptionMessage(e)), 0, 2000));
+                operLog.setErrorMsg(medicalAudit() ? e.getClass().getSimpleName() : StringUtils.substring(Convert.toStr(e.getMessage(), ExceptionUtil.getExceptionMessage(e)), 0, 2000));
             }
             // 设置方法名称
             String className = joinPoint.getTarget().getClass().getName();
@@ -130,8 +136,8 @@ public class LogAspect
         catch (Exception exp)
         {
             // 记录本地异常日志
-            log.error("异常信息:{}", exp.getMessage());
-            exp.printStackTrace();
+            if (medicalAudit()) log.error("Medical operation audit failed: {}", exp.getClass().getSimpleName());
+            else { log.error("异常信息:{}", exp.getMessage()); exp.printStackTrace(); }
         }
         finally
         {
@@ -154,6 +160,15 @@ public class LogAspect
         operLog.setTitle(log.title());
         // 设置操作人类别
         operLog.setOperatorType(log.operatorType().ordinal());
+        if (medicalAudit()) {
+            if (log.isSaveRequestData()) operLog.setOperParam(medicalRequestSummary(joinPoint, log.excludeParamNames()));
+            if (log.isSaveResponseData() && jsonResult != null) {
+                Object code = jsonResult instanceof Map<?, ?> values ? values.get("code") : null;
+                operLog.setJsonResult(JSON.toJSONString(java.util.Map.of("redacted", true,
+                        "response_type", jsonResult.getClass().getSimpleName(), "status", code == null ? "UNDECLARED" : code)));
+            }
+            return;
+        }
         // 是否需要保存request，参数和值
         if (log.isSaveRequestData())
         {
@@ -165,6 +180,44 @@ public class LogAspect
         {
             operLog.setJsonResult(StringUtils.substring(JSON.toJSONString(jsonResult), 0, 2000));
         }
+    }
+
+    private boolean medicalAudit() {
+        if (!"local".equals(medicalIdentityMode) && !"oidc".equals(medicalIdentityMode)) return false;
+        try { return ServletUtils.getRequest().getRequestURI().matches("/api/(system|monitor|tool)/?.*"); }
+        catch (RuntimeException unavailable) { return true; }
+    }
+
+    private String medicalRequestSummary(JoinPoint point, String[] excluded) {
+        // Hash only a redacted projection, not raw secrets (including low-entropy passwords/config values).
+        var filter = new PropertyPreExcludeFilter().addExcludes(ArrayUtils.addAll(
+                ArrayUtils.addAll(EXCLUDE_PROPERTIES, MEDICAL_EXCLUDE_PROPERTIES), excluded));
+        var digest = org.apache.commons.codec.digest.DigestUtils.getSha256Digest();
+        var targets = new java.util.LinkedHashMap<String, Object>();
+        var safeIds = java.util.Set.of("userId", "roleId", "menuId", "deptId", "postId", "dictId", "dictCode", "configId", "noticeId", "jobId", "tableId");
+        for (Object argument : point.getArgs()) {
+            if (argument == null || isFilterObject(argument)) continue;
+            String type = argument.getClass().getName();
+            // Authentication/servlet/framework objects are not auditable request payloads.
+            if (!(type.startsWith("com.ruoyi.system.domain.") || type.startsWith("com.ruoyi.common.core.domain.entity.")
+                    || type.startsWith("com.ruoyi.quartz.domain.") || type.startsWith("com.ruoyi.generator.domain."))) continue;
+            String redacted = JSON.toJSONString(argument, filter);
+            var object = JSON.parseObject(redacted);
+            // Hash field names and safe identifiers only. Free-form text, config values and secrets are never hashed.
+            digest.update(type.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            digest.update(JSON.toJSONString(new java.util.TreeSet<>(object.keySet())).getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            for (String key : safeIds) {
+                Object value = object.get(key);
+                if (value != null && value.toString().matches("[0-9]{1,19}")) targets.put(key, value.toString());
+            }
+        }
+        var parameters = ServletUtils.getParamMap(ServletUtils.getRequest());
+        for (String key : safeIds) {
+            Object value = parameters.get(key);
+            if (value != null && value.toString().matches("[0-9]{1,19}")) targets.put(key, value.toString());
+        }
+        digest.update(JSON.toJSONString(new java.util.TreeMap<>(targets)).getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        return JSON.toJSONString(java.util.Map.of("redacted", true, "projection_sha256", java.util.HexFormat.of().formatHex(digest.digest()), "targets", targets));
     }
 
     /**

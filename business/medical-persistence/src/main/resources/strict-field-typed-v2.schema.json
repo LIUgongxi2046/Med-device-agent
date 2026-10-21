@@ -1,0 +1,683 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:strict-field-typed-target:2.0.0",
+  "$defs": {
+    "Id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "Hash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "Reason": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2000
+    },
+    "Literal": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4096
+    },
+    "Basis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version_id",
+        "content_sha256"
+      ],
+      "properties": {
+        "version_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "content_sha256": {
+          "$ref": "#/$defs/Hash"
+        }
+      }
+    },
+    "Scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "task_id",
+        "task_revision",
+        "plan_revision",
+        "template_version",
+        "scope_snapshot"
+      ],
+      "properties": {
+        "task_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "task_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "plan_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "template_version": {
+          "$ref": "#/$defs/Id"
+        },
+        "scope_snapshot": {
+          "$ref": "#/$defs/Id"
+        }
+      }
+    },
+    "Span": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "start_codepoint",
+        "end_codepoint"
+      ],
+      "properties": {
+        "start_codepoint": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "end_codepoint": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "Label": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "evidence_span",
+        "literal"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Id"
+        },
+        "evidence_span": {
+          "$ref": "#/$defs/Span"
+        },
+        "literal": {
+          "$ref": "#/$defs/Literal"
+        }
+      }
+    },
+    "Context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mode",
+        "labels"
+      ],
+      "properties": {
+        "mode": {
+          "enum": [
+            "GLOBAL",
+            "SCOPED"
+          ]
+        },
+        "labels": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Label"
+          },
+          "maxItems": 1000
+        },
+        "global_evidence_span": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "global_literal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Literal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "mode": {
+                "const": "GLOBAL"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "global_evidence_span",
+              "global_literal"
+            ],
+            "properties": {
+              "labels": {
+                "maxItems": 0
+              },
+              "global_evidence_span": {
+                "$ref": "#/$defs/Span"
+              },
+              "global_literal": {
+                "$ref": "#/$defs/Literal"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "labels": {
+                "minItems": 1
+              },
+              "global_evidence_span": {
+                "type": "null"
+              },
+              "global_literal": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "ContextAuthor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "scope",
+        "evidence",
+        "rights_revision",
+        "purpose",
+        "models",
+        "conditions",
+        "reason"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "2.0.0"
+        },
+        "scope": {
+          "$ref": "#/$defs/Scope"
+        },
+        "evidence": {
+          "$ref": "https://schemas.medical-agent.invalid/2.0.0/source-evidence#/$defs/EvidenceRef"
+        },
+        "rights_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "purpose": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9_]{0,127}$"
+        },
+        "models": {
+          "$ref": "#/$defs/Context"
+        },
+        "conditions": {
+          "$ref": "#/$defs/Context"
+        },
+        "reason": {
+          "$ref": "#/$defs/Reason"
+        }
+      }
+    },
+    "Unit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "basis"
+      ],
+      "properties": {
+        "basis": {
+          "enum": [
+            "SOURCE_SPAN",
+            "UNITLESS",
+            "UNKNOWN"
+          ]
+        },
+        "span": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Span"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "basis": {
+                "const": "SOURCE_SPAN"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "span"
+            ],
+            "properties": {
+              "span": {
+                "$ref": "#/$defs/Span"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "span": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "Parse": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "scope",
+        "evidence",
+        "rights_revision",
+        "purpose",
+        "numeric_span",
+        "unit",
+        "parser",
+        "reason"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "2.0.0"
+        },
+        "scope": {
+          "$ref": "#/$defs/Scope"
+        },
+        "evidence": {
+          "$ref": "https://schemas.medical-agent.invalid/2.0.0/source-evidence#/$defs/EvidenceRef"
+        },
+        "rights_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "purpose": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9_]{0,127}$"
+        },
+        "numeric_span": {
+          "$ref": "#/$defs/Span"
+        },
+        "unit": {
+          "$ref": "#/$defs/Unit"
+        },
+        "parser": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "revision",
+            "sha256"
+          ],
+          "properties": {
+            "revision": {
+              "type": "string",
+              "minLength": 1
+            },
+            "sha256": {
+              "$ref": "#/$defs/Hash"
+            }
+          }
+        },
+        "reason": {
+          "$ref": "#/$defs/Reason"
+        }
+      }
+    },
+    "Entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "field_id",
+        "field_definition_id",
+        "section_id",
+        "node_id",
+        "candidate_context",
+        "observed_context",
+        "comparison_policy"
+      ],
+      "properties": {
+        "field_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "field_definition_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "section_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "node_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "row_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "candidate_decimal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Basis"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "candidate_context": {
+          "$ref": "#/$defs/Basis"
+        },
+        "observed_decimal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Basis"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "observed_context": {
+          "$ref": "#/$defs/Basis"
+        },
+        "comparison_policy": {
+          "$ref": "#/$defs/Basis"
+        },
+        "candidate_exact": {
+          "anyOf": [
+            {
+              "$ref": "urn:medical:strict-field-comparison:2.0.0#/$defs/SourceExactReference"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "observed_exact": {
+          "anyOf": [
+            {
+              "$ref": "urn:medical:strict-field-comparison:2.0.0#/$defs/SourceExactReference"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "oneOf": [
+        {
+          "required": [
+            "candidate_decimal",
+            "observed_decimal"
+          ],
+          "properties": {
+            "candidate_decimal": {
+              "$ref": "#/$defs/Basis"
+            },
+            "observed_decimal": {
+              "$ref": "#/$defs/Basis"
+            },
+            "candidate_exact": {
+              "type": "null"
+            },
+            "observed_exact": {
+              "type": "null"
+            }
+          }
+        },
+        {
+          "required": [
+            "candidate_exact",
+            "observed_exact"
+          ],
+          "properties": {
+            "candidate_exact": {
+              "$ref": "urn:medical:strict-field-comparison:2.0.0#/$defs/SourceExactReference"
+            },
+            "observed_exact": {
+              "$ref": "urn:medical:strict-field-comparison:2.0.0#/$defs/SourceExactReference"
+            },
+            "candidate_decimal": {
+              "type": "null"
+            },
+            "observed_decimal": {
+              "type": "null"
+            }
+          }
+        }
+      ]
+    },
+    "MethodEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "method_id",
+        "source_context",
+        "method_span",
+        "method_literal",
+        "standard_span",
+        "standard_literal"
+      ],
+      "properties": {
+        "method_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "source_context": {
+          "$ref": "#/$defs/Basis"
+        },
+        "method_span": {
+          "$ref": "#/$defs/Span"
+        },
+        "method_literal": {
+          "$ref": "#/$defs/Literal"
+        },
+        "standard_span": {
+          "$ref": "#/$defs/Span"
+        },
+        "standard_literal": {
+          "$ref": "#/$defs/Literal"
+        }
+      }
+    },
+    "Indicator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "field_definition_id",
+        "methods"
+      ],
+      "properties": {
+        "field_definition_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "methods": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/MethodEvidence"
+          },
+          "maxItems": 1000
+        }
+      }
+    },
+    "RequirementBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "requirement_node_id",
+        "kind",
+        "indicators"
+      ],
+      "properties": {
+        "requirement_node_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "kind": {
+          "enum": [
+            "FIELD_ONLY",
+            "METHOD"
+          ]
+        },
+        "indicators": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Indicator"
+          },
+          "maxItems": 1000
+        }
+      }
+    },
+    "Author": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "scope",
+        "release_id",
+        "publication_approval_sha256",
+        "role_version",
+        "execution_policy_version",
+        "maximum_read_bytes",
+        "entries",
+        "requirements",
+        "reason"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "2.0.0"
+        },
+        "scope": {
+          "$ref": "#/$defs/Scope"
+        },
+        "release_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "publication_approval_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "role_version": {
+          "$ref": "#/$defs/Basis"
+        },
+        "execution_policy_version": {
+          "$ref": "#/$defs/Basis"
+        },
+        "maximum_read_bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 8388608
+        },
+        "entries": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Entry"
+          },
+          "maxItems": 10000,
+          "minItems": 1
+        },
+        "requirements": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/RequirementBinding"
+          },
+          "maxItems": 10000
+        },
+        "reason": {
+          "$ref": "#/$defs/Reason"
+        }
+      }
+    },
+    "TargetManifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "schema_ref",
+        "target_revision",
+        "request_sha256",
+        "target",
+        "bindings",
+        "request",
+        "task_input_sha256",
+        "plan_sha256",
+        "profile_revision",
+        "scope_snapshot",
+        "method_coverage",
+        "missing_requirement_ids"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "2.0.0"
+        },
+        "schema_ref": {
+          "const": "urn:medical:strict-field-typed-target:2.0.0"
+        },
+        "target_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "request_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "target": {
+          "$ref": "urn:medical:strict-field-comparison:2.0.0#/$defs/Target"
+        },
+        "bindings": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Entry"
+          },
+          "maxItems": 10000
+        },
+        "request": {
+          "$ref": "#/$defs/Author"
+        },
+        "task_input_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "plan_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "profile_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "scope_snapshot": {
+          "$ref": "#/$defs/Id"
+        },
+        "method_coverage": {
+          "type": "array",
+          "items": {
+            "$ref": "https://schemas.medical-agent.invalid/2.0.0/artifacts#/$defs/MethodCoverage"
+          },
+          "maxItems": 10000
+        },
+        "missing_requirement_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Id"
+          },
+          "maxItems": 10000
+        }
+      }
+    }
+  },
+  "$ref": "#/$defs/TargetManifest"
+}

@@ -76,7 +76,7 @@ public final class SourceExactSchema {
         verifyRange(field.raw_value(),field.chunk_id(),field.quote_hash(),field.locator_sha256(),field.start_codepoint(),field.end_codepoint(),chunk,raw,quote,locator);
     }
     void verifyRange(String value,String chunkId,String quoteHash,String locatorHash,int start,int end,String chunk,String raw,String quote,String locator) throws IOException {
-        literal(value); WireValues.hash(quote); shared.validate("dataset",reader.readTree(locator),"locator");
+        literal(value); WireValues.hash(quote); SourceLocatorSchema.validate(shared,reader.readTree(locator));
         int count=raw.codePointCount(0,raw.length());
         if(!chunkId.equals(chunk) || !quoteHash.equals(quote) || start<0 || end<=start
                 || !DigestUtils.sha256Hex(raw.getBytes(java.nio.charset.StandardCharsets.UTF_8)).equals(quote)
@@ -90,7 +90,7 @@ public final class SourceExactSchema {
     SourceExactProtocol.PublicationInput storedInput(JsonNode node) throws IOException {
         return publication(json.canonical(node).getBytes(java.nio.charset.StandardCharsets.UTF_8));
     }
-    JsonNode locator(String value) throws IOException { var node=reader.readTree(value); shared.validate("dataset",node,"locator"); return node; }
+    JsonNode locator(String value) throws IOException { var node=reader.readTree(value); SourceLocatorSchema.validate(shared,node); return node; }
     void require(String name,JsonNode value) { if(value==null || !definition(name).validate(value).isEmpty()) invalid(); }
     JsonNode envelope(String definition,JsonNode data,String request,String revision) {
         require(definition,data); var value=json.tree(new InterfaceProtocol.Envelope("1.0.0",request,revision,data));

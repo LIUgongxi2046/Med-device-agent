@@ -1,0 +1,774 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:task-candidate-assembly-producer:1.0.0",
+  "$comment": "Bounded deterministic N06 host production only. No model invocation, document saving, adoption or N07 authority. Actual ROLE/078/093 governance remains mandatory.",
+  "$defs": {
+    "Id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+      "format": "uuid"
+    },
+    "Hash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "Positive": {
+      "type": "string",
+      "pattern": "^[1-9][0-9]{0,19}$"
+    },
+    "Revision": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]{0,19})$"
+    },
+    "Instant": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "Reason": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2000
+    },
+    "Classification": {
+      "enum": [
+        "PUBLIC",
+        "INTERNAL",
+        "RESTRICTED",
+        "PERSONAL_HEALTH"
+      ]
+    },
+    "Key": {
+      "type": "string",
+      "pattern": "^[!-~]{16,128}$"
+    },
+    "VersionRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version_id",
+        "content_sha256"
+      ],
+      "properties": {
+        "version_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "content_sha256": {
+          "$ref": "#/$defs/Hash"
+        }
+      }
+    },
+    "InputAuthor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "project_id",
+        "task_id",
+        "task_revision",
+        "plan_revision",
+        "template_version",
+        "scope_snapshot",
+        "release_id",
+        "original_rule_id",
+        "budget_revision",
+        "task_input_sha256",
+        "plan_sha256",
+        "template_sha256",
+        "source_manifest_sha256",
+        "publication_approval_sha256",
+        "original_rule_sha256",
+        "original_approval_sha256",
+        "role_version",
+        "execution_policy",
+        "maximum_bytes",
+        "maximum_artifacts",
+        "maximum_tokens",
+        "maximum_calls",
+        "maximum_amount",
+        "currency",
+        "valid_from",
+        "valid_until",
+        "section_ids",
+        "artifact_kinds",
+        "classification",
+        "expected_revision",
+        "reason",
+        "operations",
+        "enterprise_budget_basis"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "project_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "task_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "task_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "plan_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "template_version": {
+          "$ref": "#/$defs/Id"
+        },
+        "scope_snapshot": {
+          "$ref": "#/$defs/Id"
+        },
+        "release_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "original_rule_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "budget_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "task_input_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "plan_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "template_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "source_manifest_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "publication_approval_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "original_rule_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "original_approval_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "role_version": {
+          "$ref": "#/$defs/VersionRef"
+        },
+        "execution_policy": {
+          "$ref": "#/$defs/VersionRef"
+        },
+        "maximum_bytes": {
+          "$ref": "#/$defs/Positive"
+        },
+        "maximum_artifacts": {
+          "$ref": "#/$defs/Positive"
+        },
+        "maximum_tokens": {
+          "$ref": "#/$defs/Positive"
+        },
+        "maximum_calls": {
+          "$ref": "#/$defs/Positive"
+        },
+        "maximum_amount": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]{0,15})(\\.[0-9]{1,6})?$"
+        },
+        "currency": {
+          "type": "string",
+          "pattern": "^[A-Z]{3}$"
+        },
+        "valid_from": {
+          "$ref": "#/$defs/Instant"
+        },
+        "valid_until": {
+          "$ref": "#/$defs/Instant"
+        },
+        "section_ids": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 256,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/Id"
+          }
+        },
+        "artifact_kinds": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 4,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "ASSEMBLY_MANIFEST",
+              "DOCUMENT_BODY",
+              "ASSEMBLY_COMPANION",
+              "CROSS_FILE_CHECK_REPORT"
+            ]
+          }
+        },
+        "classification": {
+          "$ref": "#/$defs/Classification"
+        },
+        "expected_revision": {
+          "const": "0"
+        },
+        "reason": {
+          "$ref": "#/$defs/Reason"
+        },
+        "operations": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 2,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "NODE_PRODUCE",
+              "HOST_PREDECESSOR_CONSUME"
+            ]
+          }
+        },
+        "enterprise_budget_basis": {
+          "$ref": "#/$defs/VersionRef"
+        },
+        "cross_file_inputs": {
+          "$ref": "#/$defs/CrossFileInputs"
+        }
+      }
+    },
+    "InputManifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "project_id",
+        "task_id",
+        "task_revision",
+        "plan_revision",
+        "template_version",
+        "scope_snapshot",
+        "release_id",
+        "original_rule_id",
+        "budget_revision",
+        "task_input_sha256",
+        "plan_sha256",
+        "template_sha256",
+        "source_manifest_sha256",
+        "publication_approval_sha256",
+        "original_rule_sha256",
+        "original_approval_sha256",
+        "role_version",
+        "execution_policy",
+        "maximum_bytes",
+        "maximum_artifacts",
+        "maximum_tokens",
+        "maximum_calls",
+        "maximum_amount",
+        "currency",
+        "valid_from",
+        "valid_until",
+        "section_ids",
+        "artifact_kinds",
+        "classification",
+        "tenant_id",
+        "rule_id",
+        "producer_node_kind",
+        "purpose",
+        "created_by",
+        "created_at",
+        "operations",
+        "enterprise_budget_basis"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "project_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "task_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "task_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "plan_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "template_version": {
+          "$ref": "#/$defs/Id"
+        },
+        "scope_snapshot": {
+          "$ref": "#/$defs/Id"
+        },
+        "release_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "original_rule_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "budget_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "task_input_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "plan_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "template_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "source_manifest_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "publication_approval_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "original_rule_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "original_approval_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "role_version": {
+          "$ref": "#/$defs/VersionRef"
+        },
+        "execution_policy": {
+          "$ref": "#/$defs/VersionRef"
+        },
+        "maximum_bytes": {
+          "$ref": "#/$defs/Positive"
+        },
+        "maximum_artifacts": {
+          "$ref": "#/$defs/Positive"
+        },
+        "maximum_tokens": {
+          "$ref": "#/$defs/Positive"
+        },
+        "maximum_calls": {
+          "$ref": "#/$defs/Positive"
+        },
+        "maximum_amount": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]{0,15})(\\.[0-9]{1,6})?$"
+        },
+        "currency": {
+          "type": "string",
+          "pattern": "^[A-Z]{3}$"
+        },
+        "valid_from": {
+          "$ref": "#/$defs/Instant"
+        },
+        "valid_until": {
+          "$ref": "#/$defs/Instant"
+        },
+        "section_ids": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 256,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/Id"
+          }
+        },
+        "artifact_kinds": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 4,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "ASSEMBLY_MANIFEST",
+              "DOCUMENT_BODY",
+              "ASSEMBLY_COMPANION",
+              "CROSS_FILE_CHECK_REPORT"
+            ]
+          }
+        },
+        "classification": {
+          "$ref": "#/$defs/Classification"
+        },
+        "tenant_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "rule_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "producer_node_kind": {
+          "const": "N06"
+        },
+        "purpose": {
+          "const": "TASK_NODE_PRODUCTION"
+        },
+        "created_by": {
+          "$ref": "#/$defs/Id"
+        },
+        "created_at": {
+          "$ref": "#/$defs/Instant"
+        },
+        "operations": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 2,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "NODE_PRODUCE",
+              "HOST_PREDECESSOR_CONSUME"
+            ]
+          }
+        },
+        "enterprise_budget_basis": {
+          "$ref": "#/$defs/VersionRef"
+        },
+        "cross_file_inputs": {
+          "$ref": "#/$defs/CrossFileInputs"
+        }
+      }
+    },
+    "InputDecide": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "project_id",
+        "expected_revision",
+        "rule_sha256",
+        "decision",
+        "reason"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "project_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "expected_revision": {
+          "$ref": "#/$defs/Positive"
+        },
+        "rule_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "decision": {
+          "enum": [
+            "APPROVE",
+            "DISABLE"
+          ]
+        },
+        "reason": {
+          "$ref": "#/$defs/Reason"
+        }
+      }
+    },
+    "InputReceipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "tenant_id",
+        "project_id",
+        "task_id",
+        "operation_id",
+        "audit_id",
+        "event_id",
+        "request_sha256",
+        "schema_manifest_sha256",
+        "created_by",
+        "created_at",
+        "classification",
+        "rule_id",
+        "rule_sha256",
+        "decision_id",
+        "status",
+        "revision"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "tenant_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "project_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "task_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "operation_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "audit_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "event_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "request_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "schema_manifest_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "created_by": {
+          "$ref": "#/$defs/Id"
+        },
+        "created_at": {
+          "$ref": "#/$defs/Instant"
+        },
+        "classification": {
+          "$ref": "#/$defs/Classification"
+        },
+        "rule_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "rule_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "decision_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "status": {
+          "enum": [
+            "DRAFT",
+            "APPROVED",
+            "DISABLED"
+          ]
+        },
+        "revision": {
+          "$ref": "#/$defs/Positive"
+        }
+      }
+    },
+    "InputView": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "manifest",
+        "rule_sha256",
+        "status",
+        "revision",
+        "latest_decision_id",
+        "allowed_actions"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "manifest": {
+          "$ref": "#/$defs/InputManifest"
+        },
+        "rule_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "status": {
+          "enum": [
+            "DRAFT",
+            "APPROVED",
+            "DISABLED"
+          ]
+        },
+        "revision": {
+          "$ref": "#/$defs/Positive"
+        },
+        "latest_decision_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "allowed_actions": {
+          "type": "array",
+          "maxItems": 3,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "READ",
+              "APPROVE",
+              "DISABLE"
+            ]
+          }
+        }
+      }
+    },
+    "Recovery": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "project_id",
+        "original_idempotency_key"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "project_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "original_idempotency_key": {
+          "$ref": "#/$defs/Key"
+        }
+      }
+    },
+    "CrossFileDocument": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "document_id",
+        "document_revision",
+        "document_type",
+        "body_artifact",
+        "template_version",
+        "fact_versions"
+      ],
+      "properties": {
+        "document_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "document_revision": {
+          "$ref": "#/$defs/VersionRef"
+        },
+        "document_type": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "body_artifact": {
+          "$ref": "#/$defs/VersionRef"
+        },
+        "template_version": {
+          "$ref": "#/$defs/VersionRef"
+        },
+        "fact_versions": {
+          "type": "array",
+          "maxItems": 512,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/VersionRef"
+          }
+        }
+      }
+    },
+    "CrossFileSelector": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "input_key",
+        "source_kind",
+        "document_revision",
+        "field_id",
+        "value_slot",
+        "fact_version"
+      ],
+      "properties": {
+        "input_key": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "source_kind": {
+          "enum": [
+            "CANDIDATE",
+            "DOCUMENT"
+          ]
+        },
+        "document_revision": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "field_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "value_slot": {
+          "enum": [
+            "ORIGINAL_VALUE",
+            "DECIMAL_VALUE",
+            "UNIT",
+            "MODEL",
+            "CONDITION"
+          ]
+        },
+        "fact_version": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/VersionRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "CrossFileRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rule_id",
+        "rule_revision",
+        "inputs"
+      ],
+      "properties": {
+        "rule_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "rule_revision": {
+          "$ref": "#/$defs/VersionRef"
+        },
+        "inputs": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 512,
+          "items": {
+            "$ref": "#/$defs/CrossFileSelector"
+          }
+        }
+      }
+    },
+    "CrossFileInputs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "documents",
+        "rules"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "documents": {
+          "type": "array",
+          "maxItems": 128,
+          "items": {
+            "$ref": "#/$defs/CrossFileDocument"
+          }
+        },
+        "rules": {
+          "type": "array",
+          "maxItems": 128,
+          "items": {
+            "$ref": "#/$defs/CrossFileRule"
+          }
+        }
+      }
+    }
+  }
+}

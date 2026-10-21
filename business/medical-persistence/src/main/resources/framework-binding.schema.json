@@ -1,0 +1,184 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:framework-binding:1.0.0",
+  "$defs": {
+    "Manifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "release_id",
+        "environment_id",
+        "source_commit",
+        "configuration_sha256",
+        "action_catalogue_sha256",
+        "runtime_environment",
+        "modules"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "release_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "environment_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "source_commit": {
+          "type": "string",
+          "pattern": "^([0-9a-f]{40}|[0-9a-f]{64})$"
+        },
+        "configuration_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "action_catalogue_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "runtime_environment": {
+          "enum": [
+            "DEVELOPMENT",
+            "STAGING",
+            "PRODUCTION",
+            "DESIGN"
+          ]
+        },
+        "modules": {
+          "type": "array",
+          "minItems": 18,
+          "maxItems": 18,
+          "items": {
+            "type": "object"
+          }
+        }
+      }
+    },
+    "Draft": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "manifest"
+      ],
+      "properties": {
+        "manifest": {
+          "$ref": "#/$defs/Manifest"
+        }
+      }
+    },
+    "Approve": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "release_id",
+        "manifest_sha256",
+        "manifest_artifact_id",
+        "reason"
+      ],
+      "properties": {
+        "release_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "manifest_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "manifest_artifact_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+        }
+      }
+    },
+    "Revoke": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "release_id",
+        "reason"
+      ],
+      "properties": {
+        "release_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+        }
+      }
+    },
+    "NativeReadResponse": {
+      "type": "object",
+      "description": "Native RuoYi read envelope; specific original controllers retain their own payload contracts. Not an arbitrary action request."
+    },
+    "JobCommandResponse": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "code",
+        "msg",
+        "data"
+      ],
+      "properties": {
+        "code": {
+          "type": "integer"
+        },
+        "msg": {
+          "type": "string"
+        },
+        "data": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "command_id",
+            "state",
+            "outcome_code",
+            "created_at",
+            "updated_at",
+            "execution_complete"
+          ],
+          "properties": {
+            "command_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "state": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512
+            },
+            "outcome_code": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "created_at": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512
+            },
+            "updated_at": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512
+            },
+            "execution_complete": {
+              "const": false
+            }
+          }
+        }
+      }
+    }
+  }
+}

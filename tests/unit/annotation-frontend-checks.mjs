@@ -176,7 +176,7 @@ api.clearPendingAnnotation(f.session, abortedPending)
 // Execute actual SFC setup with Vue's custom renderer: no DOM/browser and no HTTP transport.
 const renderer = vue.createRenderer({ createElement: tag => ({ tag, children: [] }), createText: text => ({ text }), createComment: text => ({ text }),
   setText: () => {}, setElementText: () => {}, parentNode: () => null, nextSibling: () => null, insert: () => {}, remove: () => {}, patchProp: () => {} })
-function mount(component, props) { const app = renderer.createApp({ ...component, render: () => null }, props); app.config.warnHandler = () => {}; const vm = app.mount({}); return { app, state: vm.$.setupState, componentProps: vm.$.props } }
+function mount(component, props) { const app = renderer.createApp({ ...component, render: () => null }, props); const router = dep('vue-router'); app.provide(router.routeLocationKey, { path: '', query: {} }); app.provide(router.routerKey, { push() {} }); app.config.warnHandler = () => {}; const vm = app.mount({}); return { app, state: vm.$.setupState, componentProps: vm.$.props } }
 async function idle(state) { for (let i = 0; i < 200 && state.busy; i++) await new Promise(r => setTimeout(r, 1)); assert.equal(state.busy, false) }
 globalThis.annotationUser = vue.reactive({ medicalWriting: false })
 currentThreads = threads([]); currentReplies = replies([])

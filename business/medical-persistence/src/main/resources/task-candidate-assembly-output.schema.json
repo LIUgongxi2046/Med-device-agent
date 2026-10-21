@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:task-candidate-assembly-output:1.0.0",
+  "$comment": "Restricted deterministic N06 outputs. No business document save or N07 authority. Only the private assembly authority may produce these bytes. Manifest and body additionally validated against shared artifact/document contracts.",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/Companion"
+    },
+    {
+      "$ref": "#/$defs/CrossFileReport"
+    },
+    {
+      "type": "object",
+      "required": [
+        "target_kind",
+        "sections"
+      ]
+    },
+    {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "template_version",
+        "nodes",
+        "fields",
+        "evidence_links",
+        "fact_usages"
+      ]
+    }
+  ],
+  "$defs": {
+    "Companion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "claim_records",
+        "field_assignments",
+        "attachment_bindings"
+      ],
+      "properties": {
+        "claim_records": {
+          "type": "array"
+        },
+        "field_assignments": {
+          "type": "array"
+        },
+        "attachment_bindings": {
+          "type": "array"
+        }
+      }
+    },
+    "CrossFileReport": {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "node_kind",
+        "target_kind",
+        "status",
+        "body_sha256",
+        "document_saved",
+        "n07_complete",
+        "professional_approval",
+        "assigned_section_ids",
+        "candidate_ids",
+        "identity_mappings",
+        "impact",
+        "blockers",
+        "check_ids",
+        "review_ids"
+      ],
+      "properties": {
+        "node_kind": {
+          "const": "N06"
+        },
+        "target_kind": {
+          "const": "CANDIDATE_SET"
+        },
+        "status": {
+          "enum": [
+            "READY",
+            "BLOCKED"
+          ]
+        },
+        "document_saved": {
+          "const": false
+        },
+        "n07_complete": {
+          "const": false
+        },
+        "professional_approval": {
+          "const": false
+        }
+      }
+    }
+  }
+}

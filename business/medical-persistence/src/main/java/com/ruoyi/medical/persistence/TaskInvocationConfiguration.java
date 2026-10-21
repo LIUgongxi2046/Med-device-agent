@@ -1,0 +1,27 @@
+package com.ruoyi.medical.persistence;
+
+import com.ruoyi.medical.persistence.mapper.*;
+import javax.sql.DataSource;
+import java.nio.file.Path;
+import java.time.Duration;
+import org.springframework.core.env.Environment;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.context.annotation.*;
+
+/** Explicit TASK deployment only. Missing original model,source,tokenizer,075 or supervisor
+ * dependencies fail startup; no verification job or permissive replacement is installed. */
+@Configuration
+@ConditionalOnProperty(name="medical.professional-runtime.task-enabled",havingValue="true",matchIfMissing=false)
+public class TaskInvocationConfiguration {
+ @Bean TaskInvocationHttpSchema taskInvocationHttpSchema(FormalInvocationSchema schema)throws Exception{return new TaskInvocationHttpSchema(schema);}
+ @Bean TaskInvocationLocalBridge taskInvocationLocalBridge(Environment e){String p="medical.professional-runtime.task-gateway.";return new TaskInvocationLocalBridge(new TaskInvocationLocalBridge.Configuration(Path.of(e.getRequiredProperty(p+"executable")),e.getRequiredProperty(p+"executable-sha256"),Path.of(e.getRequiredProperty(p+"entrypoint")),e.getRequiredProperty(p+"entrypoint-sha256"),Path.of(e.getRequiredProperty(p+"package-root")),Path.of(e.getRequiredProperty(p+"package-manifest")),e.getRequiredProperty(p+"package-manifest-sha256"),Path.of(e.getRequiredProperty(p+"private-configuration")),Duration.ofSeconds(Long.parseLong(e.getRequiredProperty(p+"timeout-seconds")))));}
+ @Bean TaskInvocationBridge taskInvocationBridge(TaskProfessionalHostAccess hosts,TaskInvocationContextOrchestrator contexts,TaskInvocationService service,@org.springframework.beans.factory.annotation.Qualifier("taskInvocationLocalBridge") TaskInvocationLocalBridge adapter,Environment e)throws Exception{return new TaskInvocationBridge(hosts,contexts,service,adapter,Duration.ofSeconds(Long.parseLong(e.getRequiredProperty("medical.professional-runtime.task-model-token-lifetime-seconds"))));}
+ @Bean TaskInvocationContextSchema taskInvocationContextSchema()throws Exception{return new TaskInvocationContextSchema();}
+ @Bean TaskInvocationOriginals taskInvocationOriginals(DataSource data,TaskProfessionalObjectRegistration objects,TaskNodeProducerAuthority producers,FormalInvocationSchema schema,TaskInvocationContextSchema exact,PermissionSchema json){return new TaskInvocationOriginals(data,objects,producers,schema,exact,json);}
+ @Bean TaskInvocationRecords taskInvocationRecords(DataSource data,TaskInvocationOriginals originals,FormalInvocationSchema schema){return new TaskInvocationRecords(data,originals,schema);}
+ @Bean TaskInvocationResults taskInvocationResults(DataSource data,TaskInvocationRecords records,FormalInvocationSettlement settlement,FormalInvocationObjectRegistration objects,FormalProviderCaptureEvidence captures,FormalInvocationSchema schema)throws Exception{return new TaskInvocationResults(data,records,settlement,objects,captures,schema);}
+ @Bean TaskInvocationContext taskInvocationContext(DataSource data,TaskNodeInputAuthority inputs,TaskProfessionalRuntimeService runtime,TaskProfessionalSupervisor supervisors,TaskProfessionalObjectRegistration objects,ModelConfigurationService models,ModelEligibilityAuthority eligibility,ResourceReadAuthority resources,SourceReadAuthority sources,FormalInvocationSourceOriginals originals,TaskInvocationPackages packages,TaskNodeProducerAuthority producers,TaskProfessionalContentAuthority contents,@Qualifier("formalInvocationObjectTransport") RuntimeObjectTransport outputTransport,FormalInvocationSchema schema,TaskInvocationContextSchema exact,PermissionSchema json,TaskInvocationResults results,TaskResearchToolReceipts toolReceipts,TaskProfessionalPredecessorEvidence predecessors){return new TaskInvocationContext(data,inputs,runtime,supervisors,objects,models,eligibility,resources,sources,originals,packages,producers,contents,outputTransport,schema,exact,json,results,toolReceipts,predecessors);}
+ @Bean TaskInvocationService taskInvocationService(DataSource data,FormalWorkerAccess workers,RunTokenAuthority tokens,TaskInvocationContext contexts,TaskInvocationRecords records,FormalInvocationReservations reservations,FormalInvocationDispatch dispatch,FormalInvocationReceiptObjects receipts,FormalInvocationSettlement settlement,FormalInvocationObjectRegistration objects,FormalProviderCaptureEvidence captures,FormalInvocationSchema schema,RunTokenAuthoritySchema tokenSchema,FormalInvocationCancellation cancellation)throws Exception{return new TaskInvocationService(data,workers,tokens,contexts,records,reservations,dispatch,receipts,settlement,objects,captures,schema,tokenSchema,cancellation);}
+ @Bean TaskInvocationContextOrchestrator taskInvocationContextOrchestrator(TaskProfessionalHostAccess hosts,TaskProfessionalPromptCompiler prompts,TaskInvocationPackages packages,TaskProfessionalSupervisor supervisor,TaskInvocationContext contexts,FormalInvocationSourceOriginals originals,FormalTokenizerRunner tokenizer,TaskNodeProducerAuthority producers,TaskProfessionalObjectLedger ledger,TaskProfessionalObjectRegistration registration,@Qualifier("taskProfessionalObjectTransport") RuntimeObjectTransport transport,TaskInvocationService invocations){return new TaskInvocationContextOrchestrator(hosts,prompts,packages,supervisor,contexts,originals,tokenizer,producers,ledger,registration,transport,invocations);}
+}

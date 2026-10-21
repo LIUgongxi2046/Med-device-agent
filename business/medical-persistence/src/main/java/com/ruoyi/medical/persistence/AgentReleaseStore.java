@@ -80,7 +80,7 @@ public final class AgentReleaseStore {
         Objects.requireNonNull(admission); WireValues.uuid(releaseId); ProjectSchema.text(purpose, 128);
         if (!purpose.matches("[A-Z][A-Z0-9_]{0,127}")) throw new IllegalArgumentException("发布读取用途无效");
         TenantScope.requireSqlAccess(STATEMENT);
-        String tenant = admission.context().tenant_id(), user = admission.subject().user().user_id();
+        String tenant = admission.context().tenant_id(), user = admission.actorId();
         if (!tenant.equals(TenantScope.requireCurrent().tenantId()) || !user.equals(TenantScope.requireCurrent().subjectId())) denied();
         var values = new HashMap<String,Object>(); values.put("userId", user); values.put("id", releaseId);
         TenantScope.requireSubjectParameter(STATEMENT, values);
@@ -89,6 +89,7 @@ public final class AgentReleaseStore {
             release.registeredKind(), release.contentSha256(), release.registeredSha256(), release.schemaVersion(), release.schemaManifest());
         if (!releaseId.equals(release.releaseId()) || !release.manifestSha256().equals(release.contentSha256())
                 || !manifestIdentity.equals(release.schemaManifest())) mismatch();
+        if(admission.controlWorker())admission.controlProof().requireVersion(releaseId,release.contentSha256());
         var bound = schema.bind(release.manifest().getBytes(StandardCharsets.UTF_8)); var manifest = bound.manifest();
         if (!tenant.equals(manifest.tenantId()) || !releaseId.equals(manifest.releaseId())
                 || !release.agentVersionId().equals(manifest.agentVersionId()) || !release.manifestSha256().equals(bound.sha256())) mismatch();

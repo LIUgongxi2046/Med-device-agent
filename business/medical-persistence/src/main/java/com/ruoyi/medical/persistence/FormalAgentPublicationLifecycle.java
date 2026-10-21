@@ -23,6 +23,47 @@ public final class FormalAgentPublicationLifecycle {
   one(db.update("UPDATE agent_version SET status='DISABLED',revision=revision+1,updated_at=? WHERE tenant_id=? AND project_id <=> ? AND agent_version_id=? AND content_sha256=? AND status='PUBLISHED' AND revision=?",now,intent.tenant(),intent.project(),intent.candidate(),intent.candidateHash(),expected));
   for(var scope:registration.required("scope_revisions"))one(db.update("UPDATE release_scope SET status='DISABLED',revision=2,updated_at=? WHERE tenant_id=? AND scope_revision=? AND release_id=? AND status='ACTIVE' AND revision=1",now,intent.tenant(),scope.path("scope_revision").asText(),intent.release()));requireState(a,intent,registration);return schema.read(saved.receiptJson());
  }
+ /** Authorizes recovery-error disclosure without inspecting another actor's release/sidecar evidence. */
+ void requireOriginalRecoveryRead(EnterpriseAccess.Admission a,String key,JsonNode request)throws Exception{
+  schema.validate("Disable",request);SimulationInputArtifactSchema.key(key);
+  var values=journal.values(a);values.put("kind","PUBLICATION");values.put("key",key);values.put("creatorId",a.actorId());
+  var rows=versions.journalByKey(values);
+  if(rows.size()!=1)throw new TenantAccessException(ErrorCode.ACCESS_DENIED);
+  var original=rows.get(0);
+  if(!a.actorId().equals(original.createdBy())||!key.equals(original.idempotencyKey())||!"PUBLICATION".equals(original.kind())||!a.context().tenant_id().equals(original.tenantId()))throw new TenantAccessException(ErrorCode.ACCESS_DENIED);
+  // No integrity/exists result is disclosed until the original project's current read scope is checked.
+  resources.require(a,FormalAgentCandidateService.governance(a,original.projectId()),"configuration.read","AGENT_PUBLICATION");
+  if(!request.required("release_id").asText().equals(original.resourceId())||!schema.canonical(request).equals(original.requestJson()))throw new TenantAccessException(ErrorCode.IDEMPOTENCY_CONFLICT);
+  var verified=journal.prior(a,"PUBLICATION",key,request);
+  if(verified==null||!original.equals(verified)||!request.required("release_id").asText().equals(verified.resourceId()))bad();
+ }
+ /** Original journal inspection only. Absence is an error and partial evidence never becomes absence. */
+ JsonNode recoverDisable(EnterpriseAccess.Admission a,String key,JsonNode request,FormalAgentPublicationObjectLedger.Row intent,JsonNode registration)throws Exception{
+  schema.validate("Disable",request);SimulationInputArtifactSchema.key(key);
+  if(!intent.release().equals(request.required("release_id").asText()))bad();
+  var original=journal.prior(a,"PUBLICATION",key,request);
+  // This verifies the publication registration, state and every disabled scope, including orphaned sidecars.
+  requireState(a,intent,registration);
+  var rows=disabled(a,intent.release());
+  if(original==null){
+   if(!rows.isEmpty()){
+    var existing=journal.read(a,one(rows).decision());
+    if(a.actorId().equals(existing.createdBy())&&key.equals(existing.idempotencyKey()))bad();
+    throw new TenantAccessException(ErrorCode.ACCESS_DENIED);
+   }
+   throw new TenantAccessException(ErrorCode.OBJECT_UNAVAILABLE);
+  }
+  var stored=one(rows);
+  if(!a.actorId().equals(original.createdBy()))throw new TenantAccessException(ErrorCode.ACCESS_DENIED);
+  if(!"PUBLICATION".equals(original.kind())||!key.equals(original.idempotencyKey())||!intent.release().equals(original.resourceId())||!stored.decision().equals(original.recordId())||!schema.canonical(request).equals(original.requestJson()))bad();
+  var content=schema.read(original.contentJson());
+  var result=json.object().put("schema_version","1.0.0").put("state","COMPLETED")
+   .put("original_key",key).put("actor_id",original.createdBy()).put("release_id",intent.release())
+   .put("expected_revision",content.required("expected_revision").asText())
+   .put("resulting_revision",content.required("resulting_revision").asText())
+   .put("request_body_sha256",schema.hash(request));
+  result.set("receipt",schema.read(original.receiptJson()));return result;
+ }
  record State(String status,BigInteger revision,String evaluation,LocalDateTime changed){}
  private static <T>T one(List<T> v){if(v.size()!=1)bad();return v.get(0);}private static void one(int n){if(n!=1)bad();}private static void bad(){throw new TenantAccessException(ErrorCode.CONTENT_MISMATCH);}
 }

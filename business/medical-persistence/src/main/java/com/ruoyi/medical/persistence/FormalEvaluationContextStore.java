@@ -52,6 +52,41 @@ public final class FormalEvaluationContextStore {
   checked.requireCurrent();loaded=load(a,request.binding().version_id());if("APPROVED".equals(status))approval(a,loaded);advance(a);return receipt(loaded,row);
  }
  public JsonNode read(EnterpriseAccess.Admission a,String version)throws Exception{var loaded=load(a,version);var v=json.object();v.set("fixed",schema.read(text(loaded.row(),"content_json")));v.put("status",text(loaded.state(),"status"));v.put("revision",number(loaded.state(),"revision").toString());return v;}
+ /** Current read authority and the original, independently verified journal; never grants execution authority. */
+ public JsonNode readView(EnterpriseAccess.Admission a,String version,FormalEvaluationContextReadAuthority reads)throws Exception {
+  var loaded=load(a,version);reads.require(a,loaded.definition());
+  var view=json.object().put("schema_version","1.0.0");
+  view.set("binding",json.tree(new PermissionProtocol.Basis(version,text(loaded.row(),"content_sha256"))));
+  view.set("fixed",schema.read(text(loaded.row(),"content_json")));
+  view.put("author_reason",schema.author(text(loaded.row(),"request_json").getBytes(java.nio.charset.StandardCharsets.UTF_8)).reason());
+  view.put("status",text(loaded.state(),"status")).put("revision",number(loaded.state(),"revision").toString());
+  var decisions=view.putArray("decisions");for(var decision:loaded.decisions())decisions.add(schema.read(text(decision,"content_json")));
+  return view;
+ }
+ /** Original receipt lookup only. Missing operations are never authored or replayed. No fresh write grant is needed. */
+ public Receipt recover(EnterpriseAccess.Admission a,String kind,String originalKey,byte[] originalRequest,FormalEvaluationContextReadAuthority reads)throws Exception {
+  current(a);key(originalKey);String table,requestJson,requestedVersion=null;
+  if("AUTHOR".equals(kind)){table="formal_evaluation_context_version";requestJson=json.canonicalObject(schema.author(originalRequest));}
+  else if("DECISION".equals(kind)){table="formal_evaluation_context_decision";var request=schema.decide(originalRequest);requestJson=json.canonicalObject(request);requestedVersion=request.binding().version_id();}
+  else throw new SchemaRejection(ErrorCode.SCHEMA_INVALID);
+  var row=prior(a,table,originalKey,sha(requestJson));if(row==null)deny(ErrorCode.OBJECT_UNAVAILABLE);
+  if(!a.actorId().equals(row.get("created_by"))||!requestJson.equals(row.get("request_json")))bad();
+  String version=text(row,"version_id");if(requestedVersion!=null&&!requestedVersion.equals(version))bad();
+  var loaded=load(a,version);
+  if("AUTHOR".equals(kind)){if(!row.equals(loaded.row()))bad();}
+  else if(loaded.decisions().stream().noneMatch(row::equals))bad();
+  reads.require(a,loaded.definition());
+  return receipt(loaded,row);
+ }
+ /** Bounded, exact-project keyset lookup. The caller owns the opaque session-bound cursor. */
+ public List<String> seek(EnterpriseAccess.Admission a,String project,String after,int limit)throws Exception {
+  current(a);WireValues.uuid(project);WireValues.uuid(after);if(limit<1||limit>20)throw new SchemaRejection(ErrorCode.SCHEMA_INVALID);
+  authorizeRead(a,project);
+  var rows=db.queryForList("SELECT version_id FROM formal_evaluation_context_version WHERE tenant_id=? AND project_id=? AND version_id>? ORDER BY version_id LIMIT ?",a.context().tenant_id(),project,after,limit+1);
+  if(rows.size()>limit+1)bad();var ids=new ArrayList<String>();String previous=after;
+  for(var row:rows){String id=text(row,"version_id");WireValues.uuid(id);if(id.compareTo(previous)<=0)bad();ids.add(id);previous=id;}
+  return List.copyOf(ids);
+ }
  public Approved requireApproved(EnterpriseAccess.Admission a,PermissionProtocol.Basis binding,PermissionProtocol.Basis candidate,PermissionProtocol.Basis policy)throws Exception {
   var loaded=load(a,binding.version_id(),"EVALUATION_RESULTS");if(!binding.content_sha256().equals(loaded.row().get("content_sha256"))||!candidate.equals(loaded.definition().candidate())||!policy.equals(loaded.definition().executionPolicy()))bad();
   var checked=dependencies.require(a,loaded.definition());var grant=approval(a,loaded);checked.requireCurrent();return new Approved(this,a,binding,candidate,policy,loaded.definition(),loaded.canonical(),json.canonical(AgentPublicationWitness.tree(grant)),checked.authorizations());

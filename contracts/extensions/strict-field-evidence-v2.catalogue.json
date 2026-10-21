@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0.0",
+  "base_catalogue_sha256": "dcd72acbb7a45775373662e0ffe4557030d4740b0afacdee8375e7768e761915",
+  "schemas": [
+    {
+      "name": "strict-field-typed-v2",
+      "path": "business/medical-persistence/src/main/resources/strict-field-typed-v2.schema.json",
+      "sha256": "c7b37ac7dcbfb24d60017d227f1e6ccfd15469d1005b16658c8f0d72a9043225"
+    },
+    {
+      "name": "strict-field-comparison-v2",
+      "path": "business/medical-persistence/src/main/resources/strict-field-comparison-v2.schema.json",
+      "sha256": "b7ae7181ef2063969e8a9b6b8f4efde221bde566a508e14988a1eb8d9ba28076"
+    },
+    {
+      "name": "task-strict-field-input-v2",
+      "path": "business/medical-persistence/src/main/resources/task-strict-field-v2.schema.json",
+      "sha256": "b3129e6810c3d8faf4449dfecb53ab1b50c164c561a240a483c798a3285887fd"
+    }
+  ]
+}

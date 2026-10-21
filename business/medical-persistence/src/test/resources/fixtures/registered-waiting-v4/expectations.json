@@ -1,0 +1,43 @@
+{
+  "fixture_notice": "Synthetic logical test records, encoded by the pinned authentic codec. Not actual model, permission, approval or runtime evidence.",
+  "session": "10000000-0000-4000-8000-000000000001",
+  "workspace": "/jobs/test/workspace",
+  "request": {
+    "call_id": "fixture-ask",
+    "name": "ask_user_question",
+    "arguments": {
+      "question_type": "NEED_EVIDENCE",
+      "prompt_text": "Which document supports this requirement?",
+      "target_section_ids": [
+        "10000000-0000-4000-8000-000000000001"
+      ],
+      "requirement_ids": [
+        "10000000-0000-4000-8000-000000000001"
+      ],
+      "evidence_refs": []
+    }
+  },
+  "response": {
+    "schema_version": "1.0.0",
+    "action_id": "10000000-0000-4000-8000-000000000001",
+    "tool_id": "AT-08",
+    "status": "WAITING_INPUT",
+    "artifact_id": "10000000-0000-4000-8000-000000000001",
+    "resource_revision": null,
+    "summary": "Question saved for the frozen responsible owner; no approval or continuation",
+    "coverage": {
+      "requested_scope_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "delivered_scope_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "complete": true
+    },
+    "next_cursor": null,
+    "payload": {
+      "kind": "RECEIPT",
+      "resource_id": "10000000-0000-4000-8000-000000000001",
+      "resource_kind": "WAITING_ITEM",
+      "resource_state": "WAITING_INPUT",
+      "check_ids": []
+    }
+  },
+  "sha256": "7d6102242af26e724dab434ee01583d9c5c1a751092f7bf1060057c4d433a22b"
+}

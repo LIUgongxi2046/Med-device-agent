@@ -60,4 +60,56 @@
     <select id="version" resultMap="version" useCache="false" flushCache="true">
         SELECT version_id,owner_project_id,entity_kind,content_sha256 FROM version_registry v WHERE version_id=#{id}
     </select>
+    <select id="evaluationExactInputOwners" resultType="java.lang.String" useCache="false" flushCache="true">
+        SELECT write_id FROM formal_evaluation_exact_input_intent i WHERE artifact_id=#{id} LIMIT 2
+    </select>
+    <select id="evaluationNodeInputOwners" resultType="java.lang.String" useCache="false" flushCache="true">
+        SELECT write_id FROM formal_evaluation_node_input_intent i WHERE artifact_id=#{id} LIMIT 2
+    </select>
+    <select id="evaluationPlanPreparationOwners" resultType="java.lang.String" useCache="false" flushCache="true">
+        SELECT write_id FROM formal_evaluation_plan_preparation_intent i WHERE artifact_id=#{id} LIMIT 2
+    </select>
+    <select id="taskFieldTargetOwners" resultType="java.lang.String" useCache="false" flushCache="true">
+        SELECT write_id FROM task_field_target_intent i WHERE planned_artifact_id=#{id} LIMIT 2
+    </select>
+    <select id="taskNodeInputOwners" resultType="java.lang.String" useCache="false" flushCache="true">
+        SELECT write_id FROM task_node_input_intent i WHERE artifact_id=#{id} LIMIT 2
+    </select>
+    <!-- The immutable v2 intent owns prepared objects before any 099 admission binding exists. -->
+    <select id="runtimeProfessionalOwners" resultType="java.lang.String" useCache="false" flushCache="true">
+        SELECT write_id FROM runtime_object_intent i WHERE planned_artifact_id=#{id} AND schema_version='2.0.0' LIMIT 2
+    </select>
+    <select id="planDraftInputOwners" resultType="java.lang.String" useCache="false" flushCache="true">
+        SELECT write_id FROM task_plan_draft_object_intent i WHERE artifact_id=#{id} AND object_kind='PLAN_DRAFT_INPUT' LIMIT 2
+    </select>
+    <select id="planDraftExactInputOwners" resultType="java.lang.String" useCache="false" flushCache="true">
+        SELECT write_id FROM task_plan_draft_exact_intent i WHERE artifact_id=#{id} LIMIT 2
+    </select>
+    <!-- Immutable producer intent, not the mutable artifact label or registration state. -->
+    <select id="sectionWriterInputOwners" resultType="java.lang.String" useCache="false" flushCache="true">
+        SELECT write_id FROM task_section_writer_object_intent i WHERE artifact_id=#{id} AND kind IN ('TASK_SECTION_WRITER_INPUT','STEP_ENVELOPE') LIMIT 2
+    </select>
+    <select id="sectionWriterExactInputOwners" resultType="java.lang.String" useCache="false" flushCache="true">
+        SELECT write_id FROM task_section_writer_exact_intent i WHERE artifact_id=#{id} LIMIT 2
+    </select>
+    <select id="sourceVerifierInputOwners" resultType="java.lang.String" useCache="false" flushCache="true">
+        SELECT write_id FROM task_source_verifier_object_intent i WHERE artifact_id=#{id} AND kind IN ('TASK_SOURCE_VERIFIER_INPUT','STEP_ENVELOPE') LIMIT 2
+    </select>
+    <select id="sourceVerifierExactInputOwners" resultType="java.lang.String" useCache="false" flushCache="true">
+        SELECT write_id FROM task_source_verifier_exact_intent i WHERE artifact_id=#{id} LIMIT 2
+    </select>
+    <select id="candidateAssemblyOwners" resultType="java.lang.String" useCache="false" flushCache="true">
+        SELECT write_id FROM task_candidate_assembly_object_intent i WHERE artifact_id=#{id} LIMIT 2
+    </select>
+    <select id="documentReviewExactInputOwners" resultType="java.lang.String" useCache="false" flushCache="true">
+        SELECT write_id FROM document_review_exact_intent i WHERE artifact_id=#{id} LIMIT 2
+    </select>
+  <select id="evaluationRuntimeObjectOwners" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT write_id FROM formal_evaluation_runtime_object_intent WHERE artifact_id=#{artifactId}
+    UNION ALL SELECT write_id FROM formal_evaluation_deterministic_object_intent WHERE artifact_id=#{artifactId}
+    UNION ALL SELECT write_id FROM formal_evaluation_stage_input_intent WHERE artifact_id=#{artifactId}
+  </select>
+    <select id="evaluationCallExactInputOwners" resultType="java.lang.String" useCache="false" flushCache="true">
+        SELECT write_id FROM formal_evaluation_call_exact_intent WHERE artifact_id=#{id} LIMIT 2
+    </select>
 </mapper>

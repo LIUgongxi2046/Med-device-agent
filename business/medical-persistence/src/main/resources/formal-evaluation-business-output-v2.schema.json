@@ -1,0 +1,265 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:evaluation-business-output:2.0.0",
+  "$defs": {
+    "Output": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "node_kind",
+        "projection_schema_ref",
+        "projection_schema_sha256",
+        "projection",
+        "normalized",
+        "body",
+        "blockers",
+        "professional_approval"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "2.0.0"
+        },
+        "node_kind": {
+          "enum": [
+            "N02",
+            "N03",
+            "N04",
+            "N05",
+            "N06",
+            "N07"
+          ]
+        },
+        "projection_schema_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "projection_schema_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "projection": {
+          "oneOf": [
+            {
+              "$ref": "https://schemas.medical-agent.invalid/2.0.0/artifacts#/$defs/EvidenceBundle"
+            },
+            {
+              "$ref": "https://schemas.medical-agent.invalid/2.0.0/artifacts#/$defs/FieldCheckResult"
+            },
+            {
+              "$ref": "https://schemas.medical-agent.invalid/2.0.0/artifacts#/$defs/SectionDraft"
+            },
+            {
+              "$ref": "https://schemas.medical-agent.invalid/2.0.0/artifacts#/$defs/ReviewFindings"
+            },
+            {
+              "$ref": "https://schemas.medical-agent.invalid/2.0.0/artifacts#/$defs/AssemblyManifest"
+            }
+          ]
+        },
+        "normalized": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "https://schemas.medical-agent.invalid/2.0.0/artifacts#/$defs/EvidenceBundle"
+            },
+            {
+              "$ref": "https://schemas.medical-agent.invalid/2.0.0/artifacts#/$defs/FieldCheckResult"
+            },
+            {
+              "$ref": "https://schemas.medical-agent.invalid/2.0.0/artifacts#/$defs/SectionDraft"
+            },
+            {
+              "$ref": "https://schemas.medical-agent.invalid/2.0.0/artifacts#/$defs/ReviewFindings"
+            },
+            {
+              "$ref": "https://schemas.medical-agent.invalid/2.0.0/artifacts#/$defs/AssemblyManifest"
+            }
+          ]
+        },
+        "body": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "https://schemas.medical-agent.invalid/2.0.0/document-body#/$defs/DocumentBody"
+            }
+          ]
+        },
+        "blockers": {
+          "type": "array",
+          "maxItems": 10000,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "professional_approval": {
+          "const": false
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "node_kind": {
+                "const": "N02"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "projection": {
+                "$ref": "https://schemas.medical-agent.invalid/2.0.0/artifacts#/$defs/EvidenceBundle"
+              },
+              "normalized": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "https://schemas.medical-agent.invalid/2.0.0/artifacts#/$defs/EvidenceBundle"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "node_kind": {
+                "const": "N03"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "projection": {
+                "$ref": "https://schemas.medical-agent.invalid/2.0.0/artifacts#/$defs/FieldCheckResult"
+              },
+              "normalized": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "https://schemas.medical-agent.invalid/2.0.0/artifacts#/$defs/FieldCheckResult"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "node_kind": {
+                "const": "N04"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "projection": {
+                "$ref": "https://schemas.medical-agent.invalid/2.0.0/artifacts#/$defs/SectionDraft"
+              },
+              "normalized": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "https://schemas.medical-agent.invalid/2.0.0/artifacts#/$defs/SectionDraft"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "node_kind": {
+                "const": "N05"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "projection": {
+                "$ref": "https://schemas.medical-agent.invalid/2.0.0/artifacts#/$defs/ReviewFindings"
+              },
+              "normalized": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "https://schemas.medical-agent.invalid/2.0.0/artifacts#/$defs/ReviewFindings"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "node_kind": {
+                "const": "N06"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "projection": {
+                "$ref": "https://schemas.medical-agent.invalid/2.0.0/artifacts#/$defs/AssemblyManifest"
+              },
+              "normalized": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "https://schemas.medical-agent.invalid/2.0.0/artifacts#/$defs/AssemblyManifest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "node_kind": {
+                "const": "N07"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "projection": {
+                "$ref": "https://schemas.medical-agent.invalid/2.0.0/artifacts#/$defs/ReviewFindings"
+              },
+              "normalized": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "https://schemas.medical-agent.invalid/2.0.0/artifacts#/$defs/ReviewFindings"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

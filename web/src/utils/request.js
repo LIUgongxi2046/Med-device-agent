@@ -1,3 +1,4 @@
+import { readN01Json } from '@/api/medical/n01-json'
 import { readExecutionPolicyJson } from '@/api/medical/execution-policy-json'
 import { readRetentionJson } from '@/api/medical/retention-json'
 import axios from 'axios'
@@ -72,7 +73,20 @@ service.interceptors.request.use(config => {
         config.transformResponse = [readExecutionPolicyJson]
         config.transformRequest = [writeProjectJson]
         config.headers.setContentType('application/json;charset=utf-8', true)
-      } else if (['/api/formal-agent-publication-feature-availability', '/api/formal-agent-publications', '/api/formal-agent-publications/disable', '/api/formal-agent-acceptance-decisions', '/api/formal-evaluation-score-bindings', '/api/formal-evaluation-score-bindings/recovery'].includes(target.pathname)
+      } else if (['/api/formal-evaluation-node-input-availability', '/api/formal-evaluation-node-inputs', '/api/formal-evaluation-node-inputs/status', '/api/formal-evaluation-node-inputs/content', '/api/formal-evaluation-node-inputs/recovery', '/api/formal-evaluation-plan-feature-availability', '/api/formal-evaluation-plan-preparations', '/api/formal-evaluation-plan-preparations/executions', '/api/formal-evaluation-plan-preparations/executions/recovery', '/api/formal-evaluation-plan-preparations/preview', '/api/formal-evaluation-plan-preparations/status', '/api/formal-evaluation-plan-preparations/recovery', '/api/formal-evaluation-plan-preparations/content'].includes(target.pathname)) {
+        config.responseType = 'text'
+        config.transformResponse = [readN01Json]
+        config.transformRequest = [writeProjectJson]
+        config.headers.setContentType('application/json;charset=utf-8', true)
+      } else if (['/api/formal-evaluation-context-feature-availability', '/api/formal-evaluation-context-bindings', '/api/formal-evaluation-context-decisions', '/api/formal-evaluation-context-bindings/query', '/api/formal-evaluation-context-bindings/recovery'].includes(target.pathname)
+          || /^\/api\/formal-evaluation-context-bindings\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(target.pathname)) {
+        config.responseType = 'text'
+        config.transformResponse = [readCapabilityJson]
+        config.transformRequest = [writeProjectJson]
+        config.headers.setContentType('application/json;charset=utf-8', true)
+      } else if (['/api/formal-agent-publication-feature-availability', '/api/formal-agent-publications', '/api/formal-agent-publications/disable', '/api/formal-agent-publications/disable/recovery', '/api/formal-agent-acceptance-decisions', '/api/formal-evaluation-score-bindings', '/api/formal-evaluation-score-bindings/recovery'].includes(target.pathname)
+          || /^\/api\/formal-evaluation-policies\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(target.pathname)
+          || /^\/api\/expert-qualifications\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(target.pathname)
           || /^\/api\/formal-agent-publication-operations\/(?:[A-Za-z0-9._:-]|%3[Aa]){16,128}$/.test(target.pathname)
           || /^\/api\/formal-agent-acceptance-records\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:\/operation-receipts\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$/.test(target.pathname)) {
         config.responseType = 'text'
@@ -153,6 +167,7 @@ service.interceptors.request.use(config => {
           || target.pathname === '/api/rule-versions' || target.pathname.startsWith('/api/rule-versions/')
           || target.pathname === '/api/model-config-revisions' || target.pathname.startsWith('/api/model-config-revisions/')
           || target.pathname === '/api/simulation-model-config-revisions' || target.pathname.startsWith('/api/simulation-model-config-revisions/')
+          || target.pathname.startsWith('/api/multimodal-qa/simulations/')
           || target.pathname === '/api/template-versions' || target.pathname.startsWith('/api/template-versions/')
           || target.pathname === '/api/enterprise-registration-reviews' || target.pathname.startsWith('/api/enterprise-registration-reviews/')
           || target.pathname === '/api/enterprise-registrations' || target.pathname.startsWith('/api/enterprise-registrations/')) {

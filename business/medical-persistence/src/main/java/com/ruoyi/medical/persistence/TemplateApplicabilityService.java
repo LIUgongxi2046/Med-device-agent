@@ -90,7 +90,7 @@ public final class TemplateApplicabilityService {
             if (page.getTotal() != views.size()) mismatch();
             var items = json.object().arrayNode();
             for (String id : page.getList()) {
-                var view = views.get(id); if (view == null) mismatch(); items.add(json.tree(view));
+                var view = views.get(id); if (view == null) mismatch(); items.add(json.tree(legacyView(view)));
             }
             var data = json.object(); data.put("schema_version", "1.0.0"); data.put("project_id", projectId);
             data.put("profile_revision", query.profile_revision()); data.put("profile_sha256", profile.sha256()); data.put("document_type", query.document_type());
@@ -104,6 +104,18 @@ public final class TemplateApplicabilityService {
 
     Target requireTarget(EnterpriseAccess.Admission admission, String projectId, String profileRevision,
             String documentType, String templateVersion, String purpose) throws IOException {
+        return target(admission, projectId, profileRevision, documentType, templateVersion, purpose, false);
+    }
+
+    /** Read the same authorized approved fixed template, retaining a genuine NOT_APPLICABLE result.
+     * Permission failures are never converted into applicability results. */
+    Target inspectTarget(EnterpriseAccess.Admission admission, String projectId, String profileRevision,
+            String documentType, String templateVersion, String purpose) throws IOException {
+        return target(admission, projectId, profileRevision, documentType, templateVersion, purpose, true);
+    }
+
+    private Target target(EnterpriseAccess.Admission admission, String projectId, String profileRevision,
+            String documentType, String templateVersion, String purpose, boolean includeIncompatible) throws IOException {
         WireValues.uuid(templateVersion); ProjectSchema.text(purpose, 200);
         var query = json.object(); query.put("document_type", documentType); query.put("profile_revision", profileRevision);
         query.put("page", 1); query.put("page_size", 1); schema.verify("Query", query);
@@ -114,9 +126,9 @@ public final class TemplateApplicabilityService {
         var template = store.applicationTarget(admission, templateVersion, purpose);
         if (!template.content().document_type().equals(documentType)) throw new TenantAccessException(ErrorCode.RESULT_VERSION_MISMATCH);
         var compatible = compatible(profile.attributes(), template.content(), projectId);
-        if (compatible.status().equals("NOT_APPLICABLE")) throw new TenantAccessException(ErrorCode.ACCESS_DENIED);
+        if (!includeIncompatible && compatible.status().equals("NOT_APPLICABLE")) throw new TenantAccessException(ErrorCode.ACCESS_DENIED);
         var evaluation = evaluate(admission, profile, profileProofs, template, compatible, new HashMap<>(), purpose);
-        if (evaluation.view().applicability().equals("NOT_APPLICABLE")) throw new TenantAccessException(ErrorCode.ACCESS_DENIED);
+        if (!includeIncompatible && evaluation.view().applicability().equals("NOT_APPLICABLE")) throw new TenantAccessException(ErrorCode.ACCESS_DENIED);
         if (!grant.equals(authority.require(admission, scope, "template.read", purpose))) throw new TenantAccessException(ErrorCode.SCOPE_STALE);
         return new Target(admission, purpose, profile, evaluation.view(), grant, evaluation.dependencyAuthorizations());
     }
@@ -143,8 +155,63 @@ public final class TemplateApplicabilityService {
         String authorization = json.canonical(fingerprint);
         var view = new TemplateApplicabilityProtocol.TemplateView(template, overall.status(), conditions, missing(template, conditions),
                 DigestUtils.sha256Hex(authorization));
-        schema.verify("TemplateView", json.tree(view));
+        view = applyHumanDecisions(admission,profile,view);
+        schema.verifyApplication("TemplateView", json.tree(view));
         return new Evaluation(view, authorization);
+    }
+
+    /** Public v1 projection must never serialize the additive private decision-proof fields. */
+    static TemplateApplicabilityProtocol.LegacyTemplateView legacyView(TemplateApplicabilityProtocol.TemplateView view) {
+        return new TemplateApplicabilityProtocol.LegacyTemplateView(view.template(),view.applicability(),view.conditions(),
+                view.missing_requirements(),view.dependency_authorizations_sha256());
+    }
+
+    static TemplateApplicabilityProtocol.TemplateView machineView(TemplateApplicabilityProtocol.TemplateView view) {
+        var conditions=view.machine_conditions();
+        return new TemplateApplicabilityProtocol.TemplateView(view.template(),combine(conditions.subList(0,2)).status(),
+                conditions,missing(view.template(),conditions),view.dependency_authorizations_sha256());
+    }
+
+    private TemplateApplicabilityProtocol.TemplateView applyHumanDecisions(EnterpriseAccess.Admission admission,
+            ProjectProtocol.VerifiedProfile profile,TemplateApplicabilityProtocol.TemplateView machine)throws IOException {
+        var values=values(admission);values.put("projectId",profile.project().projectId());
+        values.put("profileId",profile.project().profileRevision());values.put("templateId",machine.template().template_version());
+        var history=TemplateApplicationHistory.load(mapper,values,json,schema,schema.applicationManifestSha256(),identity.classification());
+        return resolveHumanDecisions(machine,history.decisions(),json);
+    }
+    static TemplateApplicabilityProtocol.TemplateView resolveHumanDecisions(TemplateApplicabilityProtocol.TemplateView machine,
+            List<JsonNode> decisions,PermissionSchema json)throws IOException {
+        // Only the latest decision for a target may apply; an invalidated latest choice never revives an older one.
+        var latest=new LinkedHashMap<String,JsonNode>();
+        for(var decision:decisions) {
+            var request=decision.required("request");latest.put(request.required("scope").asText()+":"+request.required("target_id").asText(),decision);
+        }
+        String baseline=DigestUtils.sha256Hex(json.canonical(json.tree(machine)));
+        var conditions=new ArrayList<>(machine.conditions());var used=new ArrayList<JsonNode>();
+        for(var decision:latest.values()) {
+            var request=decision.required("request");
+            if(!baseline.equals(request.required("baseline_sha256").asText()))continue;
+            TemplateApplicationService.validateTarget(machine.template().template_version(),request,machine);
+            String scope=request.required("scope").asText(),id=request.required("target_id").asText(),status=request.required("applicability").asText();
+            if(scope.equals("TEMPLATE")) {
+                // The retained machine_conditions always disclose unresolved source inputs.
+                // Resolve only unknowns; matching confirmations carry their reason without changing rule outcomes.
+                if(machine.applicability().equals("UNKNOWN"))
+                    for(int n=0;n<2;n++)conditions.set(n,resolved(conditions.get(n),status));
+            } else {
+                int index=-1;for(int n=2;n<conditions.size();n++)if(conditions.get(n).scope().equals("NODE")&&conditions.get(n).target_id().equals(id))index=n;
+                if(index<0)mismatch();
+                if(machine.conditions().get(index).status().equals("UNKNOWN"))conditions.set(index,resolved(conditions.get(index),status));
+            }
+            used.add(decision);
+        }
+        if(used.isEmpty())return machine;
+        return new TemplateApplicabilityProtocol.TemplateView(machine.template(),combine(conditions.subList(0,2)).status(),conditions,
+                missing(machine.template(),conditions),machine.dependency_authorizations_sha256(),machine.conditions(),used);
+    }
+    private static TemplateApplicabilityProtocol.ConditionResult resolved(TemplateApplicabilityProtocol.ConditionResult source,String status) {
+        return new TemplateApplicabilityProtocol.ConditionResult(source.scope(),source.target_id(),source.rule_revision(),source.engine_revision(),
+                source.input_keys(),status,List.of());
     }
 
     record Target(EnterpriseAccess.Admission admission, String purpose, ProjectProtocol.VerifiedProfile profile,
@@ -264,13 +331,13 @@ public final class TemplateApplicabilityService {
         return combineResults(values.stream().map(value -> new TemplateApplicabilityProtocol.Result(value.status(), value.unknown_input_keys())).toList());
     }
     static TemplateApplicabilityProtocol.Result combineResults(List<TemplateApplicabilityProtocol.Result> values) {
-        var unknown = new java.util.LinkedHashSet<String>();
+        var unknown = new java.util.LinkedHashSet<String>(); boolean hasUnknown = false;
         for (var value : values) {
             if (value.status().equals("NOT_APPLICABLE")) return new TemplateApplicabilityProtocol.Result("NOT_APPLICABLE", List.of());
-            if (value.status().equals("UNKNOWN")) unknown.addAll(value.unknown_input_keys());
+            if (value.status().equals("UNKNOWN")) { hasUnknown = true; unknown.addAll(value.unknown_input_keys()); }
             else if (!value.status().equals("APPLICABLE")) mismatch();
         }
-        return new TemplateApplicabilityProtocol.Result(unknown.isEmpty() ? "APPLICABLE" : "UNKNOWN", List.copyOf(unknown));
+        return new TemplateApplicabilityProtocol.Result(hasUnknown ? "UNKNOWN" : "APPLICABLE", List.copyOf(unknown));
     }
     private static Map<String,Object> values(EnterpriseAccess.Admission admission) {
         var values = new HashMap<String,Object>(); values.put("userId", admission.subject().user().user_id()); return values;

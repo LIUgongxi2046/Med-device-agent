@@ -160,6 +160,11 @@
     UPDATE export_manifest SET status='QUEUED',revision=revision+1,updated_at=#{now}
     WHERE export_id=#{exportId} AND revision=#{manifestRevision} AND status IN ('PARTIAL_FAILED','FAILED','CANCELLED')
   </update>
+  <update id="recoverItem">
+    UPDATE export_item SET status='QUEUED',revision=revision+1,updated_at=#{now}
+    WHERE export_item_id=#{exportItemId} AND revision=#{itemRevision} AND status IN ('RUNNING','VERIFYING')
+      AND artifact_id IS NULL AND object_ref IS NULL AND validation_artifact_id IS NULL
+  </update>
   <update id="claimItem">
     UPDATE export_item SET status='RUNNING',revision=revision+1,updated_at=#{now}
     WHERE export_item_id=#{exportItemId} AND status='QUEUED' AND revision=#{itemRevision}

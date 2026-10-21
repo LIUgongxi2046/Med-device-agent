@@ -1,0 +1,2400 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:task-run-lifecycle:1.0.0",
+  "$defs": {
+    "Id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "Hash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "WorkflowReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "tenantId",
+        "projectId",
+        "runId",
+        "inputManifestId",
+        "policyRevision",
+        "executionKind",
+        "inputSha256",
+        "deadlineEpochMillis",
+        "maximumCommands",
+        "maximumSteps",
+        "maximumParallelSteps",
+        "readTimeoutMillis",
+        "stepTimeoutMillis",
+        "scheduleTimeoutMillis",
+        "controlTaskQueue",
+        "professionalTaskQueue"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "1.0.0"
+        },
+        "tenantId": {
+          "$ref": "#/$defs/Id"
+        },
+        "projectId": {
+          "$ref": "#/$defs/Id"
+        },
+        "runId": {
+          "$ref": "#/$defs/Id"
+        },
+        "inputManifestId": {
+          "$ref": "#/$defs/Id"
+        },
+        "policyRevision": {
+          "$ref": "#/$defs/Id"
+        },
+        "executionKind": {
+          "const": "TASK"
+        },
+        "inputSha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "deadlineEpochMillis": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9223372036854775807
+        },
+        "maximumCommands": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2147483647
+        },
+        "maximumSteps": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2147483647
+        },
+        "maximumParallelSteps": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2147483647
+        },
+        "readTimeoutMillis": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9223372036854775807
+        },
+        "stepTimeoutMillis": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9223372036854775807
+        },
+        "scheduleTimeoutMillis": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9223372036854775807
+        },
+        "controlTaskQueue": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,199}$"
+        },
+        "professionalTaskQueue": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,199}$"
+        }
+      }
+    },
+    "Output": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifactId",
+        "sha256",
+        "schemaRef"
+      ],
+      "properties": {
+        "artifactId": {
+          "$ref": "#/$defs/Id"
+        },
+        "sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "schemaRef": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        }
+      }
+    },
+    "Dispatch": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "runId",
+        "stepId",
+        "actionId",
+        "commandId",
+        "stepEnvelopeArtifactId",
+        "inputSha256",
+        "leaseGeneration",
+        "stepEnvelopeSha256"
+      ],
+      "properties": {
+        "runId": {
+          "$ref": "#/$defs/Id"
+        },
+        "stepId": {
+          "$ref": "#/$defs/Id"
+        },
+        "actionId": {
+          "$ref": "#/$defs/Id"
+        },
+        "commandId": {
+          "$ref": "#/$defs/Id"
+        },
+        "stepEnvelopeArtifactId": {
+          "$ref": "#/$defs/Id"
+        },
+        "inputSha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "leaseGeneration": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9223372036854775807
+        },
+        "stepEnvelopeSha256": {
+          "$ref": "#/$defs/Hash"
+        }
+      }
+    },
+    "Completion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "runId",
+        "stepId",
+        "resultArtifactId",
+        "inputSha256",
+        "resultSha256",
+        "leaseGeneration",
+        "status"
+      ],
+      "properties": {
+        "runId": {
+          "$ref": "#/$defs/Id"
+        },
+        "stepId": {
+          "$ref": "#/$defs/Id"
+        },
+        "resultArtifactId": {
+          "$ref": "#/$defs/Id"
+        },
+        "inputSha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "resultSha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "leaseGeneration": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9223372036854775807
+        },
+        "status": {
+          "enum": [
+            "SUCCEEDED",
+            "WAITING_INPUT",
+            "FAILED"
+          ]
+        }
+      }
+    },
+    "Receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "stepId",
+        "inputSha256",
+        "leaseGeneration",
+        "status",
+        "receiptId",
+        "waitingItemId",
+        "outputs"
+      ],
+      "properties": {
+        "stepId": {
+          "$ref": "#/$defs/Id"
+        },
+        "inputSha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "leaseGeneration": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9223372036854775807
+        },
+        "status": {
+          "enum": [
+            "QUEUED",
+            "WAITING_INPUT",
+            "SUCCEEDED",
+            "FAILED",
+            "CANCELLED"
+          ]
+        },
+        "receiptId": {
+          "$ref": "#/$defs/Id"
+        },
+        "waitingItemId": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "outputs": {
+          "type": "array",
+          "maxItems": 4096,
+          "items": {
+            "$ref": "#/$defs/Output"
+          }
+        }
+      }
+    },
+    "Command": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "commandId",
+        "commandSha256",
+        "runId",
+        "kind",
+        "decisionReceiptId"
+      ],
+      "properties": {
+        "commandId": {
+          "$ref": "#/$defs/Id"
+        },
+        "commandSha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "runId": {
+          "$ref": "#/$defs/Id"
+        },
+        "kind": {
+          "enum": [
+            "RESOLVE_WAITING",
+            "REQUEST_CANCEL",
+            "TERMINATION_PROOF"
+          ]
+        },
+        "decisionReceiptId": {
+          "$ref": "#/$defs/Id"
+        }
+      }
+    }
+  },
+  "oneOf": [
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "kind",
+        "receipt_id",
+        "run_id",
+        "authority",
+        "evidence",
+        "action",
+        "request",
+        "result"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "kind": {
+          "const": "TASK_RUN_LIFECYCLE"
+        },
+        "receipt_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "run_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "authority": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "operation",
+            "purpose",
+            "publication",
+            "policy"
+          ],
+          "properties": {
+            "operation": {
+              "enum": [
+                "FAILURE",
+                "DEPENDENCY_FAILED",
+                "FINISH_SUCCEEDED",
+                "FINISH_FAILED",
+                "REQUEST_CANCEL",
+                "CONSUME_CANCEL",
+                "FINISH_CANCELLED"
+              ]
+            },
+            "purpose": {
+              "enum": [
+                "TASK_EXECUTION",
+                "RUN_CANCELLATION"
+              ]
+            },
+            "publication": {},
+            "policy": {}
+          }
+        },
+        "evidence": {
+          "type": "object"
+        },
+        "action": {
+          "const": "task.run.step.failed"
+        },
+        "request": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "reference",
+            "dispatch",
+            "reason"
+          ],
+          "properties": {
+            "reference": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "schemaVersion",
+                "tenantId",
+                "projectId",
+                "runId",
+                "inputManifestId",
+                "policyRevision",
+                "executionKind",
+                "inputSha256",
+                "deadlineEpochMillis",
+                "maximumCommands",
+                "maximumSteps",
+                "maximumParallelSteps",
+                "readTimeoutMillis",
+                "stepTimeoutMillis",
+                "scheduleTimeoutMillis",
+                "controlTaskQueue",
+                "professionalTaskQueue"
+              ],
+              "properties": {
+                "schemaVersion": {
+                  "const": "1.0.0"
+                },
+                "tenantId": {
+                  "$ref": "#/$defs/Id"
+                },
+                "projectId": {
+                  "$ref": "#/$defs/Id"
+                },
+                "runId": {
+                  "$ref": "#/$defs/Id"
+                },
+                "inputManifestId": {
+                  "$ref": "#/$defs/Id"
+                },
+                "policyRevision": {
+                  "$ref": "#/$defs/Id"
+                },
+                "executionKind": {
+                  "const": "TASK"
+                },
+                "inputSha256": {
+                  "$ref": "#/$defs/Hash"
+                },
+                "deadlineEpochMillis": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9223372036854775807
+                },
+                "maximumCommands": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 2147483647
+                },
+                "maximumSteps": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 2147483647
+                },
+                "maximumParallelSteps": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 2147483647
+                },
+                "readTimeoutMillis": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9223372036854775807
+                },
+                "stepTimeoutMillis": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9223372036854775807
+                },
+                "scheduleTimeoutMillis": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9223372036854775807
+                },
+                "controlTaskQueue": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,199}$"
+                },
+                "professionalTaskQueue": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,199}$"
+                }
+              }
+            },
+            "dispatch": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "runId",
+                "stepId",
+                "actionId",
+                "commandId",
+                "stepEnvelopeArtifactId",
+                "inputSha256",
+                "stepEnvelopeSha256",
+                "leaseGeneration"
+              ],
+              "properties": {
+                "runId": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "stepId": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "actionId": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "commandId": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "stepEnvelopeArtifactId": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "inputSha256": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                },
+                "stepEnvelopeSha256": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                },
+                "leaseGeneration": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "reason": {
+              "type": "string",
+              "pattern": "^[A-Z][A-Z0-9_]{0,63}$"
+            }
+          }
+        },
+        "result": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "stepId",
+            "inputSha256",
+            "leaseGeneration",
+            "status",
+            "receiptId",
+            "waitingItemId",
+            "outputs"
+          ],
+          "properties": {
+            "stepId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "inputSha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "leaseGeneration": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "status": {
+              "enum": [
+                "FAILED",
+                "CANCELLED",
+                "WAITING_INPUT",
+                "SUCCEEDED"
+              ]
+            },
+            "receiptId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "waitingItemId": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "outputs": {
+              "type": "array",
+              "maxItems": 0
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "kind",
+        "receipt_id",
+        "run_id",
+        "authority",
+        "evidence",
+        "action",
+        "request",
+        "result"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "kind": {
+          "const": "TASK_RUN_LIFECYCLE"
+        },
+        "receipt_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "run_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "authority": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "operation",
+            "purpose",
+            "publication",
+            "policy"
+          ],
+          "properties": {
+            "operation": {
+              "enum": [
+                "FAILURE",
+                "DEPENDENCY_FAILED",
+                "FINISH_SUCCEEDED",
+                "FINISH_FAILED",
+                "REQUEST_CANCEL",
+                "CONSUME_CANCEL",
+                "FINISH_CANCELLED"
+              ]
+            },
+            "purpose": {
+              "enum": [
+                "TASK_EXECUTION",
+                "RUN_CANCELLATION"
+              ]
+            },
+            "publication": {},
+            "policy": {}
+          }
+        },
+        "evidence": {
+          "type": "object"
+        },
+        "action": {
+          "const": "task.run.step.dependency-failed"
+        },
+        "request": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "reference",
+            "step_id"
+          ],
+          "properties": {
+            "reference": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "schemaVersion",
+                "tenantId",
+                "projectId",
+                "runId",
+                "inputManifestId",
+                "policyRevision",
+                "executionKind",
+                "inputSha256",
+                "deadlineEpochMillis",
+                "maximumCommands",
+                "maximumSteps",
+                "maximumParallelSteps",
+                "readTimeoutMillis",
+                "stepTimeoutMillis",
+                "scheduleTimeoutMillis",
+                "controlTaskQueue",
+                "professionalTaskQueue"
+              ],
+              "properties": {
+                "schemaVersion": {
+                  "const": "1.0.0"
+                },
+                "tenantId": {
+                  "$ref": "#/$defs/Id"
+                },
+                "projectId": {
+                  "$ref": "#/$defs/Id"
+                },
+                "runId": {
+                  "$ref": "#/$defs/Id"
+                },
+                "inputManifestId": {
+                  "$ref": "#/$defs/Id"
+                },
+                "policyRevision": {
+                  "$ref": "#/$defs/Id"
+                },
+                "executionKind": {
+                  "const": "TASK"
+                },
+                "inputSha256": {
+                  "$ref": "#/$defs/Hash"
+                },
+                "deadlineEpochMillis": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9223372036854775807
+                },
+                "maximumCommands": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 2147483647
+                },
+                "maximumSteps": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 2147483647
+                },
+                "maximumParallelSteps": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 2147483647
+                },
+                "readTimeoutMillis": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9223372036854775807
+                },
+                "stepTimeoutMillis": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9223372036854775807
+                },
+                "scheduleTimeoutMillis": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9223372036854775807
+                },
+                "controlTaskQueue": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,199}$"
+                },
+                "professionalTaskQueue": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,199}$"
+                }
+              }
+            },
+            "step_id": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        },
+        "result": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "stepId",
+            "inputSha256",
+            "leaseGeneration",
+            "status",
+            "receiptId",
+            "waitingItemId",
+            "outputs"
+          ],
+          "properties": {
+            "stepId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "inputSha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "leaseGeneration": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "status": {
+              "enum": [
+                "FAILED",
+                "CANCELLED",
+                "WAITING_INPUT",
+                "SUCCEEDED"
+              ]
+            },
+            "receiptId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "waitingItemId": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "outputs": {
+              "type": "array",
+              "maxItems": 0
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "kind",
+        "receipt_id",
+        "run_id",
+        "authority",
+        "evidence",
+        "action",
+        "request",
+        "result"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "kind": {
+          "const": "TASK_RUN_LIFECYCLE"
+        },
+        "receipt_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "run_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "authority": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "operation",
+            "purpose",
+            "publication",
+            "policy"
+          ],
+          "properties": {
+            "operation": {
+              "enum": [
+                "FAILURE",
+                "DEPENDENCY_FAILED",
+                "FINISH_SUCCEEDED",
+                "FINISH_FAILED",
+                "REQUEST_CANCEL",
+                "CONSUME_CANCEL",
+                "FINISH_CANCELLED"
+              ]
+            },
+            "purpose": {
+              "enum": [
+                "TASK_EXECUTION",
+                "RUN_CANCELLATION"
+              ]
+            },
+            "publication": {},
+            "policy": {}
+          }
+        },
+        "evidence": {
+          "type": "object"
+        },
+        "action": {
+          "const": "task.run.step.cancelled"
+        },
+        "request": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "reference",
+            "dispatch"
+          ],
+          "properties": {
+            "reference": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "schemaVersion",
+                "tenantId",
+                "projectId",
+                "runId",
+                "inputManifestId",
+                "policyRevision",
+                "executionKind",
+                "inputSha256",
+                "deadlineEpochMillis",
+                "maximumCommands",
+                "maximumSteps",
+                "maximumParallelSteps",
+                "readTimeoutMillis",
+                "stepTimeoutMillis",
+                "scheduleTimeoutMillis",
+                "controlTaskQueue",
+                "professionalTaskQueue"
+              ],
+              "properties": {
+                "schemaVersion": {
+                  "const": "1.0.0"
+                },
+                "tenantId": {
+                  "$ref": "#/$defs/Id"
+                },
+                "projectId": {
+                  "$ref": "#/$defs/Id"
+                },
+                "runId": {
+                  "$ref": "#/$defs/Id"
+                },
+                "inputManifestId": {
+                  "$ref": "#/$defs/Id"
+                },
+                "policyRevision": {
+                  "$ref": "#/$defs/Id"
+                },
+                "executionKind": {
+                  "const": "TASK"
+                },
+                "inputSha256": {
+                  "$ref": "#/$defs/Hash"
+                },
+                "deadlineEpochMillis": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9223372036854775807
+                },
+                "maximumCommands": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 2147483647
+                },
+                "maximumSteps": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 2147483647
+                },
+                "maximumParallelSteps": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 2147483647
+                },
+                "readTimeoutMillis": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9223372036854775807
+                },
+                "stepTimeoutMillis": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9223372036854775807
+                },
+                "scheduleTimeoutMillis": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9223372036854775807
+                },
+                "controlTaskQueue": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,199}$"
+                },
+                "professionalTaskQueue": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,199}$"
+                }
+              }
+            },
+            "dispatch": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "runId",
+                "stepId",
+                "actionId",
+                "commandId",
+                "stepEnvelopeArtifactId",
+                "inputSha256",
+                "stepEnvelopeSha256",
+                "leaseGeneration"
+              ],
+              "properties": {
+                "runId": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "stepId": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "actionId": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "commandId": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "stepEnvelopeArtifactId": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "inputSha256": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                },
+                "stepEnvelopeSha256": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                },
+                "leaseGeneration": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            }
+          }
+        },
+        "result": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "stepId",
+            "inputSha256",
+            "leaseGeneration",
+            "status",
+            "receiptId",
+            "waitingItemId",
+            "outputs"
+          ],
+          "properties": {
+            "stepId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "inputSha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "leaseGeneration": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "status": {
+              "enum": [
+                "FAILED",
+                "CANCELLED",
+                "WAITING_INPUT",
+                "SUCCEEDED"
+              ]
+            },
+            "receiptId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "waitingItemId": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "outputs": {
+              "type": "array",
+              "maxItems": 0
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "kind",
+        "receipt_id",
+        "run_id",
+        "authority",
+        "evidence",
+        "action",
+        "request",
+        "result"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "kind": {
+          "const": "TASK_RUN_LIFECYCLE"
+        },
+        "receipt_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "run_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "authority": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "operation",
+            "purpose",
+            "publication",
+            "policy"
+          ],
+          "properties": {
+            "operation": {
+              "enum": [
+                "FAILURE",
+                "DEPENDENCY_FAILED",
+                "FINISH_SUCCEEDED",
+                "FINISH_FAILED",
+                "REQUEST_CANCEL",
+                "CONSUME_CANCEL",
+                "FINISH_CANCELLED"
+              ]
+            },
+            "purpose": {
+              "enum": [
+                "TASK_EXECUTION",
+                "RUN_CANCELLATION"
+              ]
+            },
+            "publication": {},
+            "policy": {}
+          }
+        },
+        "evidence": {
+          "type": "object"
+        },
+        "action": {
+          "const": "task.run.undispatched.failed.v2"
+        },
+        "request": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "reference",
+            "step_id"
+          ],
+          "properties": {
+            "reference": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "schemaVersion",
+                "tenantId",
+                "projectId",
+                "runId",
+                "inputManifestId",
+                "policyRevision",
+                "executionKind",
+                "inputSha256",
+                "deadlineEpochMillis",
+                "maximumCommands",
+                "maximumSteps",
+                "maximumParallelSteps",
+                "readTimeoutMillis",
+                "stepTimeoutMillis",
+                "scheduleTimeoutMillis",
+                "controlTaskQueue",
+                "professionalTaskQueue"
+              ],
+              "properties": {
+                "schemaVersion": {
+                  "const": "1.0.0"
+                },
+                "tenantId": {
+                  "$ref": "#/$defs/Id"
+                },
+                "projectId": {
+                  "$ref": "#/$defs/Id"
+                },
+                "runId": {
+                  "$ref": "#/$defs/Id"
+                },
+                "inputManifestId": {
+                  "$ref": "#/$defs/Id"
+                },
+                "policyRevision": {
+                  "$ref": "#/$defs/Id"
+                },
+                "executionKind": {
+                  "const": "TASK"
+                },
+                "inputSha256": {
+                  "$ref": "#/$defs/Hash"
+                },
+                "deadlineEpochMillis": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9223372036854775807
+                },
+                "maximumCommands": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 2147483647
+                },
+                "maximumSteps": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 2147483647
+                },
+                "maximumParallelSteps": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 2147483647
+                },
+                "readTimeoutMillis": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9223372036854775807
+                },
+                "stepTimeoutMillis": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9223372036854775807
+                },
+                "scheduleTimeoutMillis": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9223372036854775807
+                },
+                "controlTaskQueue": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,199}$"
+                },
+                "professionalTaskQueue": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,199}$"
+                }
+              }
+            },
+            "step_id": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        },
+        "result": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schemaVersion",
+            "kind",
+            "runId",
+            "stepId",
+            "graphId",
+            "graphSha256",
+            "inputId",
+            "inputSha256",
+            "leaseGeneration",
+            "receiptId",
+            "receiptSha256",
+            "causeReceiptId"
+          ],
+          "properties": {
+            "schemaVersion": {
+              "const": "2.0.0"
+            },
+            "kind": {
+              "enum": [
+                "INPUT_READY",
+                "INPUT_UNMATERIALIZED"
+              ]
+            },
+            "runId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "stepId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "graphId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "graphSha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "inputId": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "inputSha256": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "leaseGeneration": {
+              "const": 0
+            },
+            "receiptId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "receiptSha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "causeReceiptId": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "kind",
+        "receipt_id",
+        "run_id",
+        "authority",
+        "evidence",
+        "action",
+        "request",
+        "result"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "kind": {
+          "const": "TASK_RUN_LIFECYCLE"
+        },
+        "receipt_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "run_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "authority": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "operation",
+            "purpose",
+            "publication",
+            "policy"
+          ],
+          "properties": {
+            "operation": {
+              "enum": [
+                "FAILURE",
+                "DEPENDENCY_FAILED",
+                "FINISH_SUCCEEDED",
+                "FINISH_FAILED",
+                "REQUEST_CANCEL",
+                "CONSUME_CANCEL",
+                "FINISH_CANCELLED"
+              ]
+            },
+            "purpose": {
+              "enum": [
+                "TASK_EXECUTION",
+                "RUN_CANCELLATION"
+              ]
+            },
+            "publication": {},
+            "policy": {}
+          }
+        },
+        "evidence": {
+          "type": "object"
+        },
+        "action": {
+          "const": "task.run.command.consumed"
+        },
+        "request": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "reference",
+            "command"
+          ],
+          "properties": {
+            "reference": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "schemaVersion",
+                "tenantId",
+                "projectId",
+                "runId",
+                "inputManifestId",
+                "policyRevision",
+                "executionKind",
+                "inputSha256",
+                "deadlineEpochMillis",
+                "maximumCommands",
+                "maximumSteps",
+                "maximumParallelSteps",
+                "readTimeoutMillis",
+                "stepTimeoutMillis",
+                "scheduleTimeoutMillis",
+                "controlTaskQueue",
+                "professionalTaskQueue"
+              ],
+              "properties": {
+                "schemaVersion": {
+                  "const": "1.0.0"
+                },
+                "tenantId": {
+                  "$ref": "#/$defs/Id"
+                },
+                "projectId": {
+                  "$ref": "#/$defs/Id"
+                },
+                "runId": {
+                  "$ref": "#/$defs/Id"
+                },
+                "inputManifestId": {
+                  "$ref": "#/$defs/Id"
+                },
+                "policyRevision": {
+                  "$ref": "#/$defs/Id"
+                },
+                "executionKind": {
+                  "const": "TASK"
+                },
+                "inputSha256": {
+                  "$ref": "#/$defs/Hash"
+                },
+                "deadlineEpochMillis": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9223372036854775807
+                },
+                "maximumCommands": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 2147483647
+                },
+                "maximumSteps": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 2147483647
+                },
+                "maximumParallelSteps": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 2147483647
+                },
+                "readTimeoutMillis": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9223372036854775807
+                },
+                "stepTimeoutMillis": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9223372036854775807
+                },
+                "scheduleTimeoutMillis": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9223372036854775807
+                },
+                "controlTaskQueue": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,199}$"
+                },
+                "professionalTaskQueue": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,199}$"
+                }
+              }
+            },
+            "command": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "commandId",
+                "commandSha256",
+                "runId",
+                "kind",
+                "decisionReceiptId"
+              ],
+              "properties": {
+                "commandId": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "commandSha256": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                },
+                "runId": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "kind": {
+                  "const": "REQUEST_CANCEL"
+                },
+                "decisionReceiptId": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          }
+        },
+        "result": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "commandId",
+            "commandSha256",
+            "runId",
+            "cancelRequested",
+            "steps"
+          ],
+          "properties": {
+            "commandId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "commandSha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "runId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "cancelRequested": {
+              "const": true
+            },
+            "steps": {
+              "type": "array",
+              "maxItems": 0
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "kind",
+        "receipt_id",
+        "run_id",
+        "authority",
+        "evidence",
+        "action",
+        "request",
+        "result"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "kind": {
+          "const": "TASK_RUN_LIFECYCLE"
+        },
+        "receipt_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "run_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "authority": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "operation",
+            "purpose",
+            "publication",
+            "policy"
+          ],
+          "properties": {
+            "operation": {
+              "enum": [
+                "FAILURE",
+                "DEPENDENCY_FAILED",
+                "FINISH_SUCCEEDED",
+                "FINISH_FAILED",
+                "REQUEST_CANCEL",
+                "CONSUME_CANCEL",
+                "FINISH_CANCELLED"
+              ]
+            },
+            "purpose": {
+              "enum": [
+                "TASK_EXECUTION",
+                "RUN_CANCELLATION"
+              ]
+            },
+            "publication": {},
+            "policy": {}
+          }
+        },
+        "evidence": {
+          "type": "object"
+        },
+        "action": {
+          "const": "task.run.cancellation.closed"
+        },
+        "request": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "reference",
+            "command_id",
+            "reason"
+          ],
+          "properties": {
+            "reference": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "schemaVersion",
+                "tenantId",
+                "projectId",
+                "runId",
+                "inputManifestId",
+                "policyRevision",
+                "executionKind",
+                "inputSha256",
+                "deadlineEpochMillis",
+                "maximumCommands",
+                "maximumSteps",
+                "maximumParallelSteps",
+                "readTimeoutMillis",
+                "stepTimeoutMillis",
+                "scheduleTimeoutMillis",
+                "controlTaskQueue",
+                "professionalTaskQueue"
+              ],
+              "properties": {
+                "schemaVersion": {
+                  "const": "1.0.0"
+                },
+                "tenantId": {
+                  "$ref": "#/$defs/Id"
+                },
+                "projectId": {
+                  "$ref": "#/$defs/Id"
+                },
+                "runId": {
+                  "$ref": "#/$defs/Id"
+                },
+                "inputManifestId": {
+                  "$ref": "#/$defs/Id"
+                },
+                "policyRevision": {
+                  "$ref": "#/$defs/Id"
+                },
+                "executionKind": {
+                  "const": "TASK"
+                },
+                "inputSha256": {
+                  "$ref": "#/$defs/Hash"
+                },
+                "deadlineEpochMillis": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9223372036854775807
+                },
+                "maximumCommands": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 2147483647
+                },
+                "maximumSteps": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 2147483647
+                },
+                "maximumParallelSteps": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 2147483647
+                },
+                "readTimeoutMillis": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9223372036854775807
+                },
+                "stepTimeoutMillis": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9223372036854775807
+                },
+                "scheduleTimeoutMillis": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9223372036854775807
+                },
+                "controlTaskQueue": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,199}$"
+                },
+                "professionalTaskQueue": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,199}$"
+                }
+              }
+            },
+            "command_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "reason": {
+              "type": "string",
+              "pattern": "^[A-Z][A-Z0-9_]{0,63}$"
+            }
+          }
+        },
+        "result": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "command_id",
+            "dispatch_closed"
+          ],
+          "properties": {
+            "command_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "dispatch_closed": {
+              "const": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "kind",
+        "receipt_id",
+        "run_id",
+        "authority",
+        "evidence",
+        "action",
+        "request",
+        "result"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "kind": {
+          "const": "TASK_RUN_LIFECYCLE"
+        },
+        "receipt_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "run_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "authority": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "operation",
+            "purpose",
+            "publication",
+            "policy"
+          ],
+          "properties": {
+            "operation": {
+              "enum": [
+                "FAILURE",
+                "DEPENDENCY_FAILED",
+                "FINISH_SUCCEEDED",
+                "FINISH_FAILED",
+                "REQUEST_CANCEL",
+                "CONSUME_CANCEL",
+                "FINISH_CANCELLED"
+              ]
+            },
+            "purpose": {
+              "enum": [
+                "TASK_EXECUTION",
+                "RUN_CANCELLATION"
+              ]
+            },
+            "publication": {},
+            "policy": {}
+          }
+        },
+        "evidence": {
+          "type": "object"
+        },
+        "action": {
+          "const": "task.run.termination.observed"
+        },
+        "request": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "reference",
+            "command_id",
+            "reason"
+          ],
+          "properties": {
+            "reference": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "schemaVersion",
+                "tenantId",
+                "projectId",
+                "runId",
+                "inputManifestId",
+                "policyRevision",
+                "executionKind",
+                "inputSha256",
+                "deadlineEpochMillis",
+                "maximumCommands",
+                "maximumSteps",
+                "maximumParallelSteps",
+                "readTimeoutMillis",
+                "stepTimeoutMillis",
+                "scheduleTimeoutMillis",
+                "controlTaskQueue",
+                "professionalTaskQueue"
+              ],
+              "properties": {
+                "schemaVersion": {
+                  "const": "1.0.0"
+                },
+                "tenantId": {
+                  "$ref": "#/$defs/Id"
+                },
+                "projectId": {
+                  "$ref": "#/$defs/Id"
+                },
+                "runId": {
+                  "$ref": "#/$defs/Id"
+                },
+                "inputManifestId": {
+                  "$ref": "#/$defs/Id"
+                },
+                "policyRevision": {
+                  "$ref": "#/$defs/Id"
+                },
+                "executionKind": {
+                  "const": "TASK"
+                },
+                "inputSha256": {
+                  "$ref": "#/$defs/Hash"
+                },
+                "deadlineEpochMillis": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9223372036854775807
+                },
+                "maximumCommands": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 2147483647
+                },
+                "maximumSteps": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 2147483647
+                },
+                "maximumParallelSteps": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 2147483647
+                },
+                "readTimeoutMillis": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9223372036854775807
+                },
+                "stepTimeoutMillis": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9223372036854775807
+                },
+                "scheduleTimeoutMillis": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9223372036854775807
+                },
+                "controlTaskQueue": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,199}$"
+                },
+                "professionalTaskQueue": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,199}$"
+                }
+              }
+            },
+            "command_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "reason": {
+              "type": "string",
+              "pattern": "^[A-Z][A-Z0-9_]{0,63}$"
+            }
+          }
+        },
+        "result": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "proofReceiptId",
+            "dispatchClosed",
+            "invocationsTerminal",
+            "processesExited"
+          ],
+          "properties": {
+            "proofReceiptId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "dispatchClosed": {
+              "const": true
+            },
+            "invocationsTerminal": {
+              "type": "boolean"
+            },
+            "processesExited": {
+              "type": "boolean"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "kind",
+        "receipt_id",
+        "run_id",
+        "authority",
+        "evidence",
+        "action",
+        "request",
+        "result"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "kind": {
+          "const": "TASK_RUN_LIFECYCLE"
+        },
+        "receipt_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "run_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "authority": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "operation",
+            "purpose",
+            "publication",
+            "policy"
+          ],
+          "properties": {
+            "operation": {
+              "enum": [
+                "FAILURE",
+                "DEPENDENCY_FAILED",
+                "FINISH_SUCCEEDED",
+                "FINISH_FAILED",
+                "REQUEST_CANCEL",
+                "CONSUME_CANCEL",
+                "FINISH_CANCELLED"
+              ]
+            },
+            "purpose": {
+              "enum": [
+                "TASK_EXECUTION",
+                "RUN_CANCELLATION"
+              ]
+            },
+            "publication": {},
+            "policy": {}
+          }
+        },
+        "evidence": {
+          "type": "object"
+        },
+        "action": {
+          "const": "task.run.termination.snapshot"
+        },
+        "request": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "reference",
+            "command_id",
+            "reason"
+          ],
+          "properties": {
+            "reference": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "schemaVersion",
+                "tenantId",
+                "projectId",
+                "runId",
+                "inputManifestId",
+                "policyRevision",
+                "executionKind",
+                "inputSha256",
+                "deadlineEpochMillis",
+                "maximumCommands",
+                "maximumSteps",
+                "maximumParallelSteps",
+                "readTimeoutMillis",
+                "stepTimeoutMillis",
+                "scheduleTimeoutMillis",
+                "controlTaskQueue",
+                "professionalTaskQueue"
+              ],
+              "properties": {
+                "schemaVersion": {
+                  "const": "1.0.0"
+                },
+                "tenantId": {
+                  "$ref": "#/$defs/Id"
+                },
+                "projectId": {
+                  "$ref": "#/$defs/Id"
+                },
+                "runId": {
+                  "$ref": "#/$defs/Id"
+                },
+                "inputManifestId": {
+                  "$ref": "#/$defs/Id"
+                },
+                "policyRevision": {
+                  "$ref": "#/$defs/Id"
+                },
+                "executionKind": {
+                  "const": "TASK"
+                },
+                "inputSha256": {
+                  "$ref": "#/$defs/Hash"
+                },
+                "deadlineEpochMillis": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9223372036854775807
+                },
+                "maximumCommands": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 2147483647
+                },
+                "maximumSteps": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 2147483647
+                },
+                "maximumParallelSteps": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 2147483647
+                },
+                "readTimeoutMillis": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9223372036854775807
+                },
+                "stepTimeoutMillis": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9223372036854775807
+                },
+                "scheduleTimeoutMillis": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9223372036854775807
+                },
+                "controlTaskQueue": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,199}$"
+                },
+                "professionalTaskQueue": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,199}$"
+                }
+              }
+            },
+            "command_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "reason": {
+              "type": "string",
+              "pattern": "^[A-Z][A-Z0-9_]{0,63}$"
+            }
+          }
+        },
+        "result": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "proofReceiptId",
+            "dispatchClosed",
+            "invocationsTerminal",
+            "processesExited"
+          ],
+          "properties": {
+            "proofReceiptId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "dispatchClosed": {
+              "const": true
+            },
+            "invocationsTerminal": {
+              "type": "boolean"
+            },
+            "processesExited": {
+              "type": "boolean"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "kind",
+        "receipt_id",
+        "run_id",
+        "authority",
+        "evidence",
+        "action",
+        "request",
+        "result"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "kind": {
+          "const": "TASK_RUN_LIFECYCLE"
+        },
+        "receipt_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "run_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "authority": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "operation",
+            "purpose",
+            "publication",
+            "policy"
+          ],
+          "properties": {
+            "operation": {
+              "enum": [
+                "FAILURE",
+                "DEPENDENCY_FAILED",
+                "FINISH_SUCCEEDED",
+                "FINISH_FAILED",
+                "REQUEST_CANCEL",
+                "CONSUME_CANCEL",
+                "FINISH_CANCELLED"
+              ]
+            },
+            "purpose": {
+              "enum": [
+                "TASK_EXECUTION",
+                "RUN_CANCELLATION"
+              ]
+            },
+            "publication": {},
+            "policy": {}
+          }
+        },
+        "evidence": {
+          "type": "object"
+        },
+        "action": {
+          "const": "task.run.finished"
+        },
+        "request": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "reference",
+            "requested",
+            "reason",
+            "receipts",
+            "commands"
+          ],
+          "properties": {
+            "reference": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "schemaVersion",
+                "tenantId",
+                "projectId",
+                "runId",
+                "inputManifestId",
+                "policyRevision",
+                "executionKind",
+                "inputSha256",
+                "deadlineEpochMillis",
+                "maximumCommands",
+                "maximumSteps",
+                "maximumParallelSteps",
+                "readTimeoutMillis",
+                "stepTimeoutMillis",
+                "scheduleTimeoutMillis",
+                "controlTaskQueue",
+                "professionalTaskQueue"
+              ],
+              "properties": {
+                "schemaVersion": {
+                  "const": "1.0.0"
+                },
+                "tenantId": {
+                  "$ref": "#/$defs/Id"
+                },
+                "projectId": {
+                  "$ref": "#/$defs/Id"
+                },
+                "runId": {
+                  "$ref": "#/$defs/Id"
+                },
+                "inputManifestId": {
+                  "$ref": "#/$defs/Id"
+                },
+                "policyRevision": {
+                  "$ref": "#/$defs/Id"
+                },
+                "executionKind": {
+                  "const": "TASK"
+                },
+                "inputSha256": {
+                  "$ref": "#/$defs/Hash"
+                },
+                "deadlineEpochMillis": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9223372036854775807
+                },
+                "maximumCommands": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 2147483647
+                },
+                "maximumSteps": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 2147483647
+                },
+                "maximumParallelSteps": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 2147483647
+                },
+                "readTimeoutMillis": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9223372036854775807
+                },
+                "stepTimeoutMillis": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9223372036854775807
+                },
+                "scheduleTimeoutMillis": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9223372036854775807
+                },
+                "controlTaskQueue": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,199}$"
+                },
+                "professionalTaskQueue": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,199}$"
+                }
+              }
+            },
+            "requested": {
+              "enum": [
+                "SUCCEEDED",
+                "FAILED",
+                "CANCELLED"
+              ]
+            },
+            "reason": {
+              "type": "string",
+              "pattern": "^[A-Z][A-Z0-9_]{0,63}$"
+            },
+            "receipts": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Receipt"
+              }
+            },
+            "commands": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          }
+        },
+        "result": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "runId",
+            "inputSha256",
+            "status",
+            "receiptId"
+          ],
+          "properties": {
+            "runId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "inputSha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "status": {
+              "enum": [
+                "SUCCEEDED",
+                "FAILED",
+                "CANCELLED"
+              ]
+            },
+            "receiptId": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        }
+      }
+    }
+  ]
+}

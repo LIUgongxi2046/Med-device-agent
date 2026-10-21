@@ -1,6 +1,6 @@
 # Shared-fact producer and consumer contract review
 
-Status: specification gap; no producer, consumer state restriction, migration or production source change implemented.
+Status: historical gap review. The additive implementation contract, migration 136 and current scope are recorded in SHARED-FACT-LIFECYCLE-136.md. The historical observations below describe the pre-136 system; they are not current implementation claims.
 
 ## Exact evidence
 

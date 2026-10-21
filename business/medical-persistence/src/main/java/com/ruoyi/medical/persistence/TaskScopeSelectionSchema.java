@@ -19,7 +19,7 @@ public final class TaskScopeSelectionSchema {
     private final PermissionSchema json;
     private final SchemaCatalogue shared;
     private final JsonSchema schema;
-    record Query(int limit, String after, String datasetWatermark) { }
+    record Query(String agentReleaseId, int limit, String after, String datasetWatermark) { }
 
     public TaskScopeSelectionSchema(PermissionSchema json, TaskInputSchema inputs) throws IOException, java.security.NoSuchAlgorithmException {
         this.json = json; shared = SchemaCatalogue.fromClasspath();
@@ -37,7 +37,7 @@ public final class TaskScopeSelectionSchema {
             } else value.put(name, entries[0]);
         });
         if (!definition("Query").validate(value).isEmpty()) invalid();
-        return new Query(value.required("limit").intValue(), value.has("after") ? value.required("after").textValue() : null,
+        return new Query(value.required("agent_release_id").textValue(), value.required("limit").intValue(), value.has("after") ? value.required("after").textValue() : null,
                 value.has("dataset_watermark") ? value.required("dataset_watermark").textValue() : null);
     }
     JsonNode envelope(JsonNode value, String requestId) {

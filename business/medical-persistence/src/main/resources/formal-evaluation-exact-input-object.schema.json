@@ -1,0 +1,108 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:formal-evaluation-exact-input-object:1.0.0",
+  "$defs": {
+    "Id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "Hash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "Revision": {
+      "type": "string",
+      "pattern": "^[1-9][0-9]{0,19}$"
+    },
+    "Basis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version_id",
+        "content_sha256"
+      ],
+      "properties": {
+        "version_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "content_sha256": {
+          "$ref": "#/$defs/Hash"
+        }
+      }
+    },
+    "ExecutionStart": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "evaluation_id",
+        "definition_sha256",
+        "expected_evaluation_revision",
+        "candidate",
+        "execution_policy",
+        "enterprise_budget",
+        "parent_budget"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "evaluation_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "definition_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "expected_evaluation_revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "candidate": {
+          "$ref": "#/$defs/Basis"
+        },
+        "execution_policy": {
+          "$ref": "#/$defs/Basis"
+        },
+        "enterprise_budget": {
+          "$ref": "#/$defs/Basis"
+        },
+        "parent_budget": {
+          "$ref": "#/$defs/Basis"
+        }
+      }
+    },
+    "Request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "execution_id",
+        "start",
+        "sample_id",
+        "repeat_index",
+        "node_kind"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "execution_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "start": {
+          "$ref": "#/$defs/ExecutionStart"
+        },
+        "sample_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "repeat_index": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 99
+        },
+        "node_kind": {
+          "const": "N01"
+        }
+      }
+    }
+  }
+}

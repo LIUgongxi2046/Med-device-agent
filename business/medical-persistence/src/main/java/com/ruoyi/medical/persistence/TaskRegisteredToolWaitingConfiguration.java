@@ -1,0 +1,14 @@
+package com.ruoyi.medical.persistence;
+import javax.sql.DataSource;
+import com.ruoyi.medical.workflow.WaitingWorkflowDeploymentV2;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.context.annotation.*;
+/** Additive explicit V2 deployment only. No implicit change to existing workflows. */
+@Configuration(proxyBeanMethods=false)
+@ConditionalOnProperty(name={"medical.professional-runtime.task-enabled","medical.professional-runtime.waiting-v2-enabled"},havingValue="true",matchIfMissing=false)
+public class TaskRegisteredToolWaitingConfiguration {
+ @Bean TaskRegisteredToolWaitingCompletion taskRegisteredToolWaitingCompletion(@Qualifier("masterDataSource")DataSource data,PermissionSchema json,TaskRegisteredToolAuthority authority,TaskRegisteredToolReceipts tools,TaskInvocationService invocations,TaskInvocationRecords records,TaskInvocationResults results,TaskProfessionalSupervisor supervisors,TaskProfessionalRuntimeService.Deployment deployment,TaskRuntimeJournal dispatches,TaskResearchRuleInputs rules,ResourceReadAuthority resources,FormalRuntimeCapabilityIdentityAuthority capabilities,FormalCapabilityIdentityAuthority roles,TaskRunWorkflowProtocolBinding protocols)throws Exception{return new TaskRegisteredToolWaitingCompletion(data,json,authority,tools,invocations,records,results,supervisors,deployment,dispatches,rules,resources,capabilities,roles,protocols);}
+ @Bean TaskRegisteredToolWaitingFinish taskRegisteredToolWaitingFinish(TaskProfessionalHostAccess hosts,TaskRunWorkflowProtocolBinding protocols,TaskRegisteredToolReceipts tools,ProfessionalRuntimeObservations observations,TaskProfessionalSupervisor supervisors,TaskRegisteredToolWaitingCompletion waiting,TaskResearchFinishOrchestrator results,PermissionSchema json,WaitingWorkflowDeploymentV2 deployment){return new TaskRegisteredToolWaitingFinish(hosts,protocols,tools,observations,supervisors,waiting,results,json,deployment);}
+ @Bean TaskRegisteredToolWaitingGate taskRegisteredToolWaitingGate(TaskRunWorkflowProtocolBinding protocols,TaskRegisteredToolWaitingCompletion completion,WaitingWorkflowDeploymentV2 deployment){return new TaskRegisteredToolWaitingGate(protocols,completion,deployment);}
+}

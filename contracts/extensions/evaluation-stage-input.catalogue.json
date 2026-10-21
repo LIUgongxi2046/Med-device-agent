@@ -1,0 +1,16 @@
+{
+  "schema_version": "1.0.0",
+  "base_catalogue_sha256": "dcd72acbb7a45775373662e0ffe4557030d4740b0afacdee8375e7768e761915",
+  "schemas": [
+    {
+      "name": "evaluation-stage-input",
+      "path": "business/medical-persistence/src/main/resources/evaluation-stage-input.schema.json",
+      "sha256": "8b818d7503570ad9f51267009209a770e60c2dca79095b8e87a7031852c73808"
+    },
+    {
+      "name": "evaluation-business-output",
+      "path": "business/medical-persistence/src/main/resources/formal-evaluation-business-output.schema.json",
+      "sha256": "2a9234a5bed572f4c3caca11f9d87c850fd78331dae0c94855140b0b8ba37b5d"
+    }
+  ]
+}

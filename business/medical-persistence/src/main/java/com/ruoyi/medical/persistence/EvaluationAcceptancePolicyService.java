@@ -12,6 +12,7 @@ import org.springframework.util.function.ThrowingSupplier;
 
 /** 084 human statistical policy. All byte reads precede the transaction; private proofs are rechecked within it. */
 @Component public final class EvaluationAcceptancePolicyService {
+ private final FormalEvaluationPolicyReadSchema readSchema=new FormalEvaluationPolicyReadSchema();
  private final PermissionSchema permissionJson;private final EnterpriseAccess access;private final AgentPublicationJournal journal;private final AgentPublicationMapper mapper;private final FormalEvaluationPolicyMapper snapshots;
  private final AgentPublicationSchema json;private final FormalEvaluationPolicySchema schema;private final EvaluationAcceptanceEvidenceSchema evidence;
  private final FormalEvaluationPolicyInputs inputs;private final ResourceReadAuthority resources;private final IdentityDirectoryPolicy settings;
@@ -45,8 +46,12 @@ import org.springframework.util.function.ThrowingSupplier;
  }
  /** Historical inspection keeps the original approval, but does not request current execution eligibility. */
  public PreparedPolicy prepareHistorical(ApplicationSessionIdentity.Verified subject,String context,String id,String hash)throws Exception{return prepare(subject,context,id,hash,true);}
- private PreparedPolicy prepare(ApplicationSessionIdentity.Verified subject,String context,String id,String hash,boolean historical)throws Exception{
-  var loaded=access.execute(subject,a->checked(()->{current(a,context);var row=load(a,id,!historical);approvedDecision(row);if(!hash.equals(row.row().contentSha256()))bad();return row;}));
+ private PreparedPolicy prepare(ApplicationSessionIdentity.Verified subject,String context,String id,String hash,boolean historical)throws Exception{return prepare(EvidenceReadAccess.human(access,subject),context,id,hash,historical);}
+ PreparedPolicy prepare(EvidenceReadAccess subject,String context,String id,String hash)throws Exception{return prepare(subject,context,id,hash,false);}
+ PreparedPolicy prepareHistorical(EvidenceReadAccess subject,String context,String id,String hash)throws Exception{return prepare(subject,context,id,hash,true);}
+ private PreparedPolicy prepare(EvidenceReadAccess subject,String context,String id,String hash,boolean historical)throws Exception{
+  subject.requireVersion(id,hash);
+  var loaded=subject.execute(a->checked(()->{current(a,context);var row=load(a,id,!historical);approvedDecision(row);if(!hash.equals(row.row().contentSha256()))bad();return row;}));
   var prepared=inputs.prepare(subject,context,loaded.author(),!historical);same(loaded.snapshot(),prepared.snapshot());return new PreparedPolicy(this,loaded,prepared,context,historical);
  }
  public static final class PreparedPolicy {private final EvaluationAcceptancePolicyService owner;private final Loaded loaded;private final FormalEvaluationPolicyInputs.Prepared inputs;private final String context;private final boolean historical;private PreparedPolicy(EvaluationAcceptancePolicyService owner,Loaded loaded,FormalEvaluationPolicyInputs.Prepared inputs,String context,boolean historical){this.owner=owner;this.loaded=loaded;this.inputs=inputs;this.context=context;this.historical=historical;}}
@@ -57,7 +62,7 @@ import org.springframework.util.function.ThrowingSupplier;
  public static final class VerifiedPolicy {
   private final EvaluationAcceptancePolicyService owner;private final EnterpriseAccess.Admission admission;private final Loaded loaded;private final PreparedPolicy prepared;private final EvaluationAcceptanceStatisticsProtocol.Policy policy;private final JsonNode readGrant;
   private VerifiedPolicy(EvaluationAcceptancePolicyService owner,EnterpriseAccess.Admission a,Loaded loaded,PreparedPolicy prepared,EvaluationAcceptanceStatisticsProtocol.Policy policy,JsonNode readGrant){this.owner=owner;admission=a;this.loaded=loaded;this.prepared=prepared;this.policy=policy;this.readGrant=readGrant.deepCopy();}
-  public EvaluationAcceptanceStatisticsProtocol.Policy policy(){return policy;}public String expertDomain(String dimension){return owner.expertDomain(loaded,dimension);}public String contentSha256(){return loaded.row().contentSha256();}public String decisionId(){return loaded.row().recordId();}public String classification(){return loaded.row().classification();}public JsonNode authorizations(){var n=object();n.set("read",readGrant.deepCopy());n.set("typed_inputs",prepared.inputs.authorizations());try{n.set("original_decision",owner.json.read(loaded.row().authorizationsJson()));}catch(IOException e){throw new IllegalStateException(e);}return n;}public List<String> dependencyVersions(){return prepared.inputs.dependencyVersions();}
+  public EvaluationAcceptanceStatisticsProtocol.Policy policy(){return policy;}public String expertDomain(String dimension){return owner.expertDomain(loaded,dimension);}public String contentSha256(){return loaded.row().contentSha256();}public String decisionId(){return loaded.row().recordId();}public String classification(){return loaded.row().classification();}public JsonNode authorizations(){var n=object();n.set("read",readGrant.deepCopy());n.set("typed_inputs",prepared.inputs.authorizations());try{n.set("original_decision",owner.json.read(loaded.row().authorizationsJson()));}catch(IOException e){throw new IllegalStateException(e);}return n;}public List<String> dependencyVersions(){return owner.dependencyVersions(loaded,prepared);}
   private void requireProject(EnterpriseAccess.Admission a,String project)throws IOException{if(a!=admission||!Objects.equals(project,loaded.row().projectId()))deny();requireUnchanged();}
   public void requireConsumer(EnterpriseAccess.Admission a,EvaluationProtocol.Definition definition)throws IOException{
    requireProject(a,definition.request().project_id());owner.definition(a,definition,loaded,prepared,policy);
@@ -74,10 +79,11 @@ import org.springframework.util.function.ThrowingSupplier;
   private final EvaluationAcceptancePolicyService owner;private final EnterpriseAccess.Admission admission;private final Loaded loaded;private final PreparedPolicy prepared;private final EvaluationAcceptanceStatisticsProtocol.Policy policy;private final JsonNode readGrant;
   private HistoricalPolicy(EvaluationAcceptancePolicyService owner,EnterpriseAccess.Admission a,Loaded loaded,PreparedPolicy prepared,EvaluationAcceptanceStatisticsProtocol.Policy policy,JsonNode readGrant){this.owner=owner;admission=a;this.loaded=loaded;this.prepared=prepared;this.policy=policy;this.readGrant=readGrant.deepCopy();}
   public EvaluationAcceptanceStatisticsProtocol.Policy policy(){return policy;}public String decisionId(){return loaded.row().recordId();}public String classification(){return loaded.row().classification();}public String contentSha256(){return loaded.row().contentSha256();}public String expertDomain(String dimension){return owner.expertDomain(loaded,dimension);}
-  public JsonNode authorizations(){var n=object();n.set("read",readGrant.deepCopy());n.set("typed_inputs",prepared.inputs.authorizations());try{n.set("original_decision",owner.json.read(loaded.row().authorizationsJson()));}catch(IOException e){throw new IllegalStateException(e);}return n;}public List<String> dependencyVersions(){return prepared.inputs.dependencyVersions();}
+  public JsonNode authorizations(){var n=object();n.set("read",readGrant.deepCopy());n.set("typed_inputs",prepared.inputs.authorizations());try{n.set("original_decision",owner.json.read(loaded.row().authorizationsJson()));}catch(IOException e){throw new IllegalStateException(e);}return n;}public List<String> dependencyVersions(){return owner.dependencyVersions(loaded,prepared);}
   public void requireConsumer(EnterpriseAccess.Admission a,EvaluationProtocol.Definition definition)throws IOException{if(a!=admission||!Objects.equals(definition.request().project_id(),loaded.row().projectId()))deny();requireUnchanged();owner.definition(a,definition,loaded,prepared,policy);}
   public void requireUnchanged()throws IOException{var current=owner.requireHistorical(admission,decisionId(),contentSha256(),prepared);if(!owner.json.canonical(policy).equals(owner.json.canonical(current.policy))||!owner.json.canonical(readGrant).equals(owner.json.canonical(current.readGrant)))bad();}
  }
+ private List<String> dependencyVersions(Loaded loaded,PreparedPolicy prepared){var ids=new TreeSet<String>(prepared.inputs.dependencyVersions());ids.add(loaded.row().recordId());ids.add(loaded.row().resourceId());return List.copyOf(ids);}
  private void approvedDecision(Loaded loaded)throws IOException{if(!"POLICY".equals(loaded.row().kind())||!"APPROVE".equals(json.read(loaded.row().contentJson()).required("status").asText()))deny();}
  private void definition(EnterpriseAccess.Admission a,EvaluationProtocol.Definition definition,Loaded loaded,PreparedPolicy prepared,EvaluationAcceptanceStatisticsProtocol.Policy policy)throws IOException{
   var r=definition.request();var spec=loaded.author().required("specification");
@@ -87,7 +93,7 @@ import org.springframework.util.function.ThrowingSupplier;
  /** Historical read has current source/read permission, but never creates an executable/acceptance proof. */
  public JsonNode read(ApplicationSessionIdentity.Verified subject,String context,String id)throws Exception{
   var loaded=access.execute(subject,a->checked(()->{current(a,context);return load(a,id,false);}));var prepared=inputs.prepare(subject,context,loaded.author(),false);same(loaded.snapshot(),prepared.snapshot());
-  return access.execute(subject,a->checked(()->{current(a,context);var now=load(a,id,false);if(!loaded.row().equals(now.row()))bad();prepared.requireConsumer(a,now.author(),false);var result=object().put("schema_version","1.0.0").put("record_id",id).put("content_sha256",now.row().contentSha256()).put("production_eligible",false);result.set("content",json.read(now.row().contentJson()));return result;}));
+  return access.execute(subject,a->checked(()->{current(a,context);var now=load(a,id,false);if(!loaded.row().equals(now.row()))bad();prepared.requireConsumer(a,now.author(),false);var result=object().put("schema_version","1.0.0").put("record_id",id).put("content_sha256",now.row().contentSha256()).put("production_eligible",false);result.set("content",json.read(now.row().contentJson()));return readSchema.validate(result);}));
  }
  public JsonNode recover(ApplicationSessionIdentity.Verified subject,String context,String id,String operation)throws Exception{
   read(subject,context,id);return access.execute(subject,a->checked(()->{current(a,context);var row=load(a,id,false).row();if(!a.actorId().equals(row.createdBy())||!operation.equals(row.operationId()))deny();return json.read(row.receiptJson());}));

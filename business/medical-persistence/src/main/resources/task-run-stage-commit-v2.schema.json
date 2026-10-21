@@ -1,0 +1,836 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:task-run-stage-commit:2.0.0",
+  "$defs": {
+    "Id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "Hash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "WorkflowReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "tenantId",
+        "projectId",
+        "runId",
+        "inputManifestId",
+        "policyRevision",
+        "executionKind",
+        "inputSha256",
+        "deadlineEpochMillis",
+        "maximumCommands",
+        "maximumSteps",
+        "maximumParallelSteps",
+        "readTimeoutMillis",
+        "stepTimeoutMillis",
+        "scheduleTimeoutMillis",
+        "controlTaskQueue",
+        "professionalTaskQueue"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "1.0.0"
+        },
+        "tenantId": {
+          "$ref": "#/$defs/Id"
+        },
+        "projectId": {
+          "$ref": "#/$defs/Id"
+        },
+        "runId": {
+          "$ref": "#/$defs/Id"
+        },
+        "inputManifestId": {
+          "$ref": "#/$defs/Id"
+        },
+        "policyRevision": {
+          "$ref": "#/$defs/Id"
+        },
+        "executionKind": {
+          "const": "TASK"
+        },
+        "inputSha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "deadlineEpochMillis": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9223372036854775807
+        },
+        "maximumCommands": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2147483647
+        },
+        "maximumSteps": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2147483647
+        },
+        "maximumParallelSteps": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2147483647
+        },
+        "readTimeoutMillis": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9223372036854775807
+        },
+        "stepTimeoutMillis": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9223372036854775807
+        },
+        "scheduleTimeoutMillis": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9223372036854775807
+        },
+        "controlTaskQueue": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,199}$"
+        },
+        "professionalTaskQueue": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,199}$"
+        }
+      }
+    },
+    "Output": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifactId",
+        "sha256",
+        "schemaRef"
+      ],
+      "properties": {
+        "artifactId": {
+          "$ref": "#/$defs/Id"
+        },
+        "sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "schemaRef": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        }
+      }
+    },
+    "Dispatch": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "runId",
+        "stepId",
+        "actionId",
+        "commandId",
+        "stepEnvelopeArtifactId",
+        "inputSha256",
+        "leaseGeneration",
+        "stepEnvelopeSha256"
+      ],
+      "properties": {
+        "runId": {
+          "$ref": "#/$defs/Id"
+        },
+        "stepId": {
+          "$ref": "#/$defs/Id"
+        },
+        "actionId": {
+          "$ref": "#/$defs/Id"
+        },
+        "commandId": {
+          "$ref": "#/$defs/Id"
+        },
+        "stepEnvelopeArtifactId": {
+          "$ref": "#/$defs/Id"
+        },
+        "inputSha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "leaseGeneration": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9223372036854775807
+        },
+        "stepEnvelopeSha256": {
+          "$ref": "#/$defs/Hash"
+        }
+      }
+    },
+    "Completion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "runId",
+        "stepId",
+        "resultArtifactId",
+        "inputSha256",
+        "resultSha256",
+        "leaseGeneration",
+        "status"
+      ],
+      "properties": {
+        "runId": {
+          "$ref": "#/$defs/Id"
+        },
+        "stepId": {
+          "$ref": "#/$defs/Id"
+        },
+        "resultArtifactId": {
+          "$ref": "#/$defs/Id"
+        },
+        "inputSha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "resultSha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "leaseGeneration": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9223372036854775807
+        },
+        "status": {
+          "enum": [
+            "SUCCEEDED",
+            "WAITING_INPUT",
+            "FAILED"
+          ]
+        }
+      }
+    },
+    "Receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "stepId",
+        "inputSha256",
+        "leaseGeneration",
+        "status",
+        "receiptId",
+        "waitingItemId",
+        "outputs"
+      ],
+      "properties": {
+        "stepId": {
+          "$ref": "#/$defs/Id"
+        },
+        "inputSha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "leaseGeneration": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9223372036854775807
+        },
+        "status": {
+          "enum": [
+            "QUEUED",
+            "WAITING_INPUT",
+            "SUCCEEDED",
+            "FAILED",
+            "CANCELLED"
+          ]
+        },
+        "receiptId": {
+          "$ref": "#/$defs/Id"
+        },
+        "waitingItemId": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "outputs": {
+          "type": "array",
+          "maxItems": 4096,
+          "items": {
+            "$ref": "#/$defs/Output"
+          }
+        }
+      }
+    },
+    "Command": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "commandId",
+        "commandSha256",
+        "runId",
+        "kind",
+        "decisionReceiptId"
+      ],
+      "properties": {
+        "commandId": {
+          "$ref": "#/$defs/Id"
+        },
+        "commandSha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "runId": {
+          "$ref": "#/$defs/Id"
+        },
+        "kind": {
+          "enum": [
+            "RESOLVE_WAITING",
+            "REQUEST_CANCEL",
+            "TERMINATION_PROOF"
+          ]
+        },
+        "decisionReceiptId": {
+          "$ref": "#/$defs/Id"
+        }
+      }
+    }
+  },
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "body",
+    "receipt"
+  ],
+  "properties": {
+    "body": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "kind",
+        "graph_id",
+        "graph_sha256",
+        "obligation_sha256",
+        "protocol_sha256",
+        "disposition",
+        "reference",
+        "completion",
+        "producer_receipt"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "2.0.0"
+        },
+        "kind": {
+          "const": "TASK_TYPED_STAGE_COMMIT"
+        },
+        "graph_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "graph_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "obligation_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "protocol_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "disposition": {
+          "enum": [
+            "SATISFIED",
+            "BLOCKED"
+          ]
+        },
+        "reference": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schemaVersion",
+            "tenantId",
+            "projectId",
+            "runId",
+            "inputManifestId",
+            "policyRevision",
+            "executionKind",
+            "inputSha256",
+            "deadlineEpochMillis",
+            "maximumCommands",
+            "maximumSteps",
+            "maximumParallelSteps",
+            "readTimeoutMillis",
+            "stepTimeoutMillis",
+            "scheduleTimeoutMillis",
+            "controlTaskQueue",
+            "professionalTaskQueue"
+          ],
+          "properties": {
+            "schemaVersion": {
+              "const": "1.0.0"
+            },
+            "tenantId": {
+              "$ref": "#/$defs/Id"
+            },
+            "projectId": {
+              "$ref": "#/$defs/Id"
+            },
+            "runId": {
+              "$ref": "#/$defs/Id"
+            },
+            "inputManifestId": {
+              "$ref": "#/$defs/Id"
+            },
+            "policyRevision": {
+              "$ref": "#/$defs/Id"
+            },
+            "executionKind": {
+              "const": "TASK"
+            },
+            "inputSha256": {
+              "$ref": "#/$defs/Hash"
+            },
+            "deadlineEpochMillis": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9223372036854775807
+            },
+            "maximumCommands": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            },
+            "maximumSteps": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            },
+            "maximumParallelSteps": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            },
+            "readTimeoutMillis": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9223372036854775807
+            },
+            "stepTimeoutMillis": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9223372036854775807
+            },
+            "scheduleTimeoutMillis": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9223372036854775807
+            },
+            "controlTaskQueue": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,199}$"
+            },
+            "professionalTaskQueue": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,199}$"
+            }
+          }
+        },
+        "completion": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schemaVersion",
+            "stageKind",
+            "targetKind",
+            "runId",
+            "stepId",
+            "commandId",
+            "inputId",
+            "inputSha256",
+            "actionId",
+            "leaseGeneration",
+            "resultId",
+            "resultSha256",
+            "producerReceiptSha256"
+          ],
+          "properties": {
+            "schemaVersion": {
+              "const": "2.0.0"
+            },
+            "stageKind": {
+              "const": "N03"
+            },
+            "targetKind": {
+              "const": "FIELD_TARGET"
+            },
+            "runId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "stepId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "commandId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "inputId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "inputSha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "actionId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "leaseGeneration": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "resultId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "resultSha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "producerReceiptSha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          }
+        },
+        "producer_receipt": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schema_version",
+            "kind",
+            "target_kind",
+            "result_id",
+            "result_sha256",
+            "target_artifact_id",
+            "input_id",
+            "input_sha256",
+            "action_id",
+            "lease_generation",
+            "disposition",
+            "audit_id",
+            "event_id",
+            "artifact_id",
+            "intent_sha256",
+            "rule_revision",
+            "rule_sha256",
+            "result_receipt",
+            "object_ref"
+          ],
+          "properties": {
+            "schema_version": {
+              "const": "1.0.0"
+            },
+            "kind": {
+              "const": "STRICT_FIELD_OUTPUT_REGISTRATION"
+            },
+            "target_kind": {
+              "const": "FIELD_TARGET"
+            },
+            "result_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "result_sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "target_artifact_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "input_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "input_sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "action_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "lease_generation": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]{0,19}$"
+            },
+            "disposition": {
+              "enum": [
+                "CHECKED",
+                "WAITING_INPUT"
+              ]
+            },
+            "audit_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "event_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "artifact_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "intent_sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "rule_revision": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "rule_sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "result_receipt": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "schema_version",
+                "kind",
+                "target_kind",
+                "result_id",
+                "result_sha256",
+                "target_artifact_id",
+                "input_id",
+                "input_sha256",
+                "action_id",
+                "lease_generation",
+                "disposition",
+                "audit_id",
+                "event_id"
+              ],
+              "properties": {
+                "schema_version": {
+                  "const": "1.0.0"
+                },
+                "kind": {
+                  "const": "TASK_STRICT_FIELD_RESULT_RECEIPT"
+                },
+                "target_kind": {
+                  "const": "FIELD_TARGET"
+                },
+                "result_id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "result_sha256": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                },
+                "target_artifact_id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "input_id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "input_sha256": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                },
+                "action_id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "lease_generation": {
+                  "type": "string",
+                  "pattern": "^[1-9][0-9]{0,19}$"
+                },
+                "disposition": {
+                  "enum": [
+                    "CHECKED",
+                    "WAITING_INPUT"
+                  ]
+                },
+                "audit_id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "event_id": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "object_ref": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "object_key",
+                "object_version",
+                "sha256",
+                "size_bytes",
+                "media_type"
+              ],
+              "properties": {
+                "object_key": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 1024
+                },
+                "object_version": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 256
+                },
+                "sha256": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                },
+                "size_bytes": {
+                  "type": "string",
+                  "pattern": "^[1-9][0-9]{0,19}$"
+                },
+                "media_type": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "stageKind",
+        "obligationSha256",
+        "graphId",
+        "graphSha256",
+        "completion",
+        "disposition",
+        "receiptId",
+        "receiptSha256"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "2.0.0"
+        },
+        "stageKind": {
+          "const": "N03"
+        },
+        "obligationSha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "graphId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "graphSha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "completion": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schemaVersion",
+            "stageKind",
+            "targetKind",
+            "runId",
+            "stepId",
+            "commandId",
+            "inputId",
+            "inputSha256",
+            "actionId",
+            "leaseGeneration",
+            "resultId",
+            "resultSha256",
+            "producerReceiptSha256"
+          ],
+          "properties": {
+            "schemaVersion": {
+              "const": "2.0.0"
+            },
+            "stageKind": {
+              "const": "N03"
+            },
+            "targetKind": {
+              "const": "FIELD_TARGET"
+            },
+            "runId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "stepId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "commandId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "inputId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "inputSha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "actionId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "leaseGeneration": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "resultId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "resultSha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "producerReceiptSha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          }
+        },
+        "disposition": {
+          "enum": [
+            "SATISFIED",
+            "BLOCKED"
+          ]
+        },
+        "receiptId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "receiptSha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      }
+    }
+  }
+}

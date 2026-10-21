@@ -48,6 +48,12 @@ class DocumentTechnicalCheckServiceTest {
   String bodyHash=schema.hash(json.tree(body));
   var header=new DocumentReadProtocol.Header(id(1),id(4),id(5),id(6),id(6),BigInteger.ONE,"DRAFT","ACTIVE",id(10),id(11),id(7),id(13),id(14),bodyHash,"body/key","body-version",id(15),id(16),id(12),id(8),BigInteger.ZERO,bodyHash,id(2),now,"INTERNAL");
   when(proof.header()).thenReturn(header);when(proof.body()).thenReturn(body);
+  // The fixed-read boundary supplies the registered body schema, not merely decoded body bytes.
+  var bodyRequirement=new ArtifactRegistryProtocol.ReadRequirement(
+   new PermissionProtocol.Scope(id(1),id(4),"DOCUMENT",id(5)),"document.read","DOCUMENT_BODY",
+   schema.bodySchemaRef(),schema.bodySchemaSha256(),schema.manifest(),new DependencyLineage.Limits(16,64));
+  when(proof.bodyIntent()).thenReturn(new ContentReadProtocol.ReadIntent(header.bodyArtifactId(),"1",bodyRequirement,
+   List.of(),new VersionResourceProtocol.ReadContext(SourceReadProtocol.Use.FORMAL,null),Map.of()));
   when(proof.watermarks()).thenReturn(new DocumentReadProtocol.Watermarks(BigInteger.ZERO,BigInteger.ZERO));
   when(proof.dependencies()).thenReturn(new ArtifactRegistryProtocol.DependencyManifest("1.0.0",id(1),id(4),id(8),List.of()));
   when(documents.readFixed(subject,"1",id(5),id(6))).thenReturn(proof);

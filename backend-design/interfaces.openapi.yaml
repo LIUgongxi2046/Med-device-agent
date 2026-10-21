@@ -489,6 +489,26 @@ paths:
     get: {operationId: BX-34, x-detail-schema: './resource-details.schema.yaml#/$defs/FolderDetail', parameters: [*version, *project, *page, *size, *watermark, {name: parent_id, in: query, schema: {$ref: './interfaces.schema.yaml#/$defs/Id'}}], responses: {'200': *records, default: *error}}
   /api/template-versions/{id}:
     get: {operationId: BX-35, x-detail-schema: './resource-details.schema.yaml#/$defs/TemplateDetail', parameters: [*id, *version], responses: {'200': *record, default: *error}}
+  /api/template-versions/{id}/application-view:
+    get:
+      operationId: BX-35-APPLICATION-VIEW
+      description: Separate closed 1.0.0 application-view route, not the legacy BX-35 TemplateDetail response. Fixed approved template and complete inline definitions, evaluated against an explicitly pinned project profile. Human choices remain separate from rule results and never approve the template.
+      parameters: [*id, *version, *context, {name: project_id, in: query, required: true, schema: {$ref: './interfaces.schema.yaml#/$defs/Id'}}, {name: profile_revision, in: query, required: true, schema: {$ref: './interfaces.schema.yaml#/$defs/Id'}}, {name: document_type, in: query, required: true, schema: {$ref: '../business/medical-persistence/src/main/resources/templates.schema.json#/$defs/DocumentType'}}]
+      responses:
+        '200':
+          description: Complete fixed inline view. This implemented representation does not fabricate the legacy TemplateDetail field ArtifactRef.
+          content: {application/json: {schema: {allOf: [{$ref: './interfaces.schema.yaml#/$defs/Envelope'}, {properties: {data: {$ref: '../business/medical-persistence/src/main/resources/template-application.schema.json#/$defs/FixedView'}}}]}}}
+        default: *error
+  /api/template-versions/{id}/application-decisions:
+    post:
+      operationId: TA-01
+      parameters: [*id, *version, *context, *idem, *csrf]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '../business/medical-persistence/src/main/resources/template-application.schema.json#/$defs/HumanDecisionInput'}}}}
+      responses:
+        '200':
+          description: Original persisted human decision. Retry the identical request and key to recover an unknown outcome; current authorization is always required.
+          content: {application/json: {schema: {allOf: [{$ref: './interfaces.schema.yaml#/$defs/Envelope'}, {properties: {data: {$ref: '../business/medical-persistence/src/main/resources/template-application.schema.json#/$defs/HumanDecisionReceipt'}}}]}}}
+        default: *error
   /api/change-proposals/{id}:
     get: {operationId: BX-36, x-detail-schema: './resource-details.schema.yaml#/$defs/ChangeProposalDetail', parameters: [*id, *version], responses: {'200': *record, default: *error}}
   /api/artifacts/{id}/content:

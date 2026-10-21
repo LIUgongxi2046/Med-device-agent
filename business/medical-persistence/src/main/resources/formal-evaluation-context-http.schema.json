@@ -1,0 +1,654 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:formal-evaluation-context-http:1.0.0",
+  "$comment": "Transport-only. Author, Decide and Definition are exact frozen 088 copies; this schema is never a persisted 088 manifest. Historical APPROVED is not execution authority.",
+  "$defs": {
+    "Id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "Hash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "Revision": {
+      "type": "string",
+      "pattern": "^[1-9][0-9]{0,19}$"
+    },
+    "Reason": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2000
+    },
+    "Basis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version_id",
+        "content_sha256"
+      ],
+      "properties": {
+        "version_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "content_sha256": {
+          "$ref": "#/$defs/Hash"
+        }
+      }
+    },
+    "Schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_ref",
+        "schema_sha256"
+      ],
+      "properties": {
+        "schema_ref": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024
+        },
+        "schema_sha256": {
+          "$ref": "#/$defs/Hash"
+        }
+      }
+    },
+    "Node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "node_kind",
+        "role",
+        "prompt",
+        "context_assembler",
+        "input_schema",
+        "output_schema"
+      ],
+      "properties": {
+        "node_kind": {
+          "type": "string",
+          "pattern": "^N0[0-9]$"
+        },
+        "role": {
+          "$ref": "#/$defs/Basis"
+        },
+        "prompt": {
+          "$ref": "#/$defs/Basis"
+        },
+        "context_assembler": {
+          "$ref": "#/$defs/Basis"
+        },
+        "input_schema": {
+          "$ref": "#/$defs/Schema"
+        },
+        "output_schema": {
+          "$ref": "#/$defs/Schema"
+        }
+      }
+    },
+    "Definition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "project_id",
+        "candidate",
+        "execution_policy",
+        "node_bindings"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "project_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "candidate": {
+          "$ref": "#/$defs/Basis"
+        },
+        "execution_policy": {
+          "$ref": "#/$defs/Basis"
+        },
+        "node_bindings": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 10,
+          "items": {
+            "$ref": "#/$defs/Node"
+          }
+        }
+      }
+    },
+    "Author": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "definition",
+        "reason"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "definition": {
+          "$ref": "#/$defs/Definition"
+        },
+        "reason": {
+          "$ref": "#/$defs/Reason"
+        }
+      }
+    },
+    "Decide": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "binding",
+        "expected_revision",
+        "decision",
+        "reason"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "binding": {
+          "$ref": "#/$defs/Basis"
+        },
+        "expected_revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "decision": {
+          "enum": [
+            "APPROVE",
+            "REJECT",
+            "DISABLE"
+          ]
+        },
+        "reason": {
+          "$ref": "#/$defs/Reason"
+        }
+      }
+    },
+    "ExecutionStart": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "evaluation_id",
+        "definition_sha256",
+        "expected_evaluation_revision",
+        "candidate",
+        "execution_policy",
+        "enterprise_budget",
+        "parent_budget"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "evaluation_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "definition_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "expected_evaluation_revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "candidate": {
+          "$ref": "#/$defs/Basis"
+        },
+        "execution_policy": {
+          "$ref": "#/$defs/Basis"
+        },
+        "enterprise_budget": {
+          "$ref": "#/$defs/Basis"
+        },
+        "parent_budget": {
+          "$ref": "#/$defs/Basis"
+        }
+      }
+    },
+    "BoundStart": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "start",
+        "context_binding"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "start": {
+          "$ref": "#/$defs/ExecutionStart"
+        },
+        "context_binding": {
+          "$ref": "#/$defs/Basis"
+        }
+      }
+    },
+    "Status": {
+      "enum": [
+        "DRAFT",
+        "APPROVED",
+        "REJECTED",
+        "DISABLED"
+      ]
+    },
+    "Classification": {
+      "enum": [
+        "PUBLIC",
+        "INTERNAL",
+        "RESTRICTED",
+        "PERSONAL_HEALTH"
+      ]
+    },
+    "Key": {
+      "type": "string",
+      "minLength": 16,
+      "maxLength": 128,
+      "pattern": "^[!-~]+$"
+    },
+    "Context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tenant_id",
+        "context_revision",
+        "auth_epoch",
+        "governance_epoch"
+      ],
+      "properties": {
+        "tenant_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "context_revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "auth_epoch": {
+          "$ref": "#/$defs/Revision"
+        },
+        "governance_epoch": {
+          "$ref": "#/$defs/Revision"
+        }
+      }
+    },
+    "Availability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "current_context",
+        "features",
+        "unavailable_reason",
+        "maximum_page_size"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "current_context": {
+          "$ref": "#/$defs/Context"
+        },
+        "features": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "context_bindings",
+            "bound_preparation"
+          ],
+          "properties": {
+            "context_bindings": {
+              "type": "boolean"
+            },
+            "bound_preparation": {
+              "const": false
+            }
+          }
+        },
+        "unavailable_reason": {
+          "enum": [
+            null,
+            "FEATURE_DISABLED",
+            "DEPENDENCY_UNAVAILABLE"
+          ]
+        },
+        "maximum_page_size": {
+          "const": 20
+        }
+      }
+    },
+    "Query": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "project_id",
+        "limit",
+        "cursor"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "project_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20
+        },
+        "cursor": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "Receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "binding",
+        "status",
+        "revision",
+        "operation_id"
+      ],
+      "properties": {
+        "binding": {
+          "$ref": "#/$defs/Basis"
+        },
+        "status": {
+          "$ref": "#/$defs/Status"
+        },
+        "revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "operation_id": {
+          "$ref": "#/$defs/Id"
+        }
+      }
+    },
+    "Recovery": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schema_version",
+            "kind",
+            "original_key",
+            "request"
+          ],
+          "properties": {
+            "schema_version": {
+              "const": "1.0.0"
+            },
+            "kind": {
+              "const": "AUTHOR"
+            },
+            "original_key": {
+              "$ref": "#/$defs/Key"
+            },
+            "request": {
+              "$ref": "#/$defs/Author"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schema_version",
+            "kind",
+            "original_key",
+            "request"
+          ],
+          "properties": {
+            "schema_version": {
+              "const": "1.0.0"
+            },
+            "kind": {
+              "const": "DECISION"
+            },
+            "original_key": {
+              "$ref": "#/$defs/Key"
+            },
+            "request": {
+              "$ref": "#/$defs/Decide"
+            }
+          }
+        }
+      ]
+    },
+    "Fixed": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "tenant_id",
+        "version_id",
+        "created_by",
+        "created_at",
+        "classification",
+        "definition"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "tenant_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "version_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "created_by": {
+          "$ref": "#/$defs/Id"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "classification": {
+          "$ref": "#/$defs/Classification"
+        },
+        "definition": {
+          "$ref": "#/$defs/Definition"
+        }
+      }
+    },
+    "Decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "tenant_id",
+        "version_id",
+        "binding_sha256",
+        "record_id",
+        "previous_status",
+        "previous_revision",
+        "decision",
+        "status",
+        "revision",
+        "actor_id",
+        "decided_at",
+        "reason"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "tenant_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "version_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "binding_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "record_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "previous_status": {
+          "$ref": "#/$defs/Status"
+        },
+        "previous_revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "decision": {
+          "enum": [
+            "APPROVE",
+            "REJECT",
+            "DISABLE"
+          ]
+        },
+        "status": {
+          "$ref": "#/$defs/Status"
+        },
+        "revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "decided_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "reason": {
+          "$ref": "#/$defs/Reason"
+        }
+      }
+    },
+    "View": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "binding",
+        "fixed",
+        "author_reason",
+        "status",
+        "revision",
+        "decisions"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "binding": {
+          "$ref": "#/$defs/Basis"
+        },
+        "fixed": {
+          "$ref": "#/$defs/Fixed"
+        },
+        "author_reason": {
+          "$ref": "#/$defs/Reason"
+        },
+        "status": {
+          "$ref": "#/$defs/Status"
+        },
+        "revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "decisions": {
+          "type": "array",
+          "maxItems": 2,
+          "items": {
+            "$ref": "#/$defs/Decision"
+          }
+        }
+      }
+    },
+    "Summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "binding",
+        "project_id",
+        "candidate",
+        "execution_policy",
+        "status",
+        "revision",
+        "created_by",
+        "created_at",
+        "classification"
+      ],
+      "properties": {
+        "binding": {
+          "$ref": "#/$defs/Basis"
+        },
+        "project_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "candidate": {
+          "$ref": "#/$defs/Basis"
+        },
+        "execution_policy": {
+          "$ref": "#/$defs/Basis"
+        },
+        "status": {
+          "$ref": "#/$defs/Status"
+        },
+        "revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "created_by": {
+          "$ref": "#/$defs/Id"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "classification": {
+          "$ref": "#/$defs/Classification"
+        }
+      }
+    },
+    "Page": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "items",
+        "next_cursor"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "items": {
+          "type": "array",
+          "maxItems": 20,
+          "items": {
+            "$ref": "#/$defs/Summary"
+          }
+        },
+        "next_cursor": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

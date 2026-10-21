@@ -1,0 +1,11 @@
+{
+  "schema_version": "1.0.0",
+  "base_catalogue_sha256": "dcd72acbb7a45775373662e0ffe4557030d4740b0afacdee8375e7768e761915",
+  "schemas": [
+    {
+      "name": "task-professional-package-v2",
+      "path": "business/medical-persistence/src/main/resources/task-professional-package-v2.schema.json",
+      "sha256": "a559f6959098b6cac4b952d890e481a226dece72c428f4e40576d1bcebe98537"
+    }
+  ]
+}

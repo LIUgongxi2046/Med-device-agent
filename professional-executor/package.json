@@ -5,10 +5,22 @@
   "type": "module",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
-  "exports": {".": "./lib/index.js"},
-  "files": ["lib", "medical.patch.yml"],
-  "dsh": {"bundle": {"patch": "./medical.patch.yml"}},
-  "scripts": {"build": "tsc -p tsconfig.json", "test": "node --test tests/*.test.mjs"},
+  "exports": {
+    ".": "./lib/index.js"
+  },
+  "files": [
+    "lib",
+    "medical.patch.yml"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./medical.patch.yml"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "node --test tests/*.test.mjs"
+  },
   "dependencies": {
     "@apidevtools/json-schema-ref-parser": "16.0.3",
     "@medical-agent/contracts": "file:../contracts/typescript",
@@ -21,19 +33,19 @@
     "zod": "4.4.3"
   },
   "peerDependencies": {
-    "@deepseek-ai/dsh-agent": "0.2.1-alpha.1",
-    "@deepseek-ai/cordis": "4.0.5-alpha.1",
-    "@deepseek-ai/cordis-plugin-loader": "1.0.6-alpha.1",
-    "@deepseek-ai/dsh-llm": "0.2.1-alpha.1",
-    "@deepseek-ai/dsh-tools": "0.2.1-alpha.1"
+    "@deepseek-ai/dsh-agent": "0.2.1-rc.2",
+    "@deepseek-ai/cordis": "4.0.5",
+    "@deepseek-ai/cordis-plugin-loader": "1.0.6",
+    "@deepseek-ai/dsh-llm": "0.2.1-rc.2",
+    "@deepseek-ai/dsh-tools": "0.2.1-rc.2"
   },
   "devDependencies": {
-    "@deepseek-ai/dsh-agent": "0.2.1-alpha.1",
-    "@deepseek-ai/dsh-attachment": "0.2.1-alpha.1",
-    "@deepseek-ai/cordis": "4.0.5-alpha.1",
-    "@deepseek-ai/cordis-plugin-loader": "1.0.6-alpha.1",
-    "@deepseek-ai/dsh-llm": "0.2.1-alpha.1",
-    "@deepseek-ai/dsh-tools": "0.2.1-alpha.1",
+    "@deepseek-ai/dsh-agent": "0.2.1-rc.2",
+    "@deepseek-ai/dsh-attachment": "0.2.1-rc.2",
+    "@deepseek-ai/cordis": "4.0.5",
+    "@deepseek-ai/cordis-plugin-loader": "1.0.6",
+    "@deepseek-ai/dsh-llm": "0.2.1-rc.2",
+    "@deepseek-ai/dsh-tools": "0.2.1-rc.2",
     "@types/node": "22.20.0",
     "typescript": "5.9.3"
   }

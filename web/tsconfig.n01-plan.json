@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.medical.json",
+  "include": [
+    "src/views/medical/evaluation-results.vue",
+    "src/api/medical/n01-plan-preparation.ts",
+    "src/api/medical/n01-plan-selection.ts",
+    "src/views/medical/n01-plan-preparation.vue",
+    "src/views/medical/plan-candidate-detail.vue",
+    "src/medical.d.ts",
+    "node_modules/vue-cropper/shims-vue.d.ts"
+  ]
+}

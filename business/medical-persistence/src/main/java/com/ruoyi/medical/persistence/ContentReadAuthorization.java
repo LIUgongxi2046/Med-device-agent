@@ -34,11 +34,34 @@ final class ContentReadAuthorization {
 
     static String digest(EnterpriseAccess.Admission admission, ContentReadProtocol.ReadIntent intent,
             ArtifactSourceAuthority.VerifiedSources verified) throws IOException, NoSuchAlgorithmException {
+        return digest(admission,intent,verified,false);
+    }
+
+    static String digest(EnterpriseAccess.Admission admission, ContentReadProtocol.ReadIntent intent,
+            ArtifactSourceAuthority.VerifiedSources verified,EvidenceReadAccess reader) throws IOException, NoSuchAlgorithmException {
+        if(!reader.actorId().equals(admission.actorId()))throw new TenantAccessException(ErrorCode.ACCESS_DENIED);
+        return digest(admission,intent,verified,reader.control());
+    }
+    /** Shared saved-document metadata reader: private worker identity is never a human session. */
+    static String documentDigest(EnterpriseAccess.Admission admission,ContentReadProtocol.ReadIntent intent,
+            ArtifactSourceAuthority.VerifiedSources verified)throws IOException,NoSuchAlgorithmException {
+        if(!"DOCUMENT".equals(intent.artifact().scope().resource_kind())||!"DOCUMENT_BODY".equals(intent.artifact().purpose()))
+            throw new TenantAccessException(ErrorCode.ACCESS_DENIED);
+        return digest(admission,intent,verified,admission.documentReviewWorker()||admission.formalWorker()||admission.controlWorker());
+    }
+
+    private static String digest(EnterpriseAccess.Admission admission, ContentReadProtocol.ReadIntent intent,
+            ArtifactSourceAuthority.VerifiedSources verified,boolean control) throws IOException, NoSuchAlgorithmException {
         TenantScope.requireSqlAccess("com.ruoyi.medical.persistence.mapper.ContentReadMapper.header");
         if (!admission.context().context_revision().equals(intent.contextRevision())) throw new TenantAccessException(ErrorCode.CONTEXT_CHANGED);
         var value = new LinkedHashMap<String, Object>(); value.put("schema_version", "1.0.0");
-        value.put("subject_id", admission.subject().user().user_id()); value.put("session_id", admission.subject().sessionId());
-        value.put("identity_binding", admission.subject().binding().view()); value.put("context_id", admission.contextId());
+        if(control){
+            value.put("subject_id",admission.actorId());value.put("identity_binding",admission.bindingView());
+            value.put("control_evidence_identity",admission.actorProof());
+        }else{
+            value.put("subject_id", admission.subject().user().user_id()); value.put("session_id", admission.subject().sessionId());
+            value.put("identity_binding", admission.subject().binding().view()); value.put("context_id", admission.contextId());
+        }
         value.put("context", admission.context()); value.put("watermarks", admission.watermarks()); value.put("intent", intent);
         value.put("registration", registration(verified.registration())); value.put("sources", verified.sources());
         var versions = new LinkedHashMap<String, Object>();

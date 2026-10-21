@@ -16,6 +16,19 @@ export async function loadProject(root: string): Promise<SchemaCatalogue> {
     await readRegistered('contracts/extensions/simulation-execution.catalogue.json'),
     await readRegistered('contracts/extensions/task-runtime.catalogue.json'),
     await readRegistered('contracts/extensions/evaluation-context-compiler.catalogue.json'),
+    await readRegistered('contracts/extensions/evaluation-planning-context-compiler.catalogue.json'),
+    await readRegistered('contracts/extensions/task-tool-read.catalogue.json'),
+    await readRegistered('contracts/extensions/task-professional-package.catalogue.json'),
+    await readRegistered('contracts/extensions/task-plan-draft-package.catalogue.json'),
+    await readRegistered('contracts/extensions/professional-review-packages.catalogue.json'),
+    await readRegistered('contracts/extensions/source-evidence-v2.catalogue.json'),
+    await readRegistered('contracts/extensions/document-evidence-v2.catalogue.json'),
+    await readRegistered('contracts/extensions/template-application.catalogue.json'),
+    await readRegistered('contracts/extensions/strict-field-evidence-v2.catalogue.json'),
+    await readRegistered('contracts/extensions/document-operations-v2.catalogue.json'),
+    await readRegistered('contracts/extensions/evaluation-business-v2.catalogue.json'),
+    await readRegistered('contracts/extensions/task-professional-package-v2.catalogue.json'),
+    await readRegistered('contracts/extensions/evaluation-stage-input.catalogue.json'),
   )
   const files = new Map<string, Uint8Array>()
   for (const entry of manifest.schemas) {

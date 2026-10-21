@@ -2,68 +2,216 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:medical:retrieval-view:1.0.0",
   "$defs": {
-    "Id": {"type": "string", "format": "uuid"},
-    "Hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
-    "Revision": {"type": "string", "pattern": "^(0|[1-9][0-9]*)$", "maxLength": 20},
+    "Id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "Hash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "Revision": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)$",
+      "maxLength": 20
+    },
     "SearchInput": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["schema_version", "project_id", "query", "purpose"],
+      "required": [
+        "schema_version",
+        "project_id",
+        "query",
+        "purpose"
+      ],
       "properties": {
-        "schema_version": {"const": "1.0.0"},
-        "project_id": {"$ref": "#/$defs/Id"},
-        "query": {"type": "string", "minLength": 2, "maxLength": 500},
-        "purpose": {"const": "VERIFICATION"}
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "project_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "query": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 500
+        },
+        "purpose": {
+          "const": "VERIFICATION"
+        }
       }
     },
     "Hit": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["rank", "source_id", "source_version", "parse_version", "index_version", "chunk_id", "approval_revision", "title", "excerpt", "excerpt_truncated", "locator_kind", "locator", "quote_hash", "relevance"],
+      "required": [
+        "rank",
+        "source_id",
+        "source_version",
+        "parse_version",
+        "index_version",
+        "chunk_id",
+        "approval_revision",
+        "title",
+        "excerpt",
+        "excerpt_truncated",
+        "locator_kind",
+        "locator",
+        "quote_hash",
+        "relevance"
+      ],
       "properties": {
-        "rank": {"type": "integer", "minimum": 1},
-        "source_id": {"$ref": "#/$defs/Id"},
-        "source_version": {"$ref": "#/$defs/Id"},
-        "parse_version": {"$ref": "#/$defs/Id"},
-        "index_version": {"$ref": "#/$defs/Id"},
-        "chunk_id": {"$ref": "#/$defs/Id"},
-        "approval_revision": {"$ref": "#/$defs/Id"},
-        "title": {"type": "string", "minLength": 1, "maxLength": 512},
-        "excerpt": {"type": "string", "minLength": 1, "maxLength": 1200},
-        "excerpt_truncated": {"type": "boolean"},
-        "locator_kind": {"enum": ["PDF", "DOCX", "XLSX", "CSV", "TXT", "MARKDOWN", "PPTX"]},
-        "locator": {"type": "object", "minProperties": 1},
-        "quote_hash": {"$ref": "#/$defs/Hash"},
-        "relevance": {"type": "string", "pattern": "^[0-9]+(\\.[0-9]{1,10})?$"}
+        "rank": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "source_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "source_version": {
+          "$ref": "#/$defs/Id"
+        },
+        "parse_version": {
+          "$ref": "#/$defs/Id"
+        },
+        "index_version": {
+          "$ref": "#/$defs/Id"
+        },
+        "chunk_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "approval_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        },
+        "excerpt": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1200
+        },
+        "excerpt_truncated": {
+          "type": "boolean"
+        },
+        "locator_kind": {
+          "enum": [
+            "PDF",
+            "DOCX",
+            "XLSX",
+            "CSV",
+            "TXT",
+            "MARKDOWN",
+            "PPTX",
+            "IMAGE"
+          ]
+        },
+        "locator": {
+          "type": "object",
+          "minProperties": 1
+        },
+        "quote_hash": {
+          "$ref": "#/$defs/Hash"
+        },
+        "relevance": {
+          "type": "string",
+          "pattern": "^[0-9]+(\\.[0-9]{1,10})?$"
+        }
       }
     },
     "PageInfo": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["page", "page_size", "total", "selection_sha256", "next_page"],
+      "required": [
+        "page",
+        "page_size",
+        "total",
+        "selection_sha256",
+        "next_page"
+      ],
       "properties": {
-        "page": {"type": "integer", "minimum": 1},
-        "page_size": {"type": "integer", "minimum": 1, "maximum": 100},
-        "total": {"$ref": "#/$defs/Revision"},
-        "selection_sha256": {"$ref": "#/$defs/Hash"},
-        "next_page": {"type": ["integer", "null"], "minimum": 2}
+        "page": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "page_size": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "total": {
+          "$ref": "#/$defs/Revision"
+        },
+        "selection_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "next_page": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 2
+        }
       }
     },
     "Page": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["schema_version", "retrieval_id", "project_id", "query", "purpose", "mode", "status", "created_at", "items", "page_info"],
+      "required": [
+        "schema_version",
+        "retrieval_id",
+        "project_id",
+        "query",
+        "purpose",
+        "mode",
+        "status",
+        "created_at",
+        "items",
+        "page_info"
+      ],
       "properties": {
-        "schema_version": {"const": "1.0.0"},
-        "retrieval_id": {"$ref": "#/$defs/Id"},
-        "project_id": {"$ref": "#/$defs/Id"},
-        "query": {"type": "string", "minLength": 2, "maxLength": 500},
-        "purpose": {"const": "VERIFICATION"},
-        "mode": {"const": "FULLTEXT"},
-        "status": {"enum": ["FOUND", "EMPTY"]},
-        "created_at": {"type": "string", "format": "date-time"},
-        "items": {"type": "array", "maxItems": 100, "items": {"$ref": "#/$defs/Hit"}},
-        "page_info": {"$ref": "#/$defs/PageInfo"}
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "retrieval_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "project_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "query": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 500
+        },
+        "purpose": {
+          "const": "VERIFICATION"
+        },
+        "mode": {
+          "const": "FULLTEXT"
+        },
+        "status": {
+          "enum": [
+            "FOUND",
+            "EMPTY"
+          ]
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "items": {
+          "type": "array",
+          "maxItems": 100,
+          "items": {
+            "$ref": "#/$defs/Hit"
+          }
+        },
+        "page_info": {
+          "$ref": "#/$defs/PageInfo"
+        }
       }
     }
   }

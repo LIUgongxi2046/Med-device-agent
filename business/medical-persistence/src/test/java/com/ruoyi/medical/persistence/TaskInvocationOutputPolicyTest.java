@@ -1,0 +1,17 @@
+package com.ruoyi.medical.persistence;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.ruoyi.medical.contracts.ErrorCode;
+import java.time.Instant;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
+class TaskInvocationOutputPolicyTest {
+ final String run=TaskInvocationFixture.id(1);final Instant created=Instant.parse("2026-10-20T01:00:00Z");
+ JsonNode retention()throws Exception{return new FormalInvocationSchema().parse("{\"policy_revision\":\""+TaskInvocationFixture.id(2)+"\",\"content_sha256\":\""+"a".repeat(64)+"\",\"terms\":[{\"category\":\"RUN\",\"start_event\":\"RUN_CREATED\",\"retention_duration_seconds\":\"100\",\"hold_override\":false,\"purge_method\":\"VERIFIED_DELETE\",\"backup_expiry_seconds\":\"200\"},{\"category\":\"STREAM\",\"start_event\":\"STREAM_CREATED\",\"retention_duration_seconds\":\"1\",\"hold_override\":false,\"purge_method\":\"VERIFIED_DELETE\",\"backup_expiry_seconds\":\"2\"}]}");}
+ @Test void usesActualRunOriginAndPreservesTermWithoutStreamOrExpiry()throws Exception{var original=retention();var result=TaskInvocationOutputPolicy.forRun(run,created,original);assertEquals(original.at("/terms/0"),result.required("term"));assertEquals(created.toString(),result.required("run_created_at").textValue());assertFalse(result.has("deadline_at"));assertFalse(result.has("expires_at"));assertFalse(result.toString().contains("STREAM"));}
+ @Test void borrowedRunDenied()throws Exception{var retention=retention();var fixed=TaskInvocationOutputPolicy.forRun(run,created,retention);assertThrows(TenantAccessException.class,()->TaskInvocationOutputPolicy.requireOriginal(fixed,TaskInvocationFixture.id(3),created,retention));}
+ @Test void alteredActualOriginDenied()throws Exception{var retention=retention();var fixed=TaskInvocationOutputPolicy.forRun(run,created,retention);assertThrows(TenantAccessException.class,()->TaskInvocationOutputPolicy.requireOriginal(fixed,run,created.plusSeconds(1),retention));}
+ @Test void changedOriginalPolicyOrTermDenied()throws Exception{var retention=retention();var fixed=TaskInvocationOutputPolicy.forRun(run,created,retention);((ObjectNode)retention).put("content_sha256","b".repeat(64));assertThrows(TenantAccessException.class,()->TaskInvocationOutputPolicy.requireOriginal(fixed,run,created,retention));((ObjectNode)retention).put("content_sha256","a".repeat(64));((ObjectNode)retention.at("/terms/0")).put("retention_duration_seconds","101");assertThrows(TenantAccessException.class,()->TaskInvocationOutputPolicy.requireOriginal(fixed,run,created,retention));}
+ @Test void streamSubstitutionAndHoldOverrideDenied()throws Exception{var retention=retention();((ObjectNode)retention.at("/terms/0")).put("start_event","STREAM_CREATED");assertThrows(TenantAccessException.class,()->TaskInvocationOutputPolicy.forRun(run,created,retention));((ObjectNode)retention.at("/terms/0")).put("start_event","RUN_CREATED").put("hold_override",true);assertThrows(TenantAccessException.class,()->TaskInvocationOutputPolicy.forRun(run,created,retention));}
+ @Test void producerCutoffExclusiveAndIndependentOfPreservation(){String cutoff=created.plusSeconds(30).toString();assertDoesNotThrow(()->TaskInvocationOutputPolicy.requireWriteCutoff(cutoff,created));for(var now:new Instant[]{created.plusSeconds(30),created.plusSeconds(31)})assertEquals(ErrorCode.ACTION_STALE,assertThrows(TenantAccessException.class,()->TaskInvocationOutputPolicy.requireWriteCutoff(cutoff,now)).code());}
+}

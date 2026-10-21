@@ -1,0 +1,51 @@
+openapi: 3.1.0
+info:
+  title: BX-06 / RV-02 / RV-03 actual check and issue consumers
+  version: 1.1.0
+paths:
+  /api/checks/{id}:
+    get:
+      summary: Read fixed actual check artifacts under current authorization
+      parameters:
+        - {in: path, name: id, required: true, schema: {type: string, format: uuid}}
+        - {in: header, name: X-Context-Revision, required: true, schema: {type: string, pattern: '^(0|[1-9][0-9]*)$'}}
+        - {in: header, name: X-Schema-Version, required: true, schema: {enum: [1.0.0, 1.1.0]}}
+      responses:
+        '200':
+          description: >-
+            1.0.0 keeps resource-details CheckDetail unchanged for DOCUMENT and CANDIDATE.
+            1.1.0 uses the separate closed check-detail-v1.1 schema with CANDIDATE_SET and explicit
+            check_kind/professional_coverage_complete/professional_approval=false. Both envelopes
+            match their selected schema version. Coverage means complete physical byte delivery,
+            never professional approval. N06 and technical checks always have professional coverage false.
+        '422': {description: CANDIDATE_SET cannot be represented by v1.0; explicitly request v1.1}
+  /api/documents/{id}/issues:
+    get:
+      summary: Read issues on one exact document revision, including original locations
+      parameters:
+        - {in: path, name: id, required: true, schema: {type: string, format: uuid}}
+        - {in: query, name: document_revision, required: true, schema: {type: string, format: uuid}}
+        - {in: query, name: status, schema: {enum: [OPEN, IN_PROGRESS, RESOLVED, REOPENED]}}
+        - {in: query, name: severity, schema: {enum: [BLOCKING, WARNING, INFO]}}
+        - {in: query, name: cursor, schema: {type: string, format: uuid}}
+        - {in: query, name: limit, schema: {type: integer, minimum: 1, maximum: 100, default: 50}}
+      responses:
+        '200': {description: Closed professional-issue-result listing; professional_coverage is always false, including an empty filtered page}
+  /api/issues/{id}/decisions:
+    post:
+      summary: Atomically assign, resolve against genuinely new corresponding evidence, or reopen
+      parameters:
+        - {in: path, name: id, required: true, schema: {type: string, format: uuid}}
+        - {in: header, name: Idempotency-Key, required: true, schema: {type: string, maxLength: 128}}
+        - {in: header, name: X-Schema-Version, required: true, schema: {const: 1.0.0}}
+        - {in: header, name: X-Context-Revision, required: true, schema: {type: string}}
+        - {in: header, name: X-CSRF-TOKEN, required: true, schema: {type: string}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '../business/medical-persistence/src/main/resources/professional-issue.schema.json'}
+      responses:
+        '201': {description: Original immutable decision receipt, including original result on same-key replay}
+        '409': {description: Changed request, stale CAS/body/watermarks, absent corresponding check or incomplete/newly revoked evidence}
+        '403': {description: Current document, source, artifact or assignment authority denied}

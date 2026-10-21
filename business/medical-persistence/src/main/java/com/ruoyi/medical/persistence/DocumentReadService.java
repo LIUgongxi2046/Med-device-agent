@@ -7,6 +7,7 @@ import com.ruoyi.medical.contracts.InterfaceBindings;
 import com.ruoyi.medical.contracts.InterfaceProtocol;
 import com.ruoyi.medical.contracts.SchemaCatalogue;
 import com.ruoyi.medical.contracts.TypedSchemaBindings;
+import com.ruoyi.medical.contracts.DocumentEvidenceBindings;
 import com.ruoyi.medical.contracts.WireValues;
 import com.ruoyi.medical.identity.ApplicationSessionIdentity;
 import com.ruoyi.medical.persistence.mapper.ArtifactRegistryMapper;
@@ -75,8 +76,13 @@ public final class DocumentReadService {
         DocumentReadProtocol.Header header() { return state.header(); }
         DocumentReadProtocol.Watermarks watermarks() { return state.watermarks(); }
         InterfaceProtocol.DocumentBody body() { return loaded.body(); }
+        byte[] bodyBytes() { return loaded.bodyBytes(); }
+        InterfaceProtocol.ObjectRef bodyObject() { return state.verified().get("DOCUMENT_BODY").registration().artifact().reference(); }
+        Map<String,SourceReadProtocol.VerifiedSource> fixedSources() { return state.verified().get("DOCUMENT_BODY").sources(); }
         String digest() { return state.digest(); }
         ContentReadProtocol.ReadIntent bodyIntent() { return state.intents().get("DOCUMENT_BODY"); }
+        String bodySchemaRef(){return bodyIntent().artifact().schemaRef();}
+        String bodySchemaSha256(){return bodyIntent().artifact().schemaDocumentSha256();}
         ArtifactRegistryProtocol.DependencyManifest dependencies() {
             return state.verified().get("DOCUMENT_BODY").registration().manifest();
         }
@@ -87,6 +93,9 @@ public final class DocumentReadService {
         private final State state;
         private MetadataRead(State state) { this.state = state; }
         DocumentReadProtocol.Header header() { return state.header(); }
+        // Publication metadata only; callers still owe the actual authorized content read.
+        String bodySchemaRef() { return state.intents().get("DOCUMENT_BODY").artifact().schemaRef(); }
+        String bodySchemaSha256() { return state.intents().get("DOCUMENT_BODY").artifact().schemaDocumentSha256(); }
         CommonProtocol.ArtifactRef artifactReference(String kind) throws Exception {
             if (!java.util.Set.of("DOCUMENT_BODY", "DOCUMENT_FIELDS", "DOCUMENT_EVIDENCE").contains(kind)) throw new IllegalArgumentException("Unsupported metadata artifact");
             return reference(state, kind);
@@ -105,9 +114,16 @@ public final class DocumentReadService {
     }
 
     FixedRead readFixed(ApplicationSessionIdentity.Verified subject, String context, String documentId, String revision) throws Exception {
-        var initial = prepare(subject, context, documentId, revision);
+        return readFixed(EvidenceReadAccess.human(access, subject), context, documentId, revision);
+    }
+
+    /** Actual complete object reader for a private bounded worker control capability. */
+    FixedRead readFixed(EvidenceReadAccess subject, String context, String documentId, String revision) throws Exception {
+        var initial = subject.execute(a -> ThrowingSupplier.of(() -> prepare(a, context, documentId, revision, subject.control())).get());
         var loaded = load(subject, initial, UUID.randomUUID().toString());
-        return new FixedRead(current(subject, context, documentId, revision, initial), loaded);
+        var current = subject.execute(a -> ThrowingSupplier.of(() -> prepare(a, context, documentId, revision, subject.control())).get());
+        if (!initial.digest().equals(current.digest())) throw new TenantAccessException(ErrorCode.SCOPE_STALE);
+        return new FixedRead(current, loaded);
     }
 
     void requireCurrent(ApplicationSessionIdentity.Verified subject, FixedRead proof) {
@@ -117,7 +133,7 @@ public final class DocumentReadService {
     /** Caller already owns the tenant transaction; never nest EnterpriseAccess.execute. */
     void requireCurrent(EnterpriseAccess.Admission admission, FixedRead proof) throws Exception {
         var original = proof.state;
-        var current = prepare(admission, original.context(), original.header().documentId(), original.header().documentRevision());
+        var current = prepare(admission, original.context(), original.header().documentId(), original.header().documentRevision(), original.metadataOnly());
         if (!original.digest().equals(current.digest())) throw new TenantAccessException(ErrorCode.SCOPE_STALE);
     }
 
@@ -210,7 +226,8 @@ public final class DocumentReadService {
         String next = complete ? null : cursors.next(position, end, initial.digest(), selection);
         var result = new InterfaceProtocol.BodyPage(documentRevision, initial.header().bodySha256(), nodes, fields, links, facts,
             new CommonProtocol.Coverage(selection, delivered, complete, next));
-        var tree = json.tree(result); schemas.validate("interfaces", tree, "BodyPage");
+        var bodyBinding=initial.verified().get("DOCUMENT_BODY").registration().binding();
+        var tree = json.tree(result); schemas.validate(schemas.requirePublished(bodyBinding.schemaRef(),bodyBinding.schemaDocumentSha256()).name(), tree, "BodyPage");
         var envelope = envelope(tree, requestId, initial.header().revision().toString());
         if (ContentReadAuthorization.canonicalBytes(envelope).length > paging.maximumPageBytes())
             throw new TenantAccessException(ErrorCode.FILE_TOO_LARGE);
@@ -218,7 +235,10 @@ public final class DocumentReadService {
     }
 
     private Loaded load(ApplicationSessionIdentity.Verified subject, State state, String requestId) throws Exception {
-        return transport.readDocument(subject, state.header().tenantId(), storage.maximumBytes().intValueExact(),
+        return load(EvidenceReadAccess.human(access, subject), state, requestId);
+    }
+    private Loaded load(EvidenceReadAccess subject, State state, String requestId) throws Exception {
+        return subject.readDocument(transport, state.header().tenantId(), storage.maximumBytes().intValueExact(),
             () -> requireTransferHead(subject, state), (reader, admission) -> {
                 var values = new HashMap<String,SchemaCatalogue.ValidatedPayload>();
                 for (var entry : state.intents().entrySet()) {
@@ -230,13 +250,13 @@ public final class DocumentReadService {
                 var bodyPayload = values.get("DOCUMENT_BODY");
                 DocumentBodySemantics.published(schemas, schemas.requirePublished(bodyPayload.schemaRef(), bodyPayload.schemaSha256()),
                     bodyPayload.canonicalBytes(), storage.bodyLimits());
-                var body = TypedSchemaBindings.bind(schemas, InterfaceBindings.DOCUMENT_BODY,
-                    new com.fasterxml.jackson.databind.json.JsonMapper().readTree(bodyPayload.canonicalJson())).read();
-                var fields = TypedSchemaBindings.bind(schemas, InterfaceBindings.DOCUMENT_FIELD_PROJECTION,
-                    new com.fasterxml.jackson.databind.json.JsonMapper().readTree(values.get("DOCUMENT_FIELDS").canonicalJson())).read();
-                var evidence = TypedSchemaBindings.bind(schemas, InterfaceBindings.DOCUMENT_EVIDENCE_PROJECTION,
-                    new com.fasterxml.jackson.databind.json.JsonMapper().readTree(values.get("DOCUMENT_EVIDENCE").canonicalJson())).read();
-                var result = new Loaded(body, fields, evidence); requireProjections(result, state.header()); return result;
+                var body = DocumentEvidenceBindings.bind(schemas, InterfaceBindings.DOCUMENT_BODY,
+                    new com.fasterxml.jackson.databind.json.JsonMapper().readTree(bodyPayload.canonicalJson()),bodyPayload.schemaRef(),bodyPayload.schemaSha256()).read();
+                var fields = DocumentEvidenceBindings.bind(schemas, InterfaceBindings.DOCUMENT_FIELD_PROJECTION,
+                    new com.fasterxml.jackson.databind.json.JsonMapper().readTree(values.get("DOCUMENT_FIELDS").canonicalJson()),values.get("DOCUMENT_FIELDS").schemaRef(),values.get("DOCUMENT_FIELDS").schemaSha256()).read();
+                var evidence = DocumentEvidenceBindings.bind(schemas, InterfaceBindings.DOCUMENT_EVIDENCE_PROJECTION,
+                    new com.fasterxml.jackson.databind.json.JsonMapper().readTree(values.get("DOCUMENT_EVIDENCE").canonicalJson()),values.get("DOCUMENT_EVIDENCE").schemaRef(),values.get("DOCUMENT_EVIDENCE").schemaSha256()).read();
+                var result = new Loaded(body, fields, evidence, bodyPayload.canonicalBytes()); requireProjections(result, state.header()); return result;
             });
     }
 
@@ -256,13 +276,13 @@ public final class DocumentReadService {
         return result;
     }
 
-    private void requireTransferHead(ApplicationSessionIdentity.Verified subject, State state) {
-        access.execute(subject, admission -> ThrowingSupplier.of(() -> {
+    private void requireTransferHead(EvidenceReadAccess subject, State state) {
+        subject.execute( admission -> ThrowingSupplier.of(() -> {
             if (!state.context().equals(admission.context().context_revision()) || !state.authEpoch().equals(admission.watermarks().authEpoch().toString())
                     || !state.governanceEpoch().equals(admission.watermarks().governanceEpoch().toString())) throw new TenantAccessException(ErrorCode.CONTEXT_CHANGED);
             var header = state.header();
             resources.require(admission, new PermissionProtocol.Scope(header.tenantId(), header.projectId(), "DOCUMENT", header.documentId()), "document.read", PURPOSE);
-            var values = Map.<String,Object>of("userId", subject.user().user_id(), "projectId", header.projectId(),
+            var values = Map.<String,Object>of("userId", subject.actorId(), "projectId", header.projectId(),
                 "documentId", header.documentId(), "documentRevision", header.documentRevision());
             if (!header.equals(one(documents.header(values)))) throw new TenantAccessException(ErrorCode.SCOPE_STALE);
             return null;
@@ -282,7 +302,7 @@ public final class DocumentReadService {
             if (!admission.context().context_revision().equals(context)) throw new TenantAccessException(ErrorCode.CONTEXT_CHANGED);
             var owners = permissions.resourceOwner("DOCUMENT", documentId);
             if (owners.size() != 1 || owners.get(0).projectId() == null) throw new TenantAccessException(ErrorCode.ACCESS_DENIED);
-            String project = owners.get(0).projectId(), tenant = admission.context().tenant_id(), user = admission.subject().user().user_id();
+            String project = owners.get(0).projectId(), tenant = admission.context().tenant_id(), user = admission.actorId();
             var scope = new PermissionProtocol.Scope(tenant, project, "DOCUMENT", documentId);
             var grant = resources.require(admission, scope, "document.read", PURPOSE); storage.requireConfigured();
             var values = new HashMap<String,Object>(); values.put("userId", user); values.put("projectId", project);
@@ -324,8 +344,13 @@ public final class DocumentReadService {
                     case "DOCUMENT_BODY" -> "DocumentBody"; case "DOCUMENT_FIELDS" -> "DocumentFieldProjection";
                     case "DOCUMENT_EVIDENCE" -> "DocumentEvidenceProjection"; default -> throw new IllegalArgumentException("正文投影类型无效");
                 };
-                var required = new ArtifactRegistryProtocol.ReadRequirement(scope, "document.read", PURPOSE, schemas.schemaRef("interfaces", definition),
-                    interfacesHash, storage.artifactSchemaManifest(), storage.limits());
+                var binding=one(artifacts.binding(entry.getValue()));
+                var publication=schemas.requirePublished(binding.schemaRef(),binding.schemaDocumentSha256());
+                if(!definition.equals(publication.definition())||!java.util.Set.of("interfaces","document-body-v2").contains(publication.name()))mismatch();
+                if(entry.getKey().equals("DOCUMENT_BODY")){var bodySchema=one(artifacts.version(header.bodySchemaRevision()));if(!"DOCUMENT_BODY_SCHEMA".equals(bodySchema.entityKind())||!project.equals(bodySchema.projectId())||!binding.schemaDocumentSha256().equals(bodySchema.contentSha256()))mismatch();}
+                if(!entry.getKey().equals("DOCUMENT_BODY")){var bodyBinding=verified.get("DOCUMENT_BODY").registration().binding();if(!bodyBinding.schemaDocumentSha256().equals(binding.schemaDocumentSha256()))mismatch();}
+                var required = new ArtifactRegistryProtocol.ReadRequirement(scope, "document.read", PURPOSE, binding.schemaRef(),
+                    binding.schemaDocumentSha256(), storage.artifactSchemaManifest(), storage.limits());
                 var upstream = upstream(entry.getValue(), admission);
                 var intent = new ContentReadProtocol.ReadIntent(entry.getValue(), context, required, sourceRequirements, contextRead, upstream);
                 var current = authority.require(admission, entry.getValue(), required, sourceRequirements, contextRead, upstream);
@@ -336,7 +361,7 @@ public final class DocumentReadService {
                         || !header.objectKey().equals(registered.artifact().objectKey()) || !header.objectVersion().equals(registered.artifact().objectVersion()))) mismatch();
                 for (var member : manifest.members()) ScopeSnapshotSchema.requireSource(member, Objects.requireNonNull(current.sources().get(member.source_version())));
                 intents.put(entry.getKey(), intent); verified.put(entry.getKey(), current);
-                authorizations.put(entry.getKey(), ContentReadAuthorization.digest(admission, intent, current));
+                authorizations.put(entry.getKey(), ContentReadAuthorization.documentDigest(admission, intent, current));
             }
             var marks = (metadataOnly ? metadataOne(documents.metadataWatermarks(values)) : one(documents.watermarks(values))); WireValues.revision(marks.issueWatermark().toString()); WireValues.revision(marks.evidenceWatermark().toString());
             List<String> checks = metadataOnly ? List.of() : documents.checks(values); List<String> reviews = metadataOnly ? List.of() : documents.reviews(values); List<String> signatures = metadataOnly ? List.of() : documents.signatures(values);
@@ -350,7 +375,7 @@ public final class DocumentReadService {
             identity.put("streams", streams); identity.put("actions", actions);
             return new State(header, context, Map.copyOf(intents), Map.copyOf(verified), WireValues.sha256(ContentReadAuthorization.canonicalBytes(identity)),
                 marks, List.copyOf(checks), List.copyOf(reviews), List.copyOf(signatures), List.copyOf(reasons), List.copyOf(streams), List.copyOf(actions),
-                admission.watermarks().authEpoch().toString(), admission.watermarks().governanceEpoch().toString());
+                admission.watermarks().authEpoch().toString(), admission.watermarks().governanceEpoch().toString(), metadataOnly);
     }
 
     private Map<String,ArtifactRegistryProtocol.ReadRequirement> upstream(String id, EnterpriseAccess.Admission admission) throws IOException {
@@ -396,9 +421,12 @@ public final class DocumentReadService {
     }
     private static void mismatch() { throw new TenantAccessException(ErrorCode.CONTENT_MISMATCH); }
     private record Loaded(InterfaceProtocol.DocumentBody body, InterfaceProtocol.DocumentFieldProjection fields,
-            InterfaceProtocol.DocumentEvidenceProjection evidence) { }
+            InterfaceProtocol.DocumentEvidenceProjection evidence, byte[] bodyBytes) {
+        Loaded { bodyBytes = bodyBytes.clone(); }
+        @Override public byte[] bodyBytes() { return bodyBytes.clone(); }
+    }
     private record State(DocumentReadProtocol.Header header, String context, Map<String,ContentReadProtocol.ReadIntent> intents,
             Map<String,ArtifactSourceAuthority.VerifiedSources> verified, String digest, DocumentReadProtocol.Watermarks watermarks,
             List<String> checks, List<String> reviews, List<String> signatures, List<String> reasons, List<DocumentReadProtocol.StreamRow> streams,
-            List<String> actions, String authEpoch, String governanceEpoch) { }
+            List<String> actions, String authEpoch, String governanceEpoch, boolean metadataOnly) { }
 }

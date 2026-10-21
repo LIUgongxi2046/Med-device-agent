@@ -146,6 +146,36 @@ public final class TaskService {
         return detailState(admission, admission.context().context_revision(), taskId);
     }
 
+    /** Bounded fixed input read for genuine PLAN_DRAFT control, without UI collections
+     * or a fabricated human envelope. Existing human detailState remains unchanged. */
+    record PlanDraftFixedTask(TaskProtocol.Head head,TaskProtocol.Input input) { }
+    PlanDraftFixedTask fixedTaskPlanDraft(EnterpriseAccess.Admission admission,String taskId)throws IOException {
+        if(!admission.planDraftWorker())fail(ErrorCode.ACCESS_DENIED);
+        admission.planDraftProof().requireTask(taskId);
+        String actor=admission.actorId();
+        var head=one(mapper.head(actor,taskId),ErrorCode.ACCESS_DENIED);
+        var scope=new PermissionProtocol.Scope(admission.context().tenant_id(),head.projectId(),"TASK",taskId);
+        resources.require(admission,scope,"task.read","TASK_READING");
+        if(!scope.tenant_id().equals(head.tenantId())||!taskId.equals(head.taskId())||head.revision()==null
+                ||head.revision().signum()<=0||head.updatedAt()==null)mismatch();
+        WireValues.uuid(head.taskRevision());WireValues.uuid(head.profileRevision());WireValues.uuid(head.templateVersion());
+        WireValues.uuid(head.agentReleaseId());WireValues.uuid(head.snapshotId());requireHash(head.contentHash(),head.registryHash());
+        admission.planDraftProof().requireFixedTask(head);
+        var input=one(mapper.input(actor,head.projectId(),taskId,head.taskRevision()),ErrorCode.CONTENT_MISMATCH);
+        verifyInput(head,input);
+        var snapshot=one(mapper.snapshot(actor,head.projectId(),head.snapshotId()),ErrorCode.CONTENT_MISMATCH);
+        if(!head.snapshotId().equals(snapshot.snapshotId())||!scope.tenant_id().equals(snapshot.tenantId())
+                ||!head.projectId().equals(snapshot.projectId())||snapshot.createdAt()==null)mismatch();
+        requireHash(snapshot.manifestHash(),snapshot.registryHash());
+        var request=inputs.create(input.requestJson().getBytes(StandardCharsets.UTF_8)).request();
+        snapshots.require(snapshot.manifest(),snapshot.manifestHash(),snapshot.tenantId(),snapshot.projectId(),snapshot.snapshotId(),
+                head.profileRevision(),snapshot.authEpoch(),snapshot.governanceEpoch(),request.scope_selection(),mapper.members(actor,head.projectId(),head.snapshotId()));
+        var missing=inputs.read(input.missingRequirements());if(!missing.isArray())mismatch();requireHash(input.requirementsHash(),hash(missing));
+        var missingIds=new HashSet<String>();for(var value:missing){var item=TypedSchemaBindings.bind(shared,ResourceBindings.REQUIREMENT,value).read();if(!missingIds.add(item.requirementId()))mismatch();}
+        if(head.planRevision()!=null)verifyPlan(head,one(mapper.plan(actor,head.projectId(),taskId,head.planRevision()),ErrorCode.CONTENT_MISMATCH));
+        admission.planDraftProof().requireActive();return new PlanDraftFixedTask(head,input);
+    }
+
     private VerifiedTask detailState(EnterpriseAccess.Admission admission, String context, String taskId) throws IOException {
         if (!admission.context().context_revision().equals(context)) fail(ErrorCode.CONTEXT_CHANGED);
         String user = admission.subject().user().user_id();

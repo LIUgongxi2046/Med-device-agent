@@ -1,0 +1,216 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:task-run-waiting:2.0.0",
+  "$defs": {
+    "Id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "Hash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "WorkflowReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "tenant_id",
+        "project_id",
+        "run_id",
+        "input_manifest_id",
+        "policy_revision",
+        "execution_kind",
+        "input_sha256",
+        "deadline_epoch_millis",
+        "maximum_commands",
+        "maximum_steps",
+        "maximum_parallel_steps",
+        "read_timeout_millis",
+        "step_timeout_millis",
+        "schedule_timeout_millis",
+        "control_task_queue",
+        "professional_task_queue"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "tenant_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "project_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "run_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "input_manifest_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "policy_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "execution_kind": {
+          "const": "TASK"
+        },
+        "input_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "deadline_epoch_millis": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9223372036854775807
+        },
+        "maximum_commands": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2147483647
+        },
+        "maximum_steps": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2147483647
+        },
+        "maximum_parallel_steps": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2147483647
+        },
+        "read_timeout_millis": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9223372036854775807
+        },
+        "step_timeout_millis": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9223372036854775807
+        },
+        "schedule_timeout_millis": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9223372036854775807
+        },
+        "control_task_queue": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,199}$"
+        },
+        "professional_task_queue": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,199}$"
+        }
+      }
+    },
+    "Dispatch": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "run_id",
+        "step_id",
+        "action_id",
+        "command_id",
+        "step_envelope_artifact_id",
+        "input_sha256",
+        "lease_generation",
+        "step_envelope_sha256"
+      ],
+      "properties": {
+        "run_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "step_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "action_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "command_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "step_envelope_artifact_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "input_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "lease_generation": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9223372036854775807
+        },
+        "step_envelope_sha256": {
+          "$ref": "#/$defs/Hash"
+        }
+      }
+    },
+    "WaitingCompletionV2": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "outcome",
+        "run_id",
+        "step_id",
+        "input_sha256",
+        "lease_generation",
+        "waiting_receipt_id",
+        "waiting_receipt_sha256"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "2.0.0"
+        },
+        "outcome": {
+          "const": "WAITING_CONTROL"
+        },
+        "run_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "step_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "input_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "lease_generation": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9223372036854775807
+        },
+        "waiting_receipt_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "waiting_receipt_sha256": {
+          "$ref": "#/$defs/Hash"
+        }
+      }
+    }
+  },
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "operation",
+    "reference",
+    "dispatch",
+    "completion"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "2.0.0"
+    },
+    "operation": {
+      "const": "COMMIT_WAITING"
+    },
+    "reference": {
+      "$ref": "#/$defs/WorkflowReference"
+    },
+    "dispatch": {
+      "$ref": "#/$defs/Dispatch"
+    },
+    "completion": {
+      "$ref": "#/$defs/WaitingCompletionV2"
+    }
+  }
+}

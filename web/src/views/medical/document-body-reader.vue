@@ -1,15 +1,13 @@
 <template>
   <section v-if="active" class="document-body-reader" aria-label="全文阅读与选区">
-    <nav aria-label="正文目录">
-      <h4>正文目录</h4>
-      <ul>
-        <li v-for="entry in outline" :key="entry.node.node_id" :style="{ marginInlineStart: entry.depth * 16 + 'px' }">
-          <el-button link @click="locate(entry.node.node_id)">{{ title(entry.node) }}</el-button>
-        </li>
-      </ul>
-    </nav>
-    <section>
-      <p>固定正文版本：{{ documentRevision }}</p>
+    <section class="document-main" aria-label="连续正文">
+      <div class="document-mode" aria-label="正文显示方式">
+        <el-button :aria-pressed="!editing" @click="editing = false">连续阅读</el-button>
+        <el-button v-if="editable" :aria-pressed="editing" @click="editing = true">编辑正文</el-button>
+      </div>
+      <p role="status">{{ dirty ? '当前草稿（含未保存修改）' : '已保存正文' }} · 依据版本：{{ documentRevision }}</p>
+      <p v-if="editing">编辑直接保留在当前草稿中。切换阅读不会保存或丢弃修改；请使用“保存正文修订”提交。</p>
+      <div v-show="!editing" class="selection-tools">
       <p v-if="dirty" role="status">当前选区包含未保存内容，只能用于提问与修订建议；保存正文以后重新选择才能提交核验或审查。</p>
       <el-button :disabled="selecting" @mousedown.prevent @click="capture">保留当前文字选区</el-button>
       <el-button :disabled="selecting" @click="selectEntireText">选择全文文字</el-button>
@@ -31,24 +29,57 @@
         <p class="selection-summary">{{ selectionSummary(body, selection) }}</p>
         <details><summary>查看选区版本与校验详情</summary><pre>{{ JSON.stringify(selection, null, 2) }}</pre></details>
       </section>
-      <div ref="contents" class="reader-content">
-        <document-node-editor v-for="entry in roots" :key="selectionEpoch + ':' + entry.node.node_id" :node="entry.node" :body="body" readonly selection-mode @selected="selectRequests([$event])" />
       </div>
+      <div v-show="!editing" ref="contents" class="reader-content">
+        <document-node-editor v-for="entry in roots" :key="selectionEpoch + ':' + entry.node.node_id" :node="entry.node" :body="body" readonly selection-mode @selected="selectRequests([$event])">
+          <template #chapter-end="{ node }">
+            <details class="chapter-evidence" :data-chapter-evidence="node.node_id">
+              <summary>{{ title(node) }} · 引用 {{ chapterEvidence(body, node.node_id).length }} 项</summary>
+              <p>仅展示当前正文记录的引用关系，不代表已完成专业核验。</p>
+              <p v-if="dirty">请先保存正文，再定位固定引用。</p>
+              <p v-if="chapterEvidence(body, node.node_id).length === 0" role="status">本章暂无关联引用。</p>
+              <ul v-else>
+                <li v-for="link in chapterEvidence(body, node.node_id)" :key="link.evidence_link_id">
+                  <el-button link :disabled="!active || dirty || !evidenceNavigable" @click="emit('openEvidence', link, node.node_id)">{{ evidenceRelations[link.relation] }} · 来源版本 {{ link.evidence.source_version }} · 定位引用</el-button>
+                </li>
+              </ul>
+            </details>
+          </template>
+        </document-node-editor>
+      </div>
+      <div v-if="editStarted" v-show="editing" ref="editContents" class="editor-content">
+        <document-node-editor v-for="entry in roots" :key="entry.node.node_id" :node="entry.node" :body="body" :readonly="!editable" @changed="emit('changed', $event)" />
+      </div>
+      <p v-if="roots.length === 0" role="status">当前版本没有可显示的正文节点。</p>
     </section>
+    <aside class="document-auxiliary" aria-label="正文辅助导航">
+    <nav aria-label="正文目录">
+      <h4>正文目录</h4>
+      <ul>
+        <li v-for="entry in outline" :key="entry.node.node_id" :style="{ marginInlineStart: entry.depth * 16 + 'px' }">
+          <el-button link @click="locate(entry.node.node_id)">{{ title(entry.node) }}</el-button>
+        </li>
+      </ul>
+    </nav>
+      <slot name="inspector" />
+    </aside>
   </section>
 </template>
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, shallowRef, watch } from 'vue'
-import type { DocumentBody, Node, Selection } from '../../../../contracts/typescript/src/interfaces'
+import type { DocumentBody, EvidenceLink, Node, Selection } from '../../../../contracts/typescript/src/interfaces'
 import { browserTextSelection, createDocumentSelection, orderedDocumentNodes } from '@/api/medical/document-selection'
 import type { SelectionRequest } from '@/api/medical/document-selection'
 import { fail } from '@/api/medical/protocol'
 import { selectionSummary } from '@/api/medical/annotation-domain'
 import DocumentNodeEditor from './document-node-editor.vue'
+import { chapterEvidence } from '@/api/medical/document-evidence-navigation'
 
-const props = defineProps<{ body: DocumentBody; documentRevision: string; active: boolean; dirty: boolean }>()
-const emit = defineEmits<{ selected: [selection: Selection | null, dirty: boolean] }>()
+const props = withDefaults(defineProps<{ body: DocumentBody; documentRevision: string; active: boolean; dirty: boolean; editable?: boolean; evidenceNavigable?: boolean }>(), { editable: false, evidenceNavigable: true })
+const emit = defineEmits<{ selected: [selection: Selection | null, dirty: boolean]; changed: [body: DocumentBody]; openEvidence: [link: EvidenceLink, chapterId: string] }>()
+const evidenceRelations = { SUPPORT: '支持关系', CONFLICT: '冲突关系', BACKGROUND: '背景关系' }
+const editing = ref(false); const editStarted = ref(false); const editContents = ref<HTMLElement>()
 const contents = ref<HTMLElement>(); const selection = shallowRef<Selection | null>(null); const selecting = ref(false)
 const selectionEpoch = ref(0)
 const textNodeId = ref(''); const start = ref(0); const end = ref(1)
@@ -69,10 +100,11 @@ function clearSelection(): void {
 }
 function clear(): void { clearSelection(); selectionEpoch.value += 1; textNodeId.value = ''; start.value = 0; end.value = 1 }
 function locate(id: string): void {
-  const element = Array.from(contents.value?.querySelectorAll<HTMLElement>('[data-node-id]') ?? []).find(item => item.dataset.nodeId === id)
+  const element = Array.from((editing.value ? editContents.value : contents.value)?.querySelectorAll<HTMLElement>('[data-node-id]') ?? []).find(item => item.dataset.nodeId === id)
   if (!element) fail('SELECTION_STALE', '当前目录节点没有可读取的正文位置')
   element.scrollIntoView({ block: 'nearest' }); element.focus({ preventScroll: true })
 }
+defineExpose({ locate })
 async function selectRequests(requests: SelectionRequest[]): Promise<void> {
   if (!props.active || document.hidden || selecting.value) return
   clearSelection(); const requested = generation; const reading = new AbortController(); controller = reading; selecting.value = true
@@ -102,6 +134,8 @@ async function selectByOffsets(): Promise<void> {
   await selectRequests([{ kind: 'TEXT', node_id: node.node_id, start_utf16: characters.slice(0, start.value).join('').length,
     end_utf16: characters.slice(0, end.value).join('').length }])
 }
+watch(() => props.editable, value => { if (!value) editing.value = false })
+watch(editing, value => { if (value) editStarted.value = true; clear() }, { flush: 'sync' })
 watch(() => [props.body, props.documentRevision, props.active, props.dirty], clear, { flush: 'sync' })
 function visibility(): void { if (document.hidden) clear() }
 document.addEventListener('visibilitychange', visibility); window.addEventListener('medical-context-invalidated', clear)
@@ -109,10 +143,26 @@ onBeforeUnmount(() => { clear(); document.removeEventListener('visibilitychange'
 </script>
 
 <style scoped>
-.document-body-reader { display: grid; grid-template-columns: minmax(160px, 240px) minmax(0, 1fr); gap: 20px; }
+.document-body-reader { display: grid; grid-template-columns: minmax(0, 1fr) minmax(210px, 290px); gap: 20px; }
+.document-main, .document-auxiliary { min-width: 0; overflow-wrap: anywhere; }
+.document-main { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: clamp(12px, 2vw, 28px); }
+.document-auxiliary { background: #f7f9fc; padding: 16px; border-radius: 8px; align-self: start; }
+.document-mode { display: flex; flex-wrap: wrap; gap: 8px; }
+.document-mode .el-button { margin: 0; }
+.selection-tools > .el-button { margin: 4px 6px 4px 0; }
+.document-mode [aria-pressed="true"] { border-color: #1768c4; color: #15559c; font-weight: 600; }
+.reader-content { font-size: 16px; line-height: 2; }
+.reader-content :deep(.el-input__wrapper) { box-shadow: none; background: transparent; padding-inline: 0; }
+.reader-content :deep(.el-input__inner) { font-size: 17px; font-weight: 600; color: #243247; }
+.reader-content :deep(article), .editor-content :deep(article) { scroll-margin-top: 24px; }
+.reader-content :deep(article:focus), .editor-content :deep(article:focus) { outline: 2px solid #1768c4; outline-offset: 3px; }
+.editor-content :deep(.el-table), .reader-content :deep(.el-table) { max-width: 100%; overflow-x: auto; }
 nav ul { list-style: none; padding: 0; }
 nav .el-button { white-space: normal; text-align: start; height: auto; }
 .reader-content { margin-top: 20px; }
+.chapter-evidence { margin-block: 16px; padding: 10px 14px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 14px; }
+.chapter-evidence summary { cursor: pointer; }
+.chapter-evidence .el-button { white-space: normal; height: auto; text-align: start; }
 .selection-summary, pre { white-space: pre-wrap; overflow-wrap: anywhere; }
 @media (max-width: 760px) { .document-body-reader { grid-template-columns: minmax(0, 1fr); } }
 </style>

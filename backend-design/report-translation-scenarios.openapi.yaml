@@ -1,0 +1,67 @@
+openapi: 3.1.0
+info:
+  title: Approved report and translation scenarios
+  version: 1.0.0
+paths:
+  /api/reports/specifications:
+    post:
+      operationId: authorReportScenario
+      description: Encode a strict ReportScenarioSchema.Selection into B14 INPUTS; all eight fields, evidence, independent review and publication remain mandatory. Requires normal session, X-Context-Revision and Idempotency-Key headers.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Author'
+      responses:
+        '200': {description: Immutable B14 Author receipt, not an approval}
+        '422': {description: Invalid or unbound fixed inputs}
+  /api/translations/specifications:
+    post:
+      operationId: authorTranslationScenario
+      description: Encode a strict TranslationScenarioSchema.Selection into B14 INPUTS; all source, terminology, language, semantic rule and layout pins are reviewed through B14.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Author'
+      responses:
+        '200': {description: Immutable B14 Author receipt, not an approval}
+        '422': {description: Invalid or unbound fixed inputs}
+  /api/reports/tasks/{taskId}/runs/{runId}/results/{actionId}:
+    parameters:
+      - {$ref: '#/components/parameters/Task'}
+      - {$ref: '#/components/parameters/Run'}
+      - {$ref: '#/components/parameters/Action'}
+    get:
+      operationId: readRegisteredReportResult
+      responses:
+        '200': {description: Authorized registered historical report result with current read authorizations, never professional approval}
+  /api/translations/tasks/{taskId}/runs/{runId}/results/{actionId}:
+    parameters:
+      - {$ref: '#/components/parameters/Task'}
+      - {$ref: '#/components/parameters/Run'}
+      - {$ref: '#/components/parameters/Action'}
+    get:
+      operationId: readRegisteredTranslationResult
+      responses:
+        '200': {description: Authorized registered historical translation review with current read authorizations, never professional approval}
+components:
+  parameters:
+    Task: {name: taskId, in: path, required: true, schema: {type: string, format: uuid}}
+    Run: {name: runId, in: path, required: true, schema: {type: string, format: uuid}}
+    Action: {name: actionId, in: path, required: true, schema: {type: string, format: uuid}}
+  schemas:
+    Author:
+      type: object
+      additionalProperties: false
+      required: [schema_version, scenario, selection]
+      properties:
+        schema_version: {const: 1.0.0}
+        scenario:
+          type: object
+          description: Complete B14 Author payload validated by scenario-specification-v1.schema.json Author; no generated approvals or acceptance samples.
+        selection:
+          type: object
+          description: Strict endpoint-specific Java record contract. ReportScenarioSchema.Selection or TranslationScenarioSchema.Selection; unknown properties rejected. Canonical encoded definition limited to 16000 characters. See B16/B17 implementation documents for fields and supported scope.

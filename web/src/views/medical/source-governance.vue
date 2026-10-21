@@ -6,6 +6,7 @@
       <header class="reader-header">
         <div class="reader-heading">
           <div><p class="reader-eyebrow">固定来源 · 资料阅读</p><h1>{{ view.title }}</h1></div>
+          <router-link v-if="documentReturnRoute" :to="documentReturnRoute" class="reader-back">返回文稿引用位置</router-link>
           <router-link to="/library" class="reader-back">返回资料中心</router-link>
         </div>
         <p class="fixed-version">来源版本 <span>{{ view.source_version }}</span></p>
@@ -44,6 +45,8 @@
                   <el-descriptions-item label="定位摘要">{{ item.locator_sha256 }}</el-descriptions-item>
                   <el-descriptions-item label="原文摘要">{{ item.quote_hash }}</el-descriptions-item>
                   <el-descriptions-item label="固定定位"><pre>{{ JSON.stringify(item.locator, null, 2) }}</pre></el-descriptions-item>
+                  <el-descriptions-item v-if="item.content_ref.structure" label="表格与图片结构"><pre>{{ JSON.stringify(item.content_ref.structure, null, 2) }}</pre></el-descriptions-item>
+                  <el-descriptions-item v-if="item.content_ref.complex_engine_release_sha256" label="OCR 引擎版本摘要">{{ item.content_ref.complex_engine_release_sha256 }}</el-descriptions-item>
                 </el-descriptions>
                 <el-button :loading="contentLoading" :disabled="writing" @click="loadExact(item)">核验此定位</el-button>
               </el-collapse-item>
@@ -307,6 +310,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import { sourceReturnRoute } from '@/api/medical/source-return-navigation'
 import SessionPanel from './session-panel.vue'
 import SourceIndexBuilds from './source-index-builds.vue'
 import SourceOriginalReader from './source-original-reader.vue'
@@ -318,6 +322,8 @@ import { readProject } from '@/api/medical/projects'
 import type { MedicalSession, Project } from '@/api/medical/protocol'
 
 const user = useUserStore(); const route = useRoute(); const view = ref<SourceGovernanceView | null>(null)
+const documentReturnRoute = computed(() => user.medicalSession && view.value
+  ? sourceReturnRoute(user.medicalSession, view.value.source_version, route.query.source_return) : null)
 const selected = ref<SourceReview | null>(null); const receipt = ref<SourceDecisionReceipt | null>(null)
 const loading = ref(false); const decision = ref<SourceDecision | ''>(''); const reason = ref(''); const attested = ref(false)
 const errors = reactive({ decision: '', reason: '', attested: '' }); let controller: AbortController | null = null; let generation = 0

@@ -1,0 +1,63 @@
+{
+  "format": "evaluation-exact-input-sql-fixture-provenance-v1",
+  "fixture_path": "tests/fixtures/evaluation-exact-input-object/actual-sql.json",
+  "fixture_sha256": "5fb2e06f657d5786bf3265b8b0d274f928cc703b1e5c90750632caf190dac286",
+  "producer_test": "com.ruoyi.medical.persistence.FormalEvaluationExactInputObjectRegistrationTest#actualEmittedSqlParsesAndCanBeCheckedAgainstTheCompleteMigrationColumns",
+  "system_property": "medical.exactInputSqlEvidence",
+  "generator_scope": "Actual production ledger/registration SQL captured by explicit in-memory JdbcTemplate row double; no live database execution. Private079/088/S3 boundaries are mocks.",
+  "sources": [
+    {
+      "path": "business/medical-persistence/src/main/java/com/ruoyi/medical/persistence/FormalEvaluationExactInputArtifactBoundary.java",
+      "sha256": "4cec8ab27ef08a890faa838e936e482c1ff6f41ca4f0c8d012e75031ccb4e272"
+    },
+    {
+      "path": "business/medical-persistence/src/main/java/com/ruoyi/medical/persistence/FormalEvaluationExactInputObjectAuthority.java",
+      "sha256": "f16ba18b9311a291fadeea43c2d9f38d0d9c5ea5994f960f7af4b288791f8012"
+    },
+    {
+      "path": "business/medical-persistence/src/main/java/com/ruoyi/medical/persistence/FormalEvaluationExactInputObjectAuthorization.java",
+      "sha256": "6ab8382a843eb5b73d4d3c2df1f61abb3c70be42be0cf4bf8c118db654f0757c"
+    },
+    {
+      "path": "business/medical-persistence/src/main/java/com/ruoyi/medical/persistence/FormalEvaluationExactInputObjectDependencies.java",
+      "sha256": "528e8d88f77a8911a8019c6dd7c6a8d8f4c7f4923d544c38ecd823ac2c4cbd2b"
+    },
+    {
+      "path": "business/medical-persistence/src/main/java/com/ruoyi/medical/persistence/FormalEvaluationExactInputObjectLedger.java",
+      "sha256": "1f0ae7cc33fbf4cb671241694b24fadefa594f079518a70c5fffb1815d1da29c"
+    },
+    {
+      "path": "business/medical-persistence/src/main/java/com/ruoyi/medical/persistence/FormalEvaluationExactInputObjectRegistration.java",
+      "sha256": "79d26effaad685338ba3227255f59ec22685d49d294801a33790876012ae1214"
+    },
+    {
+      "path": "business/medical-persistence/src/main/java/com/ruoyi/medical/persistence/FormalEvaluationExactInputObjectSchema.java",
+      "sha256": "9a41709898856bfe5ae08ded87d7f724c2e955831389bb9de91079cef22911c8"
+    },
+    {
+      "path": "business/medical-persistence/src/main/java/com/ruoyi/medical/persistence/FormalEvaluationExactInputObjectService.java",
+      "sha256": "c863634fec5643bc4a2c88e28acde6001225382f9dc5e55c504f23c57b44ff80"
+    },
+    {
+      "path": "business/medical-persistence/src/test/java/com/ruoyi/medical/persistence/ExactInputObjectFixture.java",
+      "sha256": "44594d04fdc3e64066220c054ee4ec17e1fc5cd4bb42a5b02df6a11d64173548"
+    },
+    {
+      "path": "business/medical-persistence/src/test/java/com/ruoyi/medical/persistence/FormalEvaluationExactInputObjectRegistrationTest.java",
+      "sha256": "0caeda01f3874ff4abc5b5bddf386a14f2761fcc3c64e763a46049e809d56454"
+    }
+  ],
+  "verified_execution": {
+    "log_source": "../test-results-20261021-0332/java/attempt-25-new-features/build.log",
+    "log_sha256": "982996ba65a11de78501f79413d3e04d061bd9db368c736055f0315d3f62a873",
+    "producer_test_succeeded": 1,
+    "producer_failures": 0,
+    "producer_errors": 0,
+    "fresh_output_path": "../test-results-20261021-0332/java/attempt-25-new-features/exact-input-sql.json",
+    "fresh_output_sha256": "5fb2e06f657d5786bf3265b8b0d274f928cc703b1e5c90750632caf190dac286",
+    "junit_summary_path": "../test-results-20261021-0332/java/attempt-25-new-features/junit-summary.json",
+    "junit_summary_sha256": "cd4a186661db858d93c262340acdcd890a039aa4ccca82e02452b8a1b6f90c50",
+    "scope": "This producer passed; unrelated admin test in the wider invocation failed. Not whole-reactor acceptance."
+  },
+  "regenerated_note": "Regenerated from actual passing Java producer on 2026-10-21. One bounded operation_record integrity read added; all previous SQL statements retained unchanged. Original fixture/provenance preserved in test-results migration/original-fixture-provenance."
+}

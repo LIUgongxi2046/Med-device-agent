@@ -66,7 +66,11 @@ public final class DocumentUploadPreparation {
         String text = StandardCharsets.UTF_8.newDecoder().onMalformedInput(CodingErrorAction.REPORT)
             .onUnmappableCharacter(CodingErrorAction.REPORT).decode(ByteBuffer.wrap(Objects.requireNonNull(bytes))).toString();
         var value = JSON.readTree(text); if (value == null) throw new SchemaRejection(ErrorCode.SCHEMA_INVALID);
-        return TypedSchemaBindings.bind(schemas, InterfaceBindings.UPLOAD_REQUEST, value);
+        // Syntax selection recognizes only explicitly published request shapes. Authorization below
+        // independently binds the requested shape to the registered current body schema.
+        var definition = schemas.schemaRef("document-body-v2", "DocumentBody").equals(value.path("schema_ref").asText())
+            ? InterfaceBindings.UPLOAD_REQUEST_V2 : InterfaceBindings.UPLOAD_REQUEST;
+        return TypedSchemaBindings.bind(schemas, definition, value);
     }
 
     Prepared prepare(EnterpriseAccess.Admission admission, byte[] bytes, Settings settings) throws IOException, NoSuchAlgorithmException {
@@ -75,9 +79,11 @@ public final class DocumentUploadPreparation {
         var payload = request(bytes); var request = payload.read(); var size = WireValues.revision(request.sizeBytes());
         if (size.signum() == 0) throw new TenantAccessException(ErrorCode.SCHEMA_INVALID);
         if (size.compareTo(settings.maximumBytes()) > 0) throw new TenantAccessException(ErrorCode.FILE_TOO_LARGE);
-        // UploadRequest仅接受已定义短引用，服务器使用对应的固定发布身份。
-        var published = schemas.requirePublished(schemas.schemaRef("interfaces", "DocumentBody"), payload.payload().schemaSha256());
         var basis = bases.require(admission, request.documentId(), request.expectedRevision(), settings.basis());
+        var published = authority.requireBaselinePublication(admission, basis.document());
+        String requestedRef = "interfaces.schema.yaml#/$defs/DocumentBody".equals(request.schemaRef())
+            ? schemas.schemaRef("interfaces", "DocumentBody") : request.schemaRef();
+        if (!published.schemaRef().equals(requestedRef) || !published.schemaSha256().equals(payload.payload().schemaSha256())) mismatch();
         var headers = dependencies.header(request.dependencyAccessSetId()); if (headers.size() != 1) denied(); var header = headers.get(0);
         String tenant = admission.context().tenant_id(), subject = admission.subject().user().user_id(), project = basis.document().projectId();
         if (!tenant.equals(header.tenantId()) || !project.equals(header.projectId()) || !request.dependencyAccessSetId().equals(header.accessSetId())

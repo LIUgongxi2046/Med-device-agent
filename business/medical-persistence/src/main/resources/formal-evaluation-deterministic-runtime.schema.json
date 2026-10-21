@@ -1,0 +1,131 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:evaluation-deterministic-runtime:1.0.0",
+  "$defs": {
+    "Envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "execution_kind",
+        "job_type",
+        "node_kind",
+        "execution_id",
+        "run_id",
+        "step_id",
+        "action_id",
+        "input_sha256",
+        "implementation_sha256",
+        "compiler"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "execution_kind": {
+          "const": "SYSTEM_JOB"
+        },
+        "job_type": {
+          "const": "EVALUATION_VERIFICATION"
+        },
+        "node_kind": {
+          "enum": ["N03", "N06"]
+        },
+        "execution_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "run_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "step_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "action_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "input_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "implementation_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "compiler": {
+          "type": "object"
+        }
+      }
+    },
+    "Result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "execution_kind",
+        "job_type",
+        "node_kind",
+        "execution_id",
+        "run_id",
+        "step_id",
+        "action_id",
+        "input_sha256",
+        "implementation_sha256",
+        "state",
+        "output_sha256"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "execution_kind": {
+          "const": "SYSTEM_JOB"
+        },
+        "job_type": {
+          "const": "EVALUATION_VERIFICATION"
+        },
+        "node_kind": {
+          "enum": ["N03", "N06"]
+        },
+        "execution_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "run_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "step_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "action_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "input_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "implementation_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "state": {
+          "enum": [
+            "SUCCEEDED",
+            "WAITING_INPUT",
+            "FAILED"
+          ]
+        },
+        "output_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      }
+    }
+  }
+}

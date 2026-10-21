@@ -100,12 +100,14 @@ import useUserStore from '@/store/modules/user'
 
 const props = withDefaults(defineProps<{ session: MedicalSession; snapshot: DocumentSnapshot; baseline: DocumentBody; selection: Selection | null;
   active: boolean; dirty: boolean; busy?: boolean; history?: boolean; effective?: boolean; lifecycle?: boolean; isCurrent: boolean; refreshDocument?: (signal: AbortSignal) => Promise<void> }>(), { busy: false, history: false, effective: false, lifecycle: false })
-const emit = defineEmits<{ busy: [value: boolean]; 'read-original': [revision: string] }>()
+const emit = defineEmits<{ busy: [value: boolean]; 'read-original': [revision: string]; 'selected-thread': [selection: { annotationId: string; documentRevision: string } | null] }>()
 const user = useUserStore(); const listing = shallowRef<AnnotationListing | null>(null); const replies = shallowRef<ReplyListing | null>(null)
 const decisions = shallowRef<DecisionListing | null>(null); const reasonDrafts = shallowRef<Record<string, string>>({})
 const selectedId = ref(''); const content = ref(''); const replyDrafts = shallowRef<Record<string, string>>({})
 const pending = shallowRef<PendingAnnotation | null>(null); const originalRequest = shallowRef<AnnotationRequest | null>(null)
 const busy = ref(false); const busyText = ref(''); const notice = ref(''); const error = ref(''); const lookupState = ref('')
+let automaticRead: Promise<void> | null = null
+let restoringSelection = false
 let controller: AbortController | null = null; let generation = 0; let ownedDraft: string | null = null; let ownsWrite = false
 const selected = computed(() => listing.value?.items.find(item => item.annotation_id === selectedId.value) ?? null)
 const replyText = computed({ get: () => replyDrafts.value[selectedId.value] ?? '', set: value => { replyDrafts.value = { ...replyDrafts.value, [selectedId.value]: value } } })
@@ -168,6 +170,38 @@ async function selectThread(id: string): Promise<void> {
     await loadThread(id, signal, token)
   })
 }
+// Navigation restoration is read-only and never replays an annotation request or decision.
+async function restoreSelected(annotationId: string, documentRevision: string): Promise<boolean> {
+  const scope = JSON.stringify([props.session.user.user_id, props.session.current_context, props.session.action_summary])
+  if (automaticRead) await automaticRead
+  if (scope !== JSON.stringify([props.session.user.user_id, props.session.current_context, props.session.action_summary])) return false
+  const hasDraft = () => pending.value !== null || originalRequest.value !== null || !!content.value ||
+    Object.values(replyDrafts.value).some(Boolean) || Object.values(reasonDrafts.value).some(Boolean)
+  if (hasDraft() || !canRead.value || locked.value || props.dirty || props.history || !props.isCurrent ||
+      props.snapshot.document_revision !== documentRevision || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(annotationId)) return false
+  let restored = false; restoringSelection = true
+  try { await run('正在重新核验原选中标注的读取权限', false, async (signal, token) => {
+    const value = await readAnnotationThreads(session, props.snapshot, props.baseline, signal, props.effective); current(token, signal)
+    if (hasDraft() || props.dirty || !props.isCurrent || props.snapshot.document_revision !== documentRevision || !canRead.value) return
+    const target = value.items.find(item => item.annotation_id === annotationId &&
+      (item.document_revision === documentRevision || item.effective_anchor?.document_revision === documentRevision))
+    if (!target) { selectedId.value = ''; replies.value = null; decisions.value = null; listing.value = value; notice.value = '原选中标注已不可读取或不属于此固定版本，未改选其他标注。'; return }
+    const replyValue = await readAnnotationReplies(session, props.snapshot, annotationId, signal, props.effective); current(token, signal)
+    const decisionValue = await readAnnotationDecisions(session, props.snapshot, annotationId, signal, props.effective, props.effective || props.lifecycle); current(token, signal)
+    if (hasDraft() || props.dirty || !props.isCurrent || props.snapshot.document_revision !== documentRevision || !canRead.value) return
+    listing.value = value; replies.value = replyValue; decisions.value = decisionValue
+    selectedId.value = annotationId; restored = true; notice.value = '已恢复原选中标注；未提交回复或处理决定。'
+  })
+  } finally { restoringSelection = false }
+  return restored
+}
+defineExpose({ restoreSelected })
+watch(() => [selected.value, props.active, canRead.value, props.snapshot.document_revision], () => {
+  const item = selected.value; const revision = props.snapshot.document_revision
+  emit('selected-thread', props.active && canRead.value && item &&
+    (item.document_revision === revision || item.effective_anchor?.document_revision === revision)
+    ? { annotationId: item.annotation_id, documentRevision: revision } : null)
+}, { flush: 'sync' })
 async function complete(input: AnnotationRequest, signal: AbortSignal, token: number): Promise<void> {
   const original = pending.value
   if (!original) fail('ACTION_STALE', '没有可继续的原标注请求')
@@ -253,7 +287,7 @@ async function refreshBasis(): Promise<void> {
   await run('正在刷新保存依据并保留编辑', true, async (signal, token) => { await props.refreshDocument!(signal); current(token, signal) })
 }
 watch(() => [props.active, props.session.user.user_id, props.session.current_context?.tenant_id, props.session.current_context?.context_revision,
-  props.session.current_context?.auth_epoch, props.session.current_context?.governance_epoch, props.snapshot.document_id, props.snapshot.document_revision], () => {
+  props.session.current_context?.auth_epoch, props.session.current_context?.governance_epoch, JSON.stringify(props.session.action_summary), props.snapshot.document_id, props.snapshot.document_revision], () => {
   retain(); generation++; controller?.abort(); controller = null; release(); listing.value = null; replies.value = null; selectedId.value = ''
   content.value = ''; replyDrafts.value = {}; reasonDrafts.value = {}; decisions.value = null; originalRequest.value = null; pending.value = null; ownedDraft = null; error.value = ''; notice.value = ''; lookupState.value = ''
   if (!props.active || !props.session.current_context) return
@@ -264,10 +298,10 @@ watch(() => [props.active, props.session.user.user_id, props.session.current_con
     pending.value = readPendingAnnotation(props.session, props.snapshot.document_id)
     if (pending.value === null) originalRequest.value = null
   } catch (failure) { error.value = failure instanceof Error ? failure.message : '无法读取原请求恢复记录'; return }
-  void load()
+  automaticRead = load()
 }, { immediate: true, flush: 'sync' })
 watch(() => [props.busy, canRead.value, user.medicalWriting, props.snapshot.revision], () => {
-  if (!props.busy && canRead.value && (listing.value === null || props.effective && BigInt(listing.value.revision) < BigInt(props.snapshot.revision)) && !busy.value && !error.value) void load()
+  if (!restoringSelection && !props.busy && canRead.value && (listing.value === null || props.effective && BigInt(listing.value.revision) < BigInt(props.snapshot.revision)) && !busy.value && !error.value) void load()
 })
 watch(() => [props.dirty, props.history, props.isCurrent, props.snapshot.signature_ids.join(',')], () => { if (busy.value) stopWaiting() }, { flush: 'sync' })
 function invalidate(): void { ownedDraft = null; generation++; controller?.abort(); controller = null; release(); content.value = ''; replyDrafts.value = {}; reasonDrafts.value = {}; decisions.value = null; originalRequest.value = null; listing.value = null; replies.value = null; pending.value = null }

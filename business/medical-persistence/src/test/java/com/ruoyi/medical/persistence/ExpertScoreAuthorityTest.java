@@ -12,6 +12,21 @@ final class ExpertScoreAuthorityTest {
  @BeforeEach void prepare()throws Exception{f=new ExpertFixture();qualification=f.author();f.approve(qualification);f.now=f.now.plusMinutes(1);e=new ExpertEvaluationFixture(f);}
  @AfterEach void close()throws Exception{f.close();}
  void code(ErrorCode expected,org.junit.jupiter.api.function.Executable action){var x=ExpertQualificationServiceTest.cause(assertThrows(Exception.class,action));assertInstanceOf(TenantAccessException.class,x);assertEquals(expected,((TenantAccessException)x).code());}
+ @Test void productionScoreCannotAppendWithoutFormalScoringGate()throws Exception{
+  when(e.scoringGates.getIfAvailable()).thenReturn(null);
+  code(ErrorCode.DEPENDENCY_UNAVAILABLE,e::append);
+  assertTrue(e.scores.isEmpty());assertTrue(e.stored.isEmpty());assertTrue(e.operations.isEmpty());assertTrue(f.scoreAuthorities.isEmpty());
+ }
+ @Test void productionScoreCannotAppendWithRevokedFormalScoringGate()throws Exception{
+  doThrow(new TenantAccessException(ErrorCode.ACCESS_DENIED)).when(e.scoringGate).require(any(),anyString(),any(),any());
+  code(ErrorCode.ACCESS_DENIED,e::append);
+  verify(e.scoringGate).prepare(eq(f.f.subject),eq("1"),eq(e.definition.evaluation_id()),any(byte[].class));
+  assertTrue(e.scores.isEmpty());assertTrue(e.stored.isEmpty());assertTrue(e.operations.isEmpty());assertTrue(f.scoreAuthorities.isEmpty());
+ }
+ @Test void formalScoringGateRechecksTheSamePreparedObservationAfterOriginalAppend()throws Exception{
+  e.append();
+  verify(e.scoringGate,times(2)).require(eq(f.f.admission),eq(e.definition.evaluation_id()),eq(e.preparedObservation),same(e.scoringPrepared));
+ }
  @Test void actualOriginalAppendSynchronouslyPersistsImmutableHistoricalGrantAndMode()throws Exception{var response=e.append();assertEquals(1,f.scoreAuthorities.size());var witness=f.scoreAuthorities.values().iterator().next();assertEquals(response.path("data").path("operation_id").asText(),witness.originalOperationId());assertEquals(f.expert,witness.createdBy());var content=f.schema.parse(witness.authorityJson().getBytes(java.nio.charset.StandardCharsets.UTF_8));assertEquals("local",content.path("identity_mode").asText());assertEquals(e.scores.get(0).authority_grant_id(),content.path("grant").path("grant_id").asText());assertEquals(3,f.audits.size());}
  @Test void sourceProofCannotEscapeOriginalScoreCallback()throws Exception{var retained=new AtomicReference<EvaluationService.CreatedScoreWitness>();e.sink(p->{retained.set(p);f.recorder.capture(p);});e.append();assertNotNull(retained.get());code(ErrorCode.ACCESS_DENIED,()->retained.get().score());code(ErrorCode.ACCESS_DENIED,()->f.recorder.capture(retained.get()));}
  @Test void sinkFailurePropagatesInsteadOfReturningSuccessfulScoreReceipt()throws Exception{e.sink(p->{p.requireCurrent();throw new java.io.IOException("synthetic sink persistence failure");});var error=ExpertQualificationServiceTest.cause(assertThrows(Exception.class,e::append));assertEquals("synthetic sink persistence failure",error.getMessage());assertFalse(org.springframework.transaction.support.TransactionSynchronizationManager.isActualTransactionActive());}

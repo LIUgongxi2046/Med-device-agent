@@ -3,6 +3,9 @@
     <h1>场景目录</h1>
     <session-panel />
     <p v-if="!session?.current_context" role="alert">查看场景目录需要选择当前企业。</p>
+    <scenario-planning-workspace :key="pickerGeneration" :disabled="filterDisabled" />
+    <native-image-simulation-workspace v-if="showImageSimulation" />
+    <h2>已授权配置目录</h2>
     <el-form :inline="true" @submit.prevent="search">
       <el-form-item label="项目范围" :error="projectError"><el-input v-if="filterDisabled" :model-value="projectId || '当前获授权范围'" disabled /><project-scope-select v-else :key="pickerGeneration" v-model="projectId" /></el-form-item>
       <el-form-item label="目标文档"><el-select v-model="documentType" clearable :disabled="filterDisabled">
@@ -52,6 +55,9 @@ import type { ScenarioPage, ScenarioQuery } from '@/api/medical/scenarios'
 import { taskDocumentLabels, taskIdReference } from '@/api/medical/tasks'
 import { useMedicalRouteRead } from '@/api/medical/route-read'
 import SessionPanel from './session-panel.vue'
+import ScenarioPlanningWorkspace from './ScenarioPlanningWorkspace.vue'
+import NativeImageSimulationWorkspace from './NativeImageSimulationWorkspace.vue'
+const showImageSimulation = import.meta.env.VITE_MEDICAL_IMAGE_SIMULATION === 'true'
 import ProjectScopeSelect from '@/components/Medical/ProjectScopeSelect.vue'
 
 const user = useUserStore(); const session = computed<MedicalSession | null>(() => user.medicalSession)
@@ -97,7 +103,7 @@ async function next(): Promise<void> { if (!changedFilters.value) await load(pag
 watch([projectId, documentType], () => { stopRead(); error.value = '' }, { flush: 'sync' })
 watch([session, active], () => { clear(); if (active.value) void search() }, { immediate: true, deep: true, flush: 'sync' })
 async function visibilityChanged(): Promise<void> {
-  if (document.hidden) stopRead()
+  if (document.hidden) { stopRead(); pickerGeneration.value++ }
   else if (active.value) await search()
 }
 onMounted(() => document.addEventListener('visibilitychange', visibilityChanged))

@@ -1,0 +1,58 @@
+package com.ruoyi.medical.persistence;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.ruoyi.medical.workflow.SourceVerifierWorkflowExtensionV1;
+import com.ruoyi.medical.workflow.WaitingWorkflowDeploymentV2;
+import java.util.*;
+import org.springframework.jdbc.core.JdbcTemplate;
+import static com.ruoyi.medical.persistence.TaskRunActivityJournal.*;
+
+/** Immutable additive launch/actual-SDK acceptance witnesses. No current configuration
+ * is consulted during recovery, and mere presence of a binding grants no execution. */
+public final class TaskRunSourceVerifierProtocolBinding {
+    private static final String BIND="task.run.verifier.protocol.v1",ACCEPT="task.run.verifier.accepted.v1";
+    private static final String MANIFEST=org.apache.commons.codec.digest.DigestUtils.sha256Hex("task-source-verifier-protocol-v1|launch_intent|base_protocol_sha256|extension_canonical|extension_sha256|writer_extension_sha256|base_actual_acceptance|temporal_run_id");
+    private final JdbcTemplate db;private final PermissionSchema json;private final TaskRunBootstrapSchema schema;private final TaskRunActivityJournal journal;private final TaskRunWorkflowProtocolBinding base;
+    TaskRunSourceVerifierProtocolBinding(JdbcTemplate db,PermissionSchema json,TaskRunBootstrapSchema schema,TaskRunWorkflowProtocolBinding base){this.db=db;this.json=json;this.schema=schema;this.base=base;this.journal=new TaskRunActivityJournal(db,json);}
+    void prepare(TaskRunBootstrapAuthority.Verified p,TaskRunWorkflowLedger.Intent intent,WaitingWorkflowDeploymentV2 deployment,com.ruoyi.medical.workflow.SectionWriterWorkflowExtensionV1 writer,SourceVerifierWorkflowExtensionV1 extension)throws Exception{
+        p.requireUnchanged();extension.require(deployment,writer);var a=p.admission();var row=run(a,p.runId());var expected=value(intent.content(),deployment,writer,extension);var existing=read(a,row,intent.content(),false);
+        if(existing.isPresent()){same(json.canonical(expected),json.canonical(existing.get()));return;}
+        if(!db.queryForList("SELECT launch_id FROM task_run_workflow_attempt WHERE tenant_id=? AND run_id=? LIMIT 2 FOR UPDATE",p.tenantId(),p.runId()).isEmpty()||!db.queryForList("SELECT launch_id FROM task_run_workflow_acceptance WHERE tenant_id=? AND run_id=? LIMIT 2 FOR UPDATE",p.tenantId(),p.runId()).isEmpty())bad();
+        p.requireUnchanged();write(a,row,intent.content(),false,expected);same(json.canonical(expected),json.canonical(read(a,row,intent.content(),false).orElseThrow()));
+    }
+    SourceVerifierWorkflowExtensionV1 original(EnterpriseAccess.Admission a,TaskRunWorkflowLedger.Intent intent,WaitingWorkflowDeploymentV2 deployment,com.ruoyi.medical.workflow.SectionWriterWorkflowExtensionV1 writer)throws Exception{
+        var found=read(a,run(a,intent.reference().runId()),intent.content(),false);if(found.isEmpty())return null;
+        var extension=SourceVerifierWorkflowExtensionV1.load(found.get().required("extension_canonical").asText());extension.require(deployment,writer);same(json.canonical(value(intent.content(),deployment,writer,extension)),json.canonical(found.get()));return extension;
+    }
+    void record(EnterpriseAccess.Admission a,TaskRunWorkflowDeliveryV2.Received received,TaskRunWorkflowLedger.Receipt receipt)throws Exception{
+        var b=received.binding();if(b.verifier()==null)return;
+        var proof=base.requireWaitingV2(a,b.intent().reference().runId());proof.requireUnchanged();same(proof.temporalRunId(),received.acceptance().temporalRunId());
+        base.writers().requireAccepted(a,b.intent().reference().runId()).requireUnchanged();var row=run(a,b.intent().reference().runId());var bound=read(a,row,b.intent().content(),false).orElseThrow();same(b.verifier().canonicalSha256(),bound.required("extension_sha256").asText());
+        var expected=acceptance(bound,receipt.content());var existing=read(a,row,b.intent().content(),true);if(existing.isPresent())same(json.canonical(expected),json.canonical(existing.get()));else write(a,row,b.intent().content(),true,expected);
+        requireAccepted(a,b.intent().reference().runId()).requireUnchanged();
+    }
+    Accepted requireAccepted(EnterpriseAccess.Admission a,String run)throws Exception{return new Accepted(a,run,accepted(a,run));}
+    Accepted requireAssemblyOriginal(TaskCandidateAssemblyHumanReadAuthority.Verified human)throws Exception{human.require(human.admission());return new Accepted(human.admission(),human.runId(),accepted(human.admission(),human.runId(),human),human);}
+    private JsonNode accepted(EnterpriseAccess.Admission a,String run)throws Exception{return accepted(a,run,null);}
+    private JsonNode accepted(EnterpriseAccess.Admission a,String run,TaskCandidateAssemblyHumanReadAuthority.Verified human)throws Exception{
+        if(human!=null){human.require(a);same(run,human.runId());}
+        var proof=human==null?base.requireWaitingV2(a,run):base.requireAssemblyOriginal(human);proof.requireUnchanged();var writerProof=human==null?base.writers().requireAccepted(a,run):base.writers().requireAssemblyOriginal(human);writerProof.requireUnchanged();var row=human==null?run(a,run):one(db.queryForList("SELECT * FROM task_run WHERE tenant_id=? AND run_id=? AND created_by=? AND execution_kind='TASK' LIMIT 2 FOR UPDATE",a.context().tenant_id(),run,human.originalActorId()));
+        var launch=one(db.queryForList("SELECT * FROM task_run_workflow_launch WHERE tenant_id=? AND run_id=? LIMIT 2 FOR UPDATE",a.context().tenant_id(),run));var intent=schema.read(text(launch,"intent_json"));same(schema.hash(intent),text(launch,"intent_sha256"));
+        var bound=readHistorical(a,row,intent,false,human).orElseThrow();same(proof.protocolSha256(),bound.required("base_protocol_sha256").asText());same(proof.originalStartCommandId(),intent.required("command_id").asText());same(schema.hash(intent),bound.required("launch_intent_sha256").asText());same(json.canonical(intent),json.canonical(bound.required("launch_intent")));
+        var extension=SourceVerifierWorkflowExtensionV1.load(bound.required("extension_canonical").asText());same(extension.canonical(),bound.required("extension_canonical").asText());same(extension.canonicalSha256(),bound.required("extension_sha256").asText());same(proof.protocolSha256(),extension.baseProtocolSha256());same(writerProof.extension().canonicalSha256(),extension.sectionWriterExtensionSha256());same(writerProof.extension().canonicalSha256(),bound.required("writer_extension_sha256").asText());same(proof.temporalRunId(),writerProof.temporalRunId());
+        var receiptRow=one(db.queryForList("SELECT * FROM task_run_workflow_acceptance WHERE tenant_id=? AND run_id=? LIMIT 2 FOR UPDATE",a.context().tenant_id(),run));var receipt=schema.read(text(receiptRow,"receipt_json"));same(schema.hash(receipt),text(receiptRow,"receipt_sha256"));same(proof.temporalRunId(),receipt.required("temporal_run_id").asText());
+        var result=readHistorical(a,row,intent,true,human).orElseThrow();same(json.canonical(acceptance(bound,receipt)),json.canonical(result));proof.requireUnchanged();return result;
+    }
+    private JsonNode value(JsonNode intent,WaitingWorkflowDeploymentV2 deployment,com.ruoyi.medical.workflow.SectionWriterWorkflowExtensionV1 writer,SourceVerifierWorkflowExtensionV1 extension)throws Exception{var value=json.object().put("schema_version","1.0.0").put("launch_intent_sha256",schema.hash(intent)).put("base_protocol_sha256",deployment.canonicalSha256()).put("writer_extension_sha256",writer.canonicalSha256()).put("extension_canonical",extension.canonical()).put("extension_sha256",extension.canonicalSha256());value.set("launch_intent",intent.deepCopy());return value;}
+    private JsonNode acceptance(JsonNode bound,JsonNode receipt)throws Exception{var value=json.object().put("schema_version","1.0.0").put("temporal_run_id",receipt.required("temporal_run_id").asText()).put("base_actual_acceptance_sha256",schema.hash(receipt));value.set("binding",bound.deepCopy());value.set("base_actual_acceptance",receipt.deepCopy());return value;}
+    private Optional<JsonNode> read(EnterpriseAccess.Admission a,Map<String,Object> row,JsonNode intent,boolean accepted)throws Exception{return journal.read(a,text(row,"project_id"),text(row,"run_id"),derived(intent.required("launch_id").asText(),accepted?ACCEPT:BIND),accepted?ACCEPT:BIND,(accepted?ACCEPT:BIND)+":"+text(row,"run_id"),intent.required("command_id").asText(),schema.hash(intent),text(row,"classification"),"1.0.0",MANIFEST);}
+    private Optional<JsonNode> readHistorical(EnterpriseAccess.Admission a,Map<String,Object> row,JsonNode intent,boolean accepted,TaskCandidateAssemblyHumanReadAuthority.Verified human)throws Exception{if(human==null)return read(a,row,intent,accepted);human.require(a);return journal.readOriginalActor(a,human.originalActorId(),text(row,"project_id"),text(row,"run_id"),derived(intent.required("launch_id").asText(),accepted?ACCEPT:BIND),accepted?ACCEPT:BIND,(accepted?ACCEPT:BIND)+":"+text(row,"run_id"),intent.required("command_id").asText(),schema.hash(intent),text(row,"classification"),"1.0.0",MANIFEST);}
+    private void write(EnterpriseAccess.Admission a,Map<String,Object> row,JsonNode intent,boolean accepted,JsonNode value)throws Exception{journal.write(a,text(row,"project_id"),text(row,"run_id"),derived(intent.required("launch_id").asText(),accepted?ACCEPT:BIND),accepted?ACCEPT:BIND,(accepted?ACCEPT:BIND)+":"+text(row,"run_id"),intent.required("command_id").asText(),schema.hash(intent),text(row,"classification"),"1.0.0",MANIFEST,value);}
+    private Map<String,Object> run(EnterpriseAccess.Admission a,String run){return one(db.queryForList("SELECT * FROM task_run WHERE tenant_id=? AND run_id=? AND created_by=? AND execution_kind='TASK' LIMIT 2 FOR UPDATE",a.context().tenant_id(),run,a.actorId()));}
+    final class Accepted {private final EnterpriseAccess.Admission admission;private final String run;private final JsonNode snapshot;private final TaskCandidateAssemblyHumanReadAuthority.Verified human;private final Thread thread=Thread.currentThread();private final TenantScope scope=TenantScope.requireCurrent();private final Map<Object,Object> resources=Map.copyOf(org.springframework.transaction.support.TransactionSynchronizationManager.getResourceMap());private boolean ended;
+        private Accepted(EnterpriseAccess.Admission a,String run,JsonNode snapshot){this(a,run,snapshot,null);}
+        private Accepted(EnterpriseAccess.Admission a,String run,JsonNode snapshot,TaskCandidateAssemblyHumanReadAuthority.Verified human){this.human=human;admission=a;this.run=run;this.snapshot=snapshot.deepCopy();if(resources.isEmpty()||!org.springframework.transaction.support.TransactionSynchronizationManager.isSynchronizationActive())bad();org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(new org.springframework.transaction.support.TransactionSynchronization(){public void afterCompletion(int status){ended=true;}});}
+        void requireUnchanged()throws Exception{var current=org.springframework.transaction.support.TransactionSynchronizationManager.getResourceMap();if(ended||thread!=Thread.currentThread()||scope!=TenantScope.requireCurrent()||resources.size()!=current.size()||resources.entrySet().stream().anyMatch(e->current.get(e.getKey())!=e.getValue()))bad();same(json.canonical(snapshot),json.canonical(accepted(admission,run,human)));}
+        SourceVerifierWorkflowExtensionV1 extension(){return SourceVerifierWorkflowExtensionV1.load(snapshot.required("binding").required("extension_canonical").asText());}String temporalRunId(){return snapshot.required("temporal_run_id").asText();}
+    }
+}

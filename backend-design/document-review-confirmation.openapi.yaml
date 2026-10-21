@@ -1,0 +1,31 @@
+openapi: 3.1.0
+info: {title: Formal document review and revision resubmission, version: 1.0.0}
+paths:
+  /api/documents/{id}/review-batches:
+    post:
+      operationId: BX-13
+      description: Atomic chapter or whole-document human CONFIRM/RETURN. Requires X-Schema-Version 1.0.0, X-Context-Revision, X-CSRF-TOKEN and Idempotency-Key. All targets succeed or no writes commit. Whole confirmation binds every required current chapter confirmation and transitions the task to SIGN_PENDING. Exact original request retries recover before state checks.
+      requestBody: {required: true, content: {application/json: {schema: {$ref: './interfaces.schema.yaml#/$defs/ReviewBatch'}}}}
+      responses: {'200': {description: Original persisted DecisionBatch in the normal Envelope}}
+  /api/documents/{id}/review-decisions:
+    post:
+      operationId: RV-07
+      description: Exactly one ReviewBatch target, delegated to the same BX13 service and operation namespace; not a second state machine.
+      requestBody: {required: true, content: {application/json: {schema: {$ref: './interfaces.schema.yaml#/$defs/ReviewBatch'}}}}
+      responses: {'200': {description: Original persisted DecisionBatch in the normal Envelope}}
+  /api/documents/{id}/review-resubmissions:
+    post:
+      operationId: REVIEW-RESUBMIT-1
+      description: Requires the same write headers. Only the actual eligible assignee can resolve its selected open assignments for this task revision. A different saved body, actual current full N07 recheck, current human evidence and strict field decisions are required. The task stays RETURNED until every assignment has a real resubmission. Does not create human confirmation or signing authority.
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '../business/medical-persistence/src/main/resources/document-review-confirmation.schema.json#/$defs/Resubmit'}}}}
+      responses: {'200': {description: Persisted resubmission receipt and REVIEW_PENDING task status}}
+  /api/documents/{id}/review-confirmation-history:
+    get:
+      operationId: REVIEW-HISTORY-1
+      description: Fixed X-Document-Revision; bounded complete receipts and original human requests with actual actor IDs and open assignments. Historical receipts are not current signing authority; the private prepareConfirmed proof physically revalidates professional artifacts, human evidence, strict decisions, every chapter and current permissions.
+      responses: {'200': {description: History in normal Envelope; over 100 rows is CONTEXT_LIMIT, never silently incomplete}}
+  /api/documents/{id}/review-confirmation-operations:
+    get:
+      operationId: REVIEW-RECOVER-1
+      description: Fixed X-Document-Revision and original Idempotency-Key; original actor only. Verifies immutable request, receipt, batch, targets, decisions, assignments or resolutions, original operation, audit and outbox before returning saved response. Never re-executes.
+      responses: {'200': {description: Original receipt or null in normal Envelope}}

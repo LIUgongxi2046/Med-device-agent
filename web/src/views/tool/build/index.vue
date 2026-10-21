@@ -1,5 +1,11 @@
 <template>
-  <div class="container">
+  <div v-if="medicalMode" class="app-container"><el-button @click="bindingPublisher = !bindingPublisher">{{ bindingPublisher ? '返回表单工具' : '框架绑定发布管理' }}</el-button></div>
+  <FrameworkBindingPublisher v-if="medicalMode && bindingPublisher" />
+  <div v-if="medicalDesignAllowed && medicalMode && !bindingPublisher" class="app-container">
+    <el-button @click="controlledForm = !controlledForm">{{ controlledForm ? '返回原表单设计器' : '受控 Schema 发布' }}</el-button>
+  </div>
+  <FrameworkForm v-if="medicalDesignAllowed && controlledForm && !bindingPublisher" />
+  <div v-if="medicalDesignAllowed && !controlledForm && !bindingPublisher" class="container">
     <div class="left-board">
       <div class="logo-wrapper">
         <div class="logo">
@@ -93,9 +99,23 @@
     <code-type-dialog v-model="dialogVisible" title="选择生成类型" :showFileName="showFileName" @confirm="generate" />
     <input id="copyNode" type="hidden">
   </div>
+<el-alert v-if="!medicalDesignAllowed && !bindingPublisher" title="表单构建需设计环境、开发身份和原表单权限；当前未获准。" type="warning" :closable="false" />
 </template>
 
 <script setup>
+import frameworkRequest from '@/utils/request'
+import FrameworkForm from './FrameworkForm.vue'
+import FrameworkBindingPublisher from '@/components/Medical/FrameworkBindingPublisher.vue'
+const bindingPublisher = ref(false)
+const medicalMode = import.meta.env.VITE_APP_ENV === 'medical'
+const controlledForm = ref(false)
+const medicalDesignAllowed = ref(import.meta.env.VITE_APP_ENV !== 'medical')
+if (import.meta.env.VITE_APP_ENV === 'medical') {
+  frameworkRequest.get('/tool/build/capabilities').then(result => {
+    medicalDesignAllowed.value = result.data.local_design === true
+  }).catch(() => { medicalDesignAllowed.value = false })
+}
+
 import draggable from "vuedraggable/dist/vuedraggable.common"
 import ClipboardJS from 'clipboard'
 import beautifier from 'js-beautify'

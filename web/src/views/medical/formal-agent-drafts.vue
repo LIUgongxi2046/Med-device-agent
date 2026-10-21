@@ -31,7 +31,14 @@
      <label>来源成果<select v-model="artifactId"><option value="">请选择真实成果</option><option v-for="a in artifacts" :key="a.artifact_id" :value="a.artifact_id">{{ a.artifact_kind }} · {{ a.created_at }} · {{ a.artifact_id }}</option></select></label>
      <label>输入契约<select v-model="inputSchema"><option value="">请选择</option><option v-for="s in capabilitySchemas" :key="s.schema_ref" :value="s.schema_ref">{{ s.label }}</option></select></label>
      <label>输出契约<select v-model="outputSchema"><option value="">请选择</option><option v-for="s in capabilitySchemas" :key="s.schema_ref" :value="s.schema_ref">{{ s.label }}</option></select></label>
-     <h3>精确权限声明</h3><label>当前已授权动作<select v-model="scopeIndex"><option value="">请选择</option><option v-for="(s,i) in scopeCandidates" :key="i" :value="String(i)">{{ s.action }} · {{ s.scope.resource_kind }} · {{ s.scope.resource_id }}</option></select></label><label>实际业务用途<input v-model="purpose" maxlength="128" placeholder="填写真实受支持用途，不扩大授权"/></label><button type="button" @click="addPermission">加入声明</button><ul><li v-for="(p,i) in permissions" :key="i">{{ p.action }} · {{ p.purpose }}<button type="button" @click="permissions.splice(i,1)">移除</button></li></ul>
+     <h3>精确权限声明</h3>
+     <p>已读取项目、资料和模型配置可承接当前企业或所属项目的已有授权，收窄为具体资源。请逐项选择；当前权限、资料权利和用途仍由服务端核验。</p>
+     <div class="actions"><button type="button" @click="loadSources(false)">读取可选资料范围</button><button v-if="sourceCursor" type="button" @click="loadSources(true)">更多资料范围</button></div>
+     <p v-if="sourcesLoaded && !sourceResources.length">本页没有可用资料范围。<span v-if="sourceCursor">可继续下一页。</span></p>
+     <div class="actions"><button type="button" @click="loadModels(false)">读取可选模型配置范围</button><button v-if="modelCursor" type="button" @click="loadModels(true)">更多模型配置范围</button></div>
+     <p>模型范围使用真实 config_id 与实际企业或项目归属，不使用固定修订编号。DRAFT 是维护状态；模型可用资格与用途仍由服务端核验，读取不会启用模型。</p>
+     <p v-if="modelsLoaded && !hasModelScopes">已读取页面没有当前范围与动作可用的模型配置。<span v-if="modelCursor">可继续下一页。</span></p>
+     <label>当前已授权动作<select v-model="scopeIndex"><option value="">请选择</option><option v-for="(s,i) in scopeCandidates" :key="i" :value="String(i)">{{ scopeLabel(s) }}</option></select></label><label>实际业务用途<input v-model="purpose" maxlength="128" placeholder="填写真实受支持用途，不扩大授权"/></label><button type="button" @click="addPermission">加入声明</button><ul><li v-for="(p,i) in permissions" :key="i">{{ p.action }} · {{ p.purpose }}<button type="button" @click="permissions.splice(i,1)">移除</button></li></ul>
     </template>
     <template v-else>
      <label>候选名称<input v-model="name" maxlength="200"/></label>
@@ -62,7 +69,7 @@ import { draftAvailability, queryDrafts, readDraft, createDraft, recoverDraft, p
 import type { DraftKind, DraftBody, DraftSummary, PendingDraft } from '@/api/medical/formal-agent-drafts';
 import { emptyManifestValue, manifestLabel } from '@/api/medical/formal-agent-manifest-form';
 import type { ManifestChoice } from '@/api/medical/formal-agent-manifest-form';
-import { capabilityArtifactCandidates, capabilityProjectCandidates } from '@/api/medical/formal-capability-candidates';
+import { capabilityArtifactCandidates, capabilityProjectCandidates, capabilitySourceCandidates, capabilityModelCandidates } from '@/api/medical/formal-capability-candidates';
 import { queryCapabilities } from '@/api/medical/formal-capabilities';
 import { queryPolicies } from '@/api/medical/execution-policies';
 import type { PolicyView } from '@/api/medical/execution-policy-domain';
@@ -74,19 +81,26 @@ import { listGovernance } from '@/api/medical/member-governance';
 import { listRoles } from '@/api/medical/enterprise-roles';
 import { taskDocumentLabels } from '@/api/medical/tasks';
 import type { MedicalSession, Project } from '@/api/medical/protocol';
+import { capabilityAuthorization, mergeCapabilityModelResources } from '@/api/medical/formal-capability-domain';
+import type { CapabilityPermission, CapabilityResourceCandidate } from '@/api/medical/formal-capability-domain';
 import type { ArtifactCatalogueItem } from '@/api/medical/source-governance';
 const user = useUserStore(), kind = ref<DraftKind>('AGENT'), project = ref(''), available = ref<boolean | null>(null), error = ref(''), notice = ref(''), loading = ref(false);
 const pending = ref<PendingDraft | null>(null), items = ref<DraftSummary[]>([]), cursor = ref<string | null>(null), listed = ref(false), detail = ref<DraftBody | null>(null);
 const projects = ref<Project[]>([]), projectCursor = ref<string | null>(null), artifacts = ref<ArtifactCatalogueItem[]>([]), artifactCursor = ref<string | null>(null);
+const projectResources = ref<CapabilityResourceCandidate[]>([]), sourceResources = ref<CapabilityResourceCandidate[]>([]), sourceCursor = ref<string | null>(null), sourcesLoaded = ref(false);
+const modelResources = ref<CapabilityResourceCandidate[]>([]), modelCursor = ref<string | null>(null), modelsLoaded = ref(false);
+const scopeResources = computed(() => [...projectResources.value, ...sourceResources.value, ...modelResources.value]);
+const hasModelScopes = computed(() => scopeCandidates.value.some(item => item.scope.resource_kind === 'CONFIGURATION' && modelResources.value.some(model => model.scope.resource_id === item.scope.resource_id)));
 const artifactId = ref(''), inputSchema = ref(''), outputSchema = ref(''), scopeIndex = ref(''), purpose = ref(''), permissions = ref<any[]>([]), reason = ref(''), attested = ref(false), name = ref('');
 const policies = ref<PolicyView[]>([]), policyCursor = ref<string | null>(null), policyId = ref(''), manifest = ref<DraftBody>(emptyManifestValue(draftManifestSchema)), versionChoices = ref<ManifestChoice[]>([]), dependencyCursors = ref<Record<string, string | null>>({});
 const memberWatermark = ref<string | null>(null);
 const templateProject = ref(''), documentType = ref<DocumentType>('CLINICAL_EVALUATION'), templatePage = ref<ApplicableTemplatePage | null>(null);
 const dependencyGroups = ['ROLE/PROMPT', 'TOOL', 'SKILL', 'RULE', 'MODEL', 'MEMBER_ID', 'ROLE_ID'], manifestGroups = ['role_versions', 'skill_versions', 'tool_versions', 'prompt_revisions', 'template_versions', 'rule_versions', 'retrieval_profiles', 'model_config_revisions'];
+let modelGeneration = 0;
 let controller = new AbortController(), generation = 0, mounted = true, writeOwner: object | null = null;
 const busy = computed(() => loading.value || user.medicalWriting), mayCreate = computed(() => !!user.medicalSession && draftAllowed(user.medicalSession, kind.value, project.value || null));
 const selectedPolicy = computed(() => policies.value.find(p => p.fixed.version_id === policyId.value) || null);
-const fixedDetail = computed(() => detail.value?.fixed || detail.value?.content), scopeCandidates = computed(() => user.medicalSession?.current_context ? capabilityScopeCandidates(user.medicalSession, project.value || null) : []);
+const fixedDetail = computed(() => detail.value?.fixed || detail.value?.content), scopeCandidates = computed(() => user.medicalSession?.current_context ? capabilityScopeCandidates(user.medicalSession, project.value || null, scopeResources.value) : []);
 const templateHasNext = computed(() => !!templatePage.value && BigInt(templatePage.value.page_info.page * templatePage.value.page_info.page_size) < BigInt(templatePage.value.page_info.total));
 const choices = computed<ManifestChoice[]>(() => [...versionChoices.value, ...projects.value.map(p => ({ label: p.name, value: p.project_id, group: 'PROJECT_ID' })), ...(user.medicalSession?.current_context ? [{ label: '当前企业', value: user.medicalSession.current_context.tenant_id, group: 'TENANT_ID' }] : []), ...artifacts.value.map(a => ({ label: a.artifact_kind + ' 固定版本 · ' + a.artifact_id, value: { version_id: a.artifact_id, content_sha256: a.sha256 }, group: 'REGISTERED_ARTIFACT' })), ...capabilitySchemas.map(s => ({ label: s.label, value: { schema_ref: s.schema_ref, schema_sha256: s.schema_sha256 }, group: 'SCHEMA' })), ...artifacts.value.map(a => ({ label: a.artifact_kind + ' · ' + a.artifact_id, value: { artifact_id: a.artifact_id, sha256: a.sha256, size_bytes: a.size_bytes, media_type: a.media_type }, group: 'ARTIFACT' })), ...policies.value.flatMap(p => [{ label: '来源策略 · ' + p.fixed.version_id, value: p.fixed.definition.source_selection.version, group: 'SOURCE_SCOPE' }, ...p.fixed.definition.retrieval_profiles.map(r => ({ label: '检索策略 · ' + r.version.version_id, value: r.version, group: 'RETRIEVAL' }))])]);
 function reader(): MedicalSession { if (!user.medicalSession?.current_context)
@@ -116,13 +130,15 @@ finally {
             void bootstrap();
     }
 } }
-function clear() { project.value = ''; controller.abort(); controller = new AbortController(); generation++; loading.value = false; available.value = null; error.value = ''; notice.value = ''; pending.value = null; items.value = []; cursor.value = null; listed.value = false; detail.value = null; projects.value = []; projectCursor.value = null; clearForm(); }
-function clearForm() { artifacts.value = []; artifactCursor.value = null; artifactId.value = ''; inputSchema.value = ''; outputSchema.value = ''; permissions.value = []; scopeIndex.value = ''; purpose.value = ''; reason.value = ''; attested.value = false; name.value = ''; policies.value = []; policyCursor.value = null; policyId.value = ''; manifest.value = emptyManifestValue(draftManifestSchema); versionChoices.value = []; dependencyCursors.value = {}; templatePage.value = null; templateProject.value = ''; memberWatermark.value = null; }
+function clear() { project.value = ''; controller.abort(); controller = new AbortController(); generation++; loading.value = false; available.value = null; error.value = ''; notice.value = ''; pending.value = null; items.value = []; cursor.value = null; listed.value = false; detail.value = null; projects.value = []; projectResources.value = []; projectCursor.value = null; clearForm(); }
+function clearModels() { modelGeneration++; modelResources.value = []; modelCursor.value = null; modelsLoaded.value = false; scopeIndex.value = ''; attested.value = false; }
+function clearForm() { clearModels(); sourceResources.value = []; sourceCursor.value = null; sourcesLoaded.value = false; artifacts.value = []; artifactCursor.value = null; artifactId.value = ''; inputSchema.value = ''; outputSchema.value = ''; permissions.value = []; scopeIndex.value = ''; purpose.value = ''; reason.value = ''; attested.value = false; name.value = ''; policies.value = []; policyCursor.value = null; policyId.value = ''; manifest.value = emptyManifestValue(draftManifestSchema); versionChoices.value = []; dependencyCursors.value = {}; templatePage.value = null; templateProject.value = ''; memberWatermark.value = null; }
 async function bootstrap() { return run(async (s, signal, valid) => { const original = pendingDraft(s); if (valid())
     pending.value = original; const a = await draftAvailability(reader, signal); if (valid())
     available.value = a.features.formal_agent_authoring; }); }
-async function loadProjects(more: boolean) { return run(async (_s, signal, valid) => { const p = await capabilityProjectCandidates(reader, more ? projectCursor.value : null, signal); if (valid()) {
+async function loadProjects(more: boolean) { if (busy.value || more && !projectCursor.value) return; if (!more) projectResources.value = []; return run(async (_s, signal, valid) => { const p = await capabilityProjectCandidates(reader, more ? projectCursor.value : null, signal); if (valid()) {
     projects.value = more ? [...projects.value, ...p.projects] : p.projects;
+    projectResources.value = more ? [...projectResources.value, ...(p.resources ?? [])] : p.resources ?? [];
     projectCursor.value = p.next_after;
 } }); }
 async function list(more: boolean) { if (available.value !== true)
@@ -193,11 +209,52 @@ async function loadTemplates(more: boolean) { const p = projects.value.find(x =>
     templatePage.value = result;
     addChoices('TEMPLATE', result.items.map(x => ({ label: x.template.template_version + ' · ' + x.applicability, value: { version_id: x.template.template_version, content_sha256: x.template.content_sha256 }, group: 'TEMPLATE' })), more);
 } }); }
-function addPermission() { const c = scopeCandidates.value[Number(scopeIndex.value)]; if (scopeIndex.value === '' || !c || !purpose.value.trim()) {
+async function loadSources(more: boolean) {
+    const after = more ? sourceCursor.value : null, selectedProject = project.value;
+    if (busy.value || pending.value || more && !after) return;
+    if (!more) { sourceResources.value = []; sourceCursor.value = null; sourcesLoaded.value = false; }
+    return run(async (_s, signal, valid) => {
+        const page = await capabilitySourceCandidates(reader, selectedProject || null, after, signal);
+        if (!valid() || project.value !== selectedProject) return;
+        const combined = more ? [...sourceResources.value, ...page.resources] : page.resources;
+        const unique = new Map<string, CapabilityResourceCandidate>();
+        for (const item of combined) {
+            const previous = unique.get(item.scope.resource_id);
+            if (previous && draftCanonical(previous.scope) !== draftCanonical(item.scope)) {
+                sourceResources.value = []; sourceCursor.value = null; sourcesLoaded.value = false;
+                throw new Error('资料归属已变化，请重新读取首页');
+            }
+            unique.set(item.scope.resource_id, item);
+        }
+        sourceResources.value = [...unique.values()]; sourceCursor.value = page.next_after; sourcesLoaded.value = true;
+    });
+}
+async function loadModels(more: boolean) {
+    const after = more ? modelCursor.value : null, selectedProject = project.value;
+    if (busy.value || pending.value || more && !after) return;
+    if (!more) clearModels();
+    const modelRead = modelGeneration;
+    return run(async (_s, signal, valid) => {
+        try {
+            const page = await capabilityModelCandidates(reader, after, signal);
+            if (!valid() || project.value !== selectedProject || modelRead !== modelGeneration) return;
+            modelResources.value = mergeCapabilityModelResources(more ? modelResources.value : [], page.resources);
+            modelCursor.value = page.next_after; modelsLoaded.value = true;
+        } catch (failure) {
+            if (valid() && project.value === selectedProject && modelRead === modelGeneration) clearModels();
+            throw failure;
+        }
+    });
+}
+function scopeLabel(item: Omit<CapabilityPermission, 'purpose'>) {
+    const resource = scopeResources.value.find(value => draftCanonical(value.scope) === draftCanonical(item.scope));
+    return [item.action, item.scope.resource_kind, resource?.label, item.scope.resource_id].filter(Boolean).join(' · ');
+}
+function addPermission() { if (busy.value || pending.value) return; const c = scopeCandidates.value[Number(scopeIndex.value)]; if (scopeIndex.value === '' || !c || !purpose.value.trim()) {
     error.value = '请先选择真实动作并填写用途';
     return;
 } const p = { ...draftCopy(c), purpose: purpose.value.trim() }; if (!permissions.value.some(x => draftCanonical(x) === draftCanonical(p)))
-    permissions.value.push(p); purpose.value = ''; }
+    permissions.value.push(p); purpose.value = ''; scopeIndex.value = ''; }
 function applyPolicy() { const p = selectedPolicy.value; if (!p || p.status !== 'APPROVED') {
     error.value = '请选择真实已批准策略';
     return;
@@ -215,7 +272,7 @@ async function submit() { if (busy.value || available.value !== true || !atteste
     error.value = issue;
     return;
 } return run(async (_s, signal, valid) => { await createDraft(reader, kind.value, request, signal, p => { if (valid())
-    pending.value = p; }); if (valid())
+    pending.value = p; }, scopeResources.value); if (valid())
     notice.value = '已取得创建回执，请只读核查完整固定内容。'; }, true); }
 async function recover() { if (!pending.value || available.value !== true)
     return; const original = draftCopy(pending.value); return run(async (_s, signal, valid) => { const result = await recoverDraft(reader, original, signal); if (valid()) {
@@ -227,13 +284,14 @@ async function recover() { if (!pending.value || available.value !== true)
     else
         notice.value = '原操作状态：' + result.lookup.lookup_status + '。原请求继续保留，不自动重发。';
 } }); }
-watch(() => [user.medicalSession, user.medicalSession?.current_context?.tenant_id, user.medicalSession?.current_context?.context_revision, user.medicalSession?.current_context?.auth_epoch, user.medicalSession?.current_context?.governance_epoch], () => { clear(); if (user.medicalSession?.current_context && !document.hidden) {
+watch(() => [user.medicalSession, user.medicalSession?.user.user_id, user.medicalSession?.current_context?.tenant_id, user.medicalSession?.current_context?.context_revision, user.medicalSession?.current_context?.auth_epoch, user.medicalSession?.current_context?.governance_epoch, user.medicalSession ? capabilityAuthorization(user.medicalSession) : null], () => { clear(); if (user.medicalSession?.current_context && !document.hidden) {
     pending.value = pendingDraft(user.medicalSession);
     void bootstrap();
 } }, { immediate: true, flush: 'sync' });
 watch([kind, project], () => { controller.abort(); controller = new AbortController(); generation++; loading.value = false; items.value = []; cursor.value = null; listed.value = false; detail.value = null; clearForm(); }, { flush: 'sync' });
+watch(scopeCandidates, () => { scopeIndex.value = ''; attested.value = false; }, { flush: 'sync' });
 watch([templateProject, documentType], () => { templatePage.value = null; versionChoices.value = versionChoices.value.filter(x => x.group !== 'TEMPLATE'); });
-watch([kind, project, artifactId, inputSchema, outputSchema, permissions, reason, name, policyId, manifest], () => { attested.value = false; }, { deep: true, flush: 'sync' });
+watch([kind, project, artifactId, inputSchema, outputSchema, scopeIndex, purpose, permissions, reason, name, policyId, manifest], () => { attested.value = false; }, { deep: true, flush: 'sync' });
 function visibility() { clear(); if (!document.hidden && user.medicalSession?.current_context) {
     pending.value = pendingDraft(user.medicalSession);
     void bootstrap();

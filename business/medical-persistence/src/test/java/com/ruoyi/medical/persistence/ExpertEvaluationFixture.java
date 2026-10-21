@@ -10,11 +10,15 @@ import org.springframework.beans.factory.ObjectProvider;
 import static org.mockito.Mockito.*;
 import static org.junit.jupiter.api.Assertions.*;
 import static com.ruoyi.medical.persistence.FormalInputFixture.*;
-/** Real EvaluationService append/load/schema/verdict. DB and preexisting rule/dependency authority boundaries are explicit doubles. */
+/** Real EvaluationService append/load/schema/verdict. DB, rule/dependency and formal scoring gate boundaries are explicit doubles. The gate fixture is not professional execution evidence or a production acceptance claim. */
 final class ExpertEvaluationFixture {
  final ExpertFixture f;final EvaluationMapper mapper;final EvaluationService service;final EvaluationProtocol.Definition definition;final String hash;
  final List<EvaluationProtocol.Score> scores=new ArrayList<>();final List<EvaluationProtocol.StoredScore> stored=new ArrayList<>();final Map<String,SelectionOperationRow> operations=new HashMap<>();String audit,event;BigInteger revision=BigInteger.ONE;String status="QUEUED";EvaluationProtocol.Result result;
  final EvaluationReferences refs=mock(EvaluationReferences.class);final EvaluationRuleAuthority rules=mock(EvaluationRuleAuthority.class);boolean originalScoreCorrupt=false;
+ final FormalEvaluationScoringGate scoringGate=mock(FormalEvaluationScoringGate.class);
+ final ObjectProvider<FormalEvaluationScoringGate> scoringGates=mock(ObjectProvider.class);
+ final FormalEvaluationScoringGate.Prepared scoringPrepared=mock(FormalEvaluationScoringGate.Prepared.class);
+ EvaluationProtocol.Append preparedObservation;
  ExpertEvaluationFixture(ExpertFixture f)throws Exception{
   this.f=f;when(f.f.admission.subject()).thenReturn(f.f.subject);var seed=EvaluationFixture.definition(f.evaluationSchema,List.of(EvaluationFixture.sample(1000,"REAL","ACCEPTANCE")),List.of("EVAL-02"),1);var rq=(com.fasterxml.jackson.databind.node.ObjectNode)f.f.json.tree(seed.request());rq.putNull("project_id");var request=f.evaluationSchema.create(f.f.json.canonical(rq).getBytes(java.nio.charset.StandardCharsets.UTF_8));definition=new EvaluationProtocol.Definition("1.0.0",TENANT,id(600),request,seed.candidate_snapshots(),seed.approved_expectation_samples(),seed.authority_grant_id(),seed.authority_revision(),seed.created_by(),"2026-10-18T18:00:00Z");hash=f.evaluationSchema.hash(definition);
   when(rules.boundSamples(any(),any())).thenReturn(definition.approved_expectation_samples());when(f.f.permissions.resourceOwner(anyString(),anyString())).thenAnswer(i->List.of(new PermissionProtocol.OwnerRow(i.getArgument(1),null)));
@@ -29,6 +33,21 @@ final class ExpertEvaluationFixture {
    case "audit"->List.of(audit);case "event"->List.of(event);default->throw new AssertionError(name);
   };});
   service=new EvaluationService(f.f.access,mapper,f.f.permissions,f.f.resources,refs,f.evaluationSchema,new EvaluationVerdict(f.evaluationSchema),f.f.json,new IdentityDirectoryPolicy("INTERNAL"),rules,null);
+  // These tests target the downstream score/qualification ledger, not execution proof construction.
+  // Match and recheck every consumer binding; never invent a provider receipt or change PRODUCTION mode.
+  when(scoringGates.getIfAvailable()).thenReturn(scoringGate);
+  when(scoringGate.prepare(any(),anyString(),anyString(),any(byte[].class))).thenAnswer(i->{
+   assertSame(f.f.subject,i.getArgument(0));assertEquals("1",i.getArgument(1));assertEquals(definition.evaluation_id(),i.getArgument(2));
+   preparedObservation=f.evaluationSchema.append(i.getArgument(3));assertEquals(hash,preparedObservation.definition_sha256());
+   return scoringPrepared;
+  });
+  doAnswer(i->{
+   assertSame(f.f.admission,i.getArgument(0));assertEquals(definition.evaluation_id(),i.getArgument(1));
+   assertNotNull(preparedObservation);assertEquals(preparedObservation,i.getArgument(2));assertSame(scoringPrepared,i.getArgument(3));
+   assertEquals("1",f.f.admission.context().context_revision());assertEquals(f.actor,f.f.subject.user().user_id());
+   return null;
+  }).when(scoringGate).require(any(),anyString(),any(),any());
+  var scoringField=EvaluationService.class.getDeclaredField("formalScoringGates");scoringField.setAccessible(true);scoringField.set(service,scoringGates);
   sink(f.recorder);
   when(f.evaluations.requireAcceptance(any(),anyString())).thenAnswer(i->service.requireAcceptance(i.getArgument(0),i.getArgument(1)));
  }

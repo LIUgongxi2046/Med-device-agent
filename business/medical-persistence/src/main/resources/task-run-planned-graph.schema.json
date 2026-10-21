@@ -1,0 +1,123 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:task-run-planned-graph:1.0.0",
+  "title": "Immutable confirmed TASK question graph, not execution completion",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "tenant_id",
+    "project_id",
+    "task_id",
+    "run_id",
+    "principal_id",
+    "plan_revision",
+    "snapshot_id",
+    "schema_version",
+    "compiler_ref",
+    "plan_sha256",
+    "confirmed_plan",
+    "nodes",
+    "required_stages",
+    "saved_body_handoff"
+  ],
+  "properties": {
+    "tenant_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "project_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "task_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "run_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "principal_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "plan_revision": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "snapshot_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "compiler_ref": {
+      "const": "urn:medical:task-run-planned-graph:1.0.0"
+    },
+    "plan_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "confirmed_plan": {
+      "type": "object"
+    },
+    "nodes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "question_id",
+          "question_key",
+          "step_id",
+          "question_text",
+          "section_id",
+          "depends_on_step_ids"
+        ],
+        "properties": {
+          "question_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "question_key": {
+            "type": "string",
+            "minLength": 1
+          },
+          "step_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "question_text": {
+            "type": "string",
+            "minLength": 1
+          },
+          "section_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "depends_on_step_ids": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        }
+      }
+    },
+    "required_stages": {
+      "const": [
+        "N03",
+        "N04",
+        "N05",
+        "N06"
+      ]
+    },
+    "saved_body_handoff": {
+      "const": "NOT_APPLICABLE_FIRST_RUN"
+    }
+  }
+}

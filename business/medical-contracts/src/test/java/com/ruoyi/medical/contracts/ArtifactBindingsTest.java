@@ -143,6 +143,6 @@ class ArtifactBindingsTest {
         assertEquals(107, publishedTemplates.size());
         assertTrue(java.util.Collections.disjoint(actual, publishedTemplates));
         actual.addAll(publishedTemplates);
-        assertEquals(325, expected.size()); assertEquals(expected, actual); assertEquals(503, catalogue.definitionCount());
+        assertEquals(325, expected.size()); assertEquals(expected, actual); assertEquals(SchemaTypeAssertions.publishedDefinitionCount(root), catalogue.definitionCount());
     }
 }

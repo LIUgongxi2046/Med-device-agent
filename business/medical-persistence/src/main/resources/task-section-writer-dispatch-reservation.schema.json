@@ -1,0 +1,358 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:task-section-writer-dispatch-reservation:1.0.0",
+  "oneOf": [
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "receipt_id",
+        "created_at",
+        "request",
+        "kind"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "receipt_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "request": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "tenant_id",
+            "project_id",
+            "task_id",
+            "run_id",
+            "step_id",
+            "principal_id",
+            "initiator_id",
+            "command_id",
+            "graph_id",
+            "input_artifact_id",
+            "budget_revision",
+            "producer_rule_id",
+            "producer_decision_id",
+            "reference_sha256",
+            "graph_sha256",
+            "input_sha256",
+            "input_receipt_sha256",
+            "service_certificate_sha256",
+            "producer_sha256",
+            "producer_decision_sha256",
+            "input_object_version",
+            "expected_revision",
+            "expected_generation",
+            "service_uri",
+            "service_trust_revision"
+          ],
+          "properties": {
+            "tenant_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "project_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "task_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "run_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "step_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "principal_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "initiator_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "command_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "graph_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "input_artifact_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "budget_revision": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "producer_rule_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "producer_decision_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "reference_sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "graph_sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "input_sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "input_receipt_sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "service_certificate_sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "producer_sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "producer_decision_sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "input_object_version": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            },
+            "expected_revision": {
+              "type": "string",
+              "pattern": "^(0|[1-9][0-9]{0,19})$"
+            },
+            "expected_generation": {
+              "type": "string",
+              "pattern": "^(0|[1-9][0-9]{0,19})$"
+            },
+            "service_uri": {
+              "type": "string",
+              "format": "uri",
+              "maxLength": 512
+            },
+            "service_trust_revision": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            }
+          }
+        },
+        "kind": {
+          "const": "TASK_SECTION_WRITER_DISPATCH_RESERVED"
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "receipt_id",
+        "created_at",
+        "request",
+        "kind",
+        "reservation_sha256",
+        "lease_owner",
+        "lease_generation",
+        "step_revision",
+        "lease_expires_at"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "receipt_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "request": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "tenant_id",
+            "project_id",
+            "task_id",
+            "run_id",
+            "step_id",
+            "principal_id",
+            "initiator_id",
+            "command_id",
+            "graph_id",
+            "input_artifact_id",
+            "budget_revision",
+            "producer_rule_id",
+            "producer_decision_id",
+            "reference_sha256",
+            "graph_sha256",
+            "input_sha256",
+            "input_receipt_sha256",
+            "service_certificate_sha256",
+            "producer_sha256",
+            "producer_decision_sha256",
+            "input_object_version",
+            "expected_revision",
+            "expected_generation",
+            "service_uri",
+            "service_trust_revision"
+          ],
+          "properties": {
+            "tenant_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "project_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "task_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "run_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "step_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "principal_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "initiator_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "command_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "graph_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "input_artifact_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "budget_revision": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "producer_rule_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "producer_decision_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "reference_sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "graph_sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "input_sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "input_receipt_sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "service_certificate_sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "producer_sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "producer_decision_sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "input_object_version": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            },
+            "expected_revision": {
+              "type": "string",
+              "pattern": "^(0|[1-9][0-9]{0,19})$"
+            },
+            "expected_generation": {
+              "type": "string",
+              "pattern": "^(0|[1-9][0-9]{0,19})$"
+            },
+            "service_uri": {
+              "type": "string",
+              "format": "uri",
+              "maxLength": 512
+            },
+            "service_trust_revision": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            }
+          }
+        },
+        "kind": {
+          "const": "TASK_SECTION_WRITER_DISPATCH_CLAIMED"
+        },
+        "reservation_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "lease_owner": {
+          "type": "string",
+          "format": "uri",
+          "maxLength": 512
+        },
+        "lease_generation": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]{0,19})$"
+        },
+        "step_revision": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]{0,19})$"
+        },
+        "lease_expires_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    }
+  ]
+}

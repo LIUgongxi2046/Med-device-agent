@@ -81,9 +81,10 @@ public final class FormalEvaluationInputService {
  public JsonNode read(ApplicationSessionIdentity.Verified subject,String context,String artifactId)throws Exception{
   return view(readVerified(subject,context,artifactId));
  }
- public VerifiedInput readVerified(ApplicationSessionIdentity.Verified subject,String context,String artifactId)throws Exception{
+ public VerifiedInput readVerified(ApplicationSessionIdentity.Verified subject,String context,String artifactId)throws Exception{return readVerified(EvidenceReadAccess.human(access,subject),context,artifactId);}
+ VerifiedInput readVerified(EvidenceReadAccess subject,String context,String artifactId)throws Exception{
   WireValues.uuid(artifactId);PermissionSchema.revision(context);
-  Registration row=access.execute(subject,a->ThrowingSupplier.of(()->{context(a,context);var v=values(a);v.put("artifactId",artifactId);var stored=available(mapper.registration(v));registry.requireRegistration(a,artifactId,requirement(stored.tenantId(),stored.sourceId(),stored.purpose()));return stored;}).get());
+  Registration row=subject.execute(a->ThrowingSupplier.of(()->{context(a,context);var v=values(a);v.put("artifactId",artifactId);var stored=available(mapper.registration(v));registry.requireRegistration(a,artifactId,requirement(stored.tenantId(),stored.sourceId(),stored.purpose()));return stored;}).get());
   return readRowVerified(subject,context,row);
  }
  /** Creator-only typed recovery of the original persisted request/receipt; no replay key or session substitution. */
@@ -94,13 +95,16 @@ public final class FormalEvaluationInputService {
  }
  private JsonNode readRow(ApplicationSessionIdentity.Verified subject,String context,Registration row)throws Exception{return view(readRowVerified(subject,context,row));}
  private JsonNode view(VerifiedInput proof){var result=json.object();result.set("receipt",proof.receipt());result.set("document",proof.document());return schema.validate("Read",result);}
- private VerifiedInput readRowVerified(ApplicationSessionIdentity.Verified subject,String context,Registration row)throws Exception{
+ private VerifiedInput readRowVerified(ApplicationSessionIdentity.Verified subject,String context,Registration row)throws Exception{return readRowVerified(EvidenceReadAccess.human(access,subject),context,row);}
+ private VerifiedInput readRowVerified(EvidenceReadAccess subject,String context,Registration row)throws Exception{
+  subject.requireVersion(row.artifactId(),row.documentSha256());
   JsonNode request=schema.request(row.canonicalRequest().getBytes(StandardCharsets.UTF_8));var initial=state(subject,context,request,false,row.artifactId());
   JsonNode document=documentSchema.document(readOriginal(subject,context,request,initial,false,row.artifactId()));same(row.documentSha256(),schema.hash(document));
   Recheck recheck=a->{var v=values(a);v.put("artifactId",row.artifactId());same(row,one(mapper.registration(v)));var current=prepare(a,context,request,false,row.artifactId());same(initial.digest(),current.digest());verify(a,row,current,document);};
-  return access.execute(subject,a->ThrowingSupplier.of(()->{recheck.require(a);return new VerifiedInput(document,schema.parse(row.receiptJson().getBytes(StandardCharsets.UTF_8)),recheck);}).get());
+  return subject.execute(a->ThrowingSupplier.of(()->{recheck.require(a);return new VerifiedInput(document,schema.parse(row.receiptJson().getBytes(StandardCharsets.UTF_8)),recheck);}).get());
  }
- private Prepared state(ApplicationSessionIdentity.Verified subject,String context,JsonNode request,boolean writing,String artifact){return access.execute(subject,a->ThrowingSupplier.of(()->prepare(a,context,request,writing,artifact)).get());}
+ private Prepared state(ApplicationSessionIdentity.Verified subject,String context,JsonNode request,boolean writing,String artifact){return state(EvidenceReadAccess.human(access,subject),context,request,writing,artifact);}
+ private Prepared state(EvidenceReadAccess subject,String context,JsonNode request,boolean writing,String artifact){if(writing&&subject.control())denied();subject.requireVersion(request.required("source").required("version_id").asText(),request.required("source").required("content_sha256").asText());return subject.execute(a->ThrowingSupplier.of(()->prepare(a,context,request,writing,artifact)).get());}
  private Prepared prepare(EnterpriseAccess.Admission a,String context,JsonNode request,boolean writing,String artifact)throws Exception{
   context(a,context);schema.validate("Register",request);String sourceVersion=request.path("source").path("version_id").asText(),rights=request.path("rights_revision").asText(),purpose=request.path("purpose").asText();
   var source=sources.require(a,new SourceReadProtocol.ReadRequirement(sourceVersion,rights,null,null,null,null,SourceReadProtocol.Use.REVIEW,purpose,deployment.environment(),deployment.region(),null));
@@ -129,9 +133,11 @@ public final class FormalEvaluationInputService {
   if(registered!=null){snapshot.set("artifact",schema.tree(registered.artifact()));snapshot.set("binding",schema.tree(registered.binding()));snapshot.set("manifest",schema.tree(registered.manifest()));snapshot.set("artifact_grant",schema.tree(registered.artifactGrant()));snapshot.set("resource_grant",schema.tree(registered.resourceGrant()));}
   return new Prepared(source,original,List.copyOf(members),closure,grant,schema.hash(snapshot));
  }
- private byte[] readOriginal(ApplicationSessionIdentity.Verified subject,String context,JsonNode request,Prepared initial,boolean writing,String artifact)throws Exception{
+ private byte[] readOriginal(ApplicationSessionIdentity.Verified subject,String context,JsonNode request,Prepared initial,boolean writing,String artifact)throws Exception{return readOriginal(EvidenceReadAccess.human(access,subject),context,request,initial,writing,artifact);}
+ private byte[] readOriginal(EvidenceReadAccess subject,String context,JsonNode request,Prepared initial,boolean writing,String artifact)throws Exception{
+  if(writing&&subject.control())denied();
   var original=initial.original();S3ObjectReader.Admission guard=()->same(initial.digest(),state(subject,context,request,writing,artifact).digest());
-  return transport.readDocument(subject,original.tenantId(),FormalEvaluationInputSchema.MAXIMUM_BYTES,guard,(reader,current)->{
+  return subject.readDocument(transport,original.tenantId(),FormalEvaluationInputSchema.MAXIMUM_BYTES,guard,(reader,current)->{
    try(var verified=reader.readVerified(original.reference(),current)){
     same(original.reference(),verified.reference());same(original.sha256(),verified.fullSha256());byte[] bytes=new byte[original.sizeBytes().intValueExact()];
     for(int start=0;start<bytes.length;){int n=Math.min(S3ObjectReader.MAX_SEGMENT_BYTES,bytes.length-start);System.arraycopy(verified.chunk(start,n),0,bytes,start,n);start+=n;}current.requireCurrent();return bytes;

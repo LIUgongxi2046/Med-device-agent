@@ -11,6 +11,9 @@ public final class UploadTransferProtocol {
             String taskId, String status, String createdBy, LocalDateTime createdAt, String classification,
             BigInteger revision, LocalDateTime updatedAt, String projectStatus) { }
 
+    public record BodyPublicationRow(String tenantId, String projectId, String documentId, String documentRevision,
+            String schemaRevision, String schemaRef, String schemaSha256) { }
+
     public record SessionRow(String tenantId, String projectId, String uploadId, String subjectId, String purpose,
             String sourceUploadId, String grantId, BigInteger expectedSize, String expectedSha256, BigInteger receivedSize,
             String mediaType, String objectKey, String objectKeySha256, BigInteger maxPartBytes, LocalDateTime expiresAt,

@@ -19,7 +19,7 @@ import org.springframework.util.function.ThrowingSupplier;
   SourceReadMapper sourceRows,ArtifactRegistryMapper artifacts,AgentPublicationDependencies dependencies,EvaluationReferences references,EvaluationDependencyPolicy limits,ExpertQualificationSchema schema)throws Exception{
   this.access=access;this.transport=transport;this.mapper=mapper;this.sources=sources;this.sourceRows=sourceRows;this.artifacts=artifacts;this.dependencies=dependencies;this.references=references;this.limits=limits;this.schema=schema;catalogue=SchemaCatalogue.fromClasspath();
  }
- record Current(String tenantId,JsonNode witness,String digest,String classification,List<InterfaceProtocol.ObjectRef> objects,List<String> schemaRefs,List<String> schemaHashes){Current{witness=witness.deepCopy();objects=List.copyOf(objects);schemaRefs=List.copyOf(schemaRefs);schemaHashes=List.copyOf(schemaHashes);}@Override public JsonNode witness(){return witness.deepCopy();}}
+ record Current(String tenantId,JsonNode witness,String digest,String classification,List<InterfaceProtocol.ObjectRef> objects,List<String> schemaRefs,List<String> schemaHashes,List<String> requiredVersionIds){Current{requiredVersionIds=List.copyOf(requiredVersionIds);witness=witness.deepCopy();objects=List.copyOf(objects);schemaRefs=List.copyOf(schemaRefs);schemaHashes=List.copyOf(schemaHashes);}@Override public JsonNode witness(){return witness.deepCopy();}}
  @FunctionalInterface private interface Recheck{Current read(EnterpriseAccess.Admission a)throws IOException;}
  public static final class VerifiedOriginals{
   private final Current current;private final Recheck check;private VerifiedOriginals(Current current,Recheck check){this.current=current;this.check=check;}
@@ -45,7 +45,7 @@ import org.springframework.util.function.ThrowingSupplier;
  Current current(EnterpriseAccess.Admission a,Author author)throws IOException{return state(a,a.context().context_revision(),author);}
  private Current state(EnterpriseAccess.Admission a,String context,Author author)throws IOException{
   ExpertQualificationSchema.semantics(author);if(a.simulationWorker())denied();if(!Objects.equals(context,a.context().context_revision()))throw new TenantAccessException(ErrorCode.CONTEXT_CHANGED);limits.requireConfigured();
-  dependencies.requireByUse(a,author.project_id(),author.evidence().stream().map(e->new AgentPublicationDependencies.DependencyUse(e.basis(),author.purpose())).toList());
+  var requiredDependencies=dependencies.requireByUse(a,author.project_id(),author.evidence().stream().map(e->new AgentPublicationDependencies.DependencyUse(e.basis(),author.purpose())).toList());
   var witness=schema.tree(new TreeMap<String,Object>());var objects=new ArrayList<InterfaceProtocol.ObjectRef>();var refs=new ArrayList<String>();var hashes=new ArrayList<String>();String classification="PUBLIC";long total=0;
   for(var evidence:author.evidence()){
    var root=one(artifacts.version(evidence.basis().version_id()));same(evidence.basis().content_sha256(),root.contentSha256());if(root.projectId()!=null&&!root.projectId().equals(author.project_id()))denied();
@@ -68,7 +68,7 @@ import org.springframework.util.function.ThrowingSupplier;
    ((com.fasterxml.jackson.databind.node.ObjectNode)witness).set(root.id(),snapshot);objects.add(object);refs.add(schemaRef);hashes.add(schemaHash);
   }
   var identity=com.fasterxml.jackson.databind.node.JsonNodeFactory.instance.objectNode();identity.set("context",schema.tree(a.context()));identity.set("watermarks",schema.tree(a.watermarks()));identity.put("actor",a.actorId());identity.set("witness",witness);
-  return new Current(a.context().tenant_id(),witness,schema.hash(identity),classification,objects,refs,hashes);
+  return new Current(a.context().tenant_id(),witness,schema.hash(identity),classification,objects,refs,hashes,requiredDependencies.requiredVersionIds());
  }
  static String maxClassification(String a,String b){var values=List.of("PUBLIC","INTERNAL","RESTRICTED","PERSONAL_HEALTH");int x=values.indexOf(a),y=values.indexOf(b);if(x<0||y<0)bad();return values.get(Math.max(x,y));}
  private static <T>T one(List<T> rows){if(rows.size()!=1)bad();return rows.get(0);}private static void same(Object a,Object b){if(!Objects.equals(a,b))bad();}

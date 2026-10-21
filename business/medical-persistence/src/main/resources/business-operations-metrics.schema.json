@@ -1,0 +1,1190 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:business-operations-metrics:1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "metric_revision",
+    "tenant_id",
+    "project_id",
+    "actor_id",
+    "from",
+    "to",
+    "observed_at",
+    "watermark_mode",
+    "auth_epoch",
+    "governance_epoch",
+    "complete",
+    "quality_improvement_status",
+    "adoption",
+    "return",
+    "adoption_by_candidate_kind",
+    "registered_task_invocations",
+    "independent_revision_return_count",
+    "cost_by_currency",
+    "records",
+    "exclusions",
+    "applied_filters",
+    "filter_exclusion_counts",
+    "role_filter_semantics",
+    "records_included",
+    "project_groups",
+    "dimension_groups"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "metric_revision": {
+      "const": "BUSINESS-OPERATIONS-1"
+    },
+    "tenant_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "project_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "actor_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "from": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "to": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "observed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "watermark_mode": {
+      "const": "LOCKED_TENANT_LIVE_READ"
+    },
+    "auth_epoch": {
+      "type": "string",
+      "pattern": "^[0-9]+$"
+    },
+    "governance_epoch": {
+      "type": "string",
+      "pattern": "^[0-9]+$"
+    },
+    "complete": {
+      "const": true
+    },
+    "quality_improvement_status": {
+      "const": "INSUFFICIENT_EVIDENCE"
+    },
+    "adoption": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "numerator",
+        "denominator",
+        "definition",
+        "evidence_status",
+        "rate"
+      ],
+      "properties": {
+        "numerator": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "denominator": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "definition": {
+          "type": "string"
+        },
+        "evidence_status": {
+          "enum": [
+            "OBSERVED",
+            "INSUFFICIENT_EVIDENCE"
+          ]
+        },
+        "rate": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9]+(\\.[0-9]+)?$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "denominator": {
+                "const": 0
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "rate": {
+                "type": "null"
+              },
+              "evidence_status": {
+                "const": "INSUFFICIENT_EVIDENCE"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "return": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "numerator",
+        "denominator",
+        "definition",
+        "evidence_status",
+        "rate"
+      ],
+      "properties": {
+        "numerator": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "denominator": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "definition": {
+          "type": "string"
+        },
+        "evidence_status": {
+          "enum": [
+            "OBSERVED",
+            "INSUFFICIENT_EVIDENCE"
+          ]
+        },
+        "rate": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9]+(\\.[0-9]+)?$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "denominator": {
+                "const": 0
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "rate": {
+                "type": "null"
+              },
+              "evidence_status": {
+                "const": "INSUFFICIENT_EVIDENCE"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "adoption_by_candidate_kind": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "PLAN": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "numerator",
+            "denominator",
+            "definition",
+            "evidence_status",
+            "rate"
+          ],
+          "properties": {
+            "numerator": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "denominator": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "definition": {
+              "type": "string"
+            },
+            "evidence_status": {
+              "enum": [
+                "OBSERVED",
+                "INSUFFICIENT_EVIDENCE"
+              ]
+            },
+            "rate": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[0-9]+(\\.[0-9]+)?$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "denominator": {
+                    "const": 0
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "rate": {
+                    "type": "null"
+                  },
+                  "evidence_status": {
+                    "const": "INSUFFICIENT_EVIDENCE"
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "DOCUMENT": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "numerator",
+            "denominator",
+            "definition",
+            "evidence_status",
+            "rate"
+          ],
+          "properties": {
+            "numerator": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "denominator": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "definition": {
+              "type": "string"
+            },
+            "evidence_status": {
+              "enum": [
+                "OBSERVED",
+                "INSUFFICIENT_EVIDENCE"
+              ]
+            },
+            "rate": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[0-9]+(\\.[0-9]+)?$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "denominator": {
+                    "const": 0
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "rate": {
+                    "type": "null"
+                  },
+                  "evidence_status": {
+                    "const": "INSUFFICIENT_EVIDENCE"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "registered_task_invocations": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "independent_revision_return_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "cost_by_currency": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "currency",
+          "invocations",
+          "settled_count",
+          "unknown_count",
+          "known_amount",
+          "known_tokens",
+          "total_amount",
+          "known_provider_calls"
+        ],
+        "properties": {
+          "currency": {
+            "type": "string",
+            "pattern": "^[A-Z]{3}$"
+          },
+          "invocations": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "settled_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "unknown_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "known_amount": {
+            "type": "string",
+            "pattern": "^[0-9]+(\\.[0-9]+)?$"
+          },
+          "known_tokens": {
+            "type": "string",
+            "pattern": "^[0-9]+$"
+          },
+          "total_amount": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9]+(\\.[0-9]+)?$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "known_provider_calls": {
+            "type": "string",
+            "pattern": "^[0-9]+$"
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "unknown_count": {
+                  "minimum": 1
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "total_amount": {
+                  "type": "null"
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    "records": {
+      "type": "array",
+      "maxItems": 40000,
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind",
+              "invocation_id",
+              "run_id",
+              "task_id",
+              "task_revision",
+              "currency",
+              "status",
+              "accounting_receipt_id",
+              "accounting_state",
+              "known_amount",
+              "known_tokens",
+              "project_id",
+              "role_version",
+              "profile_revision",
+              "document_type",
+              "known_calls"
+            ],
+            "properties": {
+              "kind": {
+                "const": "TASK_INVOCATION"
+              },
+              "invocation_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "run_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "task_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "task_revision": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "currency": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string"
+              },
+              "accounting_receipt_id": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "accounting_state": {
+                "enum": [
+                  "MISSING",
+                  "PENDING",
+                  "DISPUTED",
+                  "SETTLED"
+                ]
+              },
+              "known_amount": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^[0-9]+(\\.[0-9]+)?$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "known_tokens": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "pattern": "^[0-9]+$"
+              },
+              "project_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "role_version": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "profile_revision": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "document_type": {
+                "type": "string"
+              },
+              "known_calls": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "pattern": "^[0-9]+$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind",
+              "candidate_id",
+              "candidate_kind",
+              "task_id",
+              "task_revision",
+              "adoption_id",
+              "adopted",
+              "project_id",
+              "role_version",
+              "profile_revision",
+              "document_type"
+            ],
+            "properties": {
+              "kind": {
+                "const": "CANDIDATE"
+              },
+              "candidate_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "candidate_kind": {
+                "enum": [
+                  "PLAN",
+                  "DOCUMENT"
+                ]
+              },
+              "task_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "task_revision": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "adoption_id": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "adopted": {
+                "type": "boolean"
+              },
+              "project_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "role_version": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "profile_revision": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "document_type": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind",
+              "review_id",
+              "document_id",
+              "document_revision",
+              "decision",
+              "project_id",
+              "role_version",
+              "profile_revision",
+              "document_type",
+              "task_id",
+              "task_revision"
+            ],
+            "properties": {
+              "kind": {
+                "const": "REVIEW_DECISION"
+              },
+              "review_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "document_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "document_revision": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "decision": {
+                "enum": [
+                  "CONFIRM",
+                  "RETURN"
+                ]
+              },
+              "project_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "role_version": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "profile_revision": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "document_type": {
+                "type": "string"
+              },
+              "task_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "task_revision": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind",
+              "return_id",
+              "document_id",
+              "document_revision",
+              "task_id",
+              "task_revision",
+              "project_id",
+              "role_version",
+              "profile_revision",
+              "document_type"
+            ],
+            "properties": {
+              "kind": {
+                "const": "INDEPENDENT_REVISION_RETURN"
+              },
+              "return_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "document_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "document_revision": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "task_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "task_revision": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "project_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "role_version": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "profile_revision": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "document_type": {
+                "type": "string"
+              }
+            }
+          }
+        ]
+      }
+    },
+    "exclusions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "uniqueItems": true
+    },
+    "applied_filters": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "device_category",
+        "product_type",
+        "stage",
+        "document_type",
+        "role_version",
+        "include_records"
+      ],
+      "properties": {
+        "device_category": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "key",
+            "value"
+          ],
+          "properties": {
+            "key": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "value": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "product_type": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "key",
+            "value"
+          ],
+          "properties": {
+            "key": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "value": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "stage": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "key",
+            "value"
+          ],
+          "properties": {
+            "key": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "value": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "document_type": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "role_version": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "uuid"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "include_records": {
+          "type": "boolean"
+        }
+      }
+    },
+    "filter_exclusion_counts": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "integer",
+        "minimum": 0
+      }
+    },
+    "role_filter_semantics": {
+      "const": "PRODUCING_EXECUTION_ROLE_VERSION_NOT_CURRENT_HUMAN_ROLE"
+    },
+    "records_included": {
+      "type": "boolean"
+    },
+    "project_groups": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "project_id",
+          "invocations",
+          "candidates",
+          "formal_review_decisions",
+          "independent_revision_returns"
+        ],
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "invocations": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "candidates": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "formal_review_decisions": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "independent_revision_returns": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      }
+    },
+    "dimension_groups": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "dimensions",
+          "registered_task_invocations",
+          "independent_revision_return_count",
+          "adoption",
+          "return",
+          "cost_by_currency"
+        ],
+        "properties": {
+          "dimensions": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "device_category",
+              "product_type",
+              "stage",
+              "document_type",
+              "role_version"
+            ],
+            "properties": {
+              "device_category": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "product_type": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "stage": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "document_type": {
+                "type": "string"
+              },
+              "role_version": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid"
+              }
+            }
+          },
+          "registered_task_invocations": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "independent_revision_return_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "adoption": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "numerator",
+              "denominator",
+              "definition",
+              "evidence_status",
+              "rate"
+            ],
+            "properties": {
+              "numerator": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "denominator": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "definition": {
+                "type": "string"
+              },
+              "evidence_status": {
+                "enum": [
+                  "OBSERVED",
+                  "INSUFFICIENT_EVIDENCE"
+                ]
+              },
+              "rate": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^[0-9]+(\\.[0-9]+)?$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "allOf": [
+              {
+                "if": {
+                  "properties": {
+                    "denominator": {
+                      "const": 0
+                    }
+                  }
+                },
+                "then": {
+                  "properties": {
+                    "rate": {
+                      "type": "null"
+                    },
+                    "evidence_status": {
+                      "const": "INSUFFICIENT_EVIDENCE"
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          "return": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "numerator",
+              "denominator",
+              "definition",
+              "evidence_status",
+              "rate"
+            ],
+            "properties": {
+              "numerator": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "denominator": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "definition": {
+                "type": "string"
+              },
+              "evidence_status": {
+                "enum": [
+                  "OBSERVED",
+                  "INSUFFICIENT_EVIDENCE"
+                ]
+              },
+              "rate": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^[0-9]+(\\.[0-9]+)?$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "allOf": [
+              {
+                "if": {
+                  "properties": {
+                    "denominator": {
+                      "const": 0
+                    }
+                  }
+                },
+                "then": {
+                  "properties": {
+                    "rate": {
+                      "type": "null"
+                    },
+                    "evidence_status": {
+                      "const": "INSUFFICIENT_EVIDENCE"
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          "cost_by_currency": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "currency",
+                "invocations",
+                "settled_count",
+                "unknown_count",
+                "known_amount",
+                "known_tokens",
+                "total_amount",
+                "known_provider_calls"
+              ],
+              "properties": {
+                "currency": {
+                  "type": "string",
+                  "pattern": "^[A-Z]{3}$"
+                },
+                "invocations": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "settled_count": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "unknown_count": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "known_amount": {
+                  "type": "string",
+                  "pattern": "^[0-9]+(\\.[0-9]+)?$"
+                },
+                "known_tokens": {
+                  "type": "string",
+                  "pattern": "^[0-9]+$"
+                },
+                "total_amount": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^[0-9]+(\\.[0-9]+)?$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "known_provider_calls": {
+                  "type": "string",
+                  "pattern": "^[0-9]+$"
+                }
+              },
+              "allOf": [
+                {
+                  "if": {
+                    "properties": {
+                      "unknown_count": {
+                        "minimum": 1
+                      }
+                    }
+                  },
+                  "then": {
+                    "properties": {
+                      "total_amount": {
+                        "type": "null"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}

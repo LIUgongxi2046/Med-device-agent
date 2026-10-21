@@ -1,0 +1,36 @@
+package com.ruoyi.medical.persistence;
+
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.ruoyi.medical.contracts.*;
+import java.util.*;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
+import static com.ruoyi.medical.persistence.TaskProfessionalPackageAuthoringSchemaTest.id;
+
+/** Real V2 lifecycle over the explicitly offline persistence/object-store fixture. */
+class TaskProfessionalPackageAuthoringV2LifecycleTest {
+    TaskProfessionalPackageAuthoringV2Fixture fixture()throws Exception{return new TaskProfessionalPackageAuthoringV2Fixture(id(1),id(2),id(3));}
+    @Test void threeKindsUseExactOriginalBytesAndActualPerKindRegistrationMetadata()throws Exception {
+        var f=fixture();for(String kind:List.of("PROMPT","PROFILE","ROLE")){var payload=TaskProfessionalPackageAuthoringV2SchemaTest.request(kind).required("package");var registered=f.publish(kind,payload);var original=registered.original();var artifact=f.registry.artifact(original.text("artifact_id")).get(0);var binding=f.registry.binding(artifact.artifactId()).get(0);assertArrayEquals(f.schema.bytes(payload),f.bytes.get(registered.reference()));assertEquals(f.schema.ref(kind),binding.schemaRef());assertEquals(f.schema.packageHash(kind),binding.schemaDocumentSha256());assertEquals(f.schema.packageHash(kind),artifact.schemaManifest());assertEquals("1.0.0",artifact.schemaVersion());assertEquals("1.0.0",original.text("schema_version"));assertEquals("2.0.0",registered.status().required("schema_version").textValue());assertFalse(registered.status().required("production_eligible").booleanValue());assertEquals("V2",original.text("authoring_profile"));assertEquals(f.schema.profile().route(f.project),original.text("authoring_route"));assertEquals(f.schema.manifest(),original.text("authoring_contract_sha256"));assertEquals("TASK-PROFESSIONAL-PACKAGE-V2",original.text("proof_operation"));f.schema.validate("Status",registered.status());}
+        assertEquals(3,f.puts.get());assertEquals(6,f.gets.get());for(String table:List.of("task_package_authoring_intent","task_package_authoring_registration","artifact","audit_event","outbox_event"))assertEquals(3,f.rows(table).size());for(String table:List.of("configuration_head","permission_grant","formal_agent_candidate_binding","dependency_access_member"))assertTrue(f.rows(table).isEmpty());
+    }
+    @Test void recoveryOnlyRereadsOriginalObjectAndNeverIssuesReplacementPut()throws Exception {
+        var f=fixture();var attempt=f.begin("v2-original-recovery-key","PROMPT",TaskProfessionalPackageAuthoringV2SchemaTest.request("PROMPT").required("package"));var first=f.transport.transfer(f.subject,attempt,()->{});assertEquals(1,f.puts.get());var recovery=f.tx(()->f.ledger.recover(f.a,attempt.original()));var verified=f.transport.transfer(f.subject,recovery,()->{});assertEquals(first.object(),verified.object());assertEquals(1,f.puts.get());var registered=f.tx(()->f.registration.register(f.a,verified,f.checked));assertEquals("REGISTERED",registered.status().required("state").textValue());assertThrows(TenantAccessException.class,()->f.tx(()->f.ledger.recover(f.a,attempt.original())));
+    }
+    @Test void v1AndV2GlobalKeysAndOriginalRecoveryCannotCrossProfiles()throws Exception {
+        var f=fixture();var original=f.begin("shared-version-original-key","PROMPT",TaskProfessionalPackageAuthoringV2SchemaTest.request("PROMPT").required("package")).original();var v1=new TaskProfessionalPackageAuthoringSchema(f.json);var legacy=f.ledger.forSchema(v1);assertThrows(TenantAccessException.class,()->f.tx(()->legacy.byKey(f.a,original.text("original_key"))));assertThrows(TenantAccessException.class,()->f.tx(()->legacy.byOperation(f.a,f.project,original.text("operation_id"))));assertThrows(TenantAccessException.class,()->f.tx(()->legacy.recover(f.a,original)));assertThrows(TenantAccessException.class,()->f.tx(()->legacy.begin(f.a,"1",f.project,original.text("original_key"),new TaskProfessionalPackageAuthoringSchemaTest().request("PROMPT"),f.checked,f.json.object().putArray("reads"))));assertEquals(1,f.rows("task_package_authoring_intent").size());assertEquals(0,f.puts.get());
+        var old=new TaskProfessionalPackageAuthoringLedgerTest.Fixture();var first=old.begin();var selected=old.ledger.forSchema(old.schema.v2());assertThrows(TenantAccessException.class,()->old.tx(()->selected.byKey(old.a,old.key)));assertThrows(TenantAccessException.class,()->old.tx(()->selected.recover(old.a,first.original())));
+    }
+    @Test void durableRejectionIsVersionBoundAndPreventsCrossVersionWrite()throws Exception {
+        var f=fixture();String key="v2-rejected-original-key";byte[] invalid="{}".getBytes(java.nio.charset.StandardCharsets.UTF_8);var proof=f.tx(()->f.ledger.reject(f.a,"1",f.project,key,invalid,ErrorCode.SCHEMA_INVALID));assertEquals("1.0.0",proof.required("schema_version").textValue());assertEquals("TASK-PROFESSIONAL-PACKAGE-V2",proof.required("proof_operation").textValue());assertEquals(f.schema.manifest(),proof.required("authoring_contract_sha256").textValue());var old=f.ledger.forSchema(new TaskProfessionalPackageAuthoringSchema(f.json));assertThrows(TenantAccessException.class,()->f.tx(()->old.rejection(f.a,key)));assertThrows(TenantAccessException.class,()->f.begin(key,"PROMPT",TaskProfessionalPackageAuthoringV2SchemaTest.request("PROMPT").required("package")));assertTrue(f.rows("task_package_authoring_intent").isEmpty());assertEquals(0,f.puts.get());
+    }
+    @Test void rehashedTamperedRouteProfileAndContractStillCannotRecoverOriginal()throws Exception {
+        for(String field:List.of("authoring_route","authoring_profile","authoring_contract_sha256","proof_operation")){var f=fixture();var first=f.begin("v2-tampered-original-key","PROMPT",TaskProfessionalPackageAuthoringV2SchemaTest.request("PROMPT").required("package"));var row=f.rows("task_package_authoring_intent").get(0);var original=(ObjectNode)f.schema.read(row.get("intent_json").toString());original.put(field,"forged");row.put("intent_json",f.schema.canonical(original));row.put("intent_sha256",f.schema.hash(original));assertThrows(TenantAccessException.class,()->f.tx(()->f.ledger.recover(f.a,first.original())),field);assertEquals(0,f.puts.get());}
+    }
+    @Test void partialCorruptOrRevokedPhysicalGetNeverCreatesRegistration()throws Exception {
+        for(boolean revoked:List.of(false,true)){var f=fixture();f.denyRead=revoked;f.corruptRead=!revoked;assertThrows(TenantAccessException.class,()->f.publish("PROMPT",TaskProfessionalPackageAuthoringV2SchemaTest.request("PROMPT").required("package")));assertTrue(f.rows("task_package_authoring_registration").isEmpty());assertTrue(f.rows("artifact").isEmpty());assertTrue(f.rows("audit_event").isEmpty());assertEquals(1,f.puts.get());}
+    }
+    @Test void tamperedArtifactPayloadVersionMetadataIsNeverAccepted()throws Exception {
+        var f=fixture();var registered=f.publish("PROMPT",TaskProfessionalPackageAuthoringV2SchemaTest.request("PROMPT").required("package"));f.rows("artifact").get(0).put("schema_version","2.0.0");assertThrows(TenantAccessException.class,()->f.tx(()->f.registration.read(f.a,registered.original(),f.checked)));
+    }
+}

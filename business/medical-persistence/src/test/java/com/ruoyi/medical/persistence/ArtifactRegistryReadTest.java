@@ -32,7 +32,7 @@ class ArtifactRegistryReadTest {
 
     @Test void allRegisteredArtifactQueriesExecuteAgainstActualDatabase() throws Exception {
         var configuration = new MedicalPersistenceConfiguration().medicalSqlSessionFactory(new DriverManagerDataSource()).getConfiguration();
-        for (String query : List.of("artifact", "binding", "manifest", "members", "version")) {
+        for (String query : List.of("artifact", "binding", "manifest", "members", "version", "evaluationExactInputOwners", "evaluationNodeInputOwners", "evaluationPlanPreparationOwners")) {
             String name = "com.ruoyi.medical.persistence.mapper.ArtifactRegistryMapper." + query;
             assertTrue(configuration.hasStatement(name), "Artifact必须读取固定登记及完整依赖");
             var statement = configuration.getMappedStatement(name);
@@ -43,6 +43,12 @@ class ArtifactRegistryReadTest {
                 actual.setString(1, owner);
                 try (var rows = actual.executeQuery()) {
                     assertFalse(rows.next());
+                    if (List.of("evaluationExactInputOwners", "evaluationNodeInputOwners", "evaluationPlanPreparationOwners").contains(query)) {
+                        assertEquals(String.class, statement.getResultMaps().get(0).getType());
+                        assertEquals(1, rows.getMetaData().getColumnCount());
+                        assertEquals("write_id", rows.getMetaData().getColumnLabel(1));
+                        continue;
+                    }
                     var constructor = statement.getResultMaps().get(0).getConstructorResultMappings();
                     var components = statement.getResultMaps().get(0).getType().getRecordComponents();
                     assertEquals(components.length, constructor.size());

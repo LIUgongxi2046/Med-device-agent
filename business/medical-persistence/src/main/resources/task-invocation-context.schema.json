@@ -1,0 +1,536 @@
+{
+  "$defs": {
+    "AssistantMessage": {
+      "additionalProperties": false,
+      "properties": {
+        "content": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Content"
+        },
+        "role": {
+          "const": "assistant",
+          "title": "Role",
+          "type": "string"
+        },
+        "tool_calls": {
+          "items": {
+            "$ref": "#/$defs/ToolCall"
+          },
+          "title": "Tool Calls",
+          "type": "array"
+        }
+      },
+      "required": [
+        "role",
+        "content",
+        "tool_calls"
+      ],
+      "title": "AssistantMessage",
+      "type": "object"
+    },
+    "ExactInput": {
+      "additionalProperties": false,
+      "properties": {
+        "messages": {
+          "items": {
+            "oneOf": [
+              {
+                "$ref": "#/$defs/PlainMessage"
+              },
+              {
+                "$ref": "#/$defs/AssistantMessage"
+              },
+              {
+                "$ref": "#/$defs/ToolMessage"
+              }
+            ]
+          },
+          "minItems": 1,
+          "title": "Messages",
+          "type": "array"
+        },
+        "tools": {
+          "items": {
+            "$ref": "#/$defs/ToolDefinition"
+          },
+          "title": "Tools",
+          "type": "array"
+        }
+      },
+      "required": [
+        "messages",
+        "tools"
+      ],
+      "title": "ExactInput",
+      "type": "object"
+    },
+    "FunctionCall": {
+      "additionalProperties": false,
+      "properties": {
+        "arguments": {
+          "minLength": 1,
+          "title": "Arguments",
+          "type": "string"
+        },
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "arguments"
+      ],
+      "title": "FunctionCall",
+      "type": "object"
+    },
+    "FunctionDefinition": {
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "minLength": 1,
+          "title": "Description",
+          "type": "string"
+        },
+        "name": {
+          "pattern": "^[A-Za-z0-9_-]{1,128}$",
+          "title": "Name",
+          "type": "string"
+        },
+        "parameters": {
+          "additionalProperties": true,
+          "title": "Parameters",
+          "type": "object"
+        }
+      },
+      "required": [
+        "name",
+        "description",
+        "parameters"
+      ],
+      "title": "FunctionDefinition",
+      "type": "object"
+    },
+    "PlainMessage": {
+      "additionalProperties": false,
+      "properties": {
+        "content": {
+          "minLength": 1,
+          "title": "Content",
+          "type": "string"
+        },
+        "role": {
+          "enum": [
+            "system",
+            "user"
+          ],
+          "title": "Role",
+          "type": "string"
+        }
+      },
+      "required": [
+        "role",
+        "content"
+      ],
+      "title": "PlainMessage",
+      "type": "object"
+    },
+    "SdkProjection": {
+      "additionalProperties": false,
+      "properties": {
+        "messages": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "content": {
+                "items": {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "text": {
+                          "type": "string"
+                        },
+                        "type": {
+                          "const": "text"
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "text"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "arguments": {
+                          "type": "string"
+                        },
+                        "id": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "type": {
+                          "const": "tool-call"
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "id",
+                        "name",
+                        "arguments"
+                      ],
+                      "type": "object"
+                    }
+                  ]
+                },
+                "maxItems": 1024,
+                "minItems": 1,
+                "type": "array"
+              },
+              "id": {
+                "type": "string"
+              },
+              "isError": {
+                "type": "boolean"
+              },
+              "role": {
+                "enum": [
+                  "system",
+                  "user",
+                  "assistant",
+                  "tool"
+                ]
+              },
+              "source": {
+                "oneOf": [
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "kind": {
+                        "const": "user"
+                      }
+                    },
+                    "required": [
+                      "kind"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "kind": {
+                        "const": "system-prompt"
+                      }
+                    },
+                    "required": [
+                      "kind"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "callId": {
+                        "type": "string"
+                      },
+                      "kind": {
+                        "const": "tool"
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "callId"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "kind": {
+                        "const": "model"
+                      },
+                      "model": {
+                        "type": "string"
+                      },
+                      "provider": {
+                        "type": "string"
+                      },
+                      "replayState": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "response": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "invocation_id": {
+                                "format": "uuid",
+                                "type": "string"
+                              },
+                              "replay_state_id": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "invocation_id",
+                              "replay_state_id"
+                            ],
+                            "type": "object"
+                          }
+                        },
+                        "required": [
+                          "response"
+                        ],
+                        "type": "object"
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "provider",
+                      "model"
+                    ],
+                    "type": "object"
+                  }
+                ]
+              },
+              "toolCallId": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "role",
+              "content"
+            ],
+            "type": "object"
+          },
+          "maxItems": 2048,
+          "minItems": 1,
+          "type": "array"
+        },
+        "model": {
+          "type": "string"
+        },
+        "parameters": {
+          "additionalProperties": false,
+          "properties": {
+            "max_output_tokens": {
+              "maximum": 9007199254740991,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "purpose": {
+              "enum": [
+                "TASK",
+                "COMPACTION"
+              ]
+            },
+            "reasoning_effort": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "stop": {
+              "items": {
+                "type": "string"
+              },
+              "maxItems": 256,
+              "type": "array"
+            },
+            "temperature": {
+              "type": [
+                "number",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "max_output_tokens",
+            "temperature",
+            "reasoning_effort",
+            "stop",
+            "purpose"
+          ],
+          "type": "object"
+        },
+        "provider": {
+          "const": "enterprise-model"
+        },
+        "session_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "system": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "tool_history": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "tools": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "description": {
+                        "type": "string"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "parameters": {
+                        "type": "object"
+                      }
+                    },
+                    "required": [
+                      "name",
+                      "description",
+                      "parameters"
+                    ],
+                    "type": "object"
+                  },
+                  "maxItems": 256,
+                  "type": "array"
+                },
+                "updates": {
+                  "maxItems": 0,
+                  "type": "array"
+                }
+              },
+              "required": [
+                "tools",
+                "updates"
+              ],
+              "type": "object"
+            }
+          ]
+        },
+        "tools": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "description": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "parameters": {
+                "type": "object"
+              }
+            },
+            "required": [
+              "name",
+              "description",
+              "parameters"
+            ],
+            "type": "object"
+          },
+          "maxItems": 256,
+          "type": "array"
+        }
+      },
+      "required": [
+        "provider",
+        "model",
+        "messages",
+        "system",
+        "tools",
+        "tool_history",
+        "parameters",
+        "session_id"
+      ],
+      "type": "object"
+    },
+    "ToolCall": {
+      "additionalProperties": false,
+      "properties": {
+        "function": {
+          "$ref": "#/$defs/FunctionCall"
+        },
+        "id": {
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "type": {
+          "const": "function",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "function"
+      ],
+      "title": "ToolCall",
+      "type": "object"
+    },
+    "ToolDefinition": {
+      "additionalProperties": false,
+      "properties": {
+        "function": {
+          "$ref": "#/$defs/FunctionDefinition"
+        },
+        "type": {
+          "const": "function",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "function"
+      ],
+      "title": "ToolDefinition",
+      "type": "object"
+    },
+    "ToolMessage": {
+      "additionalProperties": false,
+      "properties": {
+        "content": {
+          "title": "Content",
+          "type": "string"
+        },
+        "role": {
+          "const": "tool",
+          "title": "Role",
+          "type": "string"
+        },
+        "tool_call_id": {
+          "minLength": 1,
+          "title": "Tool Call Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "role",
+        "content",
+        "tool_call_id"
+      ],
+      "title": "ToolMessage",
+      "type": "object"
+    }
+  },
+  "$id": "urn:medical:task-invocation-context:1.0.0",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

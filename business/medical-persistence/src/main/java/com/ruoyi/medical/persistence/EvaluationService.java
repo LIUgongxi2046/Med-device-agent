@@ -23,6 +23,8 @@ public final class EvaluationService {
     private final org.springframework.beans.factory.ObjectProvider<SimulationAuthorizedUseEvidenceAuthority> authorizedUses;
     @org.springframework.beans.factory.annotation.Autowired(required=false)
     private org.springframework.beans.factory.ObjectProvider<OriginalScoreWitnessSink> originalScoreWitnessSinks;
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    private org.springframework.beans.factory.ObjectProvider<FormalEvaluationScoringGate> formalScoringGates;
     /** A synchronous sink participates in the original EnterpriseAccess transaction; failure must propagate. */
     public interface OriginalScoreWitnessSink { void capture(CreatedScoreWitness witness)throws IOException; }
     public static final class CreatedScoreWitness {
@@ -70,12 +72,15 @@ public final class EvaluationService {
         }));
     }
     public JsonNode append(ApplicationSessionIdentity.Verified subject,String context,String key,String id,byte[] body) {
+        var gate=formalScoringGates==null?null:formalScoringGates.getIfAvailable();
+        var prepared=gate==null?null:checked(()->gate.prepare(subject,context,id,body));
         return access.execute(subject,a->checked(()->{
             json.requireId(id);var request=schema.append(body);var values=values(a);values.put("evaluationId",id);
             operation(values,"EV-02","evaluation.scored",201,key,schema.requestHash("/api/evaluation-batches/"+id+"/scores",request,context,subject.sessionId()));
             var target=load(a,values);var witness=require(a,target.row().projectId(),id,"evaluation.score");
             var previous=mapper.currentOperation(values);if(previous.size()>1)mismatch();if(!previous.isEmpty())return replay(a,values,previous.get(0),null,request);
             current(a,context);writable(target,request.expected_revision(),request.definition_sha256());project(target.row().projectId(),true);
+            if("PRODUCTION".equals(target.definition().request().environment())){if(gate==null||prepared==null)denied(ErrorCode.DEPENDENCY_UNAVAILABLE);checked(()->{gate.require(a,id,request,prepared);return null;});}
             candidates(a,target.definition().request(),true);rules.require(a,target.definition().request().rule_revision(),true,EvaluationDependencyUse.forDefinition(target.definition().request()));verdicts.requireAppend(target.definition(),target.row().contentHash(),target.scores(),request);
             var candidate=target.definition().candidate_snapshots().stream().filter(c->c.version_id().equals(request.cell().agent_version_id())).findFirst().orElseThrow();
             if(subject.user().user_id().equals(candidate.created_by()))denied(ErrorCode.ACCESS_DENIED);
@@ -89,16 +94,20 @@ public final class EvaluationService {
             values.put("evidenceRefs",json.canonicalObject(request.evidence_refs()));values.put("scoreJson",json.canonicalObject(score));values.put("scoreHash",schema.hash(score));
             one(mapper.insertScore(values));one(mapper.insertObservation(values));values.put("nextStatus","RUNNING");values.put("missing","[]");one(mapper.advanceBatch(values));
             var after=load(a,values);if(after.scores().size()!=target.scores().size()+1||after.scores().stream().noneMatch(score::equals))mismatch();
-            var response=finish(a,values,after,witness,scoreId,null);captureOriginalScore(a,score,witness,response,after.definition());return response;
+            var response=finish(a,values,after,witness,scoreId,null);captureOriginalScore(a,score,witness,response,after.definition());
+            if("PRODUCTION".equals(after.definition().request().environment()))checked(()->{gate.require(a,id,request,prepared);return null;});return response;
         }));
     }
     public JsonNode finalizeResult(ApplicationSessionIdentity.Verified subject,String context,String key,String id,byte[] body) {
+        var gate=formalScoringGates==null?null:formalScoringGates.getIfAvailable();
+        var prepared=gate==null?null:checked(()->gate.prepareFinalization(subject,context,id,body));
         return access.execute(subject,a->checked(()->{
             json.requireId(id);var request=schema.finalizeRequest(body);var values=values(a);values.put("evaluationId",id);
             operation(values,"EV-03","evaluation.finalized",200,key,schema.requestHash("/api/evaluation-batches/"+id+"/finalize",request,context,subject.sessionId()));
             var target=load(a,values);var witness=require(a,target.row().projectId(),id,"evaluation.finalize");
             var previous=mapper.currentOperation(values);if(previous.size()>1)mismatch();if(!previous.isEmpty())return replay(a,values,previous.get(0),null,null);
             current(a,context);writable(target,request.expected_revision(),request.definition_sha256());project(target.row().projectId(),true);
+            if("PRODUCTION".equals(target.definition().request().environment())){if(gate==null||prepared==null)denied(ErrorCode.DEPENDENCY_UNAVAILABLE);checked(()->{gate.requireFinalization(a,id,request,prepared);return null;});}
             candidates(a,target.definition().request(),true);rules.require(a,target.definition().request().rule_revision(),true,EvaluationDependencyUse.forDefinition(target.definition().request()));var result=verdicts.compute(target.definition(),target.row().contentHash(),target.scores());
             values.put("definitionHash",target.row().contentHash());values.put("expected",request.expected_revision());values.put("resulting",PermissionSchema.next(request.expected_revision()));
             values.put("nextStatus",batchStatus(result.verdict()));values.put("missing",json.canonicalObject(result.missing_requirements()));
@@ -106,7 +115,8 @@ public final class EvaluationService {
             values.put("authorityGrant",witness.grantId());values.put("authorityRevision",witness.revision().toString());
             one(mapper.advanceBatch(values));
             // Operation is inserted before its immutable result ledger FK. Both belong to the same EnterpriseAccess transaction.
-            return finish(a,values,target,witness,null,result);
+            var response=finish(a,values,target,witness,null,result);
+            if("PRODUCTION".equals(target.definition().request().environment()))checked(()->{gate.requireFinalization(a,id,request,prepared);return null;});return response;
         }));
     }
     public JsonNode read(ApplicationSessionIdentity.Verified subject,String context,String id,boolean scoresOnly) {
@@ -130,6 +140,8 @@ public final class EvaluationService {
         rules.require(admission,loaded.definition().request().rule_revision(),true,EvaluationDependencyUse.SIMULATION);
         return loaded.definition();
     }
+    /** Internal read for the normal score API: no final result or execution authority is implied. */
+    EvaluationProtocol.Definition scoringDefinition(EnterpriseAccess.Admission a,String id)throws IOException{json.requireId(id);var v=values(a);v.put("evaluationId",id);return copyDefinition(load(a,v).definition());}
     /** Exact current evaluation ledger. This is evidence of storage and read authority, not acceptance. */
     public static final class AcceptanceSnapshot {
         private final EvaluationProtocol.Stored row;

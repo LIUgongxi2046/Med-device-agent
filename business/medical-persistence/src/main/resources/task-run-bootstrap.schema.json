@@ -1,0 +1,593 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:task-run-bootstrap:1.0.0",
+  "$defs": {
+    "Id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "Hash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "Positive": {
+      "type": "string",
+      "pattern": "^[1-9][0-9]{0,19}$"
+    },
+    "Instant": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "VersionRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version_id",
+        "content_sha256"
+      ],
+      "properties": {
+        "version_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "content_sha256": {
+          "$ref": "#/$defs/Hash"
+        }
+      }
+    },
+    "ObjectRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "object_key",
+        "object_version",
+        "sha256",
+        "size_bytes",
+        "media_type"
+      ],
+      "properties": {
+        "object_key": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024
+        },
+        "object_version": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "size_bytes": {
+          "$ref": "#/$defs/Positive"
+        },
+        "media_type": {
+          "const": "application/json"
+        }
+      }
+    },
+    "ReplayIntent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "tenant_id",
+        "project_id",
+        "run_id",
+        "principal_id",
+        "task_id",
+        "initiator_id",
+        "command_id",
+        "outbox_event_id",
+        "command_sha256",
+        "write_id",
+        "write_key",
+        "planned_artifact_id",
+        "replay_schema_ref",
+        "replay_schema_sha256",
+        "replay_sha256",
+        "size_bytes",
+        "canonical_payload",
+        "object_key",
+        "media_type",
+        "release_id",
+        "publication_approval_sha256",
+        "execution_policy",
+        "authority_sha256",
+        "classification",
+        "created_at"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "tenant_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "project_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "run_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "principal_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "task_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "initiator_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "command_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "outbox_event_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "command_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "write_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "write_key": {
+          "$ref": "#/$defs/Hash"
+        },
+        "planned_artifact_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "replay_schema_ref": {
+          "const": "urn:medical:replay-manifest:1.0.0"
+        },
+        "replay_schema_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "replay_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "size_bytes": {
+          "$ref": "#/$defs/Positive"
+        },
+        "canonical_payload": {
+          "type": "string",
+          "minLength": 2
+        },
+        "object_key": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024
+        },
+        "media_type": {
+          "const": "application/json"
+        },
+        "release_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "publication_approval_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "execution_policy": {
+          "$ref": "#/$defs/VersionRef"
+        },
+        "authority_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "classification": {
+          "enum": [
+            "PUBLIC",
+            "INTERNAL",
+            "RESTRICTED",
+            "PERSONAL_HEALTH"
+          ]
+        },
+        "created_at": {
+          "$ref": "#/$defs/Instant"
+        }
+      }
+    },
+    "ReplayRegistrationReceipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "tenant_id",
+        "project_id",
+        "run_id",
+        "principal_id",
+        "task_id",
+        "initiator_id",
+        "command_id",
+        "write_id",
+        "artifact_id",
+        "intent_sha256",
+        "replay_schema_ref",
+        "replay_schema_sha256",
+        "object_ref",
+        "registered_at",
+        "command_sha256",
+        "execution_policy",
+        "governance_sha256",
+        "authority_sha256",
+        "classification",
+        "content_roots",
+        "content_manifest"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "tenant_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "project_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "run_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "principal_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "task_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "initiator_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "command_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "write_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "artifact_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "intent_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "replay_schema_ref": {
+          "const": "urn:medical:replay-manifest:1.0.0"
+        },
+        "replay_schema_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "object_ref": {
+          "$ref": "#/$defs/ObjectRef"
+        },
+        "registered_at": {
+          "$ref": "#/$defs/Instant"
+        },
+        "command_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "execution_policy": {
+          "$ref": "#/$defs/VersionRef"
+        },
+        "governance_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "authority_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "classification": {
+          "enum": [
+            "PUBLIC",
+            "INTERNAL",
+            "RESTRICTED",
+            "PERSONAL_HEALTH"
+          ]
+        },
+        "content_roots": {
+          "type": "array",
+          "uniqueItems": true,
+          "maxItems": 4096,
+          "items": {
+            "$ref": "#/$defs/Id"
+          }
+        },
+        "content_manifest": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schema_version",
+            "tenant_id",
+            "project_id",
+            "access_set_id",
+            "members"
+          ],
+          "properties": {
+            "schema_version": {
+              "const": "1.0.0"
+            },
+            "tenant_id": {
+              "$ref": "#/$defs/Id"
+            },
+            "project_id": {
+              "$ref": "#/$defs/Id"
+            },
+            "access_set_id": {
+              "$ref": "#/$defs/Id"
+            },
+            "members": {
+              "type": "array",
+              "maxItems": 4096,
+              "uniqueItems": true,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "upstream_version_id",
+                  "rights_revision"
+                ],
+                "properties": {
+                  "upstream_version_id": {
+                    "$ref": "#/$defs/Id"
+                  },
+                  "rights_revision": {
+                    "$ref": "#/$defs/Id"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "WorkflowReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "tenant_id",
+        "project_id",
+        "run_id",
+        "input_manifest_id",
+        "policy_revision",
+        "execution_kind",
+        "input_sha256",
+        "deadline_epoch_millis",
+        "maximum_commands",
+        "maximum_steps",
+        "maximum_parallel_steps",
+        "read_timeout_millis",
+        "step_timeout_millis",
+        "schedule_timeout_millis",
+        "control_task_queue",
+        "professional_task_queue"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "tenant_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "project_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "run_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "input_manifest_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "policy_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "execution_kind": {
+          "const": "TASK"
+        },
+        "input_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "deadline_epoch_millis": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9223372036854775807
+        },
+        "maximum_commands": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2147483647
+        },
+        "maximum_steps": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2147483647
+        },
+        "maximum_parallel_steps": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2147483647
+        },
+        "read_timeout_millis": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9223372036854775807
+        },
+        "step_timeout_millis": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9223372036854775807
+        },
+        "schedule_timeout_millis": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9223372036854775807
+        },
+        "control_task_queue": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]*$"
+        },
+        "professional_task_queue": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]*$"
+        }
+      }
+    },
+    "WorkflowLaunchIntent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "tenant_id",
+        "project_id",
+        "run_id",
+        "principal_id",
+        "task_id",
+        "initiator_id",
+        "command_id",
+        "launch_id",
+        "command_sha256",
+        "replay_registration_sha256",
+        "reference",
+        "reference_sha256",
+        "workflow_id",
+        "created_at",
+        "temporal_namespace",
+        "service_uri",
+        "operational_revision",
+        "operational_sha256"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "tenant_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "project_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "run_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "principal_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "task_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "initiator_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "command_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "launch_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "command_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "replay_registration_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "reference": {
+          "$ref": "#/$defs/WorkflowReference"
+        },
+        "reference_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "workflow_id": {
+          "type": "string",
+          "minLength": 73,
+          "maxLength": 73
+        },
+        "created_at": {
+          "$ref": "#/$defs/Instant"
+        },
+        "temporal_namespace": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,254}$"
+        },
+        "service_uri": {
+          "type": "string",
+          "format": "uri"
+        },
+        "operational_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "operational_sha256": {
+          "$ref": "#/$defs/Hash"
+        }
+      }
+    },
+    "WorkflowLaunchReceipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "tenant_id",
+        "project_id",
+        "run_id",
+        "principal_id",
+        "task_id",
+        "initiator_id",
+        "command_id",
+        "launch_id",
+        "launch_intent_sha256",
+        "workflow_id",
+        "temporal_run_id",
+        "reference_sha256",
+        "input_sha256",
+        "accepted_at"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "tenant_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "project_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "run_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "principal_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "task_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "initiator_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "command_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "launch_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "launch_intent_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "workflow_id": {
+          "type": "string",
+          "minLength": 73,
+          "maxLength": 73
+        },
+        "temporal_run_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "reference_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "input_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "accepted_at": {
+          "$ref": "#/$defs/Instant"
+        }
+      }
+    }
+  }
+}

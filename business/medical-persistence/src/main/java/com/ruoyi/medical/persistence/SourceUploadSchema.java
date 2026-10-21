@@ -30,11 +30,12 @@ import org.springframework.stereotype.Component;
 @Component
 public final class SourceUploadSchema {
     private static final String REFERENCE = "urn:medical:source-uploads:1.0.0#/$defs/Create";
-    private static final Map<String, String> MEDIA = Map.of(
-        "pdf", "application/pdf", "docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        "xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        "csv", "text/csv", "pptx", "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-        "md", "text/markdown", "markdown", "text/markdown", "txt", "text/plain");
+    private static final Map<String, String> MEDIA = Map.ofEntries(
+        Map.entry("html", "text/html"), Map.entry("htm", "text/html"), Map.entry("pdf", "application/pdf"), Map.entry("docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"),
+        Map.entry("xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"), Map.entry("csv", "text/csv"),
+        Map.entry("pptx", "application/vnd.openxmlformats-officedocument.presentationml.presentation"), Map.entry("md", "text/markdown"),
+        Map.entry("markdown", "text/markdown"), Map.entry("txt", "text/plain"), Map.entry("png", "image/png"),
+        Map.entry("jpg", "image/jpeg"), Map.entry("jpeg", "image/jpeg"), Map.entry("tif", "image/tiff"), Map.entry("tiff", "image/tiff"));
     private final JsonMapper mapper = JsonMapper.builder().enable(StreamReadFeature.STRICT_DUPLICATE_DETECTION)
         .enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS).build();
     private final PermissionSchema json;

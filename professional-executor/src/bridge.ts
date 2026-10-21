@@ -48,6 +48,11 @@ export class PrivateBridge implements ModelResultReader {
     return response
   }
 
+  async evaluation(projection: JsonValue, signal: AbortSignal): Promise<JsonValue> {
+    const response = await this.request('/v1/model-contexts', projection, signal)
+    return readJson(await response.body.text())
+  }
+
   async prepare(projection: JsonValue, signal: AbortSignal): Promise<StreamRequest> {
     const response = await this.request('/v1/model-contexts', projection, signal)
     return decodeModelStream(this.catalogue, 'StreamRequest', readJson(await response.body.text()))

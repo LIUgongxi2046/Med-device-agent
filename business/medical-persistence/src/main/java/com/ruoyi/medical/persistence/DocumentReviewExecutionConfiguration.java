@@ -1,0 +1,21 @@
+package com.ruoyi.medical.persistence;
+import com.ruoyi.medical.persistence.mapper.*;
+import com.ruoyi.medical.workflow.*;
+import javax.sql.DataSource;
+import org.springframework.beans.factory.annotation.*;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.context.annotation.*;
+/** Explicit isolated N07 deployment. No fallback to TASK/N01/N05 runtime workers. */
+@Configuration
+@ConditionalOnProperty(name="medical.professional-runtime.document-review-enabled",havingValue="true",matchIfMissing=false)
+public class DocumentReviewExecutionConfiguration {
+    @Bean DocumentReviewCompletionLedger documentReviewCompletionLedger(@Qualifier("masterDataSource")DataSource data,DocumentReviewExecutionService jobs){return new DocumentReviewCompletionLedger(data,jobs);}
+    @Bean DocumentReviewAdmission documentReviewAdmission(DocumentReviewRules rules,ResourceReadAuthority resources,SourceReadAuthority sources,AgentReleaseStore releases,AgentReleaseScopeAuthority scopes,TemplateDependencyPolicy limits,RunCreateBudget budgets,PermissionMapper permissions,VersionResourceMapper owners,ArtifactRegistryMapper versions,RuntimeRetentionAuthority retention,FormalCapabilityIdentityAuthority capabilities){return new DocumentReviewAdmission(rules,resources,sources,releases,scopes,limits,budgets,permissions,owners,versions,retention,capabilities);}
+    @Bean DocumentReviewExecutionService documentReviewExecutionService(@Qualifier("masterDataSource")DataSource data,DocumentReviewJobService intents,RunTokenAuthoritySchema schema){return new DocumentReviewExecutionService(data,intents,schema);}
+    @Bean DocumentReviewStartService documentReviewStartService(EnterpriseAccess access,DocumentReviewJobService intents,DocumentReviewAuthority documents,DocumentReviewAdmission admissions,DocumentReviewExecutionService jobs,AgentPublicationAuthority publications,AgentExecutionPolicyAuthority policies){return new DocumentReviewStartService(access,intents,documents,admissions,jobs,publications,policies);}
+    @Bean DocumentReviewLaunchLedger documentReviewLaunchLedger(@Qualifier("masterDataSource")DataSource data,DocumentReviewExecutionService jobs){return new DocumentReviewLaunchLedger(data,jobs);}
+    @Bean DocumentReviewLaunchConfiguration documentReviewLaunchConfiguration(@Value("${medical.professional-runtime.document-review.launch-revision}")String revision,@Value("${medical.professional-runtime.document-review.control-task-queue}")String control,@Value("${medical.professional-runtime.document-review.professional-task-queue}")String professional,@Value("${medical.professional-runtime.document-review.activity-timeout-millis}")long timeout,@Value("${medical.professional-runtime.document-review.heartbeat-timeout-millis}")long heartbeat){return new DocumentReviewLaunchConfiguration(revision,control,professional,timeout,heartbeat);}
+    @Bean DocumentCheckDelivery documentCheckDelivery(io.temporal.client.WorkflowClient client){return new DocumentCheckDelivery(client);}
+    @Bean DocumentReviewLaunchService documentReviewLaunchService(DocumentReviewControlAccess controls,DocumentReviewAuthority documents,DocumentReviewAdmission admissions,AgentPublicationAuthority publications,AgentExecutionPolicyAuthority policies,DocumentReviewLaunchLedger ledger,DocumentReviewLaunchConfiguration config,DocumentCheckDelivery delivery){return new DocumentReviewLaunchService(controls,documents,admissions,publications,policies,ledger,config,delivery);}
+    @Bean org.springframework.context.SmartLifecycle documentReviewWorkflowWorker(io.temporal.client.WorkflowClient client,DocumentReviewLaunchConfiguration config){return new org.springframework.context.SmartLifecycle(){private final io.temporal.worker.WorkerFactory factory=create();private boolean running;private io.temporal.worker.WorkerFactory create(){var f=io.temporal.worker.WorkerFactory.newInstance(client);f.newWorker(config.controlTaskQueue()).registerWorkflowImplementationTypes(DocumentCheckWorkflowImpl.class);return f;}public void start(){factory.start();running=true;}public void stop(){factory.shutdown();running=false;}public boolean isRunning(){return running;}public int getPhase(){return Integer.MAX_VALUE-100;}};}
+}

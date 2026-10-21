@@ -21,6 +21,12 @@ public record SourceDeletionPolicy(String revision, List<String> tenantIds, Dura
         tenantIds.forEach(WireValues::uuid);
         Objects.requireNonNull(polling); Objects.requireNonNull(lease);
         Objects.requireNonNull(parsed); Objects.requireNonNull(diagnostics); Objects.requireNonNull(cacheNamespace);
+        var backupIds=new java.util.HashSet<String>();
+        for(var backup:backups)if(!backupIds.add(backup.store().id()))
+            throw new IllegalArgumentException("备份存储标识必须唯一");
+        var originalIds=new java.util.HashSet<String>();
+        for(var original:originals)if(!originalIds.add(original.id()))
+            throw new IllegalArgumentException("原件存储标识必须唯一");
         if (tenantIds.isEmpty() || tenantIds.size()>100 || tenantIds.stream().distinct().count()!=tenantIds.size() || originals.isEmpty()
                 || vectors.isEmpty() || backups.isEmpty() || maximumEntries<1 || maximumEntries>100000
                 || maximumObjectBytes<1 || maximumObjectBytes>1_000_000_000L || polling.toMillis()<100

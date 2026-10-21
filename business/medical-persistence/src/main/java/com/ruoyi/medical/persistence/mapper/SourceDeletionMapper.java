@@ -29,4 +29,5 @@ public interface SourceDeletionMapper {
     BigInteger remainingFulltext(Map<String,Object> values);
     BigInteger remainingDiagnostics(Map<String,Object> values);
     String workerReceipt(Map<String,Object> values);
+    String executionEvidence(Map<String,Object> values);
 }

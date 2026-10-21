@@ -39,6 +39,11 @@ import org.springframework.util.function.ThrowingSupplier;
 
 @Component
 public final class SourceGovernanceService {
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    private SourceDeletionPolicy currentDeletionPolicy;
+    @org.springframework.beans.factory.annotation.Autowired
+    private SourceCopyAuthority copyAuthority;
+
     private static final String PURPOSE = "SOURCE_REVIEW";
     private static final int MAXIMUM_CONTENT_PAGE_BYTES = 1024 * 1024;
     private final EnterpriseAccess access;
@@ -741,6 +746,17 @@ public final class SourceGovernanceService {
             var receipt = input.receipt_ref();
             String workerReceipt = deletionMapper.workerReceipt(values);
             if (workerReceipt == null || !schema.read(workerReceipt).equals(receipt)) denied(ErrorCode.ACTION_STALE);
+            String storedEvidence=deletionMapper.executionEvidence(values);
+            if(storedEvidence==null||currentDeletionPolicy==null
+                    ||!currentDeletionPolicy.tenantIds().contains(admission.context().tenant_id()))denied(ErrorCode.DEPENDENCY_UNAVAILABLE);
+            var evidence=schema.read(storedEvidence);
+            if(!currentDeletionPolicy.revision().equals(evidence.path("primary").path("config_revision").asText()))
+                denied(ErrorCode.SCOPE_STALE);
+            SourceDeletionEvidence.requireComplete(evidence,receipt,SourceDeletionTarget.read(before,schema),
+                before.targetSha256(),admission.context().tenant_id(),json);
+            SourceDeletionEvidence.requireCoverage(evidence,currentDeletionPolicy);
+            if(copyAuthority==null||!copyAuthority.requireCurrent(before.sourceVersion(),currentDeletionPolicy)
+                    .equals(evidence.path("primary").path("copy_authority")))denied(ErrorCode.SCOPE_STALE);
             values.put("sourceVersion", before.sourceVersion()); values.put("deletionId", before.deletionId());
             var job = single(mapper.deletionJob(values)); values.put("policyRevision", job.policyRevision());
             var retention = single(mapper.retentionPolicy(values));
@@ -759,6 +775,7 @@ public final class SourceGovernanceService {
             values.put("receiptRef", json.canonical(receipt)); values.put("now", now); values.put("classification", before.classification());
             one(mapper.confirmDeletionItem(values));
             boolean complete = Objects.requireNonNull(mapper.pendingDeletionItemCount(values)).signum() == 0;
+            if(complete)SourceDeletionEvidence.requireFinalInventory(evidence,currentDeletionPolicy,admission.context().tenant_id(),before.sourceVersion());
             if (complete && Objects.requireNonNull(mapper.blockingReferenceCount(values)).signum() != 0) denied(ErrorCode.REFERENCE_HELD);
             values.put("jobStatus", complete ? "COMPLETED" : "RUNNING"); one(mapper.updateDeletionJob(values));
             if (complete) {
@@ -923,7 +940,7 @@ public final class SourceGovernanceService {
         WireValues.uuid(row.chunkId()); WireValues.uuid(row.nodeId()); WireValues.hash(row.nodeHash()); WireValues.hash(row.quoteHash());
         if (!row.quoteHash().equals(DigestUtils.sha256Hex(row.rawText().getBytes(StandardCharsets.UTF_8)))) mismatch();
         var locator = schema.read(row.locator());
-        TypedSchemaBindings.bind(catalogue, DatasetBindings.LOCATOR, locator);
+        SourceLocatorSchema.validate(catalogue,locator);
         String locatorHash = DigestUtils.sha256Hex(json.canonical(locator));
         if (query.locatorSha256() != null && !query.locatorSha256().equals(locatorHash)) denied(ErrorCode.LOCATOR_INVALID);
         var contentRef = schema.read(row.contentRef()); if (!contentRef.isObject()) mismatch();

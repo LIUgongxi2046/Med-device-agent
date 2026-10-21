@@ -28,12 +28,16 @@ public class SourceDeletionConfiguration {
     }
 
     @Bean
+    SourceDeletionStores sourceDeletionStores(SourceDeletionPolicy policy,PermissionSchema json,SourceGovernanceSchema schema,RedissonClient redis)throws Exception {
+        return new SourceDeletionStores(policy,json,schema,redis);
+    }
+
+    @Bean
     SourceDeletionWorker sourceDeletionWorker(@Qualifier("masterDataSource") DataSource data,SourceDeletionPolicy policy,
             TenantTransaction transactions,TenantMemberMapper members,PermissionMapper permissions,PermissionAuthority authority,
             SourceGovernanceMapper governance,SourceDeletionMapper mapper,PermissionSchema json,SourceGovernanceSchema schema,
-            RedissonClient redis) throws Exception {
-        var access=new SourceDeletionAccess(data,transactions,members,permissions,authority,governance,mapper,policy);
-        var stores=new SourceDeletionStores(policy,json,schema,redis);
-        return new SourceDeletionWorker(data,policy,access,stores,mapper,governance,permissions,json,schema);
+            SourceDeletionStores stores,SourceCopyAuthority copyAuthority,DenseRetrievalRetention dense) throws Exception {
+        var access=new SourceDeletionAccess(data,transactions,members,permissions,authority,governance,mapper,policy,copyAuthority);
+        return new SourceDeletionWorker(data,policy,access,stores,mapper,governance,permissions,json,schema,dense);
     }
 }

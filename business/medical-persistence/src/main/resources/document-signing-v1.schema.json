@@ -1,0 +1,905 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:document-signing:1.0.0",
+  "$defs": {
+    "Policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "purpose",
+        "registration_id",
+        "required_acr",
+        "required_amr",
+        "maximum_auth_age_seconds",
+        "challenge_ttl_seconds",
+        "receipt_ttl_seconds",
+        "separate_document_author",
+        "separate_reviewers"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "purpose": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9_]{0,63}$"
+        },
+        "registration_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "required_acr": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "required_amr": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 8,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          }
+        },
+        "maximum_auth_age_seconds": {
+          "type": "integer",
+          "minimum": 30,
+          "maximum": 300
+        },
+        "challenge_ttl_seconds": {
+          "type": "integer",
+          "minimum": 30,
+          "maximum": 600
+        },
+        "receipt_ttl_seconds": {
+          "type": "integer",
+          "minimum": 30,
+          "maximum": 300
+        },
+        "separate_document_author": {
+          "const": true
+        },
+        "separate_reviewers": {
+          "type": "boolean"
+        }
+      }
+    },
+    "PolicyApproval": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "policy_revision",
+        "expected_policy_revision",
+        "reason"
+      ],
+      "properties": {
+        "policy_revision": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "expected_policy_revision": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        }
+      }
+    },
+    "ReauthRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "document_id",
+        "document_revision",
+        "purpose",
+        "signing_policy_revision"
+      ],
+      "properties": {
+        "document_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "document_revision": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "purpose": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9_]{0,63}$"
+        },
+        "signing_policy_revision": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        }
+      }
+    },
+    "ReauthCompletion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "callback_receipt_id"
+      ],
+      "properties": {
+        "callback_receipt_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        }
+      }
+    },
+    "SignatureInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "document_revision",
+        "expected_revision",
+        "purpose",
+        "plan_revision",
+        "review_ids",
+        "check_ids",
+        "issue_watermark",
+        "evidence_watermark",
+        "dependency_manifest_sha256",
+        "body_sha256",
+        "auth_epoch",
+        "governance_epoch",
+        "signing_policy_revision",
+        "reauthentication_ref",
+        "human_confirmation"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "document_revision": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "expected_revision": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        "purpose": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9_]{0,63}$"
+        },
+        "plan_revision": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "review_ids": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 101,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+          }
+        },
+        "check_ids": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+          }
+        },
+        "issue_watermark": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        "evidence_watermark": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        "dependency_manifest_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "body_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "auth_epoch": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        "governance_epoch": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        "signing_policy_revision": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "reauthentication_ref": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "human_confirmation": {
+          "const": true
+        }
+      }
+    },
+    "SignatureDetail": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "signature_id",
+        "document_id",
+        "document_revision",
+        "signer_id",
+        "signed_at",
+        "purpose",
+        "policy_revision",
+        "review_ids",
+        "check_ids",
+        "manifest_sha256",
+        "auth_epoch",
+        "governance_epoch"
+      ],
+      "properties": {
+        "signature_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "document_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "document_revision": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "signer_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "signed_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "purpose": {
+          "type": "string"
+        },
+        "policy_revision": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "review_ids": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 101,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+          }
+        },
+        "check_ids": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+          }
+        },
+        "manifest_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "auth_epoch": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        "governance_epoch": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        }
+      }
+    },
+    "SignatureHistory": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "document_id",
+        "document_revision",
+        "items",
+        "complete"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.1.0"
+        },
+        "document_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "document_revision": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "items": {
+          "type": "array",
+          "maxItems": 100,
+          "items": {
+            "$ref": "#/$defs/SignatureDetail"
+          }
+        },
+        "complete": {
+          "const": true
+        }
+      }
+    },
+    "SignedSnapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "signature",
+        "body_sha256",
+        "manifest_json",
+        "external_electronic_signature_status"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "signature": {
+          "$ref": "#/$defs/SignatureDetail"
+        },
+        "body_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "manifest_json": {
+          "type": "string",
+          "minLength": 2,
+          "description": "Exact canonical immutable manifest. SHA-256 of UTF-8 equals signature.manifest_sha256. Contains no OIDC tokens, authorization code, state, nonce or PKCE verifier."
+        },
+        "external_electronic_signature_status": {
+          "const": "NOT_CONFIGURED"
+        }
+      }
+    },
+    "ReauthChallenge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "challenge_id",
+        "authorization_url",
+        "expires_at"
+      ],
+      "properties": {
+        "challenge_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "authorization_url": {
+          "type": "string",
+          "format": "uri"
+        },
+        "expires_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "ReauthReceipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reauthentication_ref",
+        "subject_id",
+        "document_id",
+        "document_revision",
+        "purpose",
+        "expires_at"
+      ],
+      "properties": {
+        "reauthentication_ref": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "subject_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "document_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "document_revision": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "purpose": {
+          "type": "string"
+        },
+        "expires_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "CallbackReceipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "challenge_id",
+        "callback_receipt_id"
+      ],
+      "properties": {
+        "challenge_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "callback_receipt_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        }
+      }
+    },
+    "PolicyDraftReceipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "policy_revision",
+        "status"
+      ],
+      "properties": {
+        "policy_revision": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "status": {
+          "const": "DRAFT"
+        }
+      }
+    },
+    "PolicyApprovalReceipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "policy_revision",
+        "approval_id",
+        "status"
+      ],
+      "properties": {
+        "policy_revision": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "approval_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "status": {
+          "const": "APPROVED"
+        }
+      }
+    },
+    "SigningInputPins": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "document_revision",
+        "expected_revision",
+        "plan_revision",
+        "review_ids",
+        "check_ids",
+        "issue_watermark",
+        "evidence_watermark",
+        "dependency_manifest_sha256",
+        "body_sha256",
+        "auth_epoch",
+        "governance_epoch"
+      ],
+      "properties": {
+        "document_revision": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "expected_revision": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        "plan_revision": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "review_ids": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 101,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+          }
+        },
+        "check_ids": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+          }
+        },
+        "issue_watermark": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        "evidence_watermark": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        "dependency_manifest_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "body_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "auth_epoch": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        "governance_epoch": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        }
+      }
+    },
+    "ReadinessReady": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "document_id",
+        "document_revision",
+        "purpose",
+        "ready_for_reauthentication",
+        "signed",
+        "signing_policy_revision",
+        "baseline_sha256",
+        "signing_input_pins",
+        "verified_gates",
+        "reauthentication_required"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "document_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "document_revision": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "purpose": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9_]{0,63}$"
+        },
+        "ready_for_reauthentication": {
+          "const": true
+        },
+        "signed": {
+          "const": false
+        },
+        "signing_policy_revision": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "baseline_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "signing_input_pins": {
+          "$ref": "#/$defs/SigningInputPins"
+        },
+        "verified_gates": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "SG-01_AUTHORITY_POLICY",
+              "SG-02",
+              "SG-03",
+              "SG-04",
+              "SG-05",
+              "SG-06",
+              "SG-07",
+              "SG-08",
+              "SG-09"
+            ]
+          },
+          "minItems": 9,
+          "maxItems": 9,
+          "uniqueItems": true
+        },
+        "reauthentication_required": {
+          "const": true
+        }
+      }
+    },
+    "ReadinessBlocked": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "document_id",
+        "document_revision",
+        "ready_for_reauthentication",
+        "signed",
+        "blocker"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "document_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "document_revision": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "ready_for_reauthentication": {
+          "const": false
+        },
+        "signed": {
+          "const": false
+        },
+        "blocker": {
+          "enum": [
+            "REVIEW_STALE",
+            "SIGNING_POLICY_UNCONFIGURED",
+            "PLAN_STALE",
+            "SOURCE_NOT_READY",
+            "CONDITION_UNKNOWN"
+          ]
+        }
+      }
+    },
+    "ChallengeStatus": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "challenge_id",
+        "status",
+        "expires_at",
+        "callback_receipt_id"
+      ],
+      "properties": {
+        "challenge_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "status": {
+          "enum": [
+            "PENDING",
+            "EXCHANGING",
+            "VERIFIED",
+            "COMPLETED",
+            "EXPIRED"
+          ]
+        },
+        "expires_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "callback_receipt_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "ProviderSnapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "registration_id",
+        "issuer",
+        "client_id",
+        "authorization_uri",
+        "token_uri",
+        "jwk_set_uri",
+        "redirect_uri",
+        "algorithm",
+        "client_authentication"
+      ],
+      "properties": {
+        "registration_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "issuer": {
+          "type": "string",
+          "format": "uri"
+        },
+        "client_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "authorization_uri": {
+          "type": "string",
+          "format": "uri"
+        },
+        "token_uri": {
+          "type": "string",
+          "format": "uri"
+        },
+        "jwk_set_uri": {
+          "type": "string",
+          "format": "uri"
+        },
+        "redirect_uri": {
+          "type": "string",
+          "format": "uri"
+        },
+        "algorithm": {
+          "const": "RS256"
+        },
+        "client_authentication": {
+          "enum": [
+            "client_secret_basic",
+            "none"
+          ]
+        }
+      }
+    },
+    "PolicyView": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "policy_revision",
+        "approval_id",
+        "policy",
+        "provider"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "policy_revision": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "approval_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "policy": {
+          "$ref": "#/$defs/Policy"
+        },
+        "provider": {
+          "$ref": "#/$defs/ProviderSnapshot"
+        }
+      }
+    },
+    "Envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "request_id",
+        "resource_revision",
+        "data"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "request_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "resource_revision": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        "data": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SignatureDetail"
+            },
+            {
+              "$ref": "#/$defs/SignedSnapshot"
+            },
+            {
+              "$ref": "#/$defs/ReauthChallenge"
+            },
+            {
+              "$ref": "#/$defs/ReauthReceipt"
+            },
+            {
+              "$ref": "#/$defs/CallbackReceipt"
+            },
+            {
+              "$ref": "#/$defs/PolicyDraftReceipt"
+            },
+            {
+              "$ref": "#/$defs/PolicyApprovalReceipt"
+            },
+            {
+              "$ref": "#/$defs/ReadinessReady"
+            },
+            {
+              "$ref": "#/$defs/ReadinessBlocked"
+            },
+            {
+              "$ref": "#/$defs/ChallengeStatus"
+            },
+            {
+              "$ref": "#/$defs/PolicyView"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "HistoryEnvelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "request_id",
+        "resource_revision",
+        "data"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.1.0"
+        },
+        "request_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "resource_revision": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        "data": {
+          "$ref": "#/$defs/SignatureHistory"
+        }
+      }
+    }
+  }
+}

@@ -3,7 +3,7 @@
 <mapper namespace="com.ruoyi.medical.persistence.mapper.RunCreateMapper">
   <select id="operation" resultMap="com.ruoyi.medical.persistence.mapper.TaskPlanWriteMapper.operation" useCache="false" flushCache="true">
     SELECT operation_id,request_sha256,state,http_status,response_ref,target_id,schema_version,schema_manifest_sha256
-    FROM operation_record WHERE subject_id=#{userId} AND operation_name='RN-01' AND idempotency_key=#{key} FOR UPDATE
+    FROM operation_record WHERE subject_id=#{userId} AND operation_name=#{operationName} AND idempotency_key=#{key} FOR UPDATE
   </select>
   <select id="activeRun" resultType="java.lang.String" useCache="false" flushCache="true">
     SELECT run_id FROM task_active_run WHERE project_id=#{projectId} AND task_id=#{taskId} FOR UPDATE
@@ -49,7 +49,7 @@
     INSERT INTO task_run(project_id,run_id,execution_kind,task_id,task_revision,attempt_no,parent_run_id,superseded_by_run_id,
       dispatch_closed_at,workflow_id,status,reason_code,replay_manifest,budget_revision,started_at,ended_at,schema_version,schema_manifest_sha256,
       created_by,created_at,classification,revision,updated_at)
-    VALUES(#{projectId},#{runId},'TASK',#{taskId},#{taskRevision},#{attempt},NULL,NULL,NULL,#{workflowId},'QUEUED',NULL,
+    VALUES(#{projectId},#{runId},'TASK',#{taskId},#{taskRevision},#{attempt},#{parentRunId},NULL,NULL,#{workflowId},'QUEUED',NULL,
       CAST(#{replayManifest} AS JSON),#{budgetRevision},NULL,NULL,'1.0.0',#{authorityManifest},#{userId},#{now},#{classification},1,#{now})
   </insert>
   <insert id="insertPrincipal">
@@ -63,8 +63,8 @@
     VALUES(#{projectId},#{taskId},#{runId},#{userId},#{now},#{classification},1,#{now})
   </insert>
   <update id="advanceTask">
-    UPDATE task_head SET revision=revision+1,updated_at=#{now}
-    WHERE project_id=#{projectId} AND task_id=#{taskId} AND current_revision=#{taskRevision} AND revision=#{expectedRevision} AND status='READY'
+    UPDATE task_head SET status='READY',revision=revision+1,updated_at=#{now}
+    WHERE project_id=#{projectId} AND task_id=#{taskId} AND current_revision=#{taskRevision} AND revision=#{expectedRevision} AND status=#{expectedStatus}
   </update>
   <insert id="insertStream">
     INSERT INTO stream_registry(project_id,stream_id,kind,owner_resource_id,last_sequence,retention_policy_revision,
@@ -78,7 +78,7 @@
   <insert id="saveOperation">
     INSERT INTO operation_record(operation_id,subject_id,operation_name,idempotency_key,request_sha256,state,http_status,response_ref,
       target_id,error_code,schema_version,schema_manifest_sha256,created_by,created_at,classification,revision,updated_at)
-    VALUES(#{operationId},#{userId},'RN-01',#{key},#{requestHash},'PROCESSING',202,CAST(#{response} AS JSON),
+    VALUES(#{operationId},#{userId},#{operationName},#{key},#{requestHash},'PROCESSING',202,CAST(#{response} AS JSON),
       #{runId},NULL,'1.0.0',#{manifest},#{userId},#{now},#{classification},1,#{now})
   </insert>
 </mapper>

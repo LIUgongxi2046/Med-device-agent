@@ -3,6 +3,8 @@ import hashlib
 from io import BytesIO
 import json
 import os
+import shutil
+import subprocess
 from pathlib import Path
 import unittest
 from uuid import uuid4
@@ -17,8 +19,11 @@ from medical_document.export import ExportInput, ExportRenderer, FixedAsset, Fon
 
 
 ROOT = Path(__file__).resolve().parents[1]
-SOFFICE = Path('/Users/liuhaoxian/.cache/codex-runtimes/codex-primary-runtime/dependencies/native/libreoffice-headless/libreoffice/LibreOfficeDev.app/Contents/MacOS/soffice')
-FONT = Path('/System/Library/Fonts/Supplemental/Arial Unicode.ttf')
+SOFFICE = Path(os.environ.get('MEDICAL_SOFFICE') or shutil.which('soffice') or shutil.which('libreoffice') or '/usr/bin/soffice')
+FONT = Path(os.environ.get('MEDICAL_EXPORT_FONT', '/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc'))
+FONT_FAMILY = os.environ.get('MEDICAL_EXPORT_FONT_FAMILY', 'Noto Sans CJK SC')
+SERIF_DIR = Path(os.environ.get('MEDICAL_EXPORT_SERIF_DIR', '/usr/share/fonts/truetype/liberation2'))
+
 
 
 def identity():
@@ -70,11 +75,14 @@ class DocumentExportTest(unittest.TestCase):
         template = BytesIO()
         Document().save(template)
         self.template = template.getvalue()
-        font_directory = SOFFICE.parent.parent / 'Resources/fonts/truetype'
+        font_directory = SERIF_DIR
         additional = tuple(FontResource(path, hashlib.sha256(path.read_bytes()).hexdigest(), 'Liberation Serif')
             for path in (font_directory / 'LiberationSerif-Regular.ttf', font_directory / 'LiberationSerif-Italic.ttf'))
-        self.font = FontBinding(identity(), FONT, hashlib.sha256(FONT.read_bytes()).hexdigest(), 'Arial Unicode MS', additional)
-        self.converter = ConverterBinding(identity(), SOFFICE, 'LibreOfficeDev 26.8.0.0.alpha0 2c87e51eeaa2b413ff4ae097b2705eea1995d8e5', 60,
+        self.font = FontBinding(identity(), FONT, hashlib.sha256(FONT.read_bytes()).hexdigest(), FONT_FAMILY, additional)
+        version = subprocess.run([str(SOFFICE), '--version'], check=True, capture_output=True, text=True, timeout=30).stdout.strip()
+        if not version.startswith('LibreOffice'):
+            raise ValueError('REAL_LIBREOFFICE_VERSION_REQUIRED')
+        self.converter = ConverterBinding(identity(), SOFFICE, version, 60,
             hashlib.sha256(SOFFICE.read_bytes()).hexdigest())
         self.plan = ExportInput(self.tenant, self.project, identity(), identity(), self.body['template_version'],
             hashlib.sha256(self.bytes).hexdigest(), hashlib.sha256(self.template).hexdigest(), 'FORMAL_BODY', 'SIMULATION', self.font, self.converter)

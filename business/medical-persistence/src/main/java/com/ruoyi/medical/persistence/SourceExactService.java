@@ -221,6 +221,16 @@ public final class SourceExactService {
         }).get());
     }
 
+    /** Read-only original verification for EVAL. No human session, publication or retrieval is minted. */
+    JsonNode requireEvaluationOriginal(EnterpriseAccess.Admission admission,String project,StrictFieldComparisonProtocol.SourceIdentity identity)throws Exception {
+        FormalEvaluationExecutionAdmission.current(admission);policy.requireConfigured();var evidence=Objects.requireNonNull(identity.evidenceRef());var pin=Objects.requireNonNull(identity.sourceExact());
+        if(!"SOURCE_EXACT_REVISION".equals(identity.kind())||identity.parsedDecimal()!=null||!project.equals(evidence.projectId())||!admission.context().tenant_id().equals(evidence.tenantId()))mismatch();
+        var values=new HashMap<String,Object>();values.put("userId",admission.actorId());values.put("identityMode",admission.bindingView().mode());values.put("schemaManifest",schema.manifestSha256());values.put("classification",identities.classification());values.put("projectId",project);values.put("sourceVersion",evidence.sourceVersion());values.put("fieldRevision",pin.fieldRevision());
+        var manifest=verifiedRevision(admission,values);if(!hash(manifest).equals(pin.fieldManifestSha256()))mismatch();var input=schema.storedInput(manifest.required("request"));if(pin.ordinal()<0||pin.ordinal()>=input.fields().size())mismatch();var field=input.fields().get(pin.ordinal());
+        if(!field.field_kind().equals(pin.fieldKind())||!field.chunk_id().equals(evidence.chunkId())||!field.quote_hash().equals(evidence.quoteHash())||!input.parse_version().equals(evidence.parseVersion())||!input.approval_revision().equals(evidence.approvalRevision()))mismatch();var current=basis(admission,evidence.sourceVersion(),input);requireApproval(admission,current);
+        return json.tree(Map.of("source",identity,"field",field,"manifest",manifest));
+    }
+
     private JsonNode verifiedRevision(EnterpriseAccess.Admission admission,Map<String,Object> values) throws IOException {
         var row=single(mapper.revision(values)); var manifest=schema.parse(text(row,"manifest")); schema.require("Manifest",manifest);
         var input=schema.storedInput(manifest.required("request")); String source=text(row,"source_version");

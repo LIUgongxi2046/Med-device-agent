@@ -5,6 +5,11 @@ import contract from '../../../../business/medical-persistence/src/main/resource
 import cancellationSchema from '../../../../business/medical-persistence/src/main/resources/formal-capability-cancellation.schema.json'
 import availabilitySchema from '../../../../business/medical-persistence/src/main/resources/agent-authoring-feature-availability.schema.json'
 import catalogue from '../../../../contracts/catalogue.json'
+import taskPackageCatalogue from '../../../../contracts/extensions/task-professional-package.catalogue.json'
+import taskPackageSchema from '../../../../business/medical-persistence/src/main/resources/task-professional-package.schema.json'
+import taskToolCatalogue from '../../../../contracts/extensions/task-tool-read.catalogue.json'
+import taskToolInputs from '../../../../agent-design/tool-inputs.schema.json'
+import taskToolReadSuccess from '../../../../agent-design/tool-read-success.schema.json'
 import { fail, validContext } from './protocol'
 import type { Basis, Context, MedicalSession } from './protocol'
 import { sourceDigest } from './content-digest'
@@ -15,6 +20,13 @@ export const capabilityRecordKind = 'FORMAL_CAPABILITY_AUTHOR' as const
 export interface CapabilityPermission {
   scope: { tenant_id: string; project_id: string | null; resource_kind: string; resource_id: string }
   action: string; purpose: string
+}
+/** Read-only catalogue identity, bound to the actor and authorization context that read it. */
+export interface CapabilityResourceCandidate {
+  actor: string; context: Context; scope: CapabilityPermission['scope']; label: string
+  /** Model evidence uses a logical configuration identity, never the fixed version as its scope. */
+  model?: { config_id: string; model_config_revision: string; content_sha256: string; revision: string; status: 'DRAFT' }
+  authorization?: string
 }
 export interface FormalCapability {
   schema_version: '1.0.0'; execution_mode: 'PRODUCTION'; project_id: string | null; kind: 'ROLE' | 'PROMPT'
@@ -63,7 +75,18 @@ export function readCapabilityCancellation(session: MedicalSession): PendingCapa
  return detached(pending)
 }
 export function assertNoCapabilityCancellation(session: MedicalSession): void { if(readCapabilityCancellation(session))fail('ACTION_STALE','已发起原请求取消，请先核查取消回执') }
-export const capabilitySchemas = catalogue.schemas.map(item => ({ label: item.name, schema_ref: catalogue.base_uri + item.path, schema_sha256: item.sha256 }))
+const taskPackagePin = taskPackageCatalogue.schemas.find(item => item.name === 'task-professional-package')!
+const taskPackageLabels = { RolePackage: '研究角色固定包', PromptPackage: '研究提示词固定包', ProfilePackage: '研究运行配置固定包' } as const
+const taskToolInputPin = taskToolCatalogue.schemas.find(item => item.name === 'tool-inputs')!
+const taskToolOutputPin = taskToolCatalogue.schemas.find(item => item.name === 'task-tool-read-success')!
+// These are published contracts, not permissions or pre-approved TOOL versions.
+// Build gate verifies exact extension and schema bytes; the server rechecks publication.
+export const capabilitySchemas = [
+  ...catalogue.schemas.map(item => ({ label: item.name, schema_ref: catalogue.base_uri + item.path, schema_sha256: item.sha256 })),
+  ...(['SearchArgs', 'ReadArgs'] as const).map(definition => ({ label: definition === 'SearchArgs' ? 'AT-01 已批准来源检索输入' : 'AT-02 指定来源读取输入', schema_ref: taskToolInputs.$id + '#/$defs/' + definition, schema_sha256: taskToolInputPin.sha256 })),
+  { label: 'AT-01/02 真实读取回执（不虚构产出制品）', schema_ref: taskToolReadSuccess.$id, schema_sha256: taskToolOutputPin.sha256 },
+  ...(['RolePackage', 'PromptPackage', 'ProfilePackage'] as const).map(definition => ({ label: taskPackageLabels[definition], schema_ref: taskPackageSchema.$id + '#/$defs/' + definition, schema_sha256: taskPackagePin.sha256 })),
+]
 export function capabilityCanonical(value: unknown): string { return canonicalizeEx(value, { strictUndefined: true }) }
 export function detached<T>(value: T): T { return JSON.parse(capabilityCanonical(value)) as T }
 export function capabilityValidate<T>(name: string, value: unknown): T {
@@ -90,25 +113,64 @@ export function capabilityAllowed(session: MedicalSession | null, project: strin
     item.resource_kind === 'ENTERPRISE' && item.resource_id === tenant && item.project_id === null
     || project !== null && item.resource_kind === 'PROJECT' && item.resource_id === project && item.project_id === project))
 }
-/** Exact concrete current scopes only. A wildcard summary is not a resource selection or a new grant. */
-export function capabilityScopeCandidates(session: MedicalSession, project: string | null): Omit<CapabilityPermission, 'purpose'>[] {
-  const tenant = capabilityContext(session).tenant_id, seen = new Set<string>()
-  return session.action_summary.flatMap(item => {
-    const value = { scope: { tenant_id: tenant, project_id: item.project_id, resource_kind: item.resource_kind, resource_id: item.resource_id }, action: item.action }
-    if (item.resource_id === null || item.project_id !== null && item.project_id !== project || !ajv.getSchema(prefix + 'RuntimeScope')!(value.scope) || !ajv.getSchema(prefix + 'RuntimeAction')!(value.action)) return []
-    if (item.resource_kind === 'ENTERPRISE' && (item.resource_id !== tenant || item.project_id !== null) || item.resource_kind === 'PROJECT' && (item.project_id === null || item.project_id !== item.resource_id)) return []
-    const key = capabilityCanonical(value); if (seen.has(key)) return []; seen.add(key)
-    return [value as Omit<CapabilityPermission, 'purpose'>]
-  })
+export function capabilityAuthorization(session: MedicalSession): string { return capabilityCanonical(session.action_summary) }
+/** Conflicting ownership or fixed model metadata invalidates the whole paginated read. */
+export function mergeCapabilityModelResources(previous: CapabilityResourceCandidate[], page: CapabilityResourceCandidate[]): CapabilityResourceCandidate[] {
+  const unique = new Map<string, CapabilityResourceCandidate>()
+  for (const item of [...previous, ...page]) {
+    const old = unique.get(item.scope.resource_id)
+    if (old && capabilityCanonical(old) !== capabilityCanonical(item)) fail('CONTENT_MISMATCH', '模型配置归属或固定版本已变化，请重新读取首页')
+    unique.set(item.scope.resource_id, item)
+  }
+  return detached([...unique.values()])
 }
-export function assertCapabilityScopes(session: MedicalSession, body: FormalCapability): void {
+/** Only concrete catalogue identities may narrow an existing enterprise/project grant. */
+export function capabilityScopeCandidates(session: MedicalSession, project: string | null,
+    resources: CapabilityResourceCandidate[] = []): Omit<CapabilityPermission, 'purpose'>[] {
+  const context = capabilityContext(session), tenant = context.tenant_id, seen = new Set<string>()
+  const candidates: Omit<CapabilityPermission, 'purpose'>[] = []
+  const validScope = ajv.getSchema(prefix + 'RuntimeScope')!, validAction = ajv.getSchema(prefix + 'RuntimeAction')!
+  const validId = ajv.getSchema(prefix + 'Id')!, validHash = ajv.getSchema(prefix + 'Hash')!, validRevision = ajv.getSchema(prefix + 'Revision')!
+  function add(scope: CapabilityPermission['scope'], action: string) {
+    if (!validScope(scope) || !validAction(action) || scope.tenant_id !== tenant
+        || scope.project_id !== null && scope.project_id !== project) return
+    if (scope.resource_kind === 'ENTERPRISE' && (scope.resource_id !== tenant || scope.project_id !== null)
+        || scope.resource_kind === 'PROJECT' && (scope.project_id === null || scope.project_id !== scope.resource_id)) return
+    const value = { scope, action }, key = capabilityCanonical(value)
+    if (!seen.has(key)) { seen.add(key); candidates.push(detached(value)) }
+  }
+  for (const item of session.action_summary) {
+    if (item.resource_id !== null) add({ tenant_id: tenant, project_id: item.project_id,
+      resource_kind: item.resource_kind, resource_id: item.resource_id }, item.action)
+  }
+  for (const resource of resources) {
+    const scope = resource.scope
+    if (resource.actor !== session.user.user_id || capabilityCanonical(resource.context) !== capabilityCanonical(context)
+        || !validScope(scope) || scope.tenant_id !== tenant
+        || scope.project_id !== null && scope.project_id !== project
+        || !['PROJECT', 'SOURCE', 'CONFIGURATION'].includes(scope.resource_kind)
+        || scope.resource_kind === 'PROJECT' && (project === null || scope.project_id !== project || scope.resource_id !== project)) continue
+    if (scope.resource_kind === 'CONFIGURATION' && (!resource.model || resource.authorization !== capabilityAuthorization(session)
+        || scope.resource_id !== resource.model.config_id || !validId(resource.model.model_config_revision)
+        || !validHash(resource.model.content_sha256) || !validRevision(resource.model.revision) || resource.model.status !== 'DRAFT')) continue
+    for (const grant of session.action_summary) {
+      const enterprise = grant.resource_kind === 'ENTERPRISE' && grant.project_id === null && grant.resource_id === tenant
+      const ownerProject = scope.project_id !== null && grant.resource_kind === 'PROJECT'
+        && grant.project_id === scope.project_id && grant.resource_id === scope.project_id
+      if (enterprise || ownerProject) add(scope, grant.action)
+    }
+  }
+  return candidates
+}
+export function assertCapabilityScopes(session: MedicalSession, body: FormalCapability,
+    resources: CapabilityResourceCandidate[] = []): void {
   if (body.kind !== 'ROLE' || Array.isArray(body.tool_scope)) return
-  const candidates = capabilityScopeCandidates(session, body.project_id)
+  const candidates = capabilityScopeCandidates(session, body.project_id, resources)
   for (const { scope, action } of body.tool_scope.permissions) if (!candidates.some(item => capabilityCanonical(item) === capabilityCanonical({ scope, action }))) fail('ACCESS_DENIED', '角色权限必须选择当前身份已有的精确资源与动作；用途仍由服务端逐项核验')
 }
 export function capabilityGuard(reader: CapabilitySessionReader, signal: AbortSignal): { session: MedicalSession; context: Context; assert: () => void } {
-  const session = reader(), context = detached(capabilityContext(session)), actor = session.user.user_id
-  const assert = () => { signal.throwIfAborted(); const current = reader(); if (current !== session || current.user.user_id !== actor || capabilityCanonical(current.current_context) !== capabilityCanonical(context)) fail('CONTEXT_CHANGED', '当前身份或授权上下文已变化，请重新读取') }
+  const session = reader(), context = detached(capabilityContext(session)), actor = session.user.user_id, authorization = capabilityAuthorization(session)
+  const assert = () => { signal.throwIfAborted(); const current = reader(); if (current !== session || current.user.user_id !== actor || capabilityCanonical(current.current_context) !== capabilityCanonical(context) || capabilityAuthorization(current) !== authorization) fail('CONTEXT_CHANGED', '当前身份或授权上下文已变化，请重新读取') }
   assert(); return { session, context, assert }
 }
 export function storageKey(session: MedicalSession): string { return 'medical.formal-capability.pending:' + session.user.user_id + ':' + capabilityContext(session).tenant_id }
@@ -136,11 +198,12 @@ function persist(session: MedicalSession, pending: PendingCapability): void {
   sessionStorage.setItem(storageKey(session), capabilityCanonical(pending))
   if (capabilityCanonical(readPendingCapability(session)) !== capabilityCanonical(pending)) fail('CONTENT_MISMATCH', '原请求未能可靠保存，本次不会发送')
 }
-export async function prepareCapability(reader: CapabilitySessionReader, body: FormalCapability, signal: AbortSignal): Promise<PendingCapability> {
+export async function prepareCapability(reader: CapabilitySessionReader, body: FormalCapability, signal: AbortSignal,
+    resources: CapabilityResourceCandidate[] = []): Promise<PendingCapability> {
   const guard = capabilityGuard(reader, signal), frozen = detached(body), issue = capabilityInputIssue(frozen)
   if (issue) fail('SCHEMA_INVALID', issue)
   if (!capabilityAllowed(guard.session, frozen.project_id)) fail('ACCESS_DENIED', '当前范围没有登记正式能力的权限')
-  assertCapabilityScopes(guard.session, frozen)
+  assertCapabilityScopes(guard.session, frozen, resources)
   if (readPendingCapability(guard.session)) fail('IDEMPOTENCY_CONFLICT', '已有待核查原请求，只能读取原结果，不能创建或重发')
   const digest = await sourceDigest(frozen); guard.assert()
   if (readPendingCapability(guard.session)) fail('IDEMPOTENCY_CONFLICT', '另一请求已保存，请先核查原操作')

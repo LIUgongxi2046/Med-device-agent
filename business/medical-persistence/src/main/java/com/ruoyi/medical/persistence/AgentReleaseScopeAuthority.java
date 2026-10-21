@@ -52,12 +52,14 @@ public final class AgentReleaseScopeAuthority {
         private final List<AgentReleaseStoredProtocol.ScopeRow> scopes;
         private final List<RoleProof> roles;
         private final PermissionProtocol.GrantRow grant;
+        private final FormalRunControlAccess.StartRun start;
+        private final TaskPlanDraftControlAccess.Proof planDraft;
 
         private VerifiedScope(AgentReleaseStore.Stored release, PermissionProtocol.Scope target, String action,
                 String classification, DependencyLineage.Limits limits, List<AgentReleaseStoredProtocol.ScopeRow> scopes,
-                List<RoleProof> roles, PermissionProtocol.GrantRow grant) {
+                List<RoleProof> roles, PermissionProtocol.GrantRow grant,FormalRunControlAccess.StartRun start,TaskPlanDraftControlAccess.Proof planDraft) {
             this.release = release; this.target = target; this.action = action; this.classification = classification;
-            this.limits = limits; this.scopes = List.copyOf(scopes); this.roles = List.copyOf(roles); this.grant = grant;
+            this.limits = limits; this.scopes = List.copyOf(scopes); this.roles = List.copyOf(roles); this.grant = grant;this.start=start;this.planDraft=planDraft;
         }
         AgentReleaseStore.Stored release() { return release; }
         PermissionProtocol.Scope target() { return target; }
@@ -70,19 +72,40 @@ public final class AgentReleaseScopeAuthority {
 
     VerifiedScope require(AgentReleaseStore.Stored release, PermissionProtocol.Scope target, String action,
             String classification, DependencyLineage.Limits limits) throws IOException {
+        return require(release,target,action,classification,limits,null);
+    }
+    VerifiedScope requireStartRun(AgentReleaseStore.Stored release,PermissionProtocol.Scope target,String classification,
+            DependencyLineage.Limits limits,FormalRunControlAccess.StartRun start)throws IOException {
+        Objects.requireNonNull(start).require(release.admission(),target,release.purpose());
+        start.requireRelease(release.admission(),release.release().releaseId());
+        return require(release,target,"task.run",classification,limits,start);
+    }
+    VerifiedScope requirePlanDraft(AgentReleaseStore.Stored release,PermissionProtocol.Scope target,String classification,
+            DependencyLineage.Limits limits,TaskPlanDraftControlAccess.Proof proof)throws IOException {
+        Objects.requireNonNull(proof).requireActive();
+        if(!release.admission().planDraftWorker()||release.admission().planDraftProof()!=proof)denied();
+        proof.requireRelease(release.release().releaseId());proof.requireTask(target.resource_id());
+        return require(release,target,"task.run",classification,limits,null,proof);
+    }
+    private VerifiedScope require(AgentReleaseStore.Stored release,PermissionProtocol.Scope target,String action,String classification,
+            DependencyLineage.Limits limits,FormalRunControlAccess.StartRun start)throws IOException {
+        return require(release,target,action,classification,limits,start,null);
+    }
+    private VerifiedScope require(AgentReleaseStore.Stored release,PermissionProtocol.Scope target,String action,String classification,
+            DependencyLineage.Limits limits,FormalRunControlAccess.StartRun start,TaskPlanDraftControlAccess.Proof planDraft)throws IOException {
         Objects.requireNonNull(release); Objects.requireNonNull(limits); json.scope(json.tree(target));
         ProjectSchema.text(classification, 24);
         if (!Set.of("task.create", "plan.confirm", "task.run").contains(action))
             throw new IllegalArgumentException("发布范围动作无效");
         var admission = release.admission(); String tenant = admission.context().tenant_id();
-        String actor = admission.subject().user().user_id(), project = target.project_id();
+        String actor = admission.actorId(), project = target.project_id();
         if (!tenant.equals(target.tenant_id()) || project == null || target.resource_id() == null
                 || release.agent().projectId() != null && !project.equals(release.agent().projectId())) denied();
         if ("task.create".equals(action) ? !"PROJECT".equals(target.resource_kind()) || !project.equals(target.resource_id())
                 : !"TASK".equals(target.resource_kind())) mismatch();
         releases.requireUnchanged(release);
         if (!"ACTIVE".equals(single(permissions.projectStatus(project)))) denied();
-        var grant = resources.require(admission, target, action, release.purpose());
+        var grant = (planDraft!=null?planDraft.requireOriginalAction(target,action,release.purpose()):start==null?resources.require(admission, target, action, release.purpose()):resources.requireStartRun(admission,target,start));
         var approved = release.content().manifest().releaseScope();
         if (!tenant.equals(approved.tenantId()) || !approved.allowedClassifications().contains(classification)
                 || "PROJECTS".equals(approved.projectMode()) && !approved.projectIds().contains(project)) denied();
@@ -116,13 +139,13 @@ public final class AgentReleaseScopeAuthority {
         if (!member && roleProofs.isEmpty()) denied();
         // 范围名单不授予业务权限，原动作许可和当前持久范围共同进入结果。
         releases.requireUnchanged(release);
-        if (!grant.equals(resources.require(admission, target, action, release.purpose()))) stale();
-        return new VerifiedScope(release, target, action, classification, limits, scopes, roleProofs, grant);
+        if (!grant.equals((planDraft!=null?planDraft.requireOriginalAction(target,action,release.purpose()):start==null?resources.require(admission, target, action, release.purpose()):resources.requireStartRun(admission,target,start)))) stale();
+        return new VerifiedScope(release, target, action, classification, limits, scopes, roleProofs, grant,start,planDraft);
     }
 
     private RoleProof role(AgentReleaseStore.Stored release, PermissionProtocol.Scope target, String action,
             List<String> acceptedRoles, AgentReleaseStoredProtocol.RoleOrigin origin, LocalDateTime now) throws IOException {
-        var admission = release.admission(); String actor = admission.subject().user().user_id();
+        var admission = release.admission(); String actor = admission.actorId();
         WireValues.uuid(origin.grantId()); WireValues.uuid(origin.roleVersion()); WireValues.uuid(origin.invitationId());
         WireValues.uuid(origin.roleId());
         if (!acceptedRoles.contains(origin.roleId())) mismatch();
@@ -156,14 +179,14 @@ public final class AgentReleaseScopeAuthority {
                 || !Objects.equals(scope.resource_id(), grant.resourceId()) || !action.equals(grant.action())
                 || !authorization.condition().equals(json.condition(grant.condition())) || !invitation.basisVersion().equals(grant.basisVersion())
                 || !Objects.equals(authorization.valid_to() == null ? null : PermissionAuthority.time(authorization.valid_to()), grant.validTo())) mismatch();
-        if (authority.findResource(target, actor, admission.subject().binding().view().mode(), action, release.purpose(), List.of(grant), now).isEmpty())
+        if (authority.findResource(target, actor, admission.bindingView().mode(), action, release.purpose(), List.of(grant), now).isEmpty())
             return null;
         return new RoleProof(origin, role, invitation, grant);
     }
 
     void requireUnchanged(VerifiedScope original) throws IOException {
         Objects.requireNonNull(original);
-        var current = require(original.release, original.target, original.action, original.classification, original.limits);
+        var current = require(original.release, original.target, original.action, original.classification, original.limits,original.start,original.planDraft);
         if (!original.scopes.equals(current.scopes) || !original.roles.equals(current.roles) || !original.grant.equals(current.grant)) stale();
     }
 

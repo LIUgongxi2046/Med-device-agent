@@ -1,0 +1,135 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "task-run-protocol-v2.schema.json",
+  "$defs": {
+    "Binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "kind",
+        "tenant_id",
+        "project_id",
+        "run_id",
+        "task_id",
+        "principal_id",
+        "initiator_id",
+        "command_id",
+        "launch_id",
+        "operational_revision",
+        "reference_sha256",
+        "operational_sha256",
+        "launch_intent_sha256",
+        "deployment_sha256",
+        "deployment_canonical"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "2.0.0"
+        },
+        "kind": {
+          "const": "TASK_RUN_PROTOCOL_BINDING"
+        },
+        "tenant_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "project_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "run_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "task_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "principal_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "initiator_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "command_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "launch_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "operational_revision": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "reference_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "operational_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "launch_intent_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "deployment_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "deployment_canonical": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 8192
+        }
+      }
+    },
+    "Acceptance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "kind",
+        "temporal_run_id",
+        "workflow_acceptance_sha256",
+        "binding",
+        "workflow_acceptance"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "2.0.0"
+        },
+        "kind": {
+          "const": "TASK_RUN_PROTOCOL_ACCEPTED"
+        },
+        "temporal_run_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "workflow_acceptance_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "binding": {
+          "$ref": "#/$defs/Binding"
+        },
+        "workflow_acceptance": {
+          "type": "object"
+        }
+      }
+    }
+  },
+  "oneOf": [
+    {
+      "$ref": "#/$defs/Binding"
+    },
+    {
+      "$ref": "#/$defs/Acceptance"
+    }
+  ]
+}

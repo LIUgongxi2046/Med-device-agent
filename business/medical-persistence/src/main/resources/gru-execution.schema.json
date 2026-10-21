@@ -1,0 +1,856 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:gru-execution:1.0.0",
+  "$defs": {
+    "Request": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schema_version",
+            "intent",
+            "text",
+            "target_version",
+            "parameters"
+          ],
+          "properties": {
+            "schema_version": {
+              "const": "1.0.0"
+            },
+            "intent": {
+              "const": "QUERY"
+            },
+            "text": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 8000
+            },
+            "target_version": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "parameters": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "task_id",
+                "run"
+              ],
+              "properties": {
+                "task_id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "run": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "schema_version",
+                    "task_revision",
+                    "plan_revision",
+                    "snapshot_id",
+                    "budget_revision",
+                    "expected_revision"
+                  ],
+                  "properties": {
+                    "schema_version": {
+                      "const": "1.0.0"
+                    },
+                    "task_revision": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "plan_revision": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "snapshot_id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "budget_revision": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "expected_revision": {
+                      "type": "string",
+                      "pattern": "^[1-9][0-9]{0,19}$"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schema_version",
+            "intent",
+            "text",
+            "target_version",
+            "parameters"
+          ],
+          "properties": {
+            "schema_version": {
+              "const": "1.0.0"
+            },
+            "intent": {
+              "const": "PROPOSE_EDIT"
+            },
+            "text": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 8000
+            },
+            "target_version": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "parameters": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "task_id",
+                "run"
+              ],
+              "properties": {
+                "task_id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "run": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "schema_version",
+                    "task_revision",
+                    "plan_revision",
+                    "snapshot_id",
+                    "budget_revision",
+                    "expected_revision"
+                  ],
+                  "properties": {
+                    "schema_version": {
+                      "const": "1.0.0"
+                    },
+                    "task_revision": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "plan_revision": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "snapshot_id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "budget_revision": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "expected_revision": {
+                      "type": "string",
+                      "pattern": "^[1-9][0-9]{0,19}$"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schema_version",
+            "intent",
+            "text",
+            "target_version",
+            "parameters"
+          ],
+          "properties": {
+            "schema_version": {
+              "const": "1.0.0"
+            },
+            "intent": {
+              "const": "CHECK"
+            },
+            "text": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 8000
+            },
+            "target_version": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "parameters": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "schema_version",
+                "document_revision",
+                "expected_revision",
+                "reason"
+              ],
+              "properties": {
+                "schema_version": {
+                  "const": "1.0.0"
+                },
+                "document_revision": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "expected_revision": {
+                  "type": "string",
+                  "pattern": "^[1-9][0-9]{0,19}$"
+                },
+                "reason": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 2000
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schema_version",
+            "intent",
+            "text",
+            "target_version",
+            "parameters"
+          ],
+          "properties": {
+            "schema_version": {
+              "const": "1.0.0"
+            },
+            "intent": {
+              "const": "RETRIEVE"
+            },
+            "text": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 8000
+            },
+            "target_version": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "parameters": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "query"
+              ],
+              "properties": {
+                "query": {
+                  "type": "string",
+                  "minLength": 2,
+                  "maxLength": 500
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schema_version",
+            "intent",
+            "text",
+            "target_version",
+            "parameters"
+          ],
+          "properties": {
+            "schema_version": {
+              "const": "1.0.0"
+            },
+            "intent": {
+              "const": "ADOPT_EDIT"
+            },
+            "text": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 8000
+            },
+            "target_version": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "parameters": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "candidate_id",
+                "confirmation",
+                "arguments"
+              ],
+              "properties": {
+                "candidate_id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "confirmation": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "schema_version",
+                    "pending_action_id",
+                    "arguments_sha256",
+                    "expected_action_revision",
+                    "confirm"
+                  ],
+                  "properties": {
+                    "schema_version": {
+                      "const": "1.0.0"
+                    },
+                    "pending_action_id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "arguments_sha256": {
+                      "type": "string",
+                      "pattern": "^[a-f0-9]{64}$"
+                    },
+                    "expected_action_revision": {
+                      "type": "string",
+                      "pattern": "^[1-9][0-9]{0,19}$"
+                    },
+                    "confirm": {
+                      "const": true
+                    }
+                  }
+                },
+                "arguments": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "Confirmation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "confirm",
+        "request_sha256",
+        "target_version",
+        "parameters"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "confirm": {
+          "const": true
+        },
+        "request_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "target_version": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "parameters": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "task_id",
+                "run"
+              ],
+              "properties": {
+                "task_id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "run": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "schema_version",
+                    "task_revision",
+                    "plan_revision",
+                    "snapshot_id",
+                    "budget_revision",
+                    "expected_revision"
+                  ],
+                  "properties": {
+                    "schema_version": {
+                      "const": "1.0.0"
+                    },
+                    "task_revision": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "plan_revision": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "snapshot_id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "budget_revision": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "expected_revision": {
+                      "type": "string",
+                      "pattern": "^[1-9][0-9]{0,19}$"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "schema_version",
+                "document_revision",
+                "expected_revision",
+                "reason"
+              ],
+              "properties": {
+                "schema_version": {
+                  "const": "1.0.0"
+                },
+                "document_revision": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "expected_revision": {
+                  "type": "string",
+                  "pattern": "^[1-9][0-9]{0,19}$"
+                },
+                "reason": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 2000
+                }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "query"
+              ],
+              "properties": {
+                "query": {
+                  "type": "string",
+                  "minLength": 2,
+                  "maxLength": 500
+                }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "candidate_id",
+                "confirmation",
+                "arguments"
+              ],
+              "properties": {
+                "candidate_id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "confirmation": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "schema_version",
+                    "pending_action_id",
+                    "arguments_sha256",
+                    "expected_action_revision",
+                    "confirm"
+                  ],
+                  "properties": {
+                    "schema_version": {
+                      "const": "1.0.0"
+                    },
+                    "pending_action_id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "arguments_sha256": {
+                      "type": "string",
+                      "pattern": "^[a-f0-9]{64}$"
+                    },
+                    "expected_action_revision": {
+                      "type": "string",
+                      "pattern": "^[1-9][0-9]{0,19}$"
+                    },
+                    "confirm": {
+                      "const": true
+                    }
+                  }
+                },
+                "arguments": {
+                  "type": "object"
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "Memory": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "kind",
+        "text"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "kind": {
+          "enum": [
+            "HABIT",
+            "SUMMARY"
+          ]
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 8000
+        },
+        "presentation": {
+          "$ref": "#/$defs/PresentationPreference"
+        }
+      }
+    },
+    "AgentMessage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "sender_kind",
+        "message_id",
+        "conversation_id",
+        "action_id",
+        "content_kind",
+        "content_sha256",
+        "created_at",
+        "content"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "sender_kind": {
+          "const": "AGENT"
+        },
+        "message_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "conversation_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "action_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "content_kind": {
+          "const": "VERIFIED_TOOL_RESULT"
+        },
+        "content_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "content": {
+          "type": "object"
+        }
+      }
+    },
+    "Action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "action_id",
+        "conversation_id",
+        "owner_id",
+        "tenant_id",
+        "state",
+        "revision",
+        "request_sha256",
+        "request",
+        "expires_at",
+        "explicit_confirmation_required"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "action_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "conversation_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "owner_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "tenant_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "state": {
+          "enum": [
+            "PENDING",
+            "STARTING",
+            "RUNNING",
+            "COMPLETED",
+            "FAILED",
+            "CANCELLED"
+          ]
+        },
+        "revision": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]{0,19}$"
+        },
+        "request_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "request": {
+          "$ref": "#/$defs/Request"
+        },
+        "expires_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "explicit_confirmation_required": {
+          "const": true
+        },
+        "current_result": {
+          "type": "object"
+        },
+        "agent_message": {
+          "$ref": "#/$defs/AgentMessage"
+        },
+        "presentation": {
+          "$ref": "#/$defs/PresentationResult"
+        }
+      }
+    },
+    "ActionList": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "actions"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "actions": {
+          "type": "array",
+          "maxItems": 100,
+          "items": {
+            "$ref": "#/$defs/Action"
+          }
+        }
+      }
+    },
+    "PresentationPreference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "layout",
+        "detail"
+      ],
+      "properties": {
+        "layout": {
+          "enum": [
+            "PARAGRAPH",
+            "BULLETS"
+          ]
+        },
+        "detail": {
+          "enum": [
+            "COMPACT",
+            "FULL"
+          ]
+        }
+      }
+    },
+    "MemoryEdit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "expected_revision",
+        "text",
+        "presentation"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "expected_revision": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]{0,19}$"
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 8000
+        },
+        "presentation": {
+          "$ref": "#/$defs/PresentationPreference"
+        }
+      }
+    },
+    "MemoryRemove": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "expected_revision",
+        "reason"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "expected_revision": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]{0,19}$"
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+        }
+      }
+    },
+    "PresentationResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "context_sha256",
+        "scope",
+        "text",
+        "canonical_result_unchanged",
+        "model_instruction",
+        "authority",
+        "effective",
+        "applied_habit_pins",
+        "excluded_habit_ids",
+        "priority",
+        "template_version",
+        "project_id"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "context_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "scope": {
+          "const": "GRU_RESULT_WRAPPER_ONLY"
+        },
+        "text": {
+          "type": "string"
+        },
+        "canonical_result_unchanged": {
+          "const": true
+        },
+        "model_instruction": {
+          "const": false
+        },
+        "authority": {
+          "const": "PRESENTATION_ONLY"
+        },
+        "effective": {
+          "$ref": "#/$defs/PresentationPreference"
+        },
+        "applied_habit_pins": {
+          "type": "array",
+          "maxItems": 100,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "memory_id",
+              "revision",
+              "presentation_sha256"
+            ],
+            "properties": {
+              "memory_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "revision": {
+                "type": "string",
+                "pattern": "^[1-9][0-9]{0,19}$"
+              },
+              "presentation_sha256": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              }
+            }
+          }
+        },
+        "excluded_habit_ids": {
+          "type": "array",
+          "maxItems": 100,
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "priority": {
+          "const": [
+            "PUBLISHED_TEMPLATE",
+            "FIXED_PROJECT_CONVENTIONS",
+            "PERSONAL_PRESENTATION"
+          ]
+        },
+        "template_version": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "project_id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      }
+    }
+  }
+}

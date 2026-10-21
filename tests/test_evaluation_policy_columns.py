@@ -4,6 +4,7 @@ from xml.etree import ElementTree as ET
 import re, unittest
 import sqlglot
 from sqlglot import exp
+from migration_source_parser import parse_schema_source
 from test_migration_bundle import ROOT,RESOURCES,sqlglot_migration_source
 MAPPER=ROOT/'business/medical-persistence/src/main/resources/medical-mappers/FormalEvaluationPolicyMapper.xml'
 def query(path,legacy=False):
@@ -14,7 +15,7 @@ def query(path,legacy=False):
 def catalogue():
  tables={}
  for path in [ROOT/'data-design/core.sql',*sorted((RESOURCES/'db/migration').glob('*.sql'))]:
-  for stmt in sqlglot.parse('\n'.join(line for line in path.read_text().splitlines() if not line.lstrip().startswith('--')),read='mysql'):
+  for stmt in parse_schema_source(path.read_text())[0]:
    if isinstance(stmt,exp.Create) and isinstance(stmt.this,exp.Schema):tables[stmt.this.this.name]={c.name for c in stmt.this.expressions if isinstance(c,exp.ColumnDef)}
    elif isinstance(stmt,exp.Alter):
     for c in stmt.find_all(exp.ColumnDef):tables.setdefault(stmt.this.name,set()).add(c.name)

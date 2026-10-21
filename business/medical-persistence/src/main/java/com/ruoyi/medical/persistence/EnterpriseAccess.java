@@ -91,25 +91,68 @@ public final class EnterpriseAccess {
         private final TenantWatermarks watermarks;
         private final SimulationWorkerAccess.Proof worker;
         private final FormalWorkerAccess.Proof formal;
+        private final FormalRunControlAccess.Proof control;
+        private final FormalRunRecoveryAccess.Proof recovery;
+        private final TaskPlanDraftControlAccess.Proof planDraft;
+        private final DocumentReviewControlAccess.Proof documentReview;
+        private final FormalEvaluationControlAccess.Proof evaluation;
         Admission(ApplicationSessionIdentity.Verified subject,String contextId,BusinessSessionProtocol.Context context,TenantWatermarks watermarks) {
-            this.subject=Objects.requireNonNull(subject); this.contextId=contextId; this.context=context; this.watermarks=watermarks; this.worker=null; this.formal=null;
+            this.evaluation=null;this.documentReview=null;this.planDraft=null;
+            this.subject=Objects.requireNonNull(subject); this.contextId=contextId; this.context=context; this.watermarks=watermarks; this.worker=null; this.formal=null; this.control=null;this.recovery=null;
         }
         Admission(SimulationWorkerAccess.Proof worker,BusinessSessionProtocol.Context context,TenantWatermarks watermarks) {
-            this.formal=null; this.worker=Objects.requireNonNull(worker); this.subject=null; this.contextId=null; this.context=context; this.watermarks=watermarks;
+            this.evaluation=null;this.documentReview=null;this.planDraft=null;
+            this.formal=null; this.control=null;this.recovery=null; this.worker=Objects.requireNonNull(worker); this.subject=null; this.contextId=null; this.context=context; this.watermarks=watermarks;
         }
         Admission(FormalWorkerAccess.Proof formal,BusinessSessionProtocol.Context context,TenantWatermarks watermarks) {
-            this.formal=Objects.requireNonNull(formal); formal.requireActive(); this.worker=null; this.subject=null;this.contextId=null;this.context=context;this.watermarks=watermarks;
+            this.evaluation=null;this.documentReview=null;this.planDraft=null;
+            this.control=null;this.recovery=null; this.formal=Objects.requireNonNull(formal); formal.requireActive(); this.worker=null; this.subject=null;this.contextId=null;this.context=context;this.watermarks=watermarks;
         }
+        Admission(FormalRunControlAccess.Proof control,BusinessSessionProtocol.Context context,TenantWatermarks watermarks) {
+            this.evaluation=null;this.documentReview=null;this.planDraft=null;
+            this.recovery=null;this.control=Objects.requireNonNull(control);control.requireActive();this.formal=null;this.worker=null;this.subject=null;
+            this.contextId=null;this.context=context;this.watermarks=watermarks;
+        }
+        Admission(FormalRunRecoveryAccess.Proof recovery,BusinessSessionProtocol.Context context,TenantWatermarks watermarks) {
+            this.evaluation=null;this.documentReview=null;this.planDraft=null;
+            this.recovery=Objects.requireNonNull(recovery);recovery.requireActive();this.control=null;this.formal=null;this.worker=null;this.subject=null;
+            this.contextId=null;this.context=context;this.watermarks=watermarks;
+        }
+        Admission(TaskPlanDraftControlAccess.Proof planDraft,BusinessSessionProtocol.Context context,TenantWatermarks watermarks) {
+            this.evaluation=null;this.documentReview=null;this.planDraft=Objects.requireNonNull(planDraft);planDraft.requireActive();
+            this.subject=null;this.contextId=null;this.context=context;this.watermarks=watermarks;
+            this.worker=null;this.formal=null;this.control=null;this.recovery=null;
+        }
+        Admission(DocumentReviewControlAccess.Proof review,BusinessSessionProtocol.Context context,TenantWatermarks watermarks) {
+            this.evaluation=null;this.documentReview=Objects.requireNonNull(review);review.requireActive();this.planDraft=null;
+            this.subject=null;this.contextId=null;this.context=context;this.watermarks=watermarks;
+            this.worker=null;this.formal=null;this.control=null;this.recovery=null;
+        }
+        Admission(FormalEvaluationControlAccess.Proof evaluation,BusinessSessionProtocol.Context context,TenantWatermarks watermarks) {
+            this.evaluation=Objects.requireNonNull(evaluation);evaluation.requireActive();this.documentReview=null;this.planDraft=null;
+            this.subject=null;this.contextId=null;this.context=context;this.watermarks=watermarks;
+            this.worker=null;this.formal=null;this.control=null;this.recovery=null;
+        }
+        boolean evaluationWorker(){return evaluation!=null;}
+        FormalEvaluationControlAccess.Proof evaluationProof(){if(evaluation==null)denied(ErrorCode.ACCESS_DENIED);evaluation.requireActive();return evaluation;}
+        boolean documentReviewWorker(){return documentReview!=null;}
+        DocumentReviewControlAccess.Proof documentReviewProof(){if(documentReview==null)denied(ErrorCode.ACCESS_DENIED);documentReview.requireActive();return documentReview;}
+        boolean planDraftWorker(){return planDraft!=null;}
+        TaskPlanDraftControlAccess.Proof planDraftProof(){if(planDraft==null)denied(ErrorCode.ACCESS_DENIED);planDraft.requireActive();return planDraft;}
+        boolean recoveryWorker(){return recovery!=null;}
+        FormalRunRecoveryAccess.Proof recoveryProof(){if(recovery==null)denied(ErrorCode.ACCESS_DENIED);recovery.requireActive();return recovery;}
+        boolean controlWorker(){return control!=null;}
+        FormalRunControlAccess.Proof controlProof(){if(control==null)denied(ErrorCode.ACCESS_DENIED);control.requireActive();return control;}
         ApplicationSessionIdentity.Verified subject() {
             if(subject==null) denied(ErrorCode.ACCESS_DENIED);
             return subject;
         }
-        String contextId(){if(formal!=null)formal.requireActive();return contextId;}
-        BusinessSessionProtocol.Context context(){if(formal!=null)formal.requireActive();return context;}
-        TenantWatermarks watermarks(){if(formal!=null)formal.requireActive();return watermarks;}
-        String actorId(){return formal!=null?formal.actorId():worker==null?subject.user().user_id():worker.actorId();}
-        AuthenticatedIdentityBinding.View bindingView(){return formal!=null?formal.bindingView():worker==null?subject.binding().view():worker.bindingView();}
-        Object actorProof(){return formal!=null?formal.identity():worker==null?subject:worker.identity();}
+        String contextId(){if(evaluation!=null)evaluation.requireActive();if(documentReview!=null)documentReview.requireActive();if(planDraft!=null)planDraft.requireActive();if(recovery!=null)recovery.requireActive();if(control!=null)control.requireActive();if(formal!=null)formal.requireActive();return contextId;}
+        BusinessSessionProtocol.Context context(){if(evaluation!=null)evaluation.requireActive();if(documentReview!=null)documentReview.requireActive();if(planDraft!=null)planDraft.requireActive();if(recovery!=null)recovery.requireActive();if(control!=null)control.requireActive();if(formal!=null)formal.requireActive();return context;}
+        TenantWatermarks watermarks(){if(evaluation!=null)evaluation.requireActive();if(documentReview!=null)documentReview.requireActive();if(planDraft!=null)planDraft.requireActive();if(recovery!=null)recovery.requireActive();if(control!=null)control.requireActive();if(formal!=null)formal.requireActive();return watermarks;}
+        String actorId(){return evaluation!=null?evaluation.actorId():documentReview!=null?documentReview.actorId():planDraft!=null?planDraft.actorId():recovery!=null?recovery.actorId():control!=null?control.actorId():formal!=null?formal.actorId():worker==null?subject.user().user_id():worker.actorId();}
+        AuthenticatedIdentityBinding.View bindingView(){return evaluation!=null?evaluation.bindingView():documentReview!=null?documentReview.bindingView():planDraft!=null?planDraft.bindingView():recovery!=null?recovery.bindingView():control!=null?control.bindingView():formal!=null?formal.bindingView():worker==null?subject.binding().view():worker.bindingView();}
+        Object actorProof(){return evaluation!=null?evaluation.identity():documentReview!=null?documentReview.identity():planDraft!=null?planDraft.identity():recovery!=null?recovery.identity():control!=null?control.identity():formal!=null?formal.identity():worker==null?subject:worker.identity();}
         boolean formalWorker(){return formal!=null;}
         FormalWorkerAccess.Proof formalProof(){if(formal==null)denied(ErrorCode.ACCESS_DENIED);formal.requireActive();return formal;}
         boolean simulationWorker(){return worker!=null;}

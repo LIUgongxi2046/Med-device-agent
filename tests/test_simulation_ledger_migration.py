@@ -47,7 +47,7 @@ class SimulationLedgerMigrationTest(unittest.TestCase):
         coverage=json.loads((RESOURCES/'db/migration/coverage.json').read_text())
         self.assertEqual(TABLES,set(coverage['required_tables']['simulation_ledger']))
         self.assertEqual(TABLES,set(self.tables))
-        self.assertEqual(281,sum(map(len,coverage['required_tables'].values())))
+        self.assertEqual(526,sum(map(len,coverage['required_tables'].values())))
         self.assertEqual(1,coverage['native_sql_migrations'].count(MIGRATION))
         self.assertFalse(any('data_fill' in e for e in self.parsed))
         self.assertNotRegex(self.sql,r'(?im)^\s*(INSERT|UPDATE|DELETE|DROP|TRUNCATE)\b')

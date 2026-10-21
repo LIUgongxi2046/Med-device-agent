@@ -31,7 +31,7 @@ MAX_EXPANDED_BYTES = 512 * 1024 * 1024
 MAX_NODES = 100000
 MAX_TEXT_CHARACTERS = 16000000
 EXTENSIONS = {"DOCX": {".docx"}, "PDF": {".pdf"}, "XLSX": {".xlsx"}, "CSV": {".csv"},
-    "TXT": {".txt"}, "MARKDOWN": {".md", ".markdown"}, "PPTX": {".pptx"}}
+    "TXT": {".txt"}, "MARKDOWN": {".md", ".markdown"}, "PPTX": {".pptx"}, "HTML": {".html", ".htm"}, "IMAGE": {".image", ".png", ".jpg", ".jpeg", ".tif", ".tiff"}}
 
 
 @dataclass(frozen=True)
@@ -86,7 +86,8 @@ class ScannedDocument:
 
 
 class NativeParser:
-    def __init__(self, catalogue: SchemaCatalogue):
+    def __init__(self, catalogue: SchemaCatalogue, complex_parser=None):
+        self.complex_parser = complex_parser
         self.bindings = DatasetBindings(catalogue)
 
     def process_command(self, command_path: Path, result_path: Path) -> None:
@@ -126,9 +127,21 @@ class NativeParser:
             context.manifest["docling_pipeline"] = "SimplePipeline"
             context.manifest["docling_version"] = version("docling")
             context.manifest["docling_items"] = sum(1 for _ in converted.document.iterate_items())
-        handlers = {"DOCX": self._docx, "PDF": self._pdf, "XLSX": self._xlsx, "CSV": self._csv,
+        from .html_native import parse_html
+        handlers = {"HTML": parse_html,"DOCX": self._docx, "PDF": self._pdf, "XLSX": self._xlsx, "CSV": self._csv,
             "TXT": self._text, "MARKDOWN": self._markdown, "PPTX": self._pptx}
-        handlers[request.format](content, context)
+        if self.complex_parser is not None:
+            context.manifest["complex_engine_release_sha256"] = self.complex_parser.release_sha256
+        if request.format == "IMAGE":
+            context.manifest["image_locator_schema_sha256"] = "b93cead506584a3899be6dd5a3f7a66420291f67e00d796112620e7e24f77d5c"
+            if self.complex_parser is None:
+                context.issue("OCR_ENGINE_NOT_CONFIGURED", None)
+            else:
+                self.complex_parser.parse_pdf(content, context)
+        elif request.format == "PDF" and self.complex_parser is not None:
+            self.complex_parser.parse_pdf(content, context)
+        else:
+            handlers[request.format](content, context)
         if not context.nodes:
             context.issue("NATIVE_CONTENT_MISSING", None)
         status = "COMPLETE" if not context.issues else "PARTIAL_FAILED" if context.nodes else "FAILED"
@@ -204,6 +217,20 @@ class NativeParser:
                             raise ValueError("XLSX_CELL_LIMIT")
             finally:
                 workbook.close()
+        elif format_name == "HTML":
+            from .html_native import tree
+            tree(content)
+        elif format_name == "IMAGE":
+            from PIL import Image
+            with Image.open(BytesIO(content)) as image:
+                expected = {".png": "PNG", ".jpg": "JPEG", ".jpeg": "JPEG", ".tif": "TIFF", ".tiff": "TIFF"}
+                if suffix.lower() in expected and image.format != expected[suffix.lower()]:
+                    raise ValueError("IMAGE_EXTENSION_MISMATCH")
+                if image.format not in ("PNG", "JPEG", "TIFF") or getattr(image, "n_frames", 1) != 1:
+                    raise ValueError("IMAGE_FORMAT_INVALID")
+                if image.width * image.height > 100000000:
+                    raise ValueError("IMAGE_PIXEL_LIMIT")
+                image.verify()
         elif format_name == "PPTX":
             presentation = Presentation(BytesIO(content))
             if len(presentation.slides) > MAX_NODES:
@@ -245,11 +272,20 @@ class NativeParser:
             else:
                 raise TypeError("DOCX_BLOCK_TYPE_INVALID")
         for index, picture in enumerate(document.inline_shapes):
-            context.issue("IMAGE_REQUIRES_VERIFICATION", {"kind": "DOCX", "part": part,
+            locator = {"kind": "DOCX", "part": part,
                 "address": {"kind": "NODE", "node_id": "inline-picture-" + str(index),
-                    "node_hash": hashlib.sha256(picture._inline.xml.encode("utf-8")).hexdigest(), "structural_path": [2, index]}})
+                    "node_hash": hashlib.sha256(picture._inline.xml.encode("utf-8")).hexdigest(), "structural_path": [2, index]}}
+            if self.complex_parser is None:
+                context.issue("IMAGE_REQUIRES_VERIFICATION", locator)
+            else:
+                blips = picture._inline.xpath(".//a:blip")
+                if len(blips) != 1 or blips[0].embed is None:
+                    context.issue("IMAGE_RELATIONSHIP_UNKNOWN", locator)
+                else:
+                    image = document.part.related_parts[blips[0].embed]
+                    self._image(image.blob, Path(str(image.partname)).name, locator, context)
 
-    def _word_table(self, table, part, table_index, context, headings):
+    def _word_table(self, table, part, table_index, context, headings, path=()):
         seen = set()
         for row_index, row in enumerate(table.rows):
             for column_index, cell in enumerate(row.cells, start=row.grid_cols_before):
@@ -258,9 +294,19 @@ class NativeParser:
                 seen.add(cell._tc)
                 location = {"kind": "DOCX", "part": part, "address": {"kind": "CELL", "table_index": table_index,
                     "row_index": row_index, "column_index": column_index}}
+                cell_path = (*path, table_index, row_index, column_index)
+                if path:
+                    location = {"kind": "DOCX", "part": part, "address": {"kind": "NODE",
+                        "node_id": "nested-cell-" + "-".join(map(str, cell_path)),
+                        "node_hash": hashlib.sha256(cell._tc.xml.encode("utf-8")).hexdigest(),
+                        "structural_path": list(cell_path)}}
                 context.node(cell.text, location, headings)
-                if cell.tables:
-                    context.issue("NESTED_TABLE_REQUIRES_VERIFICATION", location)
+                context.manifest.setdefault("table_structure", []).append({"locator": location,
+                    "grid_span": cell._tc.grid_span, "structural_path": list(cell_path)})
+                for nested_index, nested in enumerate(cell.tables):
+                    if len(cell_path) > 48:
+                        raise ValueError("NESTED_TABLE_DEPTH_LIMIT")
+                    self._word_table(nested, part, nested_index, context, headings, cell_path)
 
     @staticmethod
     def _pdf(content: bytes, context):
@@ -378,8 +424,26 @@ class NativeParser:
                 for row_index, row in enumerate(shape.table.rows):
                     for column_index, cell in enumerate(row.cells):
                         context.node(cell.text, dict(locator, table_cell={"row_index": row_index, "column_index": column_index}))
-            if shape.shape_type == MSO_SHAPE_TYPE.PICTURE or shape.has_chart:
-                context.issue("IMAGE_REQUIRES_VERIFICATION", locator)
+            if shape.shape_type == MSO_SHAPE_TYPE.PICTURE:
+                if self.complex_parser is None:
+                    context.issue("IMAGE_REQUIRES_VERIFICATION", locator)
+                else:
+                    self._image(shape.image.blob, "picture." + shape.image.ext, locator, context)
+            elif shape.has_chart:
+                context.issue("CHART_REQUIRES_VERIFICATION", locator)
+
+    def _image(self, content, name, locator, context):
+        document = self.complex_parser.convert(content, name)
+        parts = [item.text for item, _ in document.iterate_items() if getattr(item, "text", None)]
+        for table in document.tables:
+            parts.extend(cell.text for cell in table.data.table_cells if cell.text)
+        if not parts:
+            context.issue("IMAGE_TEXT_UNKNOWN", locator)
+            return
+        context.node("\n".join(parts), locator)
+        context.manifest.setdefault("embedded_image_provenance", []).append({
+            "node_id": context.nodes[-1].node_id, "image_sha256": hashlib.sha256(content).hexdigest(),
+            "engine_release_sha256": self.complex_parser.release_sha256})
 
 
 class _ParseContext:
@@ -411,7 +475,11 @@ class _ParseContext:
         self.characters += len(text)
         if len(self.nodes) >= MAX_NODES or self.characters > MAX_TEXT_CHARACTERS:
             raise ValueError("PARSE_CONTENT_LIMIT")
-        bound = self.bindings.bind(locator, "locator")
+        if locator.get("kind") in {"IMAGE", "HTML"}:
+            from medical_contracts.source_evidence import SourceEvidenceBindings
+            bound = SourceEvidenceBindings(self.bindings.catalogue).bind(locator, "locator")
+        else:
+            bound = self.bindings.bind(locator, "locator")
         # 新解析版本形成独立节点身份，历史原文和位置保持固定。
         identifier = str(uuid5(UUID(self.request.parse_version), self.request.source_version + ":" + bound.canonical_bytes.decode("utf-8")))
         if identifier in self.identities:
@@ -420,4 +488,11 @@ class _ParseContext:
         self.nodes.append(ParsedNode(identifier, text, hashlib.sha256(text.encode("utf-8")).hexdigest(), tuple(headings), bound))
 
     def issue(self, code, locator):
-        self.issues.append(ParseIssue(code, None if locator is None else self.bindings.bind(locator, "locator")))
+        if locator is None:
+            bound = None
+        elif locator.get("kind") in {"IMAGE", "HTML"}:
+            from medical_contracts.source_evidence import SourceEvidenceBindings
+            bound = SourceEvidenceBindings(self.bindings.catalogue).bind(locator, "locator")
+        else:
+            bound = self.bindings.bind(locator, "locator")
+        self.issues.append(ParseIssue(code, bound))

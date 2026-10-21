@@ -1,0 +1,1 @@
+{"extends":"./tsconfig.medical.json","include":["src/views/medical/connections.vue","src/views/medical/connections-presentation.ts","tests/connections-preview/*.vue","tests/connections-preview/*.ts"],"exclude":[]}

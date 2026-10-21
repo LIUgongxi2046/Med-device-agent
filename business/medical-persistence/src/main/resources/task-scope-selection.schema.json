@@ -7,8 +7,8 @@
     "Revision": {"$ref": "https://schemas.medical-agent.invalid/1.0.0/backend-design/interfaces.schema.yaml#/$defs/Revision"},
     "Hash": {"$ref": "https://schemas.medical-agent.invalid/1.0.0/backend-design/interfaces.schema.yaml#/$defs/Hash"},
     "Query": {
-      "type": "object", "additionalProperties": false, "required": ["limit"],
-      "properties": {"limit": {"type": "integer", "minimum": 1, "maximum": 100}, "after": {"$ref": "#/$defs/Id"}, "dataset_watermark": {"$ref": "#/$defs/Hash"}},
+      "type": "object", "additionalProperties": false, "required": ["agent_release_id", "limit"],
+      "properties": {"agent_release_id": {"$ref": "#/$defs/Id"}, "limit": {"type": "integer", "minimum": 1, "maximum": 100}, "after": {"$ref": "#/$defs/Id"}, "dataset_watermark": {"$ref": "#/$defs/Hash"}},
       "dependentRequired": {"after": ["dataset_watermark"]}
     },
     "Source": {
@@ -27,11 +27,11 @@
     },
     "Page": {
       "type": "object", "additionalProperties": false,
-      "required": ["schema_version", "tenant_id", "project_id", "context_revision", "auth_epoch", "governance_epoch", "scope_kind", "limit", "items", "next_after", "filter_sha256", "dataset_watermark"],
+      "required": ["schema_version", "tenant_id", "project_id", "context_revision", "auth_epoch", "governance_epoch", "scope_kind", "agent_release_id", "limit", "items", "next_after", "filter_sha256", "dataset_watermark"],
       "properties": {
         "schema_version": {"const": "1.0.0"}, "tenant_id": {"$ref": "#/$defs/Id"}, "project_id": {"$ref": "#/$defs/Id"},
         "context_revision": {"$ref": "#/$defs/Revision"}, "auth_epoch": {"$ref": "#/$defs/Revision"}, "governance_epoch": {"$ref": "#/$defs/Revision"},
-        "scope_kind": {"enum": ["SOURCE", "COLLECTION"]}, "limit": {"type": "integer", "minimum": 1, "maximum": 100},
+        "scope_kind": {"enum": ["SOURCE", "COLLECTION"]}, "agent_release_id": {"$ref": "#/$defs/Id"}, "limit": {"type": "integer", "minimum": 1, "maximum": 100},
         "items": {"type": "array", "maxItems": 100, "items": {"oneOf": [{"$ref": "#/$defs/Source"}, {"$ref": "#/$defs/Collection"}]}},
         "next_after": {"oneOf": [{"$ref": "#/$defs/Id"}, {"type": "null"}]}, "filter_sha256": {"$ref": "#/$defs/Hash"}, "dataset_watermark": {"$ref": "#/$defs/Hash"}
       },

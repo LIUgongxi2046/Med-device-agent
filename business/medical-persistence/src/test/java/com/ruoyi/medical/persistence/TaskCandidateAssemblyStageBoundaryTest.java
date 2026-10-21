@@ -1,0 +1,11 @@
+package com.ruoyi.medical.persistence;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
+/** Deferred architecture guards: no execution before integration testing gate. */
+class TaskCandidateAssemblyStageBoundaryTest {
+ @Test void originalProofCannotBeConstructedByAnAdapter(){assertEquals(0,TaskCandidateAssemblyStageJournal.Original.class.getConstructors().length);}
+ @Test void stageRouteCannotUseTheLegacyGenericResult(){assertEquals("/internal/medical/task-run/candidate-assembly-stage/v1",com.ruoyi.medical.workflow.TaskCandidateAssemblyStageSchemaV1.ROUTE);assertFalse(com.ruoyi.medical.workflow.TaskRunStageActivitiesV2.class.isAssignableFrom(com.ruoyi.medical.workflow.TaskCandidateAssemblyStageActivitiesV1.class));}
+ @Test void physicalProductionCannotBeMistakenForASavedDocument(){assertFalse(com.ruoyi.medical.workflow.TaskCandidateAssemblyStageProtocolV1.ProducedV1.class.isAssignableFrom(com.ruoyi.medical.workflow.WorkflowProtocol.Completion.class));}
+ @Test void exactServiceRouteRejectsBrowsersAndOtherMethods(){for(String header:java.util.List.of("Cookie","Authorization","Origin","Sec-Fetch-Site")){var request=new org.springframework.mock.web.MockHttpServletRequest();request.addHeader(header,"present");assertFalse(TaskCandidateAssemblyStageSecurityConfiguration.authorize(null,request));}var matcher=TaskCandidateAssemblyStageSecurityConfiguration.matcher();var route=com.ruoyi.medical.workflow.TaskCandidateAssemblyStageSchemaV1.ROUTE;var post=new org.springframework.mock.web.MockHttpServletRequest("POST",route);post.setServletPath(route);assertTrue(matcher.matches(post));var get=new org.springframework.mock.web.MockHttpServletRequest("GET",route);get.setServletPath(route);assertFalse(matcher.matches(get));}
+ @Test void stageIsDefaultOff(){for(var type:java.util.List.of(TaskCandidateAssemblyStageConfiguration.class,TaskCandidateAssemblyStageController.class,TaskRunCandidateAssemblyWorkflowConfiguration.class)){var gate=type.getAnnotation(org.springframework.boot.autoconfigure.condition.ConditionalOnProperty.class);assertNotNull(gate);assertFalse(gate.matchIfMissing());assertTrue(java.util.List.of(gate.name()).contains("medical.task-run.candidate-assembly-v1.enabled"));}}
+}

@@ -14,6 +14,7 @@ import com.ruoyi.medical.contracts.InterfaceProtocol;
 import com.ruoyi.medical.contracts.SchemaCatalogue;
 import com.ruoyi.medical.contracts.SchemaRejection;
 import com.ruoyi.medical.contracts.TypedSchemaBindings;
+import com.ruoyi.medical.contracts.DocumentEvidenceBindings;
 import com.ruoyi.medical.contracts.WireValues;
 import com.ruoyi.medical.identity.ApplicationSessionIdentity;
 import com.ruoyi.medical.persistence.mapper.ArtifactRegistryMapper;
@@ -69,16 +70,17 @@ public final class DocumentRevisionService {
     private final SchemaCatalogue schemas;
     private final String interfacesHash;
     private final AnnotationAnchorLifecycle annotationAnchors;
+    private final DocumentReviewJobService professionalReviews;
 
     public DocumentRevisionService(EnterpriseAccess access, DocumentRevisionMapper writes, DocumentReadMapper reads,
             UploadTransferMapper uploads, UploadAuthorizationAuthority authorization, UploadAuthorizationSchema authorizations,
             DocumentBodyDomainAuthority domains, ArtifactRegistryMapper artifacts, ArtifactSourceAuthority sourceAuthority,
             ArtifactContentService content, DocumentReadService documents, ResourceReadAuthority resources, PermissionMapper permissions,
-            SourceUploadTransport transport, DocumentUploadPolicy policy, PermissionSchema json, AnnotationAnchorLifecycle annotationAnchors) throws IOException, NoSuchAlgorithmException {
+            SourceUploadTransport transport, DocumentUploadPolicy policy, PermissionSchema json, AnnotationAnchorLifecycle annotationAnchors, DocumentReviewJobService professionalReviews) throws IOException, NoSuchAlgorithmException {
         this.access = access; this.writes = writes; this.reads = reads; this.uploads = uploads; this.authorization = authorization;
         this.authorizations = authorizations; this.domains = domains; this.artifacts = artifacts; this.sourceAuthority = sourceAuthority;
         this.content = content; this.documents = documents; this.resources = resources; this.permissions = permissions;
-        this.transport = transport; this.policy = policy; this.json = json; this.annotationAnchors = annotationAnchors; uploadStore = new UploadTransferStore(uploads, authorizations);
+        this.transport = transport; this.policy = policy; this.json = json; this.annotationAnchors = annotationAnchors; this.professionalReviews = professionalReviews; uploadStore = new UploadTransferStore(uploads, authorizations);
         schemas = SchemaCatalogue.fromClasspath();
         interfacesHash = schemas.bind("interfaces", com.fasterxml.jackson.databind.node.NullNode.instance, "NullableId").schemaSha256();
     }
@@ -105,7 +107,7 @@ public final class DocumentRevisionService {
                 var payload = content.readVerifiedComplete(subject, original.intent(), reader, lease, policy.maximumBytes().intValueExact(), id()).jsonPayload();
                 DocumentBodySemantics.published(schemas, original.current().publishedSchema(), payload.canonicalBytes(), policy.bodyLimits());
                 if (!input.bodySha256().equals(WireValues.sha256(payload.canonicalBytes()))) mismatch();
-                return TypedSchemaBindings.bind(schemas, InterfaceBindings.DOCUMENT_BODY, JSON.readTree(payload.canonicalJson())).read();
+                return DocumentEvidenceBindings.bind(schemas, InterfaceBindings.DOCUMENT_BODY, JSON.readTree(payload.canonicalJson()),original.current().publishedSchema().schemaRef(),original.current().publishedSchema().schemaSha256()).read();
             });
         var command = transaction(subject, admission -> start(admission, context, key, documentId, input, requestHash, original, body));
         for (int index = 0; index < command.projections().size(); index++) {
@@ -119,7 +121,7 @@ public final class DocumentRevisionService {
                         projection.intent(), true, null)));
                 return projection;
             });
-            byte[] projectionBytes = projection(body, command.documentRevision(), input.bodySha256(), next.kind());
+            byte[] projectionBytes = projection(body, command.documentRevision(), input.bodySha256(), next.kind(),original.current().publishedSchema());
             var reference = transport.writeDocumentProjection(subject, original.current().document().tenantId(), next.intent(), projectionBytes,
                 next.writing(), policy.maximumBytes().intValueExact(), () -> requireCurrent(subject, context, key, documentId, input, requestHash, original));
             transaction(subject, admission -> {
@@ -205,18 +207,18 @@ public final class DocumentRevisionService {
             if (!original.uploadId().equals(saved.uploadId()) || !verified.authorizationSha256().equals(saved.authorizationSha256()))
                 throw new TenantAccessException(ErrorCode.SCOPE_STALE);
             for (var item : saved.projections()) {
-                byte[] bytes = projection(body, saved.documentRevision(), input.bodySha256(), item.kind());
+                byte[] bytes = projection(body, saved.documentRevision(), input.bodySha256(), item.kind(),verified.publishedSchema());
                 if (!WireValues.sha256(bytes).equals(item.intent().sha256()) || !Integer.toString(bytes.length).equals(item.intent().sizeBytes())) mismatch();
             }
             return saved;
         }
         String revision = id(); var projections = new ArrayList<DocumentRevisionProtocol.PreparedObject>();
         for (String kind : List.of("DOCUMENT_FIELDS", "DOCUMENT_EVIDENCE")) {
-            String artifactId = id(); byte[] bytes = projection(body, revision, input.bodySha256(), kind);
+            String artifactId = id(); byte[] bytes = projection(body, revision, input.bodySha256(), kind,verified.publishedSchema());
             if (bytes.length > policy.maximumBytes().intValueExact()) throw new TenantAccessException(ErrorCode.FILE_TOO_LARGE);
             var intent = new S3ObjectWriter.WriteIntent(id(), "documents/" + admission.context().tenant_id() + "/" + documentId + "/" + revision + "/" + artifactId,
                 WireValues.sha256(bytes), Integer.toString(bytes.length), "application/json");
-            projections.add(new DocumentRevisionProtocol.PreparedObject(artifactId, kind, schemas.schemaRef("interfaces",
+            projections.add(new DocumentRevisionProtocol.PreparedObject(artifactId, kind, schemas.schemaRef(verified.publishedSchema().name(),
                 kind.equals("DOCUMENT_FIELDS") ? "DocumentFieldProjection" : "DocumentEvidenceProjection"), intent, false, null));
         }
         var command = new DocumentRevisionProtocol.Command(revision, id(), original.uploadId(), verified.authorizationSha256(), projections);
@@ -226,11 +228,12 @@ public final class DocumentRevisionService {
         if (!command.equals(command(one(writes.operation(values))))) mismatch(); return command;
     }
 
-    private byte[] projection(InterfaceProtocol.DocumentBody body, String revision, String hash, String kind) throws IOException {
+    private byte[] projection(InterfaceProtocol.DocumentBody body, String revision, String hash, String kind, SchemaCatalogue.PublishedSchema publication) throws IOException {
+        DocumentEvidenceBindings.bind(schemas,InterfaceBindings.DOCUMENT_BODY,json.tree(body),publication.schemaRef(),publication.schemaSha256());
         var value = kind.equals("DOCUMENT_FIELDS")
-            ? json.tree(new InterfaceProtocol.DocumentFieldProjection("1.0.0", revision, hash, body.fields()))
-            : json.tree(new InterfaceProtocol.DocumentEvidenceProjection("1.0.0", revision, hash, body.evidenceLinks(), body.factUsages()));
-        return schemas.bind("interfaces", value, kind.equals("DOCUMENT_FIELDS") ? "DocumentFieldProjection" : "DocumentEvidenceProjection").canonicalBytes();
+            ? json.tree(new InterfaceProtocol.DocumentFieldProjection(body.schemaVersion(), revision, hash, body.fields()))
+            : json.tree(new InterfaceProtocol.DocumentEvidenceProjection(body.schemaVersion(), revision, hash, body.evidenceLinks(), body.factUsages()));
+        return schemas.bind(publication.name(), value, kind.equals("DOCUMENT_FIELDS") ? "DocumentFieldProjection" : "DocumentEvidenceProjection").canonicalBytes();
     }
 
     private JsonNode finish(EnterpriseAccess.Admission admission, String context, String key, String documentId,
@@ -243,7 +246,7 @@ public final class DocumentRevisionService {
         values.put("now", permissions.databaseTime()); values.put("basis", verified.basis()); values.put("body", body);
         values.put("bodyReference", bodyReference); values.put("documentRevision", command.documentRevision());
         values.put("accessSetId", verified.manifest().dependencyAccessSetId()); values.put("dependencyHash", verified.manifest().dependencyManifestSha256());
-        values.put("artifactManifest", verified.manifest().artifactSchemaManifest()); values.put("interfacesHash", interfacesHash); values.put("manifest", json.manifestSha256());
+        values.put("artifactManifest", verified.manifest().artifactSchemaManifest()); values.put("interfacesHash", verified.publishedSchema().schemaSha256()); values.put("manifest", json.manifestSha256());
         saveVersion(values, command.documentRevision(), "DOCUMENT_REVISION", input.bodySha256()); changed(writes.saveRevision(values));
         changed(writes.adoptBody(values)); changed(writes.saveMetadata(values));
         for (var item : command.projections()) {
@@ -307,9 +310,64 @@ public final class DocumentRevisionService {
         changed(permissions.saveAudit(admission.subject().user().user_id(), saved.projectId(), id(), "document.revision.saved", json.canonical(event),
             command.requestId(), json.manifestSha256(), saved.classification()));
         changed(permissions.saveEvent(admission.subject().user().user_id(), id(), documentId, saved.revision().toString(), "document.revision.saved", json.canonical(event)));
-        changed(permissions.saveEvent(admission.subject().user().user_id(), id(), documentId, saved.revision().toString(), "document.check.requested", json.canonical(event)));
+        professionalReviews.enqueueSaved(admission, documentId, command.documentRevision(), operation.operationId());
         var completed = one(writes.operation(values)); requireOperation(admission, completed, key, documentId, hash);
         if (!"COMPLETED".equals(completed.state()) || !response.equals(JSON.readTree(completed.responseRef()))) mismatch(); return response;
+    }
+
+    /** DC03 calls this only after immutable physical objects and revision metadata are registered.
+     * Reuses DC02 normalized content persistence and its annotation/head CAS tail, never upload grants. */
+    DocumentReadProtocol.Header persistAdoptionContent(EnterpriseAccess.Admission admission,
+            DocumentCandidateAdoptionService.Confirmed proof, DocumentCandidateAdoptionSaveService.Registration registration) throws Exception {
+        registration.requireFor(admission, proof);
+        String revision=registration.revision(), bodyArtifactId=registration.bodyArtifactId(),
+            accessSetId=registration.accessSetId(), planHash=registration.planHash();
+        var body = DocumentEvidenceBindings.bind(schemas, InterfaceBindings.DOCUMENT_BODY, proof.body(),proof.bodySchemaRef(),proof.bodySchemaSha256()).read();
+        var values = new HashMap<String,Object>();
+        values.put("userId", admission.actorId()); values.put("projectId", proof.projectId());
+        values.put("documentId", proof.documentId()); values.put("documentRevision", revision);
+        values.put("input", Map.of("baseRevision", proof.baseDocumentRevision(), "expectedRevision", proof.expectedDocumentRevision()));
+        values.put("basis", Map.of("plan", Map.of("planRevision", proof.planRevision())));
+        values.put("body", body); values.put("now", permissions.databaseTime());
+        values.put("classification", proof.classification()); values.put("manifest", json.manifestSha256());
+        var graph = graph(body); var nodeIndex = new HashMap<String,InterfaceProtocol.Node>(); body.nodes().forEach(node -> nodeIndex.put(node.nodeId(), node));
+        var expectedNodes = new ArrayList<DocumentRevisionProtocol.NodeRow>(); var order = new TopologicalOrderIterator<>(graph);
+        while (order.hasNext()) {
+            var node = nodeIndex.get(order.next()); var row = new DocumentRevisionProtocol.NodeRow(node.nodeId(), node.parentId(), node.ordinal(),
+                json.tree(node.content()).required("kind").textValue(), WireValues.sha256(ContentReadAuthorization.canonicalBytes(node)));
+            values.put("node", row); changed(writes.saveNode(values)); expectedNodes.add(row);
+        }
+        expectedNodes.sort(Comparator.comparing(DocumentRevisionProtocol.NodeRow::nodeId));
+        if (!expectedNodes.equals(writes.nodes(values))) mismatch();
+        for (var field : body.fields()) {
+            values.put("field", field); values.put("fieldJson", json.canonicalObject(field)); values.put("fieldEvidence", json.canonicalObject(field.evidenceLinkIds()));
+            changed(writes.saveField(values));
+        }
+        var actualFields = writes.fields(values); var expectedFields = body.fields().stream().sorted(Comparator.comparing(InterfaceProtocol.FieldValue::fieldId)).toList();
+        if (actualFields.size() != expectedFields.size()) mismatch();
+        for (int position = 0; position < actualFields.size(); position++) {
+            var actual = actualFields.get(position); var expected = expectedFields.get(position);
+            if (!actual.fieldId().equals(expected.fieldId()) || !actual.nodeId().equals(expected.nodeId()) || !actual.definitionId().equals(expected.fieldDefinitionId())
+                    || !json.tree(expected).equals(JSON.readTree(actual.valueJson()))) mismatch();
+        }
+        saveEvidence(values, body, nodeIndex); saveUsages(values, body); saveSections(values, body, graph, planHash, proof.profileRevision());
+        changed(writes.saveWatermarks(values));
+        var previous = new HashMap<>(values); previous.put("documentRevision", proof.baseDocumentRevision());
+        writes.invalidateChecks(values); writes.invalidateEvidence(values);
+        for (String review : reads.reviews(previous)) {
+            values.put("reviewId", review); values.put("invalidationId", id()); changed(writes.invalidateReview(values));
+        }
+        int invalidatedAnnotations = invalidateAnnotationsAndAdvanceHead(admission, values);
+        var saved = one(reads.header(values));
+        if (!revision.equals(saved.currentDocumentRevision()) || !revision.equals(saved.documentRevision())
+                || !WireValues.revision(proof.expectedDocumentRevision()).add(BigInteger.ONE).equals(saved.revision())
+                || !proof.bodySha256().equals(saved.bodySha256()) || !bodyArtifactId.equals(saved.bodyArtifactId())
+                || !accessSetId.equals(saved.accessSetId()) || !proof.planRevision().equals(saved.planRevision())
+                || !proof.templateVersion().equals(saved.templateVersion())) mismatch();
+        var marks = one(reads.watermarks(values));
+        if (!marks.issueWatermark().equals(BigInteger.valueOf(invalidatedAnnotations)) || marks.evidenceWatermark().signum()!=0) mismatch();
+        if (!reads.streams(values).isEmpty()) throw new TenantAccessException(ErrorCode.DEPENDENCY_UNAVAILABLE);
+        return saved;
     }
 
     /** Atomic tail of body-save: caller already wrote and verified the new fixed body inside this transaction. */
@@ -354,10 +412,14 @@ public final class DocumentRevisionService {
     }
     private void saveSections(Map<String,Object> values, InterfaceProtocol.DocumentBody body, DefaultDirectedGraph<String,DefaultEdge> graph) throws Exception {
         var basis = (DocumentUploadBasisProtocol.Basis) values.get("basis");
+        saveSections(values, body, graph, basis.plan().contentSha256(), basis.taskRevision().profileRevision());
+    }
+    private void saveSections(Map<String,Object> values, InterfaceProtocol.DocumentBody body,
+            DefaultDirectedGraph<String,DefaultEdge> graph, String planHash, String profileRevision) throws Exception {
         var bound = TypedSchemaBindings.bind(schemas, ArtifactBindings.PLAN_CANDIDATE, JSON.readTree(one(writes.planContent(values))));
-        if (!basis.plan().contentSha256().equals(WireValues.sha256(bound.payload().canonicalBytes()))) mismatch();
+        if (!planHash.equals(WireValues.sha256(bound.payload().canonicalBytes()))) mismatch();
         var candidate = bound.read();
-        if (!body.templateVersion().equals(candidate.templateVersion()) || !basis.taskRevision().profileRevision().equals(candidate.profileRevision())) mismatch();
+        if (!body.templateVersion().equals(candidate.templateVersion()) || !profileRevision.equals(candidate.profileRevision())) mismatch();
         var sections = writes.planSections(values); var groups = new LinkedHashMap<String,List<String>>();
         sections.forEach(section -> groups.computeIfAbsent(section.sectionId(), ignored -> new ArrayList<>()).add(section.nodeId()));
         if (groups.size() != candidate.sections().size()) mismatch();

@@ -13,6 +13,9 @@ class Content:
 class Upstream:
     status=200; headers={'Content-Type':'application/json'}; content=Content()
 
+class ObserverFixture:
+    async def capture(self,request,body):return {'request_id':str(uuid4()),'ordinal':1,'receipt_id':str(uuid4()),'sha256':'f'*64}
+
 class BridgeTest(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         self.temp=tempfile.TemporaryDirectory(prefix='jbridge-'); self.root=Path(self.temp.name)
@@ -22,6 +25,7 @@ class BridgeTest(unittest.IsolatedAsyncioTestCase):
         self.binding=Binding(*[str(uuid4()) for _ in range(4)],1,'a'*64,'b'*64)
         self.bridge=await PrivateBridgeServer(self.root,self.binding,str(uuid4()),forward,10000).start()
         self.bridge.guard=lambda: None  # Explicit bounded test-only inventory fixture
+        self.bridge.model_observer=ObserverFixture()
         self.client=aiohttp.ClientSession(connector=aiohttp.UnixConnector(path=str(self.bridge.socket)))
     async def asyncTearDown(self):
         await self.client.close(); await self.bridge.close(); self.temp.cleanup()
@@ -41,7 +45,7 @@ class BridgeTest(unittest.IsolatedAsyncioTestCase):
     async def test_stream_requires_original_action(self):
         status,_=await self.request('/v1/model-streams'); self.assertEqual(status,400); self.assertFalse(self.calls)
     async def test_stream_original_key_forwarded(self):
-        key=str(uuid4()); status,_=await self.request('/v1/model-streams',headers={'Authorization':'Bearer '+self.bridge.token,'Content-Type':'application/json','Idempotency-Key':key}); self.assertEqual(status,200); self.assertEqual(self.calls[0][-1],key)
+        key=str(uuid4()); status,_=await self.request('/v1/model-streams',headers={'Authorization':'Bearer '+self.bridge.token,'Content-Type':'application/json','Idempotency-Key':key}); self.assertEqual(status,200); self.assertEqual(self.calls[0][-2],key)
     async def test_replay_headers_rejected(self):
         status,_=await self.request('/v1/model-contexts',headers={'Authorization':'Bearer '+self.bridge.token,'Content-Type':'application/json','Last-Event-ID':'old'}); self.assertEqual(status,400)
     async def test_query_rejected(self):

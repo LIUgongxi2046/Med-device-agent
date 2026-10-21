@@ -1,0 +1,15 @@
+# N06 deterministic assembly physical producer
+
+The additive ASSEMBLY producer profile has distinct governance storage, schema, operation identifiers, session/CSRF authoring routes, and qualified DI. The shared governance service continues to verify actual ROLE/publication/078/093 and independent approval. No approval is seeded. It grants only four explicit outputs: ASSEMBLY_MANIFEST, DOCUMENT_BODY, ASSEMBLY_COMPANION, CROSS_FILE_CHECK_REPORT. No C07, invocation, model result, envelope or provider capture is synthesized.
+
+`TaskCandidateAssemblyArtifactProduction.produce(http, reference, completion)` is the complete host entry point. It derives all bytes from `TaskCandidateAssemblyAuthority.Verified`, preflights the missing family against explicit bounds, commits immutable intent/attempt, transfers outside SQL through `RuntimeObjectTransport`, rechecks fresh authority, and registers the actual readback object version/hash. An existing intent always uses GET-only recovery. An uncertain initial PUT must never be repeated at a new key.
+
+`recover(http, reference, completion)` requires the complete original family. It creates no intent, does no PUT, does not select an active producer and does not revive disabled grants. It checks the original author/independent approval journals at the intent timestamp, current input/source rights, immutable registration, audit/outbox, access manifests/members, registry and lineage. `produce` may complete registration of an existing original attempt after GET readback, but can create missing outputs only with fresh production authorization.
+
+The completion callback executes inside a fresh transaction with Current, the private assembly proof, and all four private Registered witnesses. Workflow completion must require `input.ready()`. BLOCKED cross-file reports are real diagnostic artifacts, not successful stage completion. Registered DOCUMENT_BODY is a restricted draft assembly artifact: it is not document_head, adoption, initial C04 save, N07 checks, or professional approval. Those transitions require separate explicit authority.
+
+Configuration is explicit: `medical.task-candidate-assembly-producer.enabled`, `medical.task-candidate-assembly.enabled`, a private `medical.task-candidate-assembly.object-directory`, and positive `medical.task-candidate-assembly.maximum-object-bytes`. The core authority and N05 committed-review prerequisites must be wired by the N06 stage integration.
+
+Migration 123 owns the seven producer/physical tables, metadata, foreign keys, CHECK constraints and immutable original triggers. Root migration registration/coverage is managed separately. Private artifact ownership is denied on generic artifact readers, even after relabeling or before final registration.
+
+Tests have been authored but deliberately not run. Only a focused javac attempt was made; its remaining diagnostics concern concurrently changing N05/N07 dependencies, not a completed integration build. No runtime, provider, network, push or full build was performed.

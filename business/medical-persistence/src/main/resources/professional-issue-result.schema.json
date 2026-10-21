@@ -1,0 +1,423 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:professional-issue-result:1.0.0",
+  "oneOf": [
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "document_id",
+        "document_revision",
+        "evidence_watermark",
+        "issue_watermark",
+        "professional_coverage",
+        "items",
+        "next_cursor"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "document_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "document_revision": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "evidence_watermark": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        "issue_watermark": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        "professional_coverage": {
+          "const": false
+        },
+        "items": {
+          "type": "array",
+          "maxItems": 100,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "issue_id",
+              "check_id",
+              "document_revision",
+              "severity",
+              "code",
+              "status",
+              "revision",
+              "position",
+              "location_status",
+              "assignee_id",
+              "resolution"
+            ],
+            "properties": {
+              "issue_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "check_id": {
+                "oneOf": [
+                  {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "document_revision": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "severity": {
+                "enum": [
+                  "BLOCKING",
+                  "WARNING",
+                  "INFO"
+                ]
+              },
+              "code": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64
+              },
+              "status": {
+                "enum": [
+                  "OPEN",
+                  "IN_PROGRESS",
+                  "RESOLVED",
+                  "REOPENED"
+                ]
+              },
+              "revision": {
+                "type": "string",
+                "pattern": "^(0|[1-9][0-9]*)$"
+              },
+              "position": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "kind",
+                      "node_id",
+                      "start",
+                      "end",
+                      "text_sha256"
+                    ],
+                    "properties": {
+                      "kind": {
+                        "const": "TEXT"
+                      },
+                      "node_id": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "start": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "end": {
+                        "type": "integer",
+                        "minimum": 1
+                      },
+                      "text_sha256": {
+                        "type": "string",
+                        "pattern": "^[a-f0-9]{64}$"
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "kind",
+                      "node_id",
+                      "row_id",
+                      "field_id",
+                      "content_sha256"
+                    ],
+                    "properties": {
+                      "kind": {
+                        "const": "STRUCTURED"
+                      },
+                      "node_id": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "row_id": {
+                        "oneOf": [
+                          {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "field_id": {
+                        "oneOf": [
+                          {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "content_sha256": {
+                        "type": "string",
+                        "pattern": "^[a-f0-9]{64}$"
+                      }
+                    }
+                  }
+                ]
+              },
+              "location_status": {
+                "enum": [
+                  "CURRENT_VERSION",
+                  "ORIGINAL_VERSION"
+                ]
+              },
+              "assignee_id": {
+                "oneOf": [
+                  {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "resolution": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "check_id",
+                      "findings_sha256",
+                      "coverage_sha256",
+                      "input_sha256",
+                      "document_revision",
+                      "evidence_watermark",
+                      "issue_watermark"
+                    ],
+                    "properties": {
+                      "check_id": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "findings_sha256": {
+                        "type": "string",
+                        "pattern": "^[a-f0-9]{64}$"
+                      },
+                      "coverage_sha256": {
+                        "type": "string",
+                        "pattern": "^[a-f0-9]{64}$"
+                      },
+                      "input_sha256": {
+                        "type": "string",
+                        "pattern": "^[a-f0-9]{64}$"
+                      },
+                      "document_revision": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "evidence_watermark": {
+                        "type": "string",
+                        "pattern": "^(0|[1-9][0-9]*)$"
+                      },
+                      "issue_watermark": {
+                        "type": "string",
+                        "pattern": "^(0|[1-9][0-9]*)$"
+                      }
+                    }
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "next_cursor": {
+          "oneOf": [
+            {
+              "type": "string",
+              "format": "uuid"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "decision_id",
+        "issue_id",
+        "document_id",
+        "document_revision",
+        "decision",
+        "actor_id",
+        "decided_at",
+        "issue_revision",
+        "status",
+        "evidence_watermark",
+        "issue_watermark",
+        "reason",
+        "audit_id",
+        "event_id",
+        "assignee_id",
+        "resolution"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "decision_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "issue_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "document_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "document_revision": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "decision": {
+          "enum": [
+            "ASSIGN",
+            "RESOLVE",
+            "REOPEN"
+          ]
+        },
+        "actor_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "decided_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "issue_revision": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        "status": {
+          "enum": [
+            "OPEN",
+            "IN_PROGRESS",
+            "RESOLVED",
+            "REOPENED"
+          ]
+        },
+        "evidence_watermark": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        "issue_watermark": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000
+        },
+        "audit_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "event_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "assignee_id": {
+          "oneOf": [
+            {
+              "type": "string",
+              "format": "uuid"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "resolution": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "check_id",
+                "findings_sha256",
+                "coverage_sha256",
+                "input_sha256",
+                "document_revision",
+                "evidence_watermark",
+                "issue_watermark"
+              ],
+              "properties": {
+                "check_id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "findings_sha256": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                },
+                "coverage_sha256": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                },
+                "input_sha256": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                },
+                "document_revision": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "evidence_watermark": {
+                  "type": "string",
+                  "pattern": "^(0|[1-9][0-9]*)$"
+                },
+                "issue_watermark": {
+                  "type": "string",
+                  "pattern": "^(0|[1-9][0-9]*)$"
+                }
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

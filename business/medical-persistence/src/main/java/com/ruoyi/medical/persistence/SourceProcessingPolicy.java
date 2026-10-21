@@ -46,10 +46,25 @@ public record SourceProcessingPolicy(String revision, List<String> tenantIds, Pa
     }
 
     public record Binding(String configRevision, String configSha256, Path scannerReleasePath, String scannerReleaseSha256,
-            String artifactDigest, String indexConfigRevision) {
+            String artifactDigest, String indexConfigRevision, Path complexReleasePath, String complexReleaseSha256, boolean htmlEnabled) {
+        public Binding(String configRevision, String configSha256, Path scannerReleasePath, String scannerReleaseSha256,
+                String artifactDigest, String indexConfigRevision) {
+            this(configRevision,configSha256,scannerReleasePath,scannerReleaseSha256,artifactDigest,indexConfigRevision,null,null,false);
+        }
+        public Binding(String configRevision,String configSha256,Path scannerReleasePath,String scannerReleaseSha256,String artifactDigest,String indexConfigRevision,Path complexReleasePath,String complexReleaseSha256) {
+            this(configRevision,configSha256,scannerReleasePath,scannerReleaseSha256,artifactDigest,indexConfigRevision,complexReleasePath,complexReleaseSha256,false);
+        }
+        @org.springframework.boot.context.properties.bind.ConstructorBinding
         public Binding {
             WireValues.uuid(configRevision); WireValues.hash(configSha256); WireValues.hash(scannerReleaseSha256); WireValues.hash(artifactDigest);
             if(indexConfigRevision!=null) WireValues.uuid(indexConfigRevision);
+            if((complexReleasePath==null)!=(complexReleaseSha256==null))
+                throw new IllegalArgumentException("OCR release binding is incomplete");
+            if(complexReleasePath!=null) {
+                WireValues.hash(complexReleaseSha256);
+                if(!complexReleasePath.isAbsolute() || !Files.isRegularFile(complexReleasePath))
+                    throw new IllegalArgumentException("OCR release path is invalid");
+            }
             if(scannerReleasePath==null || !scannerReleasePath.isAbsolute() || !Files.isRegularFile(scannerReleasePath))
                 throw new IllegalArgumentException("来源扫描发布配置路径无效");
         }

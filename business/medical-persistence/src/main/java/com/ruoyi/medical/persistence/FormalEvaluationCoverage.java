@@ -24,7 +24,7 @@ final class FormalEvaluationCoverage {
  }
  static List<Artifact> artifacts(List<FormalEvaluationExecutionProtocol.Record> records){
   var found=new TreeMap<String,Artifact>();for(var record:records){
-   var all=new ArrayList<Artifact>(List.of(record.inputManifest(),record.stepEnvelope(),record.stepResult(),record.sessionExport()));all.addAll(record.actualArtifacts());
+   var all=new ArrayList<Artifact>(List.of(record.inputManifest(),record.stepEnvelope(),record.stepResult()));if(record.sessionExport()!=null)all.add(record.sessionExport());all.addAll(record.actualArtifacts());
    for(var invocation:record.invocations()){all.add(invocation.modelResult());all.add(invocation.providerCapture());}
    for(var value:all){var previous=found.putIfAbsent(value.artifactId(),value);if(previous!=null&&!previous.equals(value))bad();}
   }return List.copyOf(found.values());

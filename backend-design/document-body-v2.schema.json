@@ -1,0 +1,602 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.medical-agent.invalid/2.0.0/document-body",
+  "$ref": "#/$defs/DocumentBody",
+  "$defs": {
+    "Id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "Revision": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)$",
+      "maxLength": 20
+    },
+    "Hash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "NullableId": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/Id"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "NullableText": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "Ids": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/Id"
+      }
+    },
+    "Coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "selection_sha256",
+        "delivered_sha256",
+        "complete",
+        "next_cursor"
+      ],
+      "properties": {
+        "selection_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "delivered_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "complete": {
+          "type": "boolean"
+        },
+        "next_cursor": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1
+        }
+      },
+      "oneOf": [
+        {
+          "properties": {
+            "complete": {
+              "const": true
+            },
+            "next_cursor": {
+              "type": "null"
+            }
+          }
+        },
+        {
+          "properties": {
+            "complete": {
+              "const": false
+            },
+            "next_cursor": {
+              "type": "string"
+            }
+          }
+        }
+      ]
+    },
+    "Node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "node_id",
+        "parent_id",
+        "ordinal",
+        "field_ids",
+        "evidence_link_ids",
+        "content"
+      ],
+      "properties": {
+        "node_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "parent_id": {
+          "$ref": "#/$defs/NullableId"
+        },
+        "ordinal": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "field_ids": {
+          "$ref": "#/$defs/Ids"
+        },
+        "evidence_link_ids": {
+          "$ref": "#/$defs/Ids"
+        },
+        "content": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/ContainerContent"
+            },
+            {
+              "$ref": "#/$defs/TextContent"
+            },
+            {
+              "$ref": "#/$defs/ImageContent"
+            },
+            {
+              "$ref": "#/$defs/TableContent"
+            },
+            {
+              "$ref": "#/$defs/FormulaContent"
+            }
+          ]
+        }
+      }
+    },
+    "ContainerContent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "title"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "DOCUMENT",
+            "SECTION",
+            "PARAGRAPH"
+          ]
+        },
+        "title": {
+          "type": "string"
+        }
+      }
+    },
+    "TextContent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "text",
+        "marks"
+      ],
+      "properties": {
+        "kind": {
+          "const": "TEXT"
+        },
+        "text": {
+          "type": "string"
+        },
+        "marks": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "BOLD",
+              "ITALIC",
+              "UNDERLINE",
+              "SUPERSCRIPT",
+              "SUBSCRIPT"
+            ]
+          }
+        }
+      }
+    },
+    "ImageContent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "artifact_id",
+        "sha256",
+        "alt_text",
+        "caption"
+      ],
+      "properties": {
+        "kind": {
+          "const": "IMAGE"
+        },
+        "artifact_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "alt_text": {
+          "type": "string"
+        },
+        "caption": {
+          "type": "string"
+        }
+      }
+    },
+    "TableContent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "row_ids",
+        "column_ids",
+        "cells",
+        "caption"
+      ],
+      "properties": {
+        "kind": {
+          "const": "TABLE"
+        },
+        "row_ids": {
+          "$ref": "#/$defs/Ids",
+          "minItems": 1
+        },
+        "column_ids": {
+          "$ref": "#/$defs/Ids",
+          "minItems": 1
+        },
+        "cells": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Cell"
+          }
+        },
+        "caption": {
+          "type": "string"
+        }
+      }
+    },
+    "Cell": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cell_id",
+        "row_id",
+        "column_id",
+        "row_span",
+        "column_span",
+        "node_ids"
+      ],
+      "properties": {
+        "cell_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "row_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "column_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "row_span": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "column_span": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "node_ids": {
+          "$ref": "#/$defs/Ids"
+        }
+      }
+    },
+    "FormulaContent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "latex",
+        "description",
+        "rendered_artifact_id"
+      ],
+      "properties": {
+        "kind": {
+          "const": "FORMULA"
+        },
+        "latex": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "rendered_artifact_id": {
+          "$ref": "#/$defs/NullableId"
+        }
+      }
+    },
+    "FieldValue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "field_id",
+        "node_id",
+        "field_definition_id",
+        "original_value",
+        "decimal_value",
+        "unit",
+        "model",
+        "condition",
+        "evidence_link_ids"
+      ],
+      "properties": {
+        "field_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "node_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "field_definition_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "original_value": {
+          "type": "string"
+        },
+        "decimal_value": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^-?[0-9]+(\\.[0-9]+)?$"
+        },
+        "unit": {
+          "$ref": "#/$defs/NullableText"
+        },
+        "model": {
+          "$ref": "#/$defs/NullableText"
+        },
+        "condition": {
+          "$ref": "#/$defs/NullableText"
+        },
+        "evidence_link_ids": {
+          "$ref": "#/$defs/Ids"
+        }
+      }
+    },
+    "EvidenceLink": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "evidence_link_id",
+        "node_ids",
+        "relation",
+        "evidence"
+      ],
+      "properties": {
+        "evidence_link_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "node_ids": {
+          "$ref": "#/$defs/Ids",
+          "minItems": 1
+        },
+        "relation": {
+          "enum": [
+            "SUPPORT",
+            "CONFLICT",
+            "BACKGROUND"
+          ]
+        },
+        "evidence": {
+          "$ref": "https://schemas.medical-agent.invalid/2.0.0/source-evidence#/$defs/EvidenceRef"
+        }
+      }
+    },
+    "FactUsage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "fact_version_id",
+        "node_ids",
+        "field_ids"
+      ],
+      "properties": {
+        "fact_version_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "node_ids": {
+          "$ref": "#/$defs/Ids"
+        },
+        "field_ids": {
+          "$ref": "#/$defs/Ids"
+        }
+      }
+    },
+    "DocumentBody": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "template_version",
+        "nodes",
+        "fields",
+        "evidence_links",
+        "fact_usages"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "2.0.0"
+        },
+        "template_version": {
+          "$ref": "#/$defs/Id"
+        },
+        "nodes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/Node"
+          }
+        },
+        "fields": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/FieldValue"
+          }
+        },
+        "evidence_links": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/EvidenceLink"
+          }
+        },
+        "fact_usages": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/FactUsage"
+          }
+        }
+      }
+    },
+    "DocumentFieldProjection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "document_revision",
+        "body_sha256",
+        "fields"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "2.0.0"
+        },
+        "document_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "body_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "fields": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/FieldValue"
+          }
+        }
+      }
+    },
+    "DocumentEvidenceProjection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "document_revision",
+        "body_sha256",
+        "evidence_links",
+        "fact_usages"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "2.0.0"
+        },
+        "document_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "body_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "evidence_links": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/EvidenceLink"
+          }
+        },
+        "fact_usages": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/FactUsage"
+          }
+        }
+      }
+    },
+    "BodyPage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "document_revision",
+        "body_sha256",
+        "nodes",
+        "fields",
+        "evidence_links",
+        "fact_usages",
+        "coverage"
+      ],
+      "properties": {
+        "document_revision": {
+          "$ref": "#/$defs/Id"
+        },
+        "body_sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "nodes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Node"
+          }
+        },
+        "fields": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/FieldValue"
+          }
+        },
+        "evidence_links": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/EvidenceLink"
+          }
+        },
+        "fact_usages": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/FactUsage"
+          }
+        },
+        "coverage": {
+          "$ref": "#/$defs/Coverage"
+        }
+      }
+    },
+    "UploadRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "purpose",
+        "document_id",
+        "expected_revision",
+        "media_type",
+        "size_bytes",
+        "sha256",
+        "schema_ref",
+        "dependency_access_set_id"
+      ],
+      "properties": {
+        "purpose": {
+          "const": "DOCUMENT_BODY"
+        },
+        "document_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "expected_revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "media_type": {
+          "const": "application/json"
+        },
+        "size_bytes": {
+          "$ref": "#/$defs/Revision"
+        },
+        "sha256": {
+          "$ref": "#/$defs/Hash"
+        },
+        "schema_ref": {
+          "const": "https://schemas.medical-agent.invalid/2.0.0/document-body#/$defs/DocumentBody"
+        },
+        "dependency_access_set_id": {
+          "$ref": "#/$defs/Id"
+        }
+      }
+    }
+  }
+}

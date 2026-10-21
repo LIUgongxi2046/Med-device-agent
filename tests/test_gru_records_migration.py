@@ -22,8 +22,8 @@ class GruRecordsMigrationTests(unittest.TestCase):
         self.assertEqual(2, len(self.parsed))
         self.assertTrue(all('create' in value for value in self.parsed))
         manifest = json.loads((RESOURCES / 'db/migration/coverage.json').read_text())
-        self.assertEqual(281, sum(map(len, manifest['required_tables'].values())))
-        self.assertEqual(318, sum(map(len, manifest['required_tables'].values())) + len(manifest['platform_tables']) + len(manifest['framework_tables']))
+        self.assertEqual(526, sum(map(len, manifest['required_tables'].values())))
+        self.assertEqual(565, sum(map(len, manifest['required_tables'].values())) + len(manifest['platform_tables']) + len(manifest['framework_tables']))
         self.assertNotRegex((RESOURCES / MIGRATION).read_text(), r'(?im)^\s*(ALTER|INSERT|UPDATE|DELETE|DROP|TRUNCATE|GRANT|REVOKE|REPLACE)\b')
 
     def test_001_through_065_bytes_frozen_against_part13_source_package(self):

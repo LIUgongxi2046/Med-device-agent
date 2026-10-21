@@ -12,7 +12,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 
 /** Reconciliation-only server endpoints. Does not imply open/bridge/heartbeat are ready. */
 @RestController
-@ConditionalOnProperty(name="medical.professional-runtime.observations-enabled",havingValue="true",matchIfMissing=false)
+@org.springframework.boot.autoconfigure.condition.ConditionalOnExpression("${medical.professional-runtime.observations-enabled:false} && !${medical.professional-runtime.task-enabled:false}")
 public final class ProfessionalRuntimeObservationController {
  private final ServiceCertificateIdentity identities;private final ProfessionalRuntimeObservations observations;
  private final JsonMapper json=JsonMapper.builder().enable(StreamReadFeature.STRICT_DUPLICATE_DETECTION).enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS).build();

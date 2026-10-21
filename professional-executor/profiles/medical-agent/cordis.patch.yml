@@ -16,6 +16,12 @@
       name: '@deepseek-ai/dsh-session'
     - id: session-projection
       name: '@deepseek-ai/dsh-session-projection'
+    - id: fs-local
+      name: '@deepseek-ai/dsh-fs-local'
+    - id: working-directory
+      name: '@deepseek-ai/dsh-working-directory'
+      config:
+        defaultDirectory: !!js dshHomePath('../.build-work/professional-workspace')
     - id: system-prompt
       name: '@deepseek-ai/dsh-system-prompt'
       config:

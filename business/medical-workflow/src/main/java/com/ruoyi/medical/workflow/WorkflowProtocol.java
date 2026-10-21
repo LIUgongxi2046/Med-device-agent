@@ -38,9 +38,62 @@ public final class WorkflowProtocol {
                     || status == State.WAITING_INPUT && waitingItemId == null) invalid();
         }
     }
-    public record Plan(String inputSha256, String planRevision, State runStatus, String cancellationCommandId, FinalReceipt completedReceipt, List<Step> steps) {
+    /** Immutable graph identity, before an input receipt permits a real Step. */
+    public record PlannedStep(String stepId, List<String> dependsOnStepIds, boolean required) {
+        public PlannedStep {
+            ids(stepId); dependsOnStepIds = List.copyOf(dependsOnStepIds);
+            dependsOnStepIds.forEach(WorkflowProtocol::ids);
+        }
+    }
+    public enum StageDisposition { PENDING, SUCCEEDED, DEPENDENCY_FAILED, CANCELLED }
+    /** Pins are accepted only from the loader's verified original producing/disposition receipt. */
+    public record RequiredStage(String stageKind, String obligationSha256, String fulfillmentReceiptId, String fulfillmentSha256,
+            StageDisposition disposition, String causeReceiptId) {
+        public RequiredStage(String stageKind,String obligationSha256,String receipt,String hash) {
+            this(stageKind,obligationSha256,receipt,hash,receipt==null?StageDisposition.PENDING:StageDisposition.SUCCEEDED,null);
+        }
+        public RequiredStage {
+            if(stageKind==null||!stageKind.matches("N[0-9]{2}")||disposition==null)invalid();
+            WireValues.hash(obligationSha256);
+            if((fulfillmentReceiptId==null)!=(fulfillmentSha256==null)||(disposition==StageDisposition.PENDING)!=(fulfillmentReceiptId==null))invalid();
+            if(fulfillmentReceiptId!=null){ids(fulfillmentReceiptId);WireValues.hash(fulfillmentSha256);}
+            boolean caused=disposition==StageDisposition.DEPENDENCY_FAILED||disposition==StageDisposition.CANCELLED;
+            if(caused!=(causeReceiptId!=null))invalid();if(causeReceiptId!=null)ids(causeReceiptId);
+        }
+    }
+    /** Append-only assignments from a concrete later-stage producer, never caller graph mutation. */
+    public record Expansion(String stageKind,String obligationSha256,String receiptId,String receiptSha256,List<PlannedStep> nodes) {
+        public Expansion {if(stageKind==null||!stageKind.matches("N[0-9]{2}"))invalid();WireValues.hash(obligationSha256);ids(receiptId);WireValues.hash(receiptSha256);nodes=List.copyOf(nodes);if(nodes.isEmpty())invalid();}
+    }
+    /** Durable dependency failure for an input that was never materialized. No input hash is invented. */
+    public record UnmaterializedFailure(String stepId,String receiptId,String receiptSha256,String causeReceiptId) {
+        public UnmaterializedFailure {ids(stepId,receiptId,causeReceiptId);WireValues.hash(receiptSha256);}
+    }
+    public record Plan(String inputSha256, String planRevision, State runStatus, String cancellationCommandId,
+            FinalReceipt completedReceipt, List<Step> steps, List<PlannedStep> plannedSteps, String graphReceiptId, String graphSha256,
+            List<RequiredStage> requiredStages, List<Expansion> expansions, List<UnmaterializedFailure> unmaterializedFailures) {
+        public Plan(String inputSha256,String planRevision,State runStatus,String cancellationCommandId,FinalReceipt completedReceipt,List<Step> steps,List<PlannedStep> plannedSteps,String graphReceiptId,String graphSha256,List<RequiredStage> requiredStages) {
+            this(inputSha256,planRevision,runStatus,cancellationCommandId,completedReceipt,steps,plannedSteps,graphReceiptId,graphSha256,requiredStages,List.of(),List.of());
+        }
+        public Plan(String inputSha256, String planRevision, State runStatus, String cancellationCommandId,
+                FinalReceipt completedReceipt, List<Step> steps, List<PlannedStep> plannedSteps, String graphReceiptId, String graphSha256) {
+            this(inputSha256, planRevision, runStatus, cancellationCommandId, completedReceipt, steps, plannedSteps,
+                graphReceiptId, graphSha256, List.of());
+        }
+        public Plan(String inputSha256, String planRevision, State runStatus, String cancellationCommandId,
+                FinalReceipt completedReceipt, List<Step> steps) {
+            this(inputSha256, planRevision, runStatus, cancellationCommandId, completedReceipt, steps,
+                steps.stream().map(step -> new PlannedStep(step.stepId(), step.dependsOnStepIds(), step.required())).toList(), null, null);
+        }
         public Plan {
             WireValues.hash(inputSha256); ids(planRevision); Objects.requireNonNull(runStatus); steps = List.copyOf(steps);
+            plannedSteps = plannedSteps == null
+                ? steps.stream().map(step -> new PlannedStep(step.stepId(), step.dependsOnStepIds(), step.required())).toList()
+                : List.copyOf(plannedSteps);
+            requiredStages = requiredStages == null ? List.of() : List.copyOf(requiredStages);
+            expansions=expansions==null?List.of():List.copyOf(expansions);unmaterializedFailures=unmaterializedFailures==null?List.of():List.copyOf(unmaterializedFailures);
+            if ((graphReceiptId == null) != (graphSha256 == null)) invalid();
+            if (graphReceiptId != null) { ids(graphReceiptId); WireValues.hash(graphSha256); }
             if (cancellationCommandId != null) ids(cancellationCommandId);
             if (runStatus == State.CANCEL_REQUESTED && cancellationCommandId == null) invalid();
             if ((runStatus == State.SUCCEEDED || runStatus == State.FAILED || runStatus == State.CANCELLED) && completedReceipt == null) invalid();
@@ -86,7 +139,13 @@ public final class WorkflowProtocol {
             if (status != State.SUCCEEDED && status != State.FAILED && status != State.CANCELLED) invalid();
         }
     }
-    public record View(String runId, State status, List<Receipt> receipts, int activeSteps, int consumedCommands) { }
+    public record View(String runId, State status, List<Receipt> receipts, int activeSteps, int consumedCommands,
+            List<String> pendingStepIds, String graphReceiptId, String graphSha256, List<RequiredStage> pendingRequiredStages) {
+        public View(String runId, State status, List<Receipt> receipts, int activeSteps, int consumedCommands) {
+            this(runId, status, receipts, activeSteps, consumedCommands, List.of(), null, null, List.of());
+        }
+        public View { receipts = List.copyOf(receipts); pendingStepIds = List.copyOf(pendingStepIds); pendingRequiredStages = List.copyOf(pendingRequiredStages); }
+    }
     private static void ids(String... values) { for (String value : values) WireValues.uuid(value); }
     private static void queue(String value) { if (value == null || !value.matches("[A-Za-z0-9][A-Za-z0-9._-]{0,199}")) invalid(); }
     private static void invalid() { throw new IllegalArgumentException("WORKFLOW_INPUT_INVALID"); }

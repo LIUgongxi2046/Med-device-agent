@@ -71,8 +71,23 @@ public final class TaskCreateService {
 
     Reply create(ApplicationSessionIdentity.Verified subject, String context, String key, byte[] body) {
         json.headers(context, key);
+        var input = ThrowingSupplier.of(() -> inputs.create(body.clone())).get();
+        // Recover completed requests before requiring current execution/publication dependencies.
+        var recovered = access.execute(subject, admission -> ThrowingSupplier.of(() -> {
+            current(admission, context);
+            resources.require(admission, projectScope(admission, input.request().project_id()), "task.create", PURPOSE);
+            var values = values(admission, input.request().project_id(), key);
+            var original = writes.operation(values); if (original.size() > 1) mismatch();
+            if (original.isEmpty()) return null;
+            if (!original.get(0).requestSha256().equals(operationHash(input))) fail(ErrorCode.IDEMPOTENCY_CONFLICT);
+            return replay(admission, values, original.get(0), input);
+        }).get());
+        if (recovered != null) return recovered;
+        var provider = admissionProvider.getIfAvailable();
+        if (provider == null || input.request().based_on_document_revision() != null) fail(ErrorCode.DEPENDENCY_UNAVAILABLE);
+        var preparedAdmission = ThrowingSupplier.of(() -> provider.prepare(subject, context, input)).get();
         return access.execute(subject, admission -> ThrowingSupplier.of(() -> {
-            current(admission, context); var validated = inputs.create(body); var request = validated.request();
+            current(admission, context); var validated = input; var request = validated.request();
             var values = values(admission, request.project_id(), key);
             values.put("requestHash", operationHash(validated));
             var grant = resources.require(admission, projectScope(admission, request.project_id()), "task.create", PURPOSE);
@@ -84,14 +99,13 @@ public final class TaskCreateService {
             var template = templates.requireTarget(admission, request.project_id(), request.profile_revision(),
                     request.document_type(), request.template_version(), PURPOSE);
             if (!"ACTIVE".equals(template.profile().project().status())) fail(ErrorCode.ACCESS_DENIED);
-            var selected = selections.require(admission, validated, PURPOSE, policy.environment(), policy.region(), policy.limits());
+            var sourcePolicy = preparedAdmission.sourcePolicy(admission, validated);
+            var selected = selections.requireForTaskCreation(admission, validated, sourcePolicy, policy.environment(), policy.region(), policy.limits());
             var release = releases.read(admission, request.agent_release_id(), PURPOSE);
             if (!"PUBLISHED".equals(release.agent().status())) fail(ErrorCode.DEPENDENCY_UNAVAILABLE);
             var scope = releaseScopes.require(release, projectScope(admission, request.project_id()), "task.create",
                     identity.classification(), policy.limits());
-            var provider = admissionProvider.getIfAvailable();
-            if (provider == null || request.based_on_document_revision() != null) fail(ErrorCode.DEPENDENCY_UNAVAILABLE);
-            var allowed = Objects.requireNonNull(provider.require(admission, validated, template, selected, scope));
+            var allowed = Objects.requireNonNull(preparedAdmission.require(admission, validated, template, selected, scope));
             var proof = Objects.requireNonNull(allowed.authorizations());
             if (!proof.isArray() || proof.isEmpty()) mismatch();
             var dependencies = new TreeSet<>(Objects.requireNonNull(allowed.dependencyVersions()));
@@ -112,7 +126,7 @@ public final class TaskCreateService {
             var owner = plans.creationOwner(admission, request.project_id(), taskId, request.owner_id());
             resources.require(admission, new PermissionProtocol.Scope(admission.context().tenant_id(), request.project_id(), "TASK", taskId), "task.read", "TASK_READING");
             allowed.requireUnchanged(); releaseScopes.requireUnchanged(scope); templates.requireUnchanged(admission, template);
-            var stored = snapshots.save(admission, validated, PURPOSE, policy.environment(), policy.region(), policy.limits());
+            var stored = snapshots.saveForTaskCreation(admission, validated, sourcePolicy, policy.environment(), policy.region(), policy.limits());
             if (!selected.equals(stored.selection())) fail(ErrorCode.SCOPE_STALE);
             values.put("taskId", taskId); values.put("taskRevision", taskRevision); values.put("basisTaskRevision", null);
             values.put("operationId", UUID.randomUUID().toString()); values.put("now", Objects.requireNonNull(permissions.databaseTime()));
@@ -153,6 +167,80 @@ public final class TaskCreateService {
             var result = replay(admission, values, single(writes.operation(values)), validated);
             if (!saved.envelope().equals(result.envelope())) mismatch(); return result;
         }).get());
+    }
+
+    TaskCreateReleaseAdmission prepareRevision(ApplicationSessionIdentity.Verified subject, String context,
+            TaskProtocol.ValidatedCreate input) throws IOException {
+        var provider = admissionProvider.getIfAvailable();
+        if (provider == null) fail(ErrorCode.DEPENDENCY_UNAVAILABLE);
+        return provider.prepare(subject, context, input);
+    }
+
+    /** Only TK-06 can mint this authority, after locking the old head and its genuine terminal run. */
+    Map<String,Object> materializeRevision(EnterpriseAccess.Admission admission,
+            TaskInputRevisionService.RevisionAuthority authority, TaskCreateReleaseAdmission preparedAdmission) throws Exception {
+        var head = authority.requireCurrent(admission);
+        var validated = authority.input(); var request = validated.request();
+        var values = values(admission, head.projectId(), authority.key());
+        var grant = resources.require(admission, projectScope(admission, head.projectId()), "task.create", PURPOSE);
+            var template = templates.requireTarget(admission, request.project_id(), request.profile_revision(),
+                    request.document_type(), request.template_version(), PURPOSE);
+            if (!"ACTIVE".equals(template.profile().project().status())) fail(ErrorCode.ACCESS_DENIED);
+            var sourcePolicy = preparedAdmission.sourcePolicy(admission, validated);
+            var selected = selections.requireForTaskCreation(admission, validated, sourcePolicy, policy.environment(), policy.region(), policy.limits());
+            var release = releases.read(admission, request.agent_release_id(), PURPOSE);
+            if (!"PUBLISHED".equals(release.agent().status())) fail(ErrorCode.DEPENDENCY_UNAVAILABLE);
+            var scope = releaseScopes.require(release, projectScope(admission, request.project_id()), "task.create",
+                    identity.classification(), policy.limits());
+            var allowed = Objects.requireNonNull(preparedAdmission.require(admission, validated, template, selected, scope));
+            var proof = Objects.requireNonNull(allowed.authorizations());
+            if (!proof.isArray() || proof.isEmpty()) mismatch();
+            var dependencies = new TreeSet<>(Objects.requireNonNull(allowed.dependencyVersions()));
+            if (dependencies.size() != allowed.dependencyVersions().size()) mismatch();
+            var required = new TreeSet<String>(); required.add(request.agent_release_id());
+            release.content().dependencies().forEach(version -> required.add(version.versionId()));
+            release.content().artifacts().forEach(artifact -> required.add(artifact.artifactId())); required.add(release.release().manifestArtifactId());
+            scope.scopes().forEach(value -> required.add(value.scopeRevision())); scope.roles().forEach(value -> required.add(value.origin().roleVersion()));
+            if (!dependencies.containsAll(required)) mismatch();
+            var missing = new ArrayList<>(template.view().missing_requirements()); missing.addAll(Objects.requireNonNull(allowed.missingRequirements()));
+            if (selected.sources().isEmpty()) missing.add(new ResourceProtocol.Requirement("task:sources", null, null, "SOURCE_MISSING", List.of()));
+            var requirementIds = new HashSet<String>();
+            for (var item : missing) {
+                TypedSchemaBindings.bind(shared, ResourceBindings.REQUIREMENT, json.tree(item));
+                if (!requirementIds.add(item.requirementId())) mismatch();
+            }
+        String taskId = head.taskId(), taskRevision = UUID.randomUUID().toString();
+        var owner = plans.creationOwner(admission, head.projectId(), taskId, request.owner_id());
+        allowed.requireUnchanged(); releaseScopes.requireUnchanged(scope); templates.requireUnchanged(admission, template);
+        var stored = snapshots.saveForTaskCreation(admission, validated, sourcePolicy, policy.environment(), policy.region(), policy.limits());
+        if (!selected.equals(stored.selection())) fail(ErrorCode.SCOPE_STALE);
+        values.put("taskId", taskId); values.put("taskRevision", taskRevision); values.put("basisTaskRevision", head.taskRevision());
+        values.put("operationId", authority.operationId()); values.put("now", Objects.requireNonNull(permissions.databaseTime()));
+        values.put("taskStatus", missing.isEmpty() ? "PLAN_PENDING" : "NEEDS_MATERIALS"); values.put("ownerId", request.owner_id());
+        values.put("profileRevision", request.profile_revision()); values.put("snapshotId", stored.snapshot().snapshotId());
+        values.put("templateVersion", request.template_version()); values.put("agentReleaseId", request.agent_release_id());
+        values.put("documentType", request.document_type()); values.put("goal", request.goal());
+        values.put("basedOnDocumentRevision", request.based_on_document_revision()); values.put("reason", authority.reason());
+        values.put("request", validated.canonical_request()); values.put("inputHash", validated.request_sha256());
+        values.put("scopeJson", json.canonicalObject(request.scope_selection())); values.put("scopeHash", validated.scope_sha256());
+        values.put("requirements", json.canonicalObject(missing)); values.put("requirementsHash", hash((String)values.get("requirements")));
+        values.put("authorityGrant", grant.grantId()); values.put("authorityRevision", grant.revision().toString());
+        var manifest = json.object().put("schema_version", "1.0.0").put("kind", "TASK_INPUT_REVISION")
+                .put("tenant_id", admission.context().tenant_id()).put("project_id", head.projectId()).put("task_id", taskId)
+                .put("task_revision", taskRevision).put("parent_revision", head.taskRevision()).put("operation_id", authority.operationId())
+                .put("input_sha256", validated.request_sha256()).put("snapshot_id", stored.snapshot().snapshotId())
+                .put("requirements_sha256", (String)values.get("requirementsHash")).put("status", (String)values.get("taskStatus"));
+        values.put("taskRevisionHash", hash(json.canonical(manifest))); values.put("versionId", taskRevision);
+        values.put("versionKind", "TASK_REVISION"); values.put("versionHash", values.get("taskRevisionHash"));
+        authority.requireCurrent(admission);
+        one(writes.insertRegisteredVersion(values)); one(writes.insertTaskRevision(values)); one(writes.insertTaskInput(values));
+        dependencies.addAll(stored.dependencyVersions()); dependencies.addAll(List.of(stored.snapshot().snapshotId(), request.template_version(), head.taskRevision()));
+        if (request.based_on_document_revision() != null) dependencies.add(request.based_on_document_revision());
+        writeLineage(values, taskRevision, dependencies); lineage.inspect(taskRevision, policy.limits());
+        allowed.requireUnchanged(); releaseScopes.requireUnchanged(scope); templates.requireUnchanged(admission, template);
+        if (!grant.equals(resources.require(admission, projectScope(admission, head.projectId()), "task.create", PURPOSE))
+                || !owner.equals(plans.creationOwner(admission, head.projectId(), taskId, request.owner_id()))) fail(ErrorCode.SCOPE_STALE);
+        return java.util.Collections.unmodifiableMap(new HashMap<>(values));
     }
 
     Reply original(ApplicationSessionIdentity.Verified subject, String context, String key, String projectId) {

@@ -61,6 +61,8 @@
     </section>
     <template v-if="current">
       <h4>导出状态</h4>
+      <p v-if="continuationError" role="alert">{{ continuationError }}。重新读取状态后继续原操作，不会重新导出成功格式。</p>
+      <p>正式文件需渠道和版面核验后才能发布下载；生成成功不代表渠道核准或视觉通过。</p>
       <p>导出编号：{{ current.export_id }}；文稿版本：{{ current.document_revision }}；状态：{{ current.status }}；修订：{{ current.revision }}</p>
       <details class="export-fixed-inputs"><summary>本次导出的固定输入</summary>
         <dl><dt>模板版本</dt><dd>{{ current.template_version }}</dd><dt>审查清单摘要</dt><dd>{{ current.review_manifest_sha256 }}</dd>
@@ -96,13 +98,14 @@
         <el-table-column prop="format" label="格式" width="110" />
         <el-table-column prop="attempt_no" label="尝试次数" width="110" />
         <el-table-column prop="status" label="状态" width="150" />
-        <el-table-column label="渠道核验" width="130"><template #default="scope">{{ scope.row.validation?.channel_check ?? '等待核验' }}</template></el-table-column>
+        <el-table-column label="渠道核验" width="130"><template #default="scope">{{ scope.row.layout_verification?.verification.channel_check ?? scope.row.validation?.channel_check ?? 'UNKNOWN' }}</template></el-table-column>
         <el-table-column label="文件核验" width="150"><template #default="scope">{{ scope.row.validation === null ? '等待核验' : '文件内容已核验' }}</template></el-table-column>
-        <el-table-column label="版面检查" width="150"><template #default="scope">{{ scope.row.validation?.visual_check === 'PASSED' ? '已通过' : '尚未检查' }}</template></el-table-column>
+        <el-table-column label="版面检查" width="150"><template #default="scope">{{ scope.row.layout_verification?.verification.visual_check === 'PASSED' ? '已通过' : '尚未检查' }}</template></el-table-column>
         <el-table-column prop="validation_artifact_id" label="核验制品" min-width="220" />
         <el-table-column label="操作" width="270"><template #default="scope">
           <el-button :disabled="!active || loading || scope.row.status !== 'QUEUED' || writing" @click="run(scope.row)">执行</el-button>
           <el-button :disabled="!active || loading || !scope.row.downloadable || writing" @click="download(scope.row)">下载</el-button>
+          <el-button :disabled="!active || loading || scope.row.status !== 'SUCCEEDED' || writing" @click="download(scope.row, true)">核验副本</el-button>
           <el-button :disabled="!active || loading || !['FAILED', 'CANCELLED'].includes(scope.row.status) || retryReason.trim().length === 0 || writing" @click="retry(scope.row)">重试</el-button>
         </template></el-table-column>
       </el-table>
@@ -111,10 +114,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, shallowRef, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
 import type { MedicalSession } from '@/api/medical/protocol'
 import { fail } from '@/api/medical/protocol'
-import { createExport, downloadExportItem, executeExportItem, readExport, readExportBasis, readExportHistory, recoverExportRequest, retryExportItem } from '@/api/medical/exports'
+import { createExport, downloadExportItem, downloadExportForReview, executeExportItem, readExport, readExportBasis, readExportHistory, recoverExportRequest, retryExportItem } from '@/api/medical/exports'
 import type { ExportBasis, ExportFormat, ExportItem, ExportPurpose, ExportView, ExportHistory } from '@/api/medical/exports'
 import { clearExpiredRequestMetadata, confirmRequestMetadata, listRequestMetadata } from '@/api/medical/request-metadata'
 import type { RequestMetadata } from '@/api/medical/request-metadata'
@@ -131,7 +134,20 @@ const reviewLabels = { UNREVIEWED: '尚未审查', CONFIRMED: '已确认', RETUR
 const selectableFormats = computed(() => basis.value?.allowed_formats.filter(value => value !== 'MARKDOWN' || purpose.value === 'INTERNAL_EXCHANGE') ?? [])
 let generation = 0; let controller: AbortController | null = null
 let downloadUrl: string | null = null
+let continuation: ReturnType<typeof setTimeout> | null = null
+const continuationError = ref('')
+function scheduleContinuation(): void {
+  if (continuation !== null) clearTimeout(continuation)
+  if (!props.active || document.hidden || !current.value?.items.some(item => ['QUEUED', 'RUNNING', 'VERIFYING'].includes(item.status))) return
+  continuation = setTimeout(async () => {
+    continuation = null
+    if (loading.value || writing.value) { scheduleContinuation(); return }
+    try { await refresh() } catch (error) { continuationError.value = error instanceof Error ? error.message : '原操作续办暂未完成'; return }
+    scheduleContinuation()
+  }, 30000)
+}
 function clear(): void {
+  if (continuation !== null) clearTimeout(continuation); continuation = null; continuationError.value = ''
   generation++; controller?.abort(); controller = null; basis.value = null; current.value = null; history.value = []
   purpose.value = 'INTERNAL_EXCHANGE'; formats.value = []; channelProfile.value = ''; retryReason.value = ''; loading.value = false; writing.value = false
   pendingRequests.value = []; recoveryMessage.value = ''
@@ -158,7 +174,7 @@ async function loadBasis(): Promise<void> {
   } finally { if (version === generation) loading.value = false }
 }
 function selectExport(value: ExportView | null): void {
-  current.value = value; retryReason.value = ''
+  current.value = value; retryReason.value = ''; scheduleContinuation()
   if (downloadUrl !== null) URL.revokeObjectURL(downloadUrl)
   downloadUrl = null
 }
@@ -194,7 +210,7 @@ async function submit(): Promise<void> {
 async function refresh(): Promise<void> {
   const value = current.value; if (!props.active || document.hidden || value === null || loading.value || writing.value) return
   const request = new AbortController(); controller?.abort(); controller = request; const version = generation; loading.value = true
-  try { const result = await readExport(props.session, value.export_id, request.signal); if (version === generation && props.active && !document.hidden && !request.signal.aborted) { current.value = result; remember(result) } }
+  try { const result = await readExport(props.session, value.export_id, request.signal); if (version === generation && props.active && !document.hidden && !request.signal.aborted) { current.value = result; remember(result); await processQueued(result, version, props.session, request.signal); scheduleContinuation() } }
   finally { if (version === generation) loading.value = false }
 }
 async function retry(item: ExportItem): Promise<void> {
@@ -212,11 +228,11 @@ function validWrite(version: number, session: MedicalSession): boolean {
   return version === generation && props.session === session && props.active && !document.hidden
 }
 async function processQueued(value: ExportView, version: number, session: MedicalSession, signal: AbortSignal): Promise<void> {
-  for (const item of value.items.filter(candidate => candidate.status === 'QUEUED')) {
+  for (const item of value.items.filter(candidate => ['QUEUED', 'RUNNING', 'VERIFYING'].includes(candidate.status))) {
     if (!validWrite(version, session)) return
     const updated = await executeExportItem(session, item, signal)
     if (!validWrite(version, session)) return
-    current.value = updated; remember(updated)
+    current.value = updated; remember(updated); scheduleContinuation()
   }
 }
 async function run(item: ExportItem): Promise<void> {
@@ -241,7 +257,7 @@ async function recover(pending: RequestMetadata): Promise<void> {
     if (result.view !== null && result.lookup.operation?.resource_id !== null && result.lookup.operation !== null) {
       if (result.view.document_id !== props.documentId) fail('CONTENT_MISMATCH', '原导出结果所属文稿不一致')
       confirmRequestMetadata(session, pending, result.lookup.operation, result.lookup.operation.resource_id)
-      current.value = result.view; remember(result.view)
+      current.value = result.view; remember(result.view); await processQueued(result.view, version, session, request.signal); scheduleContinuation()
     }
     syncPending()
   } finally { if (version === generation) { loading.value = false; controller = null } }
@@ -253,15 +269,15 @@ function startNew(pending: RequestMetadata): void {
   else retryReason.value = ''
   recoveryMessage.value = ''; syncPending()
 }
-async function download(item: ExportItem): Promise<void> {
+async function download(item: ExportItem, review = false): Promise<void> {
   if (!props.active || writing.value || loading.value || document.hidden) return
   const request = new AbortController(); controller?.abort(); controller = request; const version = generation; loading.value = true
   try {
-    const blob = await downloadExportItem(props.session, item, request.signal)
+    const blob = await (review ? downloadExportForReview : downloadExportItem)(props.session, item, request.signal)
     if (version !== generation || !props.active || document.hidden) return
     if (downloadUrl !== null) URL.revokeObjectURL(downloadUrl)
     downloadUrl = URL.createObjectURL(blob)
-    const link = document.createElement('a'); link.href = downloadUrl; link.download = item.export_item_id + '.' + item.format.toLowerCase()
+    const link = document.createElement('a'); link.href = downloadUrl; link.download = (review ? 'REVIEW-ONLY-' : '') + item.export_item_id + '.' + item.format.toLowerCase()
     document.body.appendChild(link); link.click(); link.remove()
   } finally { if (version === generation) { controller = null; loading.value = false } }
 }
@@ -271,8 +287,10 @@ function remember(value: ExportView): void {
   else historyNeedsRefresh.value = true
 }
 watch(() => [props.active, props.session, props.session.user.user_id, props.session.current_context?.tenant_id, props.session.current_context?.context_revision,
-  props.session.current_context?.auth_epoch, props.session.current_context?.governance_epoch, props.documentId, props.documentRevision], () => { clear(); syncPending() }, { immediate: true, flush: 'sync' })
-onBeforeUnmount(clear)
+  props.session.current_context?.auth_epoch, props.session.current_context?.governance_epoch, props.documentId, props.documentRevision], () => { clear(); syncPending(); if (props.active && !document.hidden) void loadBasis().catch(error => { continuationError.value = error instanceof Error ? error.message : '导出依据读取失败' }) }, { immediate: true, flush: 'sync' })
+function visibilityChanged(): void { if (document.hidden) { if (continuation !== null) clearTimeout(continuation); continuation = null } else scheduleContinuation() }
+onMounted(() => document.addEventListener('visibilitychange', visibilityChanged))
+onBeforeUnmount(() => { document.removeEventListener('visibilitychange', visibilityChanged); clear() })
 </script>
 
 <style scoped>

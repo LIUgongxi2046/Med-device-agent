@@ -4,7 +4,7 @@ No keys, grants, certificates or worker identities are created by this command.
 from __future__ import annotations
 import argparse,asyncio,json,os,ssl,stat
 from pathlib import Path
-from .formal_invocation_adapter import MutualTlsInvocationGateway,FormalInvocationAdapter,FormalVerificationWorker,_parse,_uuid
+from .formal_invocation_adapter import MutualTlsInvocationGateway,FormalInvocationAdapter,FormalVerificationWorker,InvocationProfile,_parse,_uuid
 from .approved_credentials import ApprovedCredentialBinding,ApprovedCredentialResolver
 from .raw_response import CapturePolicy
 
@@ -37,6 +37,13 @@ def configured(path:Path):
     if set(config)!=keys or config['schema_version']!='1.0.0':raise ValueError('WORKER_CONFIG_INVALID')
     _uuid(config['tenant_id'])
     if type(config['poll_seconds']) is not int or not 2<=config['poll_seconds']<=300:raise ValueError('WORKER_POLL_BOUND_REQUIRED')
+    gateway,adapter,current_config=configured_components(path,config,InvocationProfile.MODEL_VERIFICATION_V1)
+    return FormalVerificationWorker(gateway,adapter),config,current_config
+
+
+def configured_components(path:Path,config:dict,profile:InvocationProfile):
+    """Shared deployment loading, not an HTTP app. Callers validate a closed config first."""
+    if type(profile) is not InvocationProfile:raise ValueError('FORMAL_INVOCATION_PROFILE_INVALID')
     for key in ('ca_file','client_certificate_file','client_private_key_file','credential_bindings_file','durable_directory'):
         if not Path(config[key]).is_absolute():raise ValueError('WORKER_DEPLOYMENT_PATH_REQUIRED')
     original=config.copy()
@@ -56,10 +63,10 @@ def configured(path:Path):
     resolver=ApprovedCredentialResolver(initial,lambda binding:sum(item==binding for item in rows())==1)
     context=ssl.create_default_context(cafile=config['ca_file']);context.minimum_version=ssl.TLSVersion.TLSv1_3
     context.load_cert_chain(config['client_certificate_file'],config['client_private_key_file'])
-    gateway=MutualTlsInvocationGateway(config['origin'],context,config['maximum_http_bytes'],config['maximum_seconds'])
+    gateway=MutualTlsInvocationGateway(config['origin'],context,config['maximum_http_bytes'],config['maximum_seconds'],profile=profile)
     policy=CapturePolicy(True,config['maximum_request_bytes'],config['maximum_response_bytes'],config['maximum_seconds'])
-    adapter=FormalInvocationAdapter(gateway,resolver,Path(config['durable_directory']),policy,config['maximum_http_bytes'])
-    return FormalVerificationWorker(gateway,adapter),config,current_config
+    adapter=FormalInvocationAdapter(gateway,resolver,Path(config['durable_directory']),policy,config['maximum_http_bytes'],profile=profile)
+    return gateway,adapter,current_config
 
 async def run(path:Path,once:bool,recover_manifest:str|None=None):
     worker,config,current=configured(path)

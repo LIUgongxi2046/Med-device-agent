@@ -47,8 +47,9 @@ public final class DocumentTechnicalCheckSchema {
     public String hash(Object value)throws IOException{return org.apache.commons.codec.digest.DigestUtils.sha256Hex(ContentReadAuthorization.canonicalBytes(value));}
     public ObjectNode input(JsonNode value){
         var result=shape("Input",value);
-        if(!bodySchemaRef().equals(result.required("body_schema_ref").textValue())
-            ||!bodySchemaSha256().equals(result.required("body_schema_sha256").textValue()))mismatch();
+        try{var declared=catalogue.requirePublished(result.required("body_schema_ref").textValue(),result.required("body_schema_sha256").textValue());
+            if(!java.util.Set.of("interfaces","document-body-v2").contains(declared.name())||!"DocumentBody".equals(declared.definition()))mismatch();
+        }catch(SchemaRejection unsupported){mismatch();}
         return result;
     }
     public ObjectNode coverage(JsonNode value){

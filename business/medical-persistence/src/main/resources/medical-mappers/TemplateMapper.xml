@@ -218,4 +218,51 @@
     SELECT payload FROM outbox_event e WHERE aggregate_id=#{templateId} AND aggregate_revision=#{resulting}
       AND event_type='template.approval_decided' AND JSON_UNQUOTE(JSON_EXTRACT(payload,'$.decision.operation_id'))=#{operationId}
   </select>
+  <sql id="applicationIdentity">project_id=#{projectId} AND profile_revision=#{profileId} AND template_version=#{templateId}</sql>
+  <select id="applicationHead" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT JSON_OBJECT('revision',CAST(revision AS CHAR),'schema_version',schema_version,'schema_manifest_sha256',schema_manifest_sha256,
+      'created_by',created_by,'created_at',DATE_FORMAT(created_at,'%Y-%m-%dT%H:%i:%s.%fZ'),'classification',classification) FROM template_application_head h WHERE <include refid="applicationIdentity"/> FOR UPDATE
+  </select>
+  <insert id="insertApplicationHead">
+    INSERT INTO template_application_head(project_id,profile_revision,template_version,revision,schema_version,schema_manifest_sha256,created_by,created_at,classification)
+    VALUES(#{projectId},#{profileId},#{templateId},0,'1.0.0',#{operationManifest},#{userId},#{now},#{classification})
+  </insert>
+  <update id="advanceApplicationHead">
+    UPDATE template_application_head SET revision=#{resulting} WHERE <include refid="applicationIdentity"/> AND revision=#{expected}
+  </update>
+  <select id="applicationDecisions" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT JSON_OBJECT('receipt',receipt_json,'sha256',receipt_sha256,'revision',CAST(resulting_revision AS CHAR),
+      'schema_version',schema_version,'schema_manifest_sha256',schema_manifest_sha256,'created_by',created_by,
+      'created_at',DATE_FORMAT(created_at,'%Y-%m-%dT%H:%i:%s.%fZ'),'classification',classification,'reason',reason) FROM template_application_decision d WHERE <include refid="applicationIdentity"/> ORDER BY resulting_revision
+  </select>
+  <select id="applicationDecision" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT receipt_json FROM template_application_decision d WHERE <include refid="applicationIdentity"/> AND operation_id=#{operationId}
+      AND created_by=#{userId} AND receipt_sha256=#{responseHash} AND schema_manifest_sha256=#{operationManifest}
+      AND schema_version='1.0.0' AND classification=#{classification} AND reason=#{reason}
+  </select>
+  <insert id="saveApplicationDecision">
+    INSERT INTO template_application_decision(decision_id,operation_id,project_id,profile_revision,template_version,resulting_revision,
+      reason,receipt_json,receipt_sha256,schema_version,schema_manifest_sha256,created_by,created_at,classification)
+    VALUES(#{decisionId},#{operationId},#{projectId},#{profileId},#{templateId},#{resulting},#{reason},#{response},#{responseHash},
+      '1.0.0',#{operationManifest},#{userId},#{now},#{classification})
+  </insert>
+  <select id="applicationOperation" resultMap="com.ruoyi.medical.persistence.mapper.TenantSelectionMapper.operation" useCache="false" flushCache="true">
+    SELECT operation_id,request_sha256,state,http_status,response_ref,target_id,schema_version,schema_manifest_sha256
+    FROM operation_record o WHERE subject_id=#{userId} AND operation_name='TA-01' AND idempotency_key=#{key}
+  </select>
+  <insert id="saveApplicationOperation">
+    INSERT INTO operation_record(operation_id,subject_id,operation_name,idempotency_key,request_sha256,state,http_status,response_ref,
+      target_id,error_code,schema_version,schema_manifest_sha256,created_by,created_at,classification,revision,updated_at)
+    VALUES(#{operationId},#{userId},'TA-01',#{key},#{requestHash},'COMPLETED',200,#{response},#{templateId},NULL,
+      '1.0.0',#{operationManifest},#{userId},#{now},#{classification},1,#{now})
+  </insert>
+  <select id="applicationAudit" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT resource_ref FROM audit_event a WHERE project_id=#{projectId} AND subject_id=#{userId}
+      AND action='template.application_decided' AND result='SUCCESS' AND request_id=#{requestId}
+      AND schema_manifest_sha256=#{operationManifest} AND classification=#{classification}
+  </select>
+  <select id="applicationEvent" resultType="java.lang.String" useCache="false" flushCache="true">
+    SELECT payload FROM outbox_event e WHERE aggregate_id=#{templateId} AND event_type='template.application_decided'
+      AND JSON_UNQUOTE(JSON_EXTRACT(payload,'$.operation_id'))=#{operationId}
+  </select>
 </mapper>

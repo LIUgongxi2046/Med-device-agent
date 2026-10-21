@@ -1,0 +1,452 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:task-registered-tool:1.0.0",
+  "$defs": {
+    "Cause": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tenant_id",
+        "project_id",
+        "run_id",
+        "step_id",
+        "action_id",
+        "session_id",
+        "input_id",
+        "input_sha256",
+        "input_receipt_sha256",
+        "assignee_id",
+        "created_by",
+        "classification",
+        "binding",
+        "node_input",
+        "request",
+        "authority",
+        "fixed_requirement_ids"
+      ],
+      "properties": {
+        "tenant_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "project_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "run_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "step_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "action_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "session_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "input_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "input_sha256": {
+          "type": "string",
+          "minLength": 1
+        },
+        "input_receipt_sha256": {
+          "type": "string",
+          "minLength": 1
+        },
+        "assignee_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "created_by": {
+          "type": "string",
+          "minLength": 1
+        },
+        "classification": {
+          "type": "string",
+          "minLength": 1
+        },
+        "binding": {
+          "type": "object"
+        },
+        "node_input": {
+          "type": "object"
+        },
+        "request": {
+          "type": "object"
+        },
+        "authority": {
+          "type": "object"
+        },
+        "fixed_requirement_ids": {
+          "type": "array"
+        }
+      }
+    },
+    "WaitingItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "kind",
+        "waiting_item_id",
+        "operation_id",
+        "audit_id",
+        "event_id",
+        "created_at",
+        "cause_sha256",
+        "status",
+        "revision",
+        "cause"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "kind": {
+          "const": "TASK_TOOL_WAITING_ITEM"
+        },
+        "waiting_item_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "operation_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "audit_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "event_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "created_at": {
+          "type": "string",
+          "minLength": 1
+        },
+        "cause_sha256": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "const": "WAITING_INPUT"
+        },
+        "revision": {
+          "const": "1"
+        },
+        "cause": {
+          "$ref": "#/$defs/Cause"
+        }
+      }
+    },
+    "Started": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "receipt_id",
+        "tenant_id",
+        "project_id",
+        "actor_id",
+        "run_id",
+        "step_id",
+        "session_id",
+        "input_id",
+        "input_sha256",
+        "input_receipt_sha256",
+        "classification",
+        "binding",
+        "request",
+        "authority",
+        "kind"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "receipt_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "tenant_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "project_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "actor_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "run_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "step_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "session_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "input_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "input_sha256": {
+          "type": "string",
+          "minLength": 1
+        },
+        "input_receipt_sha256": {
+          "type": "string",
+          "minLength": 1
+        },
+        "classification": {
+          "type": "string",
+          "minLength": 1
+        },
+        "binding": {
+          "type": "object"
+        },
+        "request": {
+          "type": "object"
+        },
+        "authority": {
+          "type": "object"
+        },
+        "kind": {
+          "const": "TASK_REGISTERED_TOOL_STARTED"
+        }
+      }
+    },
+    "Result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "receipt_id",
+        "tenant_id",
+        "project_id",
+        "actor_id",
+        "run_id",
+        "step_id",
+        "session_id",
+        "input_id",
+        "input_sha256",
+        "input_receipt_sha256",
+        "classification",
+        "binding",
+        "request",
+        "authority",
+        "kind",
+        "response_sha256",
+        "response",
+        "physical"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "receipt_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "tenant_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "project_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "actor_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "run_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "step_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "session_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "input_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "input_sha256": {
+          "type": "string",
+          "minLength": 1
+        },
+        "input_receipt_sha256": {
+          "type": "string",
+          "minLength": 1
+        },
+        "classification": {
+          "type": "string",
+          "minLength": 1
+        },
+        "binding": {
+          "type": "object"
+        },
+        "request": {
+          "type": "object"
+        },
+        "authority": {
+          "type": "object"
+        },
+        "kind": {
+          "const": "TASK_REGISTERED_TOOL_RESULT"
+        },
+        "response_sha256": {
+          "type": "string",
+          "minLength": 1
+        },
+        "response": {
+          "type": "object"
+        },
+        "physical": {
+          "type": "object"
+        }
+      }
+    },
+    "Document": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "body",
+        "receipt_sha256"
+      ],
+      "properties": {
+        "body": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Started"
+            },
+            {
+              "$ref": "#/$defs/Result"
+            }
+          ]
+        },
+        "receipt_sha256": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "WaitingCompletion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "kind",
+        "receipt_id",
+        "session_id",
+        "input_artifact_id",
+        "input_receipt_sha256",
+        "waiting_item_id",
+        "waiting_receipt_id",
+        "waiting_receipt_sha256",
+        "tool_receipt_id",
+        "tool_receipt_sha256",
+        "supervision_receipt_id",
+        "supervision_sha256",
+        "deployment_sha256",
+        "binding",
+        "tool_call",
+        "invocations",
+        "outcome",
+        "outputs"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "kind": {
+          "const": "TASK_TOOL_WAITING_COMPLETION"
+        },
+        "receipt_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "session_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "input_artifact_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "input_receipt_sha256": {
+          "type": "string",
+          "minLength": 1
+        },
+        "waiting_item_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "waiting_receipt_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "waiting_receipt_sha256": {
+          "type": "string",
+          "minLength": 1
+        },
+        "tool_receipt_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "tool_receipt_sha256": {
+          "type": "string",
+          "minLength": 1
+        },
+        "supervision_receipt_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "supervision_sha256": {
+          "type": "string",
+          "minLength": 1
+        },
+        "deployment_sha256": {
+          "type": "string",
+          "minLength": 1
+        },
+        "binding": {
+          "type": "object"
+        },
+        "tool_call": {
+          "type": "object"
+        },
+        "invocations": {
+          "type": "array"
+        },
+        "outcome": {
+          "const": "WAITING_INPUT"
+        },
+        "outputs": {
+          "type": "array",
+          "maxItems": 0
+        }
+      }
+    }
+  }
+}

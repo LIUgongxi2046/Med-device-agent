@@ -1,0 +1,195 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:task-registered-waiting-answer:1.0.0",
+  "$defs": {
+    "Request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "waiting_item_id",
+        "expected_revision",
+        "cause_sha256",
+        "decision",
+        "answer_text",
+        "plan_confirmation",
+        "target_run",
+        "reason"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "waiting_item_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "expected_revision": {
+          "const": "1"
+        },
+        "cause_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "decision": {
+          "const": "LINK_CONFIRMED_REVISION_AND_NEW_RUN"
+        },
+        "answer_text": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 8192
+        },
+        "plan_confirmation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "decision_id",
+            "receipt_sha256"
+          ],
+          "properties": {
+            "decision_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "receipt_sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          }
+        },
+        "target_run": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "run_id",
+            "command_id",
+            "creation_operation_id",
+            "creation_receipt_sha256",
+            "replay_sha256"
+          ],
+          "properties": {
+            "run_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "command_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "creation_operation_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "creation_receipt_sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "replay_sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          }
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+        }
+      }
+    },
+    "Recovery": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "original_idempotency_key",
+        "original_request"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "original_idempotency_key": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "original_request": {
+          "$ref": "#/$defs/Request"
+        }
+      }
+    },
+    "Receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "waiting_item_id",
+        "decision_id",
+        "original_run_id",
+        "target_run_id",
+        "request_sha256",
+        "cause_sha256",
+        "status",
+        "revision",
+        "created_by",
+        "created_at",
+        "can_resume_frozen_run",
+        "answer_is_approved_fact",
+        "human_checkpoint_approved"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "waiting_item_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "decision_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "original_run_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "target_run_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "request_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "cause_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "status": {
+          "const": "STALE"
+        },
+        "revision": {
+          "const": "2"
+        },
+        "created_by": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "can_resume_frozen_run": {
+          "const": false
+        },
+        "answer_is_approved_fact": {
+          "const": false
+        },
+        "human_checkpoint_approved": {
+          "const": false
+        }
+      }
+    }
+  }
+}

@@ -34,8 +34,9 @@ type ToolReceipt = {
   payload: { kind: string; resource_kind?: string; match_status?: string; evidence_refs?: unknown[]; content?: string; content_sha256?: string; media_type?: string; content_schema_ref?: string | null }
 }
 
-export function validateToolResult(catalogue: SchemaCatalogue, toolId: string, value: unknown): asserts value is JsonValue {
-  catalogue.validate('tool-success', value)
+export function validateToolResult(catalogue: SchemaCatalogue, toolId: string, value: unknown, evaluation = false, evidenceV2 = false): asserts value is JsonValue {
+  const resultSchema = !evaluation && (toolId === 'AT-01' || toolId === 'AT-02') ? 'task-tool-read-success' : 'tool-success'
+  catalogue.validate(evidenceV2 ? `${resultSchema}-v2` : resultSchema, value)
   const saved = value as unknown as ToolReceipt
   const tool = toolDefinitions.find(entry => entry[0] === toolId)
   if (!tool || saved.tool_id !== toolId || saved.payload.kind !== tool[4] || (tool[5] !== null && saved.payload.resource_kind !== tool[5])) throw new Error('工具结果类型不一致')
@@ -50,9 +51,12 @@ export function validateToolResult(catalogue: SchemaCatalogue, toolId: string, v
       const definition = reference.hash.length === 0 ? undefined : decodeURIComponent(reference.hash.replace(/^#\/\$defs\//, ''))
       // 发布引用必须由登记集合确认，内容使用完整 Schema 再次校验。
       let matched = false
-      for (const name of ['artifacts', 'dataset', 'model-stream', 'interfaces', 'resource-details', 'agent-release', 'task-plan-view', 'templates', 'template-operations', 'tasks', 'collections', 'rule-expressions', 'template-applicability', 'tool-inputs', 'tool-success']) {
+      for (const name of ['artifacts', 'dataset', 'model-stream', 'interfaces', 'resource-details', 'agent-release', 'task-plan-view', 'templates', 'template-operations', 'tasks', 'collections', 'rule-expressions', 'template-applicability', 'tool-inputs', 'tool-success', 'task-tool-read-success', 'artifacts-v2', 'source-evidence-v2', 'tool-inputs-v2', 'tool-success-v2', 'task-tool-read-success-v2', 'document-body-v2', 'task-section-writer-package-v2', 'task-source-verifier-package-v2', 'document-review-package-v2', 'strict-field-typed-v2', 'strict-field-comparison-v2', 'task-strict-field-input-v2', 'evaluation-stage-input-v2']) {
         const declared = new URL(catalogue.schemaRef(name))
-        if (reference.origin === declared.origin && reference.pathname === declared.pathname && reference.search === '') {
+        const baseReference = new URL(reference.href)
+        baseReference.hash = ''
+        declared.hash = ''
+        if (baseReference.href === declared.href && reference.search === '') {
           if (payload.content_schema_ref !== catalogue.schemaRef(name, definition)) throw new Error('结构化内容 Schema 引用不正确')
           catalogue.validate(name, readJson(payload.content), definition)
           matched = true
@@ -66,21 +70,24 @@ export function validateToolResult(catalogue: SchemaCatalogue, toolId: string, v
 
 export function registerTools(ctx: Context, catalogue: SchemaCatalogue, inputs: Record<string, Record<string, unknown>>,
   role: keyof typeof roleTools, timeouts: Record<string, number>, connect: () => Promise<PrivateBridge>,
-  authorizedCalls: ReadonlyMap<string, { name: string; argumentsSha256: string }>) {
-  const selected = toolDefinitions.filter(tool => (roleTools[role] as readonly string[]).includes(tool[0]))
+  authorizedCalls: ReadonlyMap<string, { name: string; argumentsSha256: string }>, evaluationToolIds?: readonly string[], evidenceToolContracts: Partial<Record<'AT-01' | 'AT-02' | 'AT-08', '2.0.0'>> = {}, inputsV2: Record<string, Record<string, unknown>> = {}) {
+  if (evaluationToolIds !== undefined && (new Set(evaluationToolIds).size !== evaluationToolIds.length || evaluationToolIds.some(id => !['AT-01','AT-02','AT-03','AT-04','AT-08'].includes(id) || !(roleTools[role] as readonly string[]).includes(id)))) throw new Error('EVAL 工具必须属于当前角色批准的独立工具范围')
+  const selected = toolDefinitions.filter(tool => (roleTools[role] as readonly string[]).includes(tool[0]) && (evaluationToolIds === undefined || evaluationToolIds.includes(tool[0])))
+  for (const id of Object.keys(evidenceToolContracts)) if (!selected.some(tool => tool[0] === id)) throw new Error('证据版本配置包含未批准工具')
+  const v2 = (id: string) => evidenceToolContracts[id as keyof typeof evidenceToolContracts] === '2.0.0'
   const validate = (name: string, args: JsonValue): void => {
     const tool = selected.find(entry => entry[1] === name)
     if (!tool) throw new Error('当前角色不允许该工具')
-    catalogue.validate('tool-inputs', args, tool[2])
+    catalogue.validate(v2(tool[0]) ? 'tool-inputs-v2' : 'tool-inputs', args, tool[2])
   }
   for (const [toolId, name, definition, description] of selected) {
-    const parameters = inputs[definition]
+    const parameters = (v2(toolId) ? inputsV2 : inputs)[definition]
     const timeoutMs = timeouts[toolId]
     if (!parameters || !Number.isSafeInteger(timeoutMs) || timeoutMs === undefined || timeoutMs <= 0) throw new Error('工具缺少发布 Schema 或时限')
     const tool: ToolDefinition = {
       name, description, parameters, timeoutMs,
       // 官方输出接口支持 JSON Schema 子集；完整发布 Schema 在返回及渲染时执行。
-      output: { schema: {}, render: (_args, value) => { validateToolResult(catalogue, toolId, value); return [{ type: 'text', text: canonicalize(value) }] } },
+      output: { schema: {}, render: (_args, value) => { validateToolResult(catalogue, toolId, value, evaluationToolIds !== undefined, v2(toolId)); return [{ type: 'text', text: canonicalize(value) }] } },
       execute: async (args, exec) => {
         assertJson(args)
         validate(name, args)
@@ -90,7 +97,7 @@ export function registerTools(ctx: Context, catalogue: SchemaCatalogue, inputs: 
         const bridge = await connect()
         try {
           const result = await bridge.tool(toolId, { call_id: exec.callId, name, arguments: args, arguments_sha256: argumentsSha256 }, AbortSignal.any([exec.signal, AbortSignal.timeout(timeoutMs)]))
-          validateToolResult(catalogue, toolId, result)
+          validateToolResult(catalogue, toolId, result, evaluationToolIds !== undefined, v2(toolId))
           if (toolId === 'AT-08') exec.concludeTurn()
           return result
         } finally { await bridge.close() }

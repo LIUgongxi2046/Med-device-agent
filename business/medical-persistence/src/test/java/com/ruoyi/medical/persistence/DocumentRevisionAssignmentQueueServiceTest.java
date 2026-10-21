@@ -1,7 +1,10 @@
 package com.ruoyi.medical.persistence;
 
+import org.mockito.ArgumentMatchers;
+
 import com.ruoyi.medical.contracts.ErrorCode;
 import com.ruoyi.medical.identity.BusinessSessionProtocol;
+import com.ruoyi.medical.identity.ApplicationSessionIdentity;
 import java.util.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -42,7 +45,7 @@ class DocumentRevisionAssignmentQueueServiceTest {
         assertEquals(PROJECT,result.required("items").get(0).required("project_id").asText());
         verify(f.documents,times(1)).authorizeMetadata(any(),eq("1"),eq(DOCUMENT),eq(REVISION));
         verify(f.documents,times(1)).requireMetadataCurrent(any(),eq(proof));
-        verify(f.documents,never()).readFixed(any(),anyString(),anyString(),anyString());
+        verify(f.documents,never()).readFixed(ArgumentMatchers.<ApplicationSessionIdentity.Verified>any(),anyString(),anyString(),anyString());verify(f.documents,never()).readFixed(ArgumentMatchers.<EvidenceReadAccess>any(),anyString(),anyString(),anyString());
         verify(f.mapper).myAssignments(argThat(v->ASSIGNEE.equals(v.get("userId")) && Integer.valueOf(11).equals(v.get("fetchLimit"))));
     }
     @Test void revokedPermissionIsOmittedAndEmptyPageCanStillHaveOpaqueNextCursor() throws Exception {
@@ -66,7 +69,7 @@ class DocumentRevisionAssignmentQueueServiceTest {
             var page=queue.read(f.subject,"1",2,null).required("data");assertEquals(1,page.required("items").size());assertFalse(page.required("complete").booleanValue());assertTrue(page.required("next_cursor").isTextual());
             assertFalse(page.toString().contains(id(99)));assertFalse(page.toString().contains(code.name()));
             verify(f.mapper,times(1)).myAssignments(argThat(v->Integer.valueOf(3).equals(v.get("fetchLimit"))));verify(f.mapper,times(1)).stored(anyMap());
-            verify(f.documents,times(2)).authorizeMetadata(any(),eq("1"),anyString(),eq(REVISION));verify(f.documents,never()).readFixed(any(),anyString(),anyString(),anyString());
+            verify(f.documents,times(2)).authorizeMetadata(any(),eq("1"),anyString(),eq(REVISION));verify(f.documents,never()).readFixed(ArgumentMatchers.<ApplicationSessionIdentity.Verified>any(),anyString(),anyString(),anyString());verify(f.documents,never()).readFixed(ArgumentMatchers.<EvidenceReadAccess>any(),anyString(),anyString(),anyString());
         }
     }
     @Test void genericUnavailableAndCorruptionAreNotSilentlyHidden() throws Exception {

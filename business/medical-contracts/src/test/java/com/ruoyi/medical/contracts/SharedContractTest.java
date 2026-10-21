@@ -31,7 +31,7 @@ class SharedContractTest {
     @Test
     void actualDatasetAndAllDefinitionsUseTheSameRelease() throws Exception {
         assertDoesNotThrow(() -> catalogue.validate("dataset", dataset, null));
-        assertEquals(503, catalogue.definitionCount());
+        assertEquals(SchemaTypeAssertions.publishedDefinitionCount(root), catalogue.definitionCount());
         SchemaCatalogue current = SchemaCatalogue.fromProject(root);
         assertEquals(current.bind("dataset", dataset, null).canonicalJson(), catalogue.bind("dataset", dataset, null).canonicalJson());
         assertEquals(dataset, JSON.readTree(catalogue.bind("dataset", dataset, null).canonicalBytes()));

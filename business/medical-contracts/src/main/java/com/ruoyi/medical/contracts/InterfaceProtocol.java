@@ -106,17 +106,18 @@ public final class InterfaceProtocol {
     public record FactUsage(String factVersionId, List<String> nodeIds, List<String> fieldIds) {
         public FactUsage { ids(factVersionId); nodeIds = copyIds(nodeIds); fieldIds = copyIds(fieldIds); }
     }
+    private static void evidenceVersion(String version) { if(!"1.0.0".equals(version)&&!"2.0.0".equals(version))throw new IllegalArgumentException("SCHEMA_UNSUPPORTED"); }
     public record DocumentBody(String schemaVersion, String templateVersion, List<Node> nodes, List<FieldValue> fields,
                                List<EvidenceLink> evidenceLinks, List<FactUsage> factUsages) {
-        public DocumentBody { constant(schemaVersion, "1.0.0"); ids(templateVersion); nodes = List.copyOf(nodes); fields = List.copyOf(fields); evidenceLinks = List.copyOf(evidenceLinks); factUsages = List.copyOf(factUsages); }
+        public DocumentBody { evidenceVersion(schemaVersion); ids(templateVersion); nodes = List.copyOf(nodes); fields = List.copyOf(fields); evidenceLinks = List.copyOf(evidenceLinks); factUsages = List.copyOf(factUsages); }
     }
     public record DocumentFieldProjection(String schemaVersion, String documentRevision, String bodySha256, List<FieldValue> fields) {
-        public DocumentFieldProjection { constant(schemaVersion, "1.0.0"); ids(documentRevision); WireValues.hash(bodySha256); fields = List.copyOf(fields); }
+        public DocumentFieldProjection { evidenceVersion(schemaVersion); ids(documentRevision); WireValues.hash(bodySha256); fields = List.copyOf(fields); }
     }
     public record DocumentEvidenceProjection(String schemaVersion, String documentRevision, String bodySha256,
             List<EvidenceLink> evidenceLinks, List<FactUsage> factUsages) {
         public DocumentEvidenceProjection {
-            constant(schemaVersion, "1.0.0"); ids(documentRevision); WireValues.hash(bodySha256);
+            evidenceVersion(schemaVersion); ids(documentRevision); WireValues.hash(bodySha256);
             evidenceLinks = List.copyOf(evidenceLinks); factUsages = List.copyOf(factUsages);
         }
     }
@@ -134,7 +135,7 @@ public final class InterfaceProtocol {
         public RevisionInput { ids(baseRevision, bodyArtifactId, bodySchemaRevision); revisions(expectedRevision); }
     }
     public record UploadRequest(String purpose, String documentId, String expectedRevision, String mediaType, String sizeBytes, String sha256, String schemaRef, String dependencyAccessSetId) {
-        public UploadRequest { constant(purpose, "DOCUMENT_BODY"); constant(mediaType, "application/json"); constant(schemaRef, "interfaces.schema.yaml#/$defs/DocumentBody"); ids(documentId, dependencyAccessSetId); revisions(expectedRevision, sizeBytes); }
+        public UploadRequest { constant(purpose, "DOCUMENT_BODY"); constant(mediaType, "application/json"); if(!java.util.Set.of("interfaces.schema.yaml#/$defs/DocumentBody","https://schemas.medical-agent.invalid/2.0.0/document-body#/$defs/DocumentBody").contains(schemaRef))throw new IllegalArgumentException("DOCUMENT_BODY_SCHEMA_UNSUPPORTED"); ids(documentId, dependencyAccessSetId); revisions(expectedRevision, sizeBytes); }
     }
     public record UploadGrant(String grantId, String uploadId, String uploadUrl, String expiresAt, long maxPartBytes) {
         public UploadGrant { ids(grantId, uploadId); times(expiresAt); if (maxPartBytes != 8388608) invalid(); }

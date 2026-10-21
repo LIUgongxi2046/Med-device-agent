@@ -79,7 +79,10 @@ final class SourceProcessingResult {
         var scope=json.createObjectNode(); scope.put("schema_version","1.0.0"); scope.put("tool_id","source.parse");
         scope.put("purpose","SOURCE_PROCESSING"); scope.put("input_data_kind","REGISTERED");
         scope.put("network_enabled",false); scope.put("external_process",false);
+        if(binding.complexReleaseSha256()!=null) scope.put("complex_release_sha256",binding.complexReleaseSha256());
         for(String format:List.of("DOCX","PDF","XLSX","CSV","TXT","MARKDOWN","PPTX")) scope.withArray("formats").add(format);
+        if(binding.complexReleaseSha256()!=null) scope.withArray("formats").add("IMAGE");
+        if(binding.htmlEnabled()){scope.withArray("formats").add("HTML");scope.put("html_parser_revision","HTML-STATIC-TEXT-1");}
         for(String action:List.of("READ_ORIGINAL","WRITE_PARSED")) scope.withArray("storage_actions").add(action);
         scope.put("maximum_source_bytes",policy.maximumSourceBytes()); scope.put("maximum_bundle_bytes",policy.maximumBundleBytes());
         scope.put("timeout_ms",policy.timeout().toMillis()); scope.put("environment",policy.environment()); scope.put("region",policy.region());
@@ -91,6 +94,8 @@ final class SourceProcessingResult {
         var artifact=json.createObjectNode(); artifact.put("schema_version","1.0.0"); artifact.put("processor","SOURCE-PROCESSING-1");
         artifact.put("python_sha256",policy.pythonSha256()); artifact.put("schema_manifest_sha256",manifest);
         artifact.put("scanner_release_sha256",binding.scannerReleaseSha256());
+        if(binding.htmlEnabled()) artifact.put("html_parser_revision","HTML-STATIC-TEXT-1");
+        if(binding.complexReleaseSha256()!=null) artifact.put("complex_release_sha256",binding.complexReleaseSha256());
         for(var file:policy.sourceFiles().stream().sorted(java.util.Comparator.comparing(SourceProcessingPolicy.CodeFile::path)).toList()) {
             var entry=artifact.withArray("source_files").addObject(); entry.put("path",file.path()); entry.put("sha256",file.sha256());
         }
@@ -141,9 +146,17 @@ final class SourceProcessingResult {
                     || !chunk.required("raw_text").equals(chunk.required("search_text"))) mismatch();
             for(String field:List.of("raw_text","quote_hash","locator")) if(!node.required(field).equals(chunk.required(field))) mismatch();
             if(!node.required("quote_hash").textValue().equals(DigestUtils.sha256Hex(node.required("raw_text").textValue().getBytes(StandardCharsets.UTF_8)))) mismatch();
-            TypedSchemaBindings.bind(catalogue,DatasetBindings.LOCATOR,node.required("locator"));
+            SourceLocatorSchema.validate(catalogue,node.required("locator"));
+            if("HTML".equals(command.required("format").textValue())) {
+                var locator=node.required("locator");var address=locator.required("address");String raw=node.required("raw_text").textValue();
+                if(!"HTML".equals(locator.path("kind").textValue()) || !command.required("original_sha256").equals(locator.required("original_sha256"))
+                    || address.required("text_end").longValue()-address.required("text_start").longValue()!=raw.codePointCount(0,raw.length()))mismatch();
+            } else if("HTML".equals(node.required("locator").path("kind").textValue()))mismatch();
+            if("IMAGE".equals(node.required("locator").path("kind").textValue())
+                    && (!"IMAGE".equals(command.required("format").textValue())
+                    || !command.required("original_sha256").equals(node.required("locator").required("original_sha256")))) mismatch();
         }
-        for(var issue:issues) if(!issue.required("locator").isNull()) TypedSchemaBindings.bind(catalogue,DatasetBindings.LOCATOR,issue.required("locator"));
+        for(var issue:issues) if(!issue.required("locator").isNull()) SourceLocatorSchema.validate(catalogue,issue.required("locator"));
         var scan=bundle.required("scan"); var artifactNames=new HashSet<String>();
         if(!command.required("original_sha256").equals(scan.required("original_sha256"))
                 || !command.required("size_bytes").equals(scan.required("size_bytes"))
@@ -156,6 +169,18 @@ final class SourceProcessingResult {
                     || !Integer.toString(content.length).equals(artifact.required("size_bytes").textValue())) mismatch();
         }
         var processor=bundle.required("processor_manifest");
+        if("HTML".equals(command.required("format").textValue())) {
+            if(!"HTML-STATIC-TEXT-1".equals(command.path("html_parser_revision").textValue()) || !command.required("html_parser_revision").equals(processor.path("html_parser_revision"))
+                || !command.required("original_sha256").equals(processor.path("html_original_sha256"))
+                || !processor.path("html_script_execution").isBoolean() || processor.path("html_script_execution").booleanValue()
+                || !processor.path("html_css_execution").isBoolean() || processor.path("html_css_execution").booleanValue()
+                || !"NOT_FETCHED".equals(processor.path("html_external_assets").textValue()))mismatch();
+            catalogue.requirePublished(catalogue.schemaRef("source-evidence-v2","locator"),processor.required("html_source_evidence_sha256").textValue());
+        }
+        if("IMAGE".equals(command.required("format").textValue()) && (!command.has("complex_release_sha256")
+                || !SourceLocatorSchema.IMAGE_SHA256.equals(processor.path("image_locator_schema_sha256").textValue()))) mismatch();
+        if(!java.util.Objects.equals(command.path("complex_release_sha256").textValue(),
+                processor.path("complex_engine_release_sha256").textValue())) mismatch();
         catalogue.requirePublished(catalogue.schemaRef("dataset","locator"),processor.required("locator_schema_sha256").textValue());
         if(!command.required("config_revision").equals(processor.required("config_revision"))
                 || !command.required("config_sha256").equals(processor.required("config_sha256"))

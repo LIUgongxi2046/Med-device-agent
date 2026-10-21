@@ -1,3 +1,4 @@
+import { validateSourceLocator } from './source-image-locator'
 import request from '@/utils/request'
 import { envelope, fail, revision, validate, validContext } from './protocol'
 import type { MedicalSession } from './protocol'
@@ -12,7 +13,7 @@ export interface RetrievalInput {
 export interface RetrievalHit {
   rank: number; source_id: string; source_version: string; parse_version: string; index_version: string
   chunk_id: string; approval_revision: string; title: string; excerpt: string; excerpt_truncated: boolean
-  locator_kind: 'PDF' | 'DOCX' | 'XLSX' | 'CSV' | 'TXT' | 'MARKDOWN' | 'PPTX'
+  locator_kind: 'PDF' | 'DOCX' | 'XLSX' | 'CSV' | 'TXT' | 'MARKDOWN' | 'PPTX' | 'IMAGE'
   locator: Record<string, unknown>; quote_hash: string; relevance: string
 }
 export interface RetrievalPage {
@@ -89,7 +90,7 @@ export async function readRetrieval(session: MedicalSession, retrievalId: string
     fail('CONTENT_MISMATCH', '资料检索页面与固定集合不一致')
   }
   for (const [index, item] of result.items.entries()) {
-    validate('https://schemas.medical-agent.invalid/1.0.0/data-design/dataset.schema.json#/$defs/locator', item.locator)
+    validateSourceLocator(item.locator)
     if (item.locator.kind !== item.locator_kind || BigInt(item.rank) !== start + BigInt(index + 1)) {
       fail('CONTENT_MISMATCH', '资料检索命中位置或顺序无效')
     }

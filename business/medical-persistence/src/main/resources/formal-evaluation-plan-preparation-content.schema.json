@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:medical:formal-evaluation-plan-preparation-content:1.0.0",
+  "$defs": {
+    "Request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "recovery",
+        "expected_receipt"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "recovery": {
+          "$ref": "urn:medical:formal-evaluation-plan-preparation:1.0.0#/$defs/Recovery"
+        },
+        "expected_receipt": {
+          "$ref": "urn:medical:formal-evaluation-plan-preparation:1.0.0#/$defs/PreparationIdentity"
+        }
+      }
+    },
+    "Content": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "receipt",
+        "plan_candidate",
+        "original_preview",
+        "runnable",
+        "professional_completion"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.0.0"
+        },
+        "receipt": {
+          "$ref": "urn:medical:formal-evaluation-plan-preparation:1.0.0#/$defs/PreparationIdentity"
+        },
+        "plan_candidate": {
+          "$ref": "urn:medical:formal-evaluation-plan-preparation:1.0.0#/$defs/PlanCandidate"
+        },
+        "original_preview": {
+          "$ref": "urn:medical:formal-evaluation-plan-preparation:1.0.0#/$defs/Preview"
+        },
+        "runnable": {
+          "const": false
+        },
+        "professional_completion": {
+          "const": false
+        }
+      }
+    }
+  }
+}

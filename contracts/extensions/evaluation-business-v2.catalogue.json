@@ -1,0 +1,11 @@
+{
+  "schema_version": "1.0.0",
+  "base_catalogue_sha256": "dcd72acbb7a45775373662e0ffe4557030d4740b0afacdee8375e7768e761915",
+  "schemas": [
+    {
+      "name": "evaluation-stage-input-v2",
+      "path": "business/medical-persistence/src/main/resources/evaluation-stage-input-v2.schema.json",
+      "sha256": "48358adc89bb465c795efdf384a04ce307a2c0f740bb339ae40363161548141f"
+    }
+  ]
+}

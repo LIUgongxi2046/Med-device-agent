@@ -1,0 +1,17 @@
+package com.ruoyi.medical.persistence;
+import javax.sql.DataSource;
+import org.springframework.context.annotation.*;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import com.ruoyi.medical.persistence.mapper.ArtifactRegistryMapper;
+@Configuration(proxyBeanMethods=false)
+@org.springframework.boot.context.properties.EnableConfigurationProperties(DocumentComparisonPolicy.class)
+@ConditionalOnBean(TaskCandidateAssemblyOriginalReader.class)
+public class DocumentCandidateAdoptionConfiguration {
+ @Bean DocumentCandidateAdoptionAuthority documentCandidateAdoptionAuthority(@Qualifier("masterDataSource")DataSource data,DocumentReadService documents,ResourceReadAuthority resources,TaskCandidateAssemblyStageJournal stages)throws Exception{return new DocumentCandidateAdoptionAuthority(data,documents,resources,stages);}
+ @Bean DocumentCandidateAdoptionService documentCandidateAdoptionService(@Qualifier("masterDataSource")DataSource data,DocumentReviewJobService reviews)throws Exception{return new DocumentCandidateAdoptionService(data,reviews);}
+ @Bean DocumentCandidateAdoptionSaveService documentCandidateAdoptionSaveService(EnterpriseAccess access,SourceUploadTransport transport,DocumentUploadPolicy policy,DocumentRevisionService revisions,DocumentCandidateAdoptionService service,ArtifactRegistryMapper artifacts,DependencyManifestSchema manifests,DependencyLineage lineage,@Qualifier("masterDataSource")DataSource data)throws Exception{return new DocumentCandidateAdoptionSaveService(access,transport,policy,revisions,service,artifacts,manifests,lineage,data);}
+ @Bean DocumentCandidateAdoptionEntryService documentCandidateAdoptionEntryService(EnterpriseAccess access,@Qualifier("masterDataSource")DataSource data,ResourceReadAuthority resources,DocumentReadService documents,TaskCandidateAssemblyOriginalReader originals,TaskCandidateAssemblyStageJournal stages,DocumentCandidateAdoptionAuthority authority,DocumentCandidateAdoptionService actions,DocumentCandidateAdoptionSaveService saves){return new DocumentCandidateAdoptionEntryService(access,data,resources,documents,originals,stages,authority,actions,saves);}
+ @Bean @org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(prefix="medical.document-comparison",name="enabled",havingValue="true")
+ CandidateComparisonService candidateComparisonService(EnterpriseAccess access,@Qualifier("masterDataSource")DataSource data,DocumentCandidateAdoptionEntryService inputs,SourceUploadTransport transport,DocumentComparisonPolicy policy,DependencyManifestSchema dependencies,DependencyLineage lineage)throws Exception{return new CandidateComparisonService(access,data,inputs,transport,policy,dependencies,lineage);}
+}

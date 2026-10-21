@@ -1,0 +1,5 @@
+{
+  "extends": "../../tsconfig.medical.json",
+  "include": ["../../src/views/medical/document-review-workspace.vue", "../../src/api/medical/document-review-workspace.ts", "./preview.vue", "./main.ts"],
+  "exclude": []
+}

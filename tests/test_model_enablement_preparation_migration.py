@@ -4,6 +4,7 @@ from xml.etree import ElementTree as ET
 import re, unittest, json
 import sqlglot
 from sqlglot import exp
+from migration_source_parser import parse_schema_source
 from test_simulation_input_artifact_migration import ROOT, RESOURCES, inspect_migration, foreign_keys
 from test_migration_bundle import parse_068_native_statements
 P=ROOT/'business/medical-persistence/src/main'
@@ -18,7 +19,7 @@ def keys(table):return {tuple(c.name for c in k.expressions) for k in table.find
 def catalogue():
  tables={};uniques={}
  for path in [ROOT/'data-design/core.sql',*sorted((RESOURCES/'db/migration').glob('*.sql'))]:
-  for stmt in sqlglot.parse('\n'.join(l for l in path.read_text().splitlines() if not l.lstrip().startswith('--')),read='mysql'):
+  for stmt in parse_schema_source(path.read_text())[0]:
    if isinstance(stmt,exp.Create) and isinstance(stmt.this,exp.Schema):
     name=stmt.this.this.name;tables[name]={c.name:c for c in stmt.this.expressions if isinstance(c,exp.ColumnDef)};uniques[name]=keys(stmt)
    elif isinstance(stmt,exp.Alter):
