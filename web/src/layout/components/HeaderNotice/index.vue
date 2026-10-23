@@ -52,7 +52,7 @@ const { proxy } = getCurrentInstance()
 // 加载顶部公告列表
 function loadNoticeTop() {
   noticeLoading.value = true
-  listNoticeTop().then(res => {
+  return listNoticeTop().then(res => {
     noticeList.value = res.data || []
     unreadCount.value = res.unreadCount !== undefined ? res.unreadCount : noticeList.value.filter(n => !n.isRead).length
   }).finally(() => {

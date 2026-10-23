@@ -14,7 +14,7 @@ import { readProjectJson, readBoundedJson, writeProjectJson } from '@/api/medica
 import { readGruExportJson } from '@/api/medical/gru-export-json'
 import { readComparisonJson } from '@/api/medical/document-comparison-json'
 import { readCapabilityJson } from '@/api/medical/formal-capability-json'
-import { prepareFrameworkRequest, verifyFrameworkResponse } from '@/api/medical/framework-request'
+import { prepareFrameworkRequest, verifyFrameworkResponse, requireFrameworkRequestCurrent } from '@/api/medical/framework-request'
 
 let downloadLoadingInstance
 // 是否显示重新登录
@@ -26,7 +26,7 @@ const service = axios.create({
   // axios中请求配置有baseURL选项，表示请求URL公共部分
   baseURL: import.meta.env.VITE_APP_BASE_API,
   // 超时
-  timeout: 10000
+  timeout: import.meta.env.VITE_APP_ENV === 'medical' ? 60000 : 10000
 })
 
 // request拦截器
@@ -272,8 +272,12 @@ service.interceptors.response.use(async res => {
   },
   error => {
     if (error instanceof MedicalFailure) return Promise.reject(error)
+    if (error.config?.medical === 'framework') requireFrameworkRequestCurrent(error.config)
     if (error.config?.medical) {
       if (axios.isCancel(error)) return Promise.reject(error)
+      if (['ECONNABORTED', 'ETIMEDOUT'].includes(error.code)) {
+        fail('DEPENDENCY_UNAVAILABLE', '服务响应超时，请重新读取会话后继续操作')
+      }
       fail('DEPENDENCY_UNAVAILABLE', '连接请求未完成，请恢复连接后重新读取会话')
     }
     console.log('err' + error)

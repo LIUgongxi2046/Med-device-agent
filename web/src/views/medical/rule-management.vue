@@ -1,16 +1,16 @@
 <template>
-  <main class="medical-page">
-    <h1>规则管理与人工审查</h1>
+  <main class="medical-page rule-workspace">
+    <div class="rule-page-heading"><div><h1>{{ target ? '检查规则详情' : '检查规则' }}</h1><p>维护检查对象、判断条件与处置方式，人工审核后形成可用版本</p></div><el-button v-if="!target" type="primary" :disabled="busy || !ruleAllowed(user.medicalSession, 'rule.write')" @click="router.push('/rules/new')">新增规则</el-button></div>
     <session-panel />
     <template v-if="!target">
       <rule-list />
-      <h2>打开已知固定版本</h2>
+      <el-collapse class="rule-advanced"><el-collapse-item title="高级：打开已知固定版本" name="version">
       <p>也可从模板引用或保存的版本标识进入。</p>
       <el-form label-position="top" @submit.prevent="open">
         <el-form-item label="固定规则版本" :error="entryError"><el-input v-model="entry" :disabled="busy || !entryAllowed" /></el-form-item>
         <el-button native-type="submit" :disabled="busy || !entryAllowed">打开规则版本</el-button>
-        <el-button :disabled="busy || !ruleAllowed(user.medicalSession, 'rule.write')" @click="router.push('/rules/new')">创建规则草稿</el-button>
       </el-form>
+      </el-collapse-item></el-collapse>
     </template>
     <p v-if="!permitted">规则读取与审查需要当前企业的明确规则权限</p>
     <p v-if="loading" role="status">正在读取固定规则与当前治理状态</p>
@@ -28,6 +28,11 @@
       <p v-if="receipt">原决定：{{ ruleDecisionLabels[receipt.decision] }}；原回执治理修订：{{ receipt.revision }}；决定人员：{{ receipt.actor_id }}</p>
     </el-alert>
     <section v-if="stored && permitted" data-rule-preview aria-label="固定规则完整内容">
+      <el-card shadow="never" class="rule-business-card"><template #header><div class="rule-business-heading"><h2>{{ business?.definition.name ?? '固定规则业务定义' }}</h2><el-tag>{{ ruleStatusLabels[stored.status] }}</el-tag></div></template>
+        <el-descriptions v-if="business" :column="2" border><el-descriptions-item label="检查维度">{{ ruleDimensionLabels[business.definition.dimension] }}</el-descriptions-item><el-descriptions-item label="处置方式">{{ ruleHandlingLabels[business.definition.handling] }}</el-descriptions-item><el-descriptions-item label="资料分类">{{ ruleClassificationLabels[business.definition.classification] }}</el-descriptions-item><el-descriptions-item label="判断条件" :span="2">{{ business.definition.condition }}</el-descriptions-item></el-descriptions>
+        <el-empty v-else description="此固定版本未登记业务名称、检查维度及处置方式。" :image-size="60" />
+        <router-link v-if="ruleAllowed(user.medicalSession,'rule.write') && stored.status === 'APPROVED'" :to="{path:'/rules/new',query:{from:stored.rule_version}}"><el-button type="primary" plain>基于本规则创建修订</el-button></router-link>
+      </el-card>
       <el-descriptions :column="1" border title="固定规则版本">
         <el-descriptions-item label="规则版本">{{ stored.rule_version }}</el-descriptions-item>
         <el-descriptions-item label="当前状态">{{ ruleStatusLabels[stored.status] }}</el-descriptions-item>
@@ -98,12 +103,15 @@ import { canonicalRule, clearRuleOperation, confirmRuleOperation, prepareRuleWri
 import type { PendingRuleWrite, RuleApprovalBody, RuleDecision, RulePreview, RuleReceipt, StoredRule } from '@/api/medical/rule-versions'
 import { lookupOperation } from '@/api/medical/operations'
 import type { Operation, OperationLookup } from '@/api/medical/operations'
+import { readRuleBusiness, ruleDimensionLabels, ruleHandlingLabels, ruleClassificationLabels } from '@/api/medical/rule-business'
+import type { StoredRuleBusiness } from '@/api/medical/rule-business'
 
 const user = useUserStore(); const route = useRoute(); const router = useRouter(); const formElement = ref<FormInstance>()
 const target = computed(() => typeof route.params.ruleId === 'string' ? route.params.ruleId : null)
 const entryAllowed = computed(() => ruleAllowed(user.medicalSession, 'rule.read') || ruleAllowed(user.medicalSession, 'rule.approve'))
 const permitted = computed(() => ruleAllowed(user.medicalSession, 'rule.read', target.value ?? undefined) || ruleAllowed(user.medicalSession, 'rule.approve', target.value ?? undefined))
 const stored = shallowRef<StoredRule | null>(null); const preview = shallowRef<RulePreview | null>(null); const loading = ref(false); const checking = ref(false)
+const business=shallowRef<StoredRuleBusiness|null>(null)
 const pending = ref<PendingRuleWrite | null>(null); const lookupResult = ref<OperationLookup | null>(null); const receipt = ref<RuleReceipt | null>(null); const completed = ref<Operation | null>(null)
 const entry = ref(''); const entryError = ref(''); const notice = ref(''); const dialog = ref(false); const discardDialog = ref(false)
 const decision = ref<RuleDecision | ''>(''); const reason = ref(''); const attested = ref(false); const errors = reactive({ reason: '', decision: '', attested: '' })
@@ -119,6 +127,7 @@ function full(value: unknown): string { return JSON.stringify(value, null, 2) }
 function clearForm(): void { decision.value = ''; reason.value = ''; attested.value = false; errors.reason = ''; errors.decision = ''; errors.attested = '' }
 function clear(): void {
   generation += 1; controller?.abort(); controller = null; stored.value = null; preview.value = null; pending.value = null; lookupResult.value = null
+  business.value=null
   receipt.value = null; completed.value = null; loading.value = false; checking.value = false; dialog.value = false; discardDialog.value = false; notice.value = ''; entry.value = ''; entryError.value = ''; clearForm()
 }
 async function read(): Promise<void> {
@@ -130,9 +139,10 @@ async function read(): Promise<void> {
   const current = generation; controller = new AbortController(); loading.value = true
   try {
     const result = ruleAllowed(session, 'rule.approve', id) ? await readRulePreview(session, id, controller.signal) : await readRule(session, id, controller.signal)
+    const definition=await readRuleBusiness(session,result.rule,controller.signal)
     if (current !== generation || user.medicalSession !== session || document.hidden || target.value !== id) return
     if (expectedHash !== undefined && result.rule.content_sha256 !== expectedHash) fail('CONTENT_MISMATCH', '规则内容与引用的固定摘要不一致')
-    stored.value = result.rule; preview.value = 'baseline_manifest' in result ? result : null
+    stored.value = result.rule; preview.value = 'baseline_manifest' in result ? result : null;business.value=definition
   } finally { if (current === generation) loading.value = false }
 }
 async function open(): Promise<void> {
@@ -146,8 +156,10 @@ async function openDecision(): Promise<void> {
   checking.value = true
   try {
     const value = await readRulePreview(session, id, new AbortController().signal)
+    const definition=await readRuleBusiness(session,value.rule,new AbortController().signal)
     if (current !== generation || user.medicalSession !== session || document.hidden) return
     preview.value = value; stored.value = value.rule; attested.value = false; notice.value = ''
+    business.value=definition
     if (mayWrite.value && ruleDecisions(value).length) dialog.value = true
     else notice.value = '规则当前状态或基线已经变化，请核查原操作和最新内容。'
   } finally { if (current === generation) checking.value = false }
@@ -167,9 +179,11 @@ async function recover(): Promise<void> {
   try {
     const operation = await confirmRuleOperation(session, original, found.operation_id, new AbortController().signal)
     const result = ruleAllowed(session, 'rule.approve', original.target_id) ? await readRulePreview(session, original.target_id, new AbortController().signal) : await readRule(session, original.target_id, new AbortController().signal)
+    const definition=await readRuleBusiness(session,result.rule,new AbortController().signal)
     if (current !== generation || user.medicalSession !== session || document.hidden) return
     clearRuleOperation(session, original, operation, result.rule); pending.value = null; lookupResult.value = null; completed.value = operation
     stored.value = result.rule; preview.value = 'baseline_manifest' in result ? result : null; clearForm(); dialog.value = false
+    business.value=definition
   } finally { if (current === generation) checking.value = false }
 }
 async function submit(): Promise<void> {
@@ -184,25 +198,28 @@ async function submit(): Promise<void> {
   user.medicalWriting = true
   try {
     const latest = await readRulePreview(session, id, new AbortController().signal)
+    const definition=await readRuleBusiness(session,latest.rule,new AbortController().signal)
     if (current !== generation || user.medicalSession !== session || document.hidden) return
     if (latest.rule.revision !== value.rule.revision || canonicalRule(latest.baseline_manifest) !== canonicalRule(value.baseline_manifest)
-        || !ruleDecisions(latest).includes(body.decision)) {
+        || !ruleDecisions(latest).includes(body.decision)||canonicalRule(definition)!==canonicalRule(business.value)) {
       preview.value = latest; stored.value = latest.rule; attested.value = false
       notice.value = '当前规则或依据授权基线已变化，本次没有提交决定。请重新审查并确认。'; return
     }
-    const original = await prepareRuleWrite(session, body); pending.value = original
+    const original = await prepareRuleWrite(session, body,definition?.definition_sha256); pending.value = original
     if (current !== generation || user.medicalSession !== session || document.hidden) fail('CONTEXT_CHANGED', '规则决定尚未发送，请重新核查身份')
-    const result = await submitRuleApproval(session, original, body)
+    const result = await submitRuleApproval(session, original, body,definition?.definition_sha256)
     const fresh = await user.readMedical() as MedicalSession | null
     if (!fresh?.current_context || fresh.user.user_id !== original.actor || fresh.current_context.tenant_id !== original.tenant_id) fail('CONTEXT_CHANGED', '原规则决定已返回，当前主体或企业需要核查')
     if (!active || route.fullPath !== path || document.hidden || user.medicalSession !== fresh) return
     const operation = await confirmRuleOperation(fresh, original, result.operation_id, new AbortController().signal)
     const actual = await readRulePreview(fresh, id, new AbortController().signal)
+    const actualBusiness=await readRuleBusiness(fresh,actual.rule,new AbortController().signal)
     if (actual.rule.content_sha256 !== result.content_sha256 || BigInt(actual.rule.revision) < BigInt(result.revision)
         || actual.rule.revision === result.revision && actual.rule.status !== result.status) fail('CONTENT_MISMATCH', '原规则决定回执与当前治理状态不一致')
     if (!active || route.fullPath !== path || document.hidden || user.medicalSession !== fresh) return
     clearRuleOperation(fresh, original, operation, actual.rule); pending.value = null; lookupResult.value = null
     receipt.value = result; completed.value = operation; stored.value = actual.rule; preview.value = actual; clearForm(); dialog.value = false
+    business.value=actualBusiness
   } finally {
     user.medicalWriting = false
     if (active && user.medicalSession !== session && route.fullPath === path && user.medicalSession?.current_context && !document.hidden && completed.value === null) await read()
@@ -229,6 +246,9 @@ window.addEventListener('beforeunload', beforeUnload)
 onBeforeUnmount(() => { active = false; window.removeEventListener('beforeunload', beforeUnload); clear() })
 </script>
 <style scoped>
+.rule-workspace{padding:28px;--el-color-primary:#1768c4;--el-color-primary-dark-2:#1256a4;--el-color-primary-light-9:#edf4ff;--el-text-color-primary:#243247;--el-text-color-regular:#526279;--el-border-color:#dce3ec;--el-border-color-light:#dce3ec;--el-border-color-lighter:#e9edf3}.rule-workspace :deep(.el-button){border-radius:6px;min-height:38px}.rule-workspace :deep(.el-button.is-link){min-height:24px}@media(max-width:650px){.rule-workspace{padding:16px}.rule-page-heading{align-items:flex-start;flex-direction:column}.rule-workspace :deep(.el-button){min-height:44px}}
 pre { white-space: pre-wrap; overflow-wrap: anywhere; }
 section { margin: 20px 0; }
+.rule-page-heading{display:flex;align-items:center;justify-content:space-between;gap:20px;margin-bottom:24px}.rule-page-heading h1{margin:0;font-size:24px;color:#243247}.rule-page-heading p{margin:10px 0 0;color:#526279;font-size:14px}.rule-advanced{margin-top:24px}.rule-advanced .el-form{max-width:600px}
+.rule-business-heading{display:flex;align-items:center;justify-content:space-between;gap:16px}.rule-business-heading h2{font-size:17px;margin:0}.rule-business-card{margin-bottom:24px}.rule-business-card .el-button{margin-top:20px}
 </style>

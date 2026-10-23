@@ -1,0 +1,13 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"urn:medical:document-workspace:1.0.0",
+  "$defs":{
+    "Id":{"type":"string","format":"uuid"},
+    "Hash":{"type":"string","pattern":"^[a-f0-9]{64}$"},
+    "Ids":{"type":"array","uniqueItems":true,"maxItems":10000,"items":{"$ref":"#/$defs/Id"}},
+    "Availability":{"type":"object","additionalProperties":false,"required":["schema_version","current_context","candidate_adoption_enabled","professional_review_enabled","review_confirmation_enabled","document_signing_enabled"],"properties":{"schema_version":{"const":"1.0.0"},"current_context":{"type":"object"},"candidate_adoption_enabled":{"type":"boolean"},"professional_review_enabled":{"type":"boolean"},"review_confirmation_enabled":{"type":"boolean"},"document_signing_enabled":{"type":"boolean"}}},
+    "CandidateItem":{"type":"object","additionalProperties":false,"required":["candidate_id","base_document_revision","status","created_at","target_node_count"],"properties":{"candidate_id":{"$ref":"#/$defs/Id"},"base_document_revision":{"$ref":"#/$defs/Id"},"status":{"enum":["READY","ADOPTED","REJECTED","STALE"]},"created_at":{"type":"string","format":"date-time"},"target_node_count":{"type":"integer","minimum":0,"maximum":10000}}},
+    "CandidateDirectory":{"type":"object","additionalProperties":false,"required":["schema_version","document_id","project_id","items","complete","next_after","pagination_mode"],"properties":{"schema_version":{"const":"1.0.0"},"document_id":{"$ref":"#/$defs/Id"},"project_id":{"$ref":"#/$defs/Id"},"items":{"type":"array","maxItems":100,"items":{"$ref":"#/$defs/CandidateItem"}},"complete":{"type":"boolean"},"next_after":{"anyOf":[{"$ref":"#/$defs/Id"},{"type":"null"}]},"pagination_mode":{"const":"LIVE_DIRECTORY"}}},
+    "Comparison":{"type":"object","additionalProperties":false,"required":["schema_version","candidate_id","candidate_sha256","document_id","base_document_revision","expected_document_revision","target_node_ids","check_ids","body","base_body","professional_approval","new_evidence_path"],"properties":{"schema_version":{"const":"1.0.0"},"candidate_id":{"$ref":"#/$defs/Id"},"candidate_sha256":{"$ref":"#/$defs/Hash"},"document_id":{"$ref":"#/$defs/Id"},"base_document_revision":{"$ref":"#/$defs/Id"},"expected_document_revision":{"type":"string","pattern":"^[1-9][0-9]{0,18}$"},"target_node_ids":{"$ref":"#/$defs/Ids"},"check_ids":{"$ref":"#/$defs/Ids"},"body":{"type":"object"},"base_body":{"type":"object"},"professional_approval":{"const":false},"new_evidence_path":{"const":"/evidence_links"}}}
+  }
+}

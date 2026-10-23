@@ -23,7 +23,12 @@ public final class VersionResourceProtocol {
             String resourceKind, String resourceId, String contentSha256, String sourceVersion,
             String conversationId, String conversationOwnerId, String conversationStatus) { }
 
-    public record DomainOwnerRow(String domain, OwnerRow owner) { }
+    public record DomainOwnerRow(String domain, OwnerRow owner) {
+        public DomainOwnerRow(String domain, String versionId, OwnerRow owner) {
+            this(domain, owner);
+            if (!Objects.equals(versionId, owner.versionId())) throw new IllegalArgumentException("VERSION_OWNER_IDENTITY_MISMATCH");
+        }
+    }
 
     public record ReadContext(SourceReadProtocol.Use use, String conversationId) {
         public ReadContext {

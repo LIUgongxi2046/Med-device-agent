@@ -2,19 +2,20 @@
   <div class="sidebar-logo-container" :class="{ 'collapse': collapse }">
     <transition name="sidebarLogoFade">
       <router-link v-if="collapse" key="collapse" class="sidebar-logo-link" :to="home">
-        <img v-if="logo" :src="logo" class="sidebar-logo" />
+        <img v-if="logo" :src="logo" class="sidebar-logo" :alt="title + ' Logo'" />
         <h1 v-else class="sidebar-title">{{ title }}</h1>
       </router-link>
       <router-link v-else key="expand" class="sidebar-logo-link" :to="home">
-        <img v-if="logo" :src="logo" class="sidebar-logo" />
-        <h1 class="sidebar-title">{{ title }}</h1>
+        <img v-if="logo" :src="logo" class="sidebar-logo" :alt="title + ' Logo'" />
+        <h1 class="sidebar-title" :title="brand.englishName">{{ title }}</h1>
       </router-link>
     </transition>
   </div>
 </template>
 
 <script setup>
-import logo from '@/assets/logo/logo.png'
+import { brand } from '../../../../branding.mjs'
+const logo = brand.logo
 import useSettingsStore from '@/store/modules/settings'
 import variables from '@/assets/styles/variables.module.scss'
 import useUserStore from '@/store/modules/user'
@@ -81,6 +82,9 @@ const getLogoTextColor = computed(() => {
       height: 32px;
       vertical-align: middle;
       margin-right: 12px;
+      object-fit: contain;
+      border-radius: 7px;
+      background: #fff;
     }
 
     & .sidebar-title {
@@ -89,7 +93,7 @@ const getLogoTextColor = computed(() => {
       color: v-bind(getLogoTextColor);
       font-weight: 600;
       line-height: 50px;
-      font-size: 14px;
+      font-size: 13px;
       font-family: Avenir, Helvetica Neue, Arial, Helvetica, sans-serif;
       vertical-align: middle;
     }

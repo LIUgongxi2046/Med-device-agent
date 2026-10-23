@@ -1,15 +1,15 @@
 <template>
   <main class="medical-page">
-    <h1>模板人工审查</h1>
-    <session-panel />
-    <el-button :disabled="!templateCreateAllowed(user.medicalSession) || user.medicalWriting" @click="router.push('/templates/new')">创建模板草稿</el-button>
-    <p v-if="!permitted">模板审查需要当前企业的明确核准权限</p>
-    <el-form v-if="!target" label-position="top" @submit.prevent="open">
+    <header class="template-center-heading"><h1>{{ target ? permitted ? '模板人工审查' : '模板详情' : '模板中心' }}</h1><div><el-button v-if="preview" :disabled="!templateCreateAllowed(user.medicalSession) || !templateReadAllowed(user.medicalSession,preview.template.template_version) || user.medicalWriting" @click="router.push({path:'/templates/new',query:{from:preview.template.template_version}})">修改章节配置</el-button><el-button type="primary" :disabled="!templateCreateAllowed(user.medicalSession) || user.medicalWriting" @click="router.push('/templates/new')">创建模板草稿</el-button></div></header>
+    <template-list v-if="!target" />
+    <p v-if="!readable">模板读取需要当前企业的明确读取或审查权限</p>
+    <el-alert v-if="target && readable && !permitted" title="当前为只读模板。创建修订需要模板维护权限，人工核准需要独立授权。" type="info" :closable="false" />
+    <el-collapse v-if="!target"><el-collapse-item title="高级：打开已知模板版本" name="version"><el-form label-position="top" @submit.prevent="open">
       <el-form-item label="模板版本" :error="entryError">
-        <el-input v-model="entry" placeholder="填写需要审查的固定模板版本标识" :disabled="!permitted || user.medicalWriting" />
+        <el-input v-model="entry" placeholder="填写需要读取的固定模板版本标识" :disabled="!readable || user.medicalWriting" />
       </el-form-item>
-      <el-button native-type="submit" :disabled="!permitted || user.medicalWriting">打开模板审查</el-button>
-    </el-form>
+      <el-button native-type="submit" :disabled="!readable || user.medicalWriting">打开模板版本</el-button>
+    </el-form></el-collapse-item></el-collapse>
     <p v-if="loading" role="status">正在读取完整模板定义并核查当前依赖权限</p>
     <el-alert v-if="pending" title="原模板决定待核查" type="warning" :closable="false" data-template-pending>
       <p>决定：{{ templateDecisionLabels[pending.decision] }}；原治理修订：{{ pending.expected_revision }}</p>
@@ -25,29 +25,18 @@
       <p v-if="receipt">决定编号：{{ receipt.decision_id }}；结果：{{ templateStatusLabels[receipt.status] }}；治理修订：{{ receipt.revision }}</p>
       <p>当前模板状态及版本以本页面重新读取的结果为准。</p>
     </el-alert>
-    <section v-if="preview" data-template-preview aria-label="完整模板审查内容">
-      <el-descriptions title="固定模板版本" :column="1" border>
-        <el-descriptions-item label="模板版本">{{ preview.template.template_version }}</el-descriptions-item>
+    <section v-if="preview" data-template-preview aria-label="完整模板定义">
+      <el-descriptions title="模板信息" :column="3" border>
         <el-descriptions-item label="状态">{{ templateStatusLabels[preview.template.status] }}</el-descriptions-item>
-        <el-descriptions-item label="治理修订">{{ preview.template.revision }}</el-descriptions-item>
         <el-descriptions-item label="文档类型">{{ documentLabels[preview.template.content.document_type] }}</el-descriptions-item>
         <el-descriptions-item label="申请路径">{{ pathLabels[preview.template.content.application_path] }}</el-descriptions-item>
         <el-descriptions-item label="IVD">{{ preview.template.content.ivd ? '属于IVD' : '非IVD' }}</el-descriptions-item>
         <el-descriptions-item label="创建理由">{{ preview.template.reason }}</el-descriptions-item>
         <el-descriptions-item label="创建人员">{{ preview.template.created_by }}</el-descriptions-item>
         <el-descriptions-item label="创建时间">{{ preview.template.created_at }}</el-descriptions-item>
-        <el-descriptions-item label="内容摘要">{{ preview.template.content_sha256 }}</el-descriptions-item>
         <el-descriptions-item label="目录规范">{{ preview.template.content.directory_profile ?? '使用本类型的核准目录' }}</el-descriptions-item>
       </el-descriptions>
-      <h2>完整目录</h2>
-      <p>条件规则尚未在项目属性上执行。未知条件保持待确认，本页面不产生项目适用决定。</p>
-      <el-table :data="preview.template.content.nodes" row-key="node_id" border>
-        <el-table-column prop="official_number" label="官方编号" width="110" />
-        <el-table-column prop="title" label="章节标题" min-width="220" />
-        <el-table-column label="必需" width="90"><template #default="scope">{{ scope.row.required ? '必需' : '按条件确认' }}</template></el-table-column>
-        <el-table-column label="条件" min-width="180"><template #default="scope">{{ scope.row.condition.mode === 'ALWAYS' ? '始终保留' : '待项目条件判断' }}</template></el-table-column>
-        <el-table-column type="expand"><template #default="scope"><pre class="template-definition">{{ full(scope.row) }}</pre></template></el-table-column>
-      </el-table>
+      <el-tabs v-model="reviewTab" class="template-review-tabs"><el-tab-pane label="章节配置" name="chapters"><template-chapter-summary :template="preview.template" /></el-tab-pane><el-tab-pane label="字段与附件" name="fields">
       <h2>全部字段</h2>
       <el-table :data="preview.template.content.field_definitions" row-key="field_id" border>
         <el-table-column prop="name" label="字段名称" min-width="160" />
@@ -72,6 +61,7 @@
         <el-table-column label="最多数量" width="120"><template #default="scope">{{ scope.row.max_count ?? '未设上限' }}</template></el-table-column>
         <el-table-column type="expand"><template #default="scope"><pre class="template-definition">{{ full(scope.row) }}</pre></template></el-table-column>
       </el-table>
+      </el-tab-pane><el-tab-pane label="适用范围与规则" name="rules"><el-descriptions :column="2" border><el-descriptions-item label="文档类型">{{ documentLabels[preview.template.content.document_type] }}</el-descriptions-item><el-descriptions-item label="申请路径">{{ pathLabels[preview.template.content.application_path] }}</el-descriptions-item><el-descriptions-item label="器械类别">{{ preview.template.content.ivd ? 'IVD' : '非IVD' }}</el-descriptions-item><el-descriptions-item label="适用确认">由各项目结合固定属性和条件规则分别确认</el-descriptions-item></el-descriptions>
       <section v-if="referencedRules.length" aria-label="模板引用的固定规则">
         <h2>模板引用的固定规则</h2>
         <p>打开已授权规则并核对模板引用的内容摘要；读取不会改变模板或规则状态。</p>
@@ -82,7 +72,7 @@
           <p>SHA-256：{{ rule.content_sha256 }}</p>
         </li></ul>
       </section>
-      <el-collapse>
+      </el-tab-pane><el-tab-pane label="版式与版本记录" name="versions"><el-descriptions :column="1" border><el-descriptions-item label="固定模板版本">{{ preview.template.template_version }}</el-descriptions-item><el-descriptions-item label="当前修订">{{ preview.template.revision }}</el-descriptions-item><el-descriptions-item label="原模板版本">{{ preview.template.base_version?.version_id ?? '独立创建' }}</el-descriptions-item><el-descriptions-item label="创建说明">{{ preview.template.reason }}</el-descriptions-item></el-descriptions><el-collapse>
         <el-collapse-item title="条件规则与输入属性" name="conditions"><pre class="template-definition">{{ full(preview.template.content.condition_schema) }}</pre></el-collapse-item>
         <el-collapse-item title="全部跨文档规则" name="cross"><pre class="template-definition">{{ full(preview.template.content.cross_document_rules) }}</pre></el-collapse-item>
         <el-collapse-item title="版式、编号、字体与附件顺序" name="format"><pre class="template-definition">{{ full(preview.template.content.format_profile) }}</pre></el-collapse-item>
@@ -90,11 +80,12 @@
         <el-collapse-item title="本次固定审查清单" name="baseline"><pre class="template-definition">{{ full(preview.baseline_manifest) }}</pre></el-collapse-item>
         <el-collapse-item title="完整模板定义" name="content"><pre class="template-definition">{{ full(preview.template.content) }}</pre></el-collapse-item>
       </el-collapse>
+      </el-tab-pane></el-tabs>
       <el-button v-if="decisions.length" data-template-decide :disabled="user.medicalWriting || checking || !mayWrite" @click="dialog = true">登记人工决定</el-button>
       <p v-if="pending && !mayWrite">当前模板或审查上下文已经变化，原决定需要通过原操作查询核查。</p>
       <p v-if="preview.template.status === 'DISABLED'">模板已停用；内容修改需要创建新的模板版本。</p>
     </section>
-    <router-link v-if="target" to="/templates">返回模板审查入口</router-link>
+    <router-link v-if="target" to="/templates">返回模板中心</router-link>
     <el-dialog v-model="dialog" title="确认模板人工决定" :close-on-click-modal="false" :close-on-press-escape="!user.medicalWriting" :before-close="closeDialog">
       <el-form v-if="preview" ref="formElement" label-position="top" @submit.prevent="submit">
         <el-form-item label="人工决定" :error="errors.decision">
@@ -119,10 +110,11 @@
 
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, reactive, ref, watch } from 'vue'
-import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
+import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute, useRouter } from 'vue-router'
+import { useMedicalRouteRead } from '@/api/medical/route-read'
 import type { FormInstance } from 'element-plus'
 import { approvalDecisions, clearCompletedApproval, confirmTemplateApproval, prepareTemplateApproval, readPendingApproval,
-  readTemplatePreview, submitTemplateApproval, templateApprovalAllowed, templateDecisionLabels, templateStatusLabels } from '@/api/medical/template-approval'
+  readTemplateDefinition, readTemplatePreview, submitTemplateApproval, templateApprovalAllowed, templateReadAllowed, templateDecisionLabels, templateStatusLabels } from '@/api/medical/template-approval'
 import type { ApprovalBody, ApprovalReceipt, PendingApproval, TemplateDecision, TemplatePreview } from '@/api/medical/template-approval'
 import { fail, schemaIssues } from '@/api/medical/protocol'
 import type { MedicalSession } from '@/api/medical/protocol'
@@ -132,11 +124,15 @@ import { lookupOperation } from '@/api/medical/operations'
 import type { Operation, OperationLookup } from '@/api/medical/operations'
 import useUserStore from '@/store/modules/user'
 import SessionPanel from './session-panel.vue'
+import TemplateList from './template-list.vue'
+import TemplateChapterSummary from './template-chapter-summary.vue'
 import { referencedTemplateRules, ruleAllowed } from '@/api/medical/rule-versions'
 
 const user = useUserStore(); const route = useRoute(); const router = useRouter()
 const target = computed(() => typeof route.params.templateId === 'string' ? route.params.templateId : null)
+const reviewTab=ref('chapters')
 const permitted = computed(() => templateApprovalAllowed(user.medicalSession, target.value ?? undefined))
+const readable=computed(()=>permitted.value||templateReadAllowed(user.medicalSession,target.value??undefined))
 const preview = ref<TemplatePreview | null>(null); const loading = ref(false); const checking = ref(false)
 const pending = ref<PendingApproval | null>(null); const lookupResult = ref<OperationLookup | null>(null)
 const receipt = ref<ApprovalReceipt | null>(null); const completed = ref<Operation | null>(null)
@@ -166,16 +162,16 @@ function clear(): void {
 }
 async function read(): Promise<void> {
   clear(); const session: MedicalSession | null = user.medicalSession; const id = target.value
-  if (!session?.current_context || !permitted.value || !id || document.hidden || user.medicalWriting) return
+  if (!session?.current_context || !readable.value || !id || !routeActive.value || document.hidden || user.medicalWriting) return
   const current = generation; controller = new AbortController(); loading.value = true
-  pending.value = readPendingApproval(session, id); decision.value = pending.value?.decision ?? ''
+  pending.value = permitted.value?readPendingApproval(session, id):null; decision.value = pending.value?.decision ?? ''
   try {
-    const value = await readTemplatePreview(session, id, controller.signal)
-    if (current === generation && user.medicalSession === session && target.value === id && !document.hidden) preview.value = value
+    const value = permitted.value?await readTemplatePreview(session,id,controller.signal):await readTemplateDefinition(session,id,controller.signal)
+    if (current === generation && user.medicalSession === session && target.value === id && routeActive.value && !document.hidden) preview.value = value
   } finally { if (current === generation) loading.value = false }
 }
 async function open(): Promise<void> {
-  if (!permitted.value || user.medicalWriting) return
+  if (!readable.value || user.medicalWriting) return
   entryError.value = schemaIssues('urn:medical:template-approval:1.0.0#/$defs/Id', entry.value).length ? '请填写规范的固定模板版本标识' : ''
   if (!entryError.value) await router.push('/templates/' + entry.value + '/approval')
 }
@@ -252,16 +248,20 @@ async function discard(): Promise<void> {
   if (destination !== null) { leaveApproved = true; await router.push(destination); leaveApproved = false }
 }
 function beforeUnload(event: BeforeUnloadEvent): void { if (dirty()) { event.preventDefault(); event.returnValue = '' } }
-onBeforeRouteLeave(to => {
+function leave(to: { fullPath: string }): boolean {
   if (leaveApproved || !dirty()) return true
   if (user.medicalWriting) return false
   nextTarget = to.fullPath; dialogDone = null; discardDialog.value = true; return false
-})
+}
+onBeforeRouteLeave(leave)
+onBeforeRouteUpdate(leave)
+const routeActive = useMedicalRouteRead(['MedicalTemplateApprovalEntry', 'MedicalTemplateApproval'], clear)
 window.addEventListener('beforeunload', beforeUnload)
-watch(() => [user.medicalSession, target.value], read, { immediate: true, flush: 'sync' })
+watch(() => [user.medicalSession, target.value, routeActive.value], () => { if (routeActive.value) return read() }, { immediate: true, flush: 'sync' })
 onBeforeUnmount(() => { window.removeEventListener('beforeunload', beforeUnload); clear() })
 </script>
 
 <style scoped>
 .template-definition { white-space: pre-wrap; overflow-wrap: anywhere; margin: 16px; }
+.template-center-heading{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:24px}.template-center-heading h1{margin:0;font-size:24px}.template-review-tabs{margin:24px 0}.template-review-tabs h2{font-size:17px;margin:24px 0 16px}.template-review-tabs section{margin:16px 0}.medical-page{padding:28px;max-width:1480px;margin:auto}@media(max-width:650px){.medical-page{padding:16px}.template-center-heading{align-items:flex-start;flex-direction:column}}
 </style>

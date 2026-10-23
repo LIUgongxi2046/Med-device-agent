@@ -368,7 +368,8 @@ public final class DocumentReadService {
             List<String> reasons = metadataOnly ? List.of() : documents.invalidationReasons(values); List<DocumentReadProtocol.StreamRow> streams = metadataOnly ? List.of() : documents.streams(values);
             var actions = new ArrayList<String>();
             if (!metadataOnly && header.documentRevision().equals(header.currentDocumentRevision()) && "ACTIVE".equals(header.projectStatus()) && !"SIGNED".equals(header.status())
-                    && resources.find(admission, scope, "document.write", PURPOSE).isPresent()) actions.add("document.edit");
+                    && resources.find(admission, scope, "document.write", PURPOSE).isPresent()
+                    && resources.find(admission, scope, "document.check", "DOCUMENT_BODY").isPresent()) actions.add("document.edit");
             var identity = new LinkedHashMap<String,Object>(); identity.put("header", header); identity.put("snapshot", snapshot); identity.put("members", members);
             identity.put("grant", grant); identity.put("authorizations", authorizations); identity.put("watermarks", marks);
             identity.put("checks", checks); identity.put("reviews", reviews); identity.put("signatures", signatures); identity.put("reasons", reasons);

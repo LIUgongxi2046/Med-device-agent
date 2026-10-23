@@ -1,0 +1,33 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"urn:medical:rule-business-directory:1.0.0",
+  "$defs":{
+    "Query":{"type":"object","additionalProperties":false,"properties":{
+      "limit":{"type":"integer","minimum":1,"maximum":100},
+      "after":{"$ref":"urn:medical:configuration-discovery:1.0.0#/$defs/Cursor"},
+      "q":{"type":"string","minLength":1,"maxLength":256},
+      "dimension":{"$ref":"urn:medical:rule-business-definition:1.0.0#/$defs/Definition/properties/dimension"},
+      "handling":{"$ref":"urn:medical:rule-business-definition:1.0.0#/$defs/Definition/properties/handling"},
+      "status":{"enum":["DRAFT","APPROVED","RETURNED","DISABLED"]}
+    }},
+    "Filters":{"type":"object","additionalProperties":false,"required":["limit","q","dimension","handling","status"],"properties":{
+      "limit":{"type":"integer","minimum":1,"maximum":100},
+      "q":{"type":["string","null"],"minLength":1,"maxLength":256},
+      "dimension":{"anyOf":[{"$ref":"urn:medical:rule-business-definition:1.0.0#/$defs/Definition/properties/dimension"},{"type":"null"}]},
+      "handling":{"anyOf":[{"$ref":"urn:medical:rule-business-definition:1.0.0#/$defs/Definition/properties/handling"},{"type":"null"}]},
+      "status":{"enum":[null,"DRAFT","APPROVED","RETURNED","DISABLED"]}
+    }},
+    "Entry":{"type":"object","additionalProperties":false,"required":["resource","business"],"properties":{
+      "resource":{"$ref":"urn:medical:rule-version-workflow:1.0.0#/$defs/Read"},
+      "business":{"anyOf":[{"$ref":"urn:medical:rule-business-definition:1.0.0#/$defs/Stored"},{"type":"null"}]}
+    }},
+    "Directory":{"type":"object","additionalProperties":false,"required":["schema_version","tenant_id","current_context","query","items","next_after"],"properties":{
+      "schema_version":{"const":"1.0.0"},
+      "tenant_id":{"$ref":"urn:medical:rule-business-definition:1.0.0#/$defs/Id"},
+      "current_context":{"$ref":"urn:medical:configuration-discovery:1.0.0#/$defs/Context"},
+      "query":{"$ref":"#/$defs/Filters"},
+      "items":{"type":"array","maxItems":100,"items":{"$ref":"#/$defs/Entry"}},
+      "next_after":{"anyOf":[{"$ref":"urn:medical:configuration-discovery:1.0.0#/$defs/Cursor"},{"type":"null"}]}
+    }}
+  }
+}

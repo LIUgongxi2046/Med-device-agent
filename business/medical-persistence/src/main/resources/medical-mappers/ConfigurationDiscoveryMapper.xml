@@ -22,7 +22,7 @@
       AND m.project_id &lt;=&gt; h.project_id AND m.configuration_kind='MODEL' AND m.execution_mode=h.execution_mode
     WHERE h.kind='MODEL' AND h.execution_mode=#{mode} AND h.current_version IS NOT NULL
     <if test="after != null">AND h.config_id &gt; #{after}</if>
-    <if test="q != null">AND (LOCATE(LOWER(#{q}),LOWER(h.config_id)) &gt; 0
+    <if test="q != null">AND (LOCATE(LOWER(#{q}),LOWER(CONVERT(h.config_id USING utf8mb4))) &gt; 0
       OR LOCATE(LOWER(#{q}),LOWER(m.provider)) &gt; 0 OR LOCATE(LOWER(#{q}),LOWER(m.model_id)) &gt; 0
       OR LOCATE(LOWER(#{q}),LOWER(m.model_version)) &gt; 0)</if>
     ORDER BY h.config_id
@@ -33,8 +33,29 @@
     WHERE NOT EXISTS (SELECT 1 FROM simulation_rule_binding b
       WHERE b.tenant_id=r.tenant_id AND b.rule_version=r.rule_version)
     <if test="after != null">AND r.rule_version &gt; #{after}</if>
-    <if test="q != null">AND (LOCATE(LOWER(#{q}),LOWER(r.rule_version)) &gt; 0
-      OR LOCATE(LOWER(#{q}),LOWER(r.engine_revision)) &gt; 0)</if>
+    <if test="status != null">AND r.status = #{status}</if>
+    <if test="dimension != null or handling != null">AND EXISTS (
+      SELECT 1 FROM rule_business_definition filter_business
+      WHERE filter_business.tenant_id=r.tenant_id AND filter_business.rule_version=r.rule_version
+      <if test="dimension != null">AND JSON_UNQUOTE(JSON_EXTRACT(filter_business.definition_json,'$.dimension')) = #{dimension}</if>
+      <if test="handling != null">AND JSON_UNQUOTE(JSON_EXTRACT(filter_business.definition_json,'$.handling')) = #{handling}</if>
+    )</if>
+    <if test="q != null">AND (LOCATE(LOWER(#{q}),LOWER(CONVERT(r.rule_version USING utf8mb4))) &gt; 0
+      OR LOCATE(LOWER(#{q}),LOWER(r.engine_revision)) &gt; 0
+      OR EXISTS (SELECT 1 FROM rule_business_definition business WHERE business.tenant_id=r.tenant_id AND business.rule_version=r.rule_version
+        AND (LOCATE(LOWER(#{q}),LOWER(JSON_UNQUOTE(JSON_EXTRACT(business.definition_json,'$.name')))) &gt; 0
+          OR LOCATE(LOWER(#{q}),LOWER(JSON_UNQUOTE(JSON_EXTRACT(business.definition_json,'$.condition')))) &gt; 0)))</if>
     ORDER BY r.rule_version
+  </select>
+  <select id="templates" resultMap="candidate" useCache="false" flushCache="true">
+    SELECT t.template_version AS id,t.template_version AS version_id
+    FROM template_version t JOIN template_definition d ON d.tenant_id=t.tenant_id AND d.template_version=t.template_version
+    <where>
+      <if test="after != null">t.template_version &gt; #{after}</if>
+      <if test="q != null">AND (LOCATE(LOWER(#{q}),LOWER(CONVERT(t.template_version USING utf8mb4))) &gt; 0
+        OR LOCATE(LOWER(#{q}),LOWER(d.reason)) &gt; 0
+        OR LOCATE(LOWER(#{q}),LOWER(JSON_UNQUOTE(JSON_EXTRACT(d.content_json,'$.document_type')))) &gt; 0)</if>
+    </where>
+    ORDER BY t.template_version
   </select>
 </mapper>

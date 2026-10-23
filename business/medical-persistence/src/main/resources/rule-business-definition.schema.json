@@ -1,0 +1,19 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"urn:medical:rule-business-definition:1.0.0",
+  "$defs":{
+    "Id":{"type":"string","format":"uuid"},
+    "Hash":{"type":"string","pattern":"^[a-f0-9]{64}$"},
+    "Definition":{"type":"object","additionalProperties":false,"required":["name","dimension","condition","handling","classification"],"properties":{
+      "name":{"type":"string","minLength":1,"maxLength":200},
+      "dimension":{"enum":["CONTENT_COMPLETENESS","REFERENCE_ACCURACY","STRICT_FIELD_CONSISTENCY","RULE_COMPLIANCE","HUMAN_MODIFICATION"]},
+      "condition":{"type":"string","minLength":1,"maxLength":4000},
+      "handling":{"enum":["BLOCK_SIGNING","MANUAL_CONFIRMATION","NOTICE"]},
+      "classification":{"enum":["PUBLIC","INTERNAL","RESTRICTED","PERSONAL_HEALTH"]}
+    }},
+    "Create":{"type":"object","additionalProperties":false,"required":["schema_version","rule","definition"],"properties":{"schema_version":{"const":"1.0.0"},"rule":{"type":"object"},"definition":{"$ref":"#/$defs/Definition"}}},
+    "Stored":{"type":"object","additionalProperties":false,"required":["schema_version","tenant_id","rule_version","definition","definition_sha256","rule_content_sha256","schema_manifest_sha256","operation_id","created_by","created_at"],"properties":{
+      "schema_version":{"const":"1.0.0"},"tenant_id":{"$ref":"#/$defs/Id"},"rule_version":{"$ref":"#/$defs/Id"},"definition":{"$ref":"#/$defs/Definition"},"definition_sha256":{"$ref":"#/$defs/Hash"},"rule_content_sha256":{"$ref":"#/$defs/Hash"},"schema_manifest_sha256":{"$ref":"#/$defs/Hash"},"operation_id":{"$ref":"#/$defs/Id"},"created_by":{"$ref":"#/$defs/Id"},"created_at":{"type":"string","format":"date-time"}
+    }}
+  }
+}

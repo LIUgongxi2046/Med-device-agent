@@ -40,14 +40,17 @@ export function frameworkRouteNames(records) {
 }
 
 export function createMedicalFrameworkRegistry(router) {
-  let removals = []; let authorized = new Set()
+  let removals = []; let installed = new Set(); let authorized = new Set()
   return {
-    clear() { removals.forEach(remove => remove()); removals = []; authorized = new Set() },
+    clear() { removals.forEach(remove => remove()); removals = []; installed = new Set(); authorized = new Set() },
+    suspend() { authorized = new Set() },
+    resume() { authorized = new Set(installed) },
     replace(records) {
       this.clear()
       try {
         records.forEach(record => removals.push(router.addRoute(record)))
-        authorized = new Set(frameworkRouteNames(records))
+        installed = new Set(frameworkRouteNames(records))
+        authorized = new Set(installed)
       } catch (error) { this.clear(); throw error }
     },
     has(name) { return typeof name === 'string' && authorized.has(name) }

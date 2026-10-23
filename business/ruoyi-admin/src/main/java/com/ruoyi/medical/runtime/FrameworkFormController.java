@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @ConditionalOnProperty(name="medical.identity.mode",havingValue="local")
-public final class FrameworkFormController {
+public class FrameworkFormController {
     private final ApplicationSessionIdentity identities;private final PermissionService permissions;private final FrameworkFormService service;
     public FrameworkFormController(ApplicationSessionIdentity identities,PermissionService permissions,FrameworkFormService service){this.identities=identities;this.permissions=permissions;this.service=service;}
     @GetMapping("/api/tool/build/schemas") @PreAuthorize("@ss.hasPermi('tool:build:list')")

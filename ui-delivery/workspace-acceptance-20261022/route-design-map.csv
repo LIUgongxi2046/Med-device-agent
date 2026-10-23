@@ -1,0 +1,8 @@
+route,screen,requirement_source,design_source,implementation,verification
+/sources/uploads,S04,EXPLICIT,ui-delivery/final-product-design.md,Element Plus项目目录与企业归属上传入口,实际目录与拖动文件选择
+/projects/:projectId/uploads,S04,EXPLICIT,设计稿.html,逐文件队列与来源许可表单及分段上传,实际分段传输与服务器回执
+/templates,S04,EXPLICIT,ui-delivery/final-product-design.md,模板类型筛选与固定版本目录,已授权目录与缺少完整依据的拒绝检查
+/templates/:templateId/approval,S04,EXPLICIT,设计稿.html,完整固定定义与依赖基线及人工决定,公开字体许可及自拟DOCX版式与已核准规则的完整模板实际核准通过
+/rules,S04,EXPLICIT,ui-delivery/final-product-design.md,已授权规则目录与不可变版本,真实规则草稿
+/rules/:ruleId,S04,EXPLICIT,设计稿.html,完整表达式与输入属性及人工决定表单,真实退回及SIMULATION编号字段存在性规则核准通过
+/document-save-audit,S02,EXPLICIT,用户2026-10-22要求,Element Plus日期范围与筛选表格及固定正文读取,真实保存201及审计查询与固定版本正文读取通过

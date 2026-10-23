@@ -392,12 +392,12 @@ def application(additional_config=None):
     if hashlib.sha256(artifact.read_bytes()).hexdigest() != digest or hashlib.sha256(source.read_bytes()).hexdigest() != digest:
         raise RuntimeError("LOCAL_APPLICATION_ARTIFACT_CHANGED")
     with (RUNTIME / "application.log").open("ab") as output:
-        process = subprocess.Popen([str(JAVA), "-Dfile.encoding=UTF-8", "-Dlogback.configurationFile=logback-medical.xml", "-Dmedical.projectRoot=" + str(ROOT), "-Djava.io.tmpdir=" + str(RUNTIME / "tmp"),
+        process = subprocess.Popen([str(JAVA), "-Xms128m", "-Xmx1024m", "-Dfile.encoding=UTF-8", "-Dlogback.configurationFile=logback-medical.xml", "-Dmedical.projectRoot=" + str(ROOT), "-Djava.io.tmpdir=" + str(RUNTIME / "tmp"),
             "-jar", str(artifact), "--spring.config.name=application-medical-local"],
             cwd=ROOT, env=application_environment, stdout=output, stderr=output, start_new_session=True)
     deployment = {"deployment_id": str(uuid.uuid4()), "pid": process.pid, "os_uid": os.getuid(),
                   "artifact": str(artifact.relative_to(ROOT)), "sha256": digest,
-                  "source": str(source.relative_to(ROOT)), "scope": "LOCAL_APPLICATION"}
+                  "source": str(source.relative_to(ROOT)), "scope": "LOCAL_APPLICATION", "java_heap_mb": {"initial": 128, "maximum": 1024}}
     if additional is not None:
         deployment["additional_configuration"] = str(additional.relative_to(ROOT))
         deployment["additional_configuration_sha256"] = hashlib.sha256(additional.read_bytes()).hexdigest()
@@ -428,8 +428,11 @@ def verify_application_deployment():
         additional.resolve(strict=True).relative_to(ROOT)
         if additional.is_symlink() or hashlib.sha256(additional.read_bytes()).hexdigest() != deployment["additional_configuration_sha256"]:
             raise RuntimeError("LOCAL_ADDITIONAL_CONFIGURATION_CHANGED")
+    process_environment = environment()
+    if platform.system() == "Darwin":
+        process_environment["LC_ALL"] = "en_US.UTF-8"
     process = subprocess.run(["/bin/ps", "-ww", "-p", str(pid), "-o", "command="], capture_output=True,
-                             text=True, check=True, env=environment())
+                             text=True, check=True, env=process_environment)
     expected = "-jar " + str(artifact) + " --spring.config.name=application-medical-local"
     if expected not in process.stdout or not process.stdout.strip().startswith(str(JAVA)):
         raise RuntimeError("LOCAL_APPLICATION_PROCESS_IDENTITY_CHANGED")
@@ -482,15 +485,18 @@ def recover_owner():
     with (RUNTIME / "owner-recovery.lock").open("a", encoding="utf-8") as lock:
         os.chmod(lock.fileno(), 0o600)
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        username = owner.pw_name
         display_name = owner.pw_name
         if path.exists():
             if path.is_symlink() or path.stat().st_uid != owner.pw_uid or path.stat().st_mode & 0o777 != 0o600:
                 raise RuntimeError("LOCAL_OWNER_CREDENTIAL_PERMISSIONS_INVALID")
             previous = json.loads(path.read_bytes())
-            if previous["username"] != owner.pw_name:
-                raise RuntimeError("LOCAL_OWNER_IDENTITY_CHANGED")
+            username = previous["username"]
+            if not isinstance(username, str) or not username.strip() or len(username) > 128:
+                raise RuntimeError("LOCAL_OWNER_USERNAME_INVALID")
+            username.encode("utf-8")
             display_name = previous["display_name"]
-        credentials = {"username": owner.pw_name, "password": secrets.token_hex(24), "display_name": display_name}
+        credentials = {"username": username, "password": secrets.token_hex(24), "display_name": display_name}
         candidate = RUNTIME / ("owner-credentials-" + str(uuid.uuid4()) + ".json")
         with candidate.open("x", encoding="utf-8") as output:
             os.chmod(output.fileno(), 0o600)
@@ -502,8 +508,36 @@ def recover_owner():
         os.replace(candidate, path)
         synchronize_runtime_directory()
         (RUNTIME / "owner-credential-receipt.json").write_text(json.dumps({"scope": "LOCAL_OWNER_CREDENTIAL_RECOVERY",
-            "source": "operating_system_account", "os_uid": owner.pw_uid, "username": owner.pw_name,
+            "source": "operating_system_account", "os_uid": owner.pw_uid, "username": username,
             "credential_file": str(path.relative_to(ROOT)), "state": "UPDATED"}), encoding="utf-8")
+
+
+def rename_owner(username):
+    if not isinstance(username, str) or not re.fullmatch(r"[A-Za-z][A-Za-z0-9._-]{2,127}", username):
+        raise RuntimeError("LOCAL_OWNER_USERNAME_INVALID")
+    private_directory(RUNTIME)
+    path = RUNTIME / "owner-credentials.json"
+    with (RUNTIME / "owner-recovery.lock").open("a", encoding="utf-8") as lock:
+        os.fchmod(lock.fileno(), 0o600)
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        with os.fdopen(os.open(path, os.O_RDONLY | os.O_NOFOLLOW), "rb") as source:
+            metadata = os.fstat(source.fileno())
+            if metadata.st_uid != os.getuid() or not stat.S_ISREG(metadata.st_mode) or stat.S_IMODE(metadata.st_mode) != 0o600:
+                raise RuntimeError("LOCAL_OWNER_CREDENTIAL_PERMISSIONS_INVALID")
+            credentials = json.load(source)
+        if credentials["username"] == username:
+            raise RuntimeError("LOCAL_OWNER_USERNAME_UNCHANGED")
+        values = environment()
+        values.update({"MEDICAL_OWNER_USERNAME": credentials["username"], "MEDICAL_OWNER_NEW_USERNAME": username,
+                       "MEDICAL_ROOT_PASSWORD": settings()["root_password"]})
+        credentials.update(username=username, display_name=username)
+        candidate = RUNTIME / ("owner-credentials-" + str(uuid.uuid4()) + ".json")
+        save_private_json(candidate, credentials)
+        library = ROOT / ".implementation-work/maven-repository/com/mysql/mysql-connector-j/9.7.0/mysql-connector-j-9.7.0.jar"
+        subprocess.run([str(JAVA), "-Djava.io.tmpdir=" + str(RUNTIME / "tmp"), "--class-path", str(library),
+                        str(ROOT / "scripts/RenameLocalOwner.java")], env=values, cwd=ROOT, check=True)
+        os.replace(candidate, path)
+        synchronize_runtime_directory()
 
 
 def management_secret():
@@ -609,7 +643,7 @@ def synchronize_runtime_directory():
 
 def update_owner_credential(owner, credentials):
     values = environment()
-    values.update({"MEDICAL_OWNER_USERNAME": owner.pw_name, "MEDICAL_OWNER_PASSWORD": credentials["password"],
+    values.update({"MEDICAL_OWNER_USERNAME": credentials["username"], "MEDICAL_OWNER_PASSWORD": credentials["password"],
                    "MEDICAL_ROOT_PASSWORD": settings()["root_password"]})
     libraries = [
         ".implementation-work/maven-repository/org/springframework/security/spring-security-crypto/6.5.11/spring-security-crypto-6.5.11.jar",
@@ -621,17 +655,25 @@ def update_owner_credential(owner, credentials):
                     str(ROOT / "scripts/RecoverLocalOwner.java")], env=values, cwd=ROOT, check=True)
     values["REDISCLI_AUTH"] = settings()["redis_password"]
     cleared = subprocess.run([str(REDIS / "redis-cli"), "-h", "127.0.0.1", "-p", "16379", "--json",
-        "DEL", "pwd_err_cnt:" + owner.pw_name], env=values, cwd=ROOT, capture_output=True, text=True, check=True, timeout=15)
+        "DEL", "pwd_err_cnt:" + credentials["username"]], env=values, cwd=ROOT, capture_output=True, text=True, check=True, timeout=15)
     if json.loads(cleared.stdout) not in (0, 1):
         raise RuntimeError("FRAMEWORK_LOGIN_RETRY_CLEAR_FAILED")
 
 
 def main():
     parser = argparse.ArgumentParser(description="运行本项目独立的真实本地服务")
-    parser.add_argument("command", choices=("initialize", "secure", "start", "migrate", "application", "stop-application", "archive-terminated-application", "recover-owner", "framework-token"))
+    parser.add_argument("command", choices=("initialize", "secure", "start", "migrate", "application", "stop-application", "archive-terminated-application", "recover-owner", "rename-owner", "framework-token"))
+    parser.add_argument("--username")
     parser.add_argument("--migration-id")
     parser.add_argument("--additional-config")
     args = parser.parse_args()
+    if args.command == "rename-owner":
+        if args.username is None or args.migration_id is not None or args.additional_config is not None:
+            parser.error("账号更名需要提供username，不能使用其他操作参数")
+        rename_owner(args.username)
+        return
+    if args.username is not None:
+        parser.error("username只用于rename-owner")
     if args.migration_id is not None and args.command != "migrate":
         parser.error("迁移身份只用于migrate")
     if args.additional_config is not None:

@@ -203,7 +203,7 @@ def verify_process_identity(pid, binary_sha256):
                 ("args", " ".join(command()))):
             observed = subprocess.run(["/bin/ps", "-ww", "-p", str(pid), "-o", field + "="],
                 capture_output=True, text=True, check=True, timeout=10,
-                env={**os.environ, "LC_ALL": "C"}).stdout.strip()
+                env={**os.environ, "LC_ALL": "en_US.UTF-8"}).stdout.strip()
             if observed != expected:
                 raise ValueError("OBJECT_STORAGE_PROCESS_IDENTITY_CHANGED")
     else:

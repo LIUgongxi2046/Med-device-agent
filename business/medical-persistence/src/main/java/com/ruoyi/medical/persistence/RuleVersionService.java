@@ -26,19 +26,30 @@ public final class RuleVersionService {
     private final RuleVersionStore store;
     private final PermissionSchema json;
     private final IdentityDirectoryPolicy policy;
+    private final RuleBusinessDefinitionStore business;
 
     public RuleVersionService(EnterpriseAccess access, RuleVersionMapper mapper, PermissionMapper permissions,
             ResourceReadAuthority authority, TemplateDependencyAuthority dependencies, RuleVersionSchema schema,
-            RuleVersionStore store, PermissionSchema json, IdentityDirectoryPolicy policy) {
+            RuleVersionStore store, PermissionSchema json, IdentityDirectoryPolicy policy, RuleBusinessDefinitionStore business) {
         this.access = access; this.mapper = mapper; this.permissions = permissions; this.authority = authority;
-        this.dependencies = dependencies; this.schema = schema; this.store = store; this.json = json; this.policy = policy;
+        this.dependencies = dependencies; this.schema = schema; this.store = store; this.json = json; this.policy = policy;this.business=business;
     }
 
     public JsonNode create(ApplicationSessionIdentity.Verified subject, String context, String key, byte[] body) {
+        return create(subject,context,key,body,false);
+    }
+    public JsonNode createBusiness(ApplicationSessionIdentity.Verified subject,String context,String key,byte[] body){
+        return create(subject,context,key,body,true);
+    }
+    private JsonNode create(ApplicationSessionIdentity.Verified subject,String context,String key,byte[] body,boolean businessRequest){
         return access.execute(subject, admission -> ThrowingSupplier.of(() -> {
             var witness = authority.require(admission, new PermissionProtocol.Scope(admission.context().tenant_id(), null,
                     "ENTERPRISE", admission.context().tenant_id()), "rule.write", TemplateDependencyAuthority.PURPOSE);
-            var request = schema.version(body); var values = values(admission, key, schema.hash(null, request.request(), context, subject.sessionId()));
+            var combined=businessRequest?business.createInput(body):null;
+            var definition=combined==null?null:combined.required("definition");
+            var request = schema.version(combined==null?body:json.canonical(combined.required("rule")).getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            Object completeRequest=definition==null?request.request():Map.of("rule",request.request(),"business_definition",definition,"business_schema_sha256",business.manifest());
+            var values = values(admission, key, schema.hash(null, completeRequest, context, subject.sessionId()));
             var prior = mapper.currentOperation(values);
             if (prior.size() > 1) mismatch();
             if (!prior.isEmpty() && !prior.get(0).requestSha256().equals(values.get("requestHash")))
@@ -64,6 +75,7 @@ public final class RuleVersionService {
                         || !audit.required("operation_id").textValue().equals(operation.operationId())
                         || !event.required("creation").equals(receipt)
                         || !event.required("dependency_authorizations").equals(audit.required("dependency_authorizations"))) mismatch();
+                if(definition!=null){var businessRecord=business.read(admission,store.originalCreation(admission,operation.targetId(),request));if(businessRecord==null||!businessRecord.required("definition").equals(definition)||!businessRecord.equals(audit.required("business_definition"))||!businessRecord.equals(event.required("business_definition")))mismatch();}
                 return original;
             }
             if (!admission.context().context_revision().equals(context)) throw new TenantAccessException(ErrorCode.CONTEXT_CHANGED);
@@ -73,24 +85,27 @@ public final class RuleVersionService {
             var response = schema.created(stored, operationId, requestId);
             values.put("operationId", operationId); values.put("ruleId", stored.rule_version()); values.put("response", json.canonical(response));
             one(mapper.saveOperation(values));
+            var businessRecord=definition==null?null:business.save(admission,stored,definition,operationId);
             var audit = json.object(); audit.put("schema_version", "1.0.0"); audit.put("operation_id", operationId);
             audit.set("request", json.tree(request.request())); audit.putNull("before"); audit.set("after", response.required("data"));
             audit.put("authority_grant_id", witness.grantId()); audit.put("authority_revision", witness.revision().toString());
             var authorization = dependencies.snapshot(admission, proofs, json); audit.set("dependency_authorizations", authorization);
             var payload = json.object(); payload.put("schema_version", "1.0.0"); payload.set("creation", response.required("data"));
             payload.set("dependency_authorizations", authorization);
+            if(businessRecord!=null){audit.set("business_definition",businessRecord);payload.set("business_definition",businessRecord);}
             String auditId = UUID.randomUUID().toString(), eventId = UUID.randomUUID().toString();
             one(permissions.saveAudit(subject.user().user_id(), null, auditId, "rule.draft_created", json.canonical(audit),
                     requestId, schema.manifestSha256(), policy.classification()));
             one(permissions.saveEvent(subject.user().user_id(), eventId, stored.rule_version(), stored.revision(),
                     "rule.draft_created", json.canonical(payload)));
             values.put("auditId", auditId); values.put("eventId", eventId); values.put("requestId", requestId);
-            if (!schema.read(single(mapper.audit(values))).equals(audit)
-                    || !schema.read(single(mapper.event(values))).equals(payload)) mismatch();
+            if (!schema.same(schema.read(single(mapper.audit(values))), audit)
+                    || !schema.same(schema.read(single(mapper.event(values))), payload)) mismatch();
             var operation = single(mapper.currentOperation(values));
             if (!operation.operationId().equals(operationId) || !operation.requestSha256().equals(values.get("requestHash"))
                     || !operation.targetId().equals(stored.rule_version()) || !schema.creationReceipt(operation.responseRef()).equals(response)) mismatch();
             store.originalCreation(admission, stored.rule_version(), request);
+            if(businessRecord!=null&&!businessRecord.equals(business.read(admission,stored)))mismatch();
             return response;
         }).get());
     }
@@ -99,6 +114,14 @@ public final class RuleVersionService {
         return access.execute(subject, admission -> ThrowingSupplier.of(() -> {
             if (!admission.context().context_revision().equals(context)) throw new TenantAccessException(ErrorCode.CONTEXT_CHANGED);
             return schema.readView(store.read(admission, id), UUID.randomUUID().toString());
+        }).get());
+    }
+    public JsonNode readBusiness(ApplicationSessionIdentity.Verified subject,String context,String id){
+        return access.execute(subject,admission->ThrowingSupplier.of(()->{
+            if(!admission.context().context_revision().equals(context))throw new TenantAccessException(ErrorCode.CONTEXT_CHANGED);
+            var scope=new PermissionProtocol.Scope(admission.context().tenant_id(),null,"RULE",id);
+            var rule=authority.find(admission,scope,"rule.read",TemplateDependencyAuthority.PURPOSE).isPresent()?store.read(admission,id):store.approvalTarget(admission,id);var definition=business.read(admission,rule);
+            return json.tree(new com.ruoyi.medical.contracts.InterfaceProtocol.Envelope("1.0.0",UUID.randomUUID().toString(),rule.revision(),json.tree(definition)));
         }).get());
     }
 

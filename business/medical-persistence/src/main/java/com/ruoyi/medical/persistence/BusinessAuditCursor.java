@@ -10,6 +10,7 @@ public final class BusinessAuditCursor{
  record Position(LocalDateTime createdAt,String auditId){}
  private record Entry(Owner owner,Position position,Instant expires){}
  private final Map<String,Entry> entries=new LinkedHashMap<>();private final Clock clock;private final BusinessAuditPolicy policy;
+ @org.springframework.beans.factory.annotation.Autowired
  public BusinessAuditCursor(BusinessAuditPolicy policy){this(policy,Clock.systemUTC());}
  BusinessAuditCursor(BusinessAuditPolicy policy,Clock clock){this.policy=policy;this.clock=clock;}
  synchronized Position resolve(String token,Owner owner){purge();if(token==null)return null;var entry=entries.get(token);if(entry==null)throw new TenantAccessException(ErrorCode.CURSOR_EXPIRED);if(!entry.owner().equals(owner))throw new TenantAccessException(ErrorCode.CURSOR_INVALID);return entry.position();}

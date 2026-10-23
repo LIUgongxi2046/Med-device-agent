@@ -2,29 +2,41 @@
   <section aria-label="结构化模板定义">
     <el-alert v-if="errors.open" :title="errors.open" type="error" :closable="false" role="alert" />
     <el-button :disabled="disabled" @click="open">编辑{{ labels[kind] }}定义</el-button>
-    <el-dialog v-model="visible" :title="labels[kind] + '定义编辑'" width="90%" :close-on-click-modal="false" destroy-on-close @closed="clear">
+    <el-dialog v-model="visible" :title="labels[kind] + '定义编辑'" width="min(920px,96vw)" :close-on-click-modal="false" destroy-on-close @closed="clear">
       <p>当前修改保存在模板编辑页面。全部模板保存后由服务器核查版本、依据、许可和关系。</p>
       <el-table :data="items" :row-key="identities[kind]" empty-text="当前没有定义">
-        <el-table-column :prop="identities[kind]" label="稳定标识" min-width="250" />
         <el-table-column :prop="kind === 'Node' ? 'title' : kind === 'CrossDocumentRule' ? 'severity' : 'name'" label="定义名称或等级" min-width="180" />
+        <el-table-column label="所属章节" min-width="200"><template #default="{ row }">{{ chapterName(row.node_id) }}</template></el-table-column>
         <el-table-column label="操作" width="130"><template #default="{ $index }"><el-button @click="edit($index)">编辑本项定义</el-button></template></el-table-column>
       </el-table>
       <el-button :disabled="editing" @click="create">新增{{ labels[kind] }}定义</el-button>
       <p v-if="errors.schema" role="alert">{{ errors.schema }}</p>
-      <el-form v-if="editing" label-position="top" @submit.prevent="confirmItem" data-template-definition-form>
-        <el-form-item v-for="field in fields" :key="field.key" :label="field.label" :error="errors[field.key]">
+      <el-form v-if="editing" label-position="top" @submit.stop.prevent="confirmItem" data-template-definition-form>
+        <el-form-item v-for="field in fields.filter(item=>item.key!==identities[kind])" :key="field.key" :label="field.label" :error="errors[field.key]">
           <el-checkbox v-if="field.nullable" v-model="nulls[field.key]">明确设置为空值</el-checkbox>
-          <el-radio-group v-if="field.type === 'boolean'" v-model="texts[field.key]" :aria-label="field.label">
+          <template-condition-editor v-if="field.key==='condition'" :model-value="nested(field.key) as unknown as TemplateCondition" :disabled="disabled" @update:model-value="value=>setNested(field.key,value)" />
+          <template-evidence-editor v-else-if="field.key==='evidence_rule'" :model-value="nested(field.key) as JsonObject" :fields="catalogue.fields" :disabled="disabled" @update:model-value="value=>setNested(field.key,value)" />
+          <template-constraints-editor v-else-if="field.key==='constraints'" :model-value="nested(field.key) as JsonObject" :disabled="disabled" @update:model-value="value=>setNested(field.key,value)" />
+          <template-output-editor v-else-if="field.key==='output_mapping'" :model-value="nested(field.key) as JsonObject" :catalogue="catalogue" :disabled="disabled" @update:model-value="value=>setNested(field.key,value)" />
+          <rule-basis-editor v-else-if="['basis_refs','count_basis'].includes(field.key)" :model-value="nested(field.key) as unknown as Basis[]" :label="field.label" :disabled="disabled" @update:model-value="value=>setNested(field.key,value)" />
+          <rule-basis-editor v-else-if="field.key==='rule_revision'" :model-value="nested(field.key)?[nested(field.key) as unknown as Basis]:[]" resource-kind="RULE" :max-items="1" :label="field.label" :disabled="disabled" @update:model-value="value=>setNested(field.key,value[0]??null)" />
+          <el-select v-else-if="['node_id','parent_id'].includes(field.key)" v-model="texts[field.key]" filterable :aria-label="field.label" :disabled="disabled||nulls[field.key]"><el-option v-for="item in catalogue.nodes" :key="item.node_id" :label="item.official_number+' '+item.title" :value="item.node_id" /></el-select>
+          <el-select v-else-if="['repeat_id','attachment_requirement_id'].includes(field.key)" v-model="texts[field.key]" filterable :aria-label="field.label" :disabled="disabled||nulls[field.key]"><el-option v-for="item in field.key==='repeat_id'?catalogue.repeats.map(item=>({id:item.repeat_id,name:item.name})):catalogue.attachments.map(item=>({id:item.attachment_requirement_id,name:item.name}))" :key="item.id" :label="item.name" :value="item.id" /></el-select>
+          <el-select v-else-if="field.key==='field_ids'" :model-value="nested(field.key) as string[]" multiple filterable :aria-label="field.label" :disabled="disabled" @update:model-value="(value:string[])=>setNested(field.key,value)"><el-option v-for="item in catalogue.fields" :key="item.field_id" :label="item.name" :value="item.field_id" /></el-select>
+          <el-select v-else-if="field.key==='related_document_types'" :model-value="nested(field.key) as string[]" multiple :aria-label="field.label" :disabled="disabled" @update:model-value="(value:string[])=>setNested(field.key,value)"><el-option v-for="value in schema.$defs.DocumentType.enum" :key="value" :label="documentTypeLabels[value]??value" :value="value" /></el-select>
+          <el-select v-else-if="field.key==='allowed_media_types'" :model-value="nested(field.key) as string[]" multiple filterable allow-create default-first-option :aria-label="field.label" :disabled="disabled" @update:model-value="(value:string[])=>setNested(field.key,value)" />
+          <el-radio-group v-else-if="field.type === 'boolean'" v-model="texts[field.key]" :aria-label="field.label">
             <el-radio value="true">确认需要</el-radio><el-radio value="false">确认无需</el-radio>
           </el-radio-group>
           <el-select v-else-if="field.options" v-model="texts[field.key]" :aria-label="field.label" :disabled="nulls[field.key]">
             <el-option v-for="option in field.options" :key="option" :label="optionLabels[option] ?? option" :value="option" />
           </el-select>
           <el-input v-else v-model="texts[field.key]" :aria-label="field.label" :disabled="nulls[field.key]" :type="field.type === 'json' ? 'textarea' : 'text'" :autosize="field.type === 'json' ? { minRows: 3, maxRows: 14 } : undefined" />
-          <p v-if="field.description">{{ field.description }}</p>
+          <p v-if="field.description && !['constraints','condition','evidence_rule','output_mapping','basis_refs'].includes(field.key)">{{ field.description }}</p>
         </el-form-item>
         <el-button native-type="submit" type="primary">确认当前定义</el-button>
         <el-button @click="cancelItem">放弃当前定义编辑</el-button>
+        <el-collapse><el-collapse-item title="固定版本身份"><p>{{ texts[identities[kind]] }}</p></el-collapse-item></el-collapse>
         <template v-if="editingIndex !== null">
           <el-checkbox v-model="removeConfirmed">确认移除当前定义</el-checkbox>
           <el-button type="danger" :disabled="!removeConfirmed" @click="remove">移除当前定义</el-button>
@@ -36,16 +48,24 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, reactive, ref, shallowRef, watch } from 'vue'
 import schema from '../../../../business/medical-persistence/src/main/resources/templates.schema.json'
 import { fail, schemaIssues, validate } from '@/api/medical/protocol'
 import { readBoundedJson } from '@/api/medical/project-json'
 import { draftJsonIssue, templateDefinitionInputIssue } from './template-collection-input'
-import type { JsonObject } from '@/api/medical/template-approval'
+import type { JsonObject, TemplateCondition } from '@/api/medical/template-approval'
+import type { Basis } from '@/api/medical/protocol'
+import type { DefinitionCatalogue } from './template-business-controls'
+import { templateDocumentLabels as documentTypeLabels } from '@/api/medical/template-directory'
+import TemplateConditionEditor from './template-condition-editor.vue'
+import TemplateEvidenceEditor from './template-evidence-editor.vue'
+import TemplateConstraintsEditor from './template-constraints-editor.vue'
+import TemplateOutputEditor from './template-output-editor.vue'
+import RuleBasisEditor from './rule-basis-editor.vue'
 
 type DefinitionKind = 'Node' | 'Field' | 'Repeat' | 'Attachment' | 'CrossDocumentRule'
 type Control = { key: string; label: string; type: 'string' | 'integer' | 'boolean' | 'json'; nullable?: boolean; options?: readonly string[]; description?: string }
-const props = defineProps<{ kind: DefinitionKind; value: string; disabled: boolean }>()
+const props = defineProps<{ kind: DefinitionKind; value: string; disabled: boolean; catalogue:DefinitionCatalogue }>()
 const emit = defineEmits<{ changed: [value: string] }>()
 const labels = { Node: '目录', Field: '字段', Repeat: '重复表格', Attachment: '附件', CrossDocumentRule: '跨文档规则' }
 const identities = { Node: 'node_id', Field: 'field_id', Repeat: 'repeat_id', Attachment: 'attachment_requirement_id', CrossDocumentRule: 'rule_id' }
@@ -53,9 +73,9 @@ const optionLabels: Record<string, string> = { TEXT: '单行文本', LONG_TEXT: 
   MULTI_SELECT: '多项选择', RELATION: '关系', TABLE: '表格', IMAGE: '图片', FORMULA: '公式', FILE: '文件',
   OFFICIAL: '规定目录', ENTERPRISE_SUPPLEMENT: '企业补充目录', DIRECT_REFERENCE: '直接引用', APPROVED_CALCULATION: '批准计算',
   NARRATIVE: '文字说明', AUTHORIZED_ORIGINAL_ONLY: '获授权原件', DIRECTORY: '目录', CRITICAL: '关键问题', MAJOR: '主要问题', MINOR: '次要问题' }
-const condition: Control = { key: 'condition', label: '完整适用条件（JSON）', type: 'json', description: '使用ALWAYS或固定RULE，规则依据、引擎版本及全部输入属性按原Schema填写。UNKNOWN继续保持待确认。' }
-const evidence: Control = { key: 'evidence_rule', label: '完整证据规则（JSON）', type: 'json', description: '保留权威来源类型、验证规则、计算依据及输入字段；原件定位和人工核验保持必需。' }
-const basis: Control = { key: 'basis_refs', label: '全部依据版本（JSON）', type: 'json', description: '每项包含version_id及原始content_sha256，不填入产品默认值。' }
+const condition: Control = { key: 'condition', label: '适用条件', type: 'json' }
+const evidence: Control = { key: 'evidence_rule', label: '证据要求', type: 'json' }
+const basis: Control = { key: 'basis_refs', label: '资料依据', type: 'json' }
 const required: Control = { key: 'required', label: '是否必需', type: 'boolean' }
 const definitions: Record<DefinitionKind, Control[]> = {
   Node: [
@@ -67,40 +87,43 @@ const definitions: Record<DefinitionKind, Control[]> = {
     { key: 'content_requirements', label: '全部内容要求（JSON）', type: 'json' }
   ],
   Field: [
-    { key: 'field_id', label: '字段稳定标识', type: 'string' }, { key: 'node_id', label: '所属目录标识', type: 'string' },
+    { key: 'field_id', label: '字段稳定标识', type: 'string' }, { key: 'node_id', label: '所属章节', type: 'string' },
     { key: 'key', label: '字段English键名', type: 'string' }, { key: 'name', label: '字段名称', type: 'string' },
     { key: 'description', label: '字段说明', type: 'string' }, { key: 'value_type', label: '字段类型', type: 'string', options: schema.$defs.ValueType.enum },
-    { key: 'constraints', label: '完整字段限制（JSON）', type: 'json', description: '完整填写长度、精度、最小值、最大值、单位、范围依据、枚举选项及可空理由。数值上下限使用十进制字符串。' },
+    { key: 'constraints', label: '字段限制', type: 'json' },
     condition, required, evidence,
-    { key: 'output_mapping', label: '完整输出位置（JSON）', type: 'json', description: '固定node_id、repeat_id、column_key、internal_only和ordinal，所有字段保持原身份。' },
-    { key: 'repeat_id', label: '重复表格标识', type: 'string', nullable: true },
-    { key: 'attachment_requirement_id', label: '附件要求标识', type: 'string', nullable: true }, basis
+    { key: 'output_mapping', label: '输出位置', type: 'json' },
+    { key: 'repeat_id', label: '关联重复表格', type: 'string', nullable: true },
+    { key: 'attachment_requirement_id', label: '关联附件要求', type: 'string', nullable: true }, basis
   ],
   Repeat: [
-    { key: 'repeat_id', label: '重复表格稳定标识', type: 'string' }, { key: 'node_id', label: '所属目录标识', type: 'string' },
-    { key: 'name', label: '重复表格名称', type: 'string' }, { key: 'field_ids', label: '全部列字段标识（JSON）', type: 'json' },
+    { key: 'repeat_id', label: '重复表格稳定标识', type: 'string' }, { key: 'node_id', label: '所属章节', type: 'string' },
+    { key: 'name', label: '重复表格名称', type: 'string' }, { key: 'field_ids', label: '表格字段', type: 'json' },
     { key: 'min_count', label: '最少行数', type: 'string' }, { key: 'max_count', label: '最多行数', type: 'string', nullable: true },
-    { key: 'count_basis', label: '行数依据版本（JSON）', type: 'json' }, { key: 'row_id_required', label: '是否要求稳定行标识', type: 'boolean' }
+    { key: 'count_basis', label: '行数依据', type: 'json' }, { key: 'row_id_required', label: '是否要求稳定行标识', type: 'boolean' }
   ],
   Attachment: [
-    { key: 'attachment_requirement_id', label: '附件要求稳定标识', type: 'string' }, { key: 'node_id', label: '所属目录标识', type: 'string' },
+    { key: 'attachment_requirement_id', label: '附件要求稳定标识', type: 'string' }, { key: 'node_id', label: '所属章节', type: 'string' },
     { key: 'name', label: '附件名称', type: 'string' }, { key: 'kind', label: '附件类型', type: 'string', options: schema.$defs.Attachment.properties.kind.enum },
     { key: 'mode', label: '附件来源方式', type: 'string', options: [schema.$defs.AttachmentMode.const] }, condition, required,
     { key: 'min_count', label: '最少附件数量', type: 'string' }, { key: 'max_count', label: '最多附件数量', type: 'string', nullable: true },
-    { key: 'count_basis', label: '附件数量依据（JSON）', type: 'json' }, { key: 'allowed_media_types', label: '全部允许媒体类型（JSON）', type: 'json' },
+    { key: 'count_basis', label: '附件数量依据', type: 'json' }, { key: 'allowed_media_types', label: '允许媒体类型', type: 'json' },
     evidence, { key: 'ordinal', label: '附件顺序', type: 'integer' }
   ],
   CrossDocumentRule: [
-    { key: 'rule_id', label: '跨文档规则稳定标识', type: 'string' }, { key: 'rule_revision', label: '固定规则依据（JSON）', type: 'json' },
-    { key: 'field_ids', label: '全部关联字段（JSON）', type: 'json' }, { key: 'related_document_types', label: '全部关联文档类型（JSON）', type: 'json' },
+    { key: 'rule_id', label: '跨文档规则稳定标识', type: 'string' }, { key: 'rule_revision', label: '检查规则', type: 'json' },
+    { key: 'field_ids', label: '关联字段', type: 'json' }, { key: 'related_document_types', label: '关联文档类型', type: 'json' },
     { key: 'severity', label: '问题等级', type: 'string', options: schema.$defs.CrossDocumentRule.properties.severity.enum }
   ]
 }
 const fields = computed(() => definitions[props.kind])
-const items = ref<JsonObject[]>([]); const visible = ref(false); const editing = ref(false); const editingIndex = ref<number | null>(null)
+const items = shallowRef<JsonObject[]>([]); const visible = ref(false); const editing = ref(false); const editingIndex = ref<number | null>(null)
 const texts = reactive<Record<string, string>>({}); const nulls = reactive<Record<string, boolean>>({}); const errors = reactive<Record<string, string>>({})
 const removeConfirmed = ref(false); let baseline = ''
 const reference = computed(() => 'urn:medical:templates:1.0.0#/$defs/' + props.kind)
+function nested(key:string){return readBoundedJson(texts[key]!)}
+function setNested(key:string,value:unknown){texts[key]=JSON.stringify(value,null,2)}
+function chapterName(id:unknown){const item=props.catalogue.nodes.find(item=>item.node_id===id);return item?item.official_number+' '+item.title:'跨文档关系'}
 function checked(value: unknown): JsonObject[] {
   if (!Array.isArray(value)) fail('SCHEMA_INVALID', '模板定义需要完整数组')
   const result = value.map(item => validate<JsonObject>(reference.value, item))
@@ -134,7 +157,8 @@ function edit(index: number): void {
 }
 function create(): void {
   cancelItem(); editing.value = true
-  for (const field of fields.value) { texts[field.key] = field.key === identities[props.kind] ? crypto.randomUUID() : ''; nulls[field.key] = false }
+  const defaults:Record<string,unknown>={condition:{mode:'ALWAYS',rule_revision:null,engine_revision:null,input_keys:[]},evidence_rule:{mode:props.kind==='Attachment'?'AUTHORIZED_ORIGINAL_ONLY':'NARRATIVE',authority_source_types:[],verification_rule_revisions:[],calculation_rule_revision:null,input_field_ids:[],require_original_locator:true,require_human_verification:true},constraints:{max_length:null,precision:null,minimum:null,maximum:null,unit:null,range_basis:[],enum_options:[],nullable_reasons:[]},output_mapping:{node_id:'',repeat_id:null,column_key:null,internal_only:false,ordinal:items.value.length+1},basis_refs:[],count_basis:[],field_ids:[],related_document_types:[],allowed_media_types:[],rule_revision:null,row_id_required:true,mode:'AUTHORIZED_ORIGINAL_ONLY',ordinal:items.value.length+1}
+  for (const field of fields.value) { const value=defaults[field.key];texts[field.key] = field.key === identities[props.kind] ? crypto.randomUUID() : value===undefined?'':field.type==='json'?JSON.stringify(value):String(value);nulls[field.key]=field.nullable===true }
 }
 function confirmItem(): void {
   if (!editing.value || props.disabled || document.hidden) fail('ACTION_STALE', '当前模板定义无法编辑')
@@ -177,3 +201,6 @@ function visibility(): void { if (document.hidden) clear() }
 document.addEventListener('visibilitychange', visibility); window.addEventListener('medical-context-invalidated', clear)
 onBeforeUnmount(() => { clear(); document.removeEventListener('visibilitychange', visibility); window.removeEventListener('medical-context-invalidated', clear) })
 </script>
+<style scoped>
+section>.el-button{margin:12px 0}.el-form{margin-top:24px}.el-form :deep(.el-select){width:100%}.el-form :deep(.el-form-item__content){display:block}.el-form :deep(.template-condition-controls),.el-form :deep(.template-evidence-controls),.el-form :deep(.template-constraints){padding:16px;border:1px solid var(--el-border-color);border-radius:8px;background:var(--el-fill-color-blank)}.el-form>p{font-size:12px;color:var(--el-text-color-secondary)}.el-table{margin-bottom:16px}.el-collapse{margin-top:20px}
+</style>

@@ -39,6 +39,7 @@ import simulationExecution from '../../../../agent-design/simulation-execution.s
 import simulationInputArtifact from '../../../../business/medical-persistence/src/main/resources/simulation-input-artifact.schema.json'
 import simulationInputArtifactLookup from '../../../../business/medical-persistence/src/main/resources/simulation-input-artifact-lookup.schema.json'
 import simulationRuleWorkflow from '../../../../business/medical-persistence/src/main/resources/simulation-rule-version-workflow.schema.json'
+import simulationRuleWriteView from './simulation-rule-write-view.schema.json'
 import Ajv2020 from 'ajv/dist/2020.js'
 import type { ValidateFunction } from 'ajv'
 import addFormats from 'ajv-formats'
@@ -84,6 +85,9 @@ import ruleWriteView from './rule-write-view.schema.json'
 import evaluationResults from '../../../../business/medical-persistence/src/main/resources/evaluation-results.schema.json'
 import evaluationView from './evaluation-view.schema.json'
 import configurationDiscovery from '../../../../business/medical-persistence/src/main/resources/configuration-discovery.schema.json'
+import ruleBusinessDirectory from '../../../../business/medical-persistence/src/main/resources/rule-business-directory.schema.json'
+import ruleBusinessDefinition from '../../../../business/medical-persistence/src/main/resources/rule-business-definition.schema.json'
+import projectWorkspaceDirectory from '../../../../business/medical-persistence/src/main/resources/project-workspace-directory.schema.json'
 import modelConfiguration from '../../../../business/medical-persistence/src/main/resources/model-configuration.schema.json'
 import modelConfigurationWrite from './model-configuration-write-view.schema.json'
 import simulationModelConfiguration from '../../../../business/medical-persistence/src/main/resources/simulation-model-configuration.schema.json'
@@ -164,6 +168,7 @@ ajv.addSchema(parse(resourceDetailsText), 'https://schemas.medical-agent.invalid
 ajv.addSchema(dataset, 'https://schemas.medical-agent.invalid/1.0.0/data-design/dataset.schema.json')
 ajv.addSchema(artifacts, 'https://schemas.medical-agent.invalid/1.0.0/agent-design/artifacts.schema.json')
 ajv.addSchema(taskList)
+ajv.addSchema(simulationRuleWriteView)
 ajv.addSchema(taskInputs)
 ajv.addSchema(taskPlanView)
 ajv.addSchema(taskPlanWriteView)
@@ -196,6 +201,9 @@ ajv.addSchema(ruleWriteView)
 ajv.addSchema(evaluationResults)
 ajv.addSchema(evaluationView)
 ajv.addSchema(configurationDiscovery)
+ajv.addSchema(ruleBusinessDefinition)
+ajv.addSchema(ruleBusinessDirectory)
+ajv.addSchema(projectWorkspaceDirectory)
 ajv.addSchema(modelConfiguration)
 ajv.addSchema(modelConfigurationWrite)
 ajv.addSchema(simulationModelConfiguration)
@@ -279,6 +287,8 @@ ajv.addSchema(formalPublicationAvailability)
 ajv.addSchema(formalPublicationReceipt)
 ajv.addSchema(formalScoreBinding)
 const allowedSchemaReferences = new Set<string>([
+  ...['Query','Filters','Responsible','Materials','Entry','Directory'].map(name => projectWorkspaceDirectory.$id + '#/$defs/' + name),
+  ...['Query','Filters','Entry','Directory'].map(name => ruleBusinessDirectory.$id + '#/$defs/' + name),
   ...['Availability','Query','Receipt','Recovery','View','Summary','Page'].map(name => formalEvaluationContextHttp.$id + '#/$defs/' + name),
   formalDisableRecovery.$id, ...['Recovery','RecoveredDisable'].map(name => formalDisableRecovery.$id + '#/$defs/' + name),
   formalPolicyRead.$id, formalPolicyRead.$id + '#/$defs/Read',
@@ -399,10 +409,17 @@ const allowedSchemaReferences = new Set<string>([
   'urn:medical:source-governance:1.0.0#/$defs/Review',
   'urn:medical:source-governance:1.0.0#/$defs/View',
   'urn:medical:source-governance:1.0.0#/$defs/Receipt',
+  ...['ProcessingQueuePage', 'ArtifactSubmissionInput', 'ArtifactSubmissionReceipt', 'FolderList', 'FolderCreateInput', 'FolderDecisionInput', 'FolderReceipt', 'OrganizationInput', 'OrganizationReceipt', 'DeletionReceiptInput', 'DeletionReceipt', 'DeletionJobView']
+    .map(name => 'urn:medical:source-governance:1.0.0#/$defs/' + name),
   ...['PreviewInput', 'DecisionInput', 'Proposal', 'Preview', 'Receipt', 'Proofs']
     .map(name => 'urn:medical:source-rights-decisions:1.0.0#/$defs/' + name),
   ...['CreateInput', 'RetryInput', 'ProcessInput', 'Basis', 'Validation', 'Item', 'View', 'History', 'Receipt']
     .map(name => 'urn:medical:export-api:1.0.0#/$defs/' + name),
+  ...['LayoutProfile', 'LayoutProfileView', 'VerificationInput', 'VerificationView', 'LayoutVerificationHistory']
+    .map(name => 'urn:medical:export-api:1.0.0#/$defs/' + name),
+  'https://schemas.medical-agent.invalid/1.0.0/backend-design/interfaces.schema.yaml#/$defs/SourceScope',
+  'https://schemas.medical-agent.invalid/1.0.0/backend-design/resource-details.schema.yaml#/$defs/Message',
+  'urn:medical:simulation-rule-write-view:1.0.0',
   ...['Id', 'Hash', 'Create', 'Created', 'Part', 'Registration', 'Completion'].map(name => 'urn:medical:source-uploads:1.0.0#/$defs/' + name),
   ...['Filter', 'Item', 'Page'].map(name => 'urn:medical:task-list:1.0.0#/$defs/' + name),
   ...['View', 'Step', 'Waiting', 'Invocation', 'Budget'].map(name => 'urn:medical:run-view:1.0.0#/$defs/' + name),
@@ -433,13 +450,13 @@ const allowedSchemaReferences = new Set<string>([
   ...['Create', 'Append', 'Finalize', 'Definition', 'Score', 'Result', 'Receipt', 'Basis', 'Cell'].map(name => 'urn:medical:evaluation-results:1.0.0#/$defs/' + name),
   ...['Id', 'Read', 'Scores', 'Pending'].map(name => 'urn:medical:evaluation-view:1.0.0#/$defs/' + name),
   'urn:medical:rule-write-view:1.0.0',
-  ...['Query', 'RuleList', 'ModelList'].map(name => 'urn:medical:configuration-discovery:1.0.0#/$defs/' + name),
+  ...['Query', 'RuleList', 'ModelList', 'TemplateSummary', 'TemplateList'].map(name => 'urn:medical:configuration-discovery:1.0.0#/$defs/' + name),
   ...['Id', 'Hash', 'Basis', 'VersionInput', 'StoredRule', 'Read', 'Created', 'Preview', 'Decide', 'Receipt']
     .map(name => 'urn:medical:rule-version-workflow:1.0.0#/$defs/' + name),
   ...['Content', 'Constant', 'Result'].map(name => 'urn:medical:rule-expressions:1.0.0#/$defs/' + name),
   ...['Query', 'Page'].map(name => 'urn:medical:template-applicability:1.0.0#/$defs/' + name),
   'urn:medical:templates:1.0.0#/$defs/Condition',
-  ...['DocumentType', 'ApplicationPath', 'ConditionSchema', 'FormatProfile', 'Bases', 'Node', 'Field', 'Repeat', 'Attachment', 'CrossDocumentRule']
+  ...['DocumentType', 'ApplicationPath', 'ConditionSchema', 'FormatProfile', 'Bases', 'Node', 'Field', 'Repeat', 'Attachment', 'CrossDocumentRule', 'EvidenceRule']
     .map(name => 'urn:medical:templates:1.0.0#/$defs/' + name),
   ...['Create', 'Decide', 'Approval', 'Account', 'Listing', 'Receipt', 'Limits', 'Id', 'Money', 'Currency', 'Time']
     .map(name => 'urn:medical:budgets:1.0.0#/$defs/' + name)])

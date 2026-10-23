@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.springframework.stereotype.Component;
@@ -93,6 +94,15 @@ public final class AgentReleaseScopeAuthority {
     }
     private VerifiedScope require(AgentReleaseStore.Stored release,PermissionProtocol.Scope target,String action,String classification,
             DependencyLineage.Limits limits,FormalRunControlAccess.StartRun start,TaskPlanDraftControlAccess.Proof planDraft)throws IOException {
+        return find(release,target,action,classification,limits,start,planDraft)
+                .orElseThrow(() -> new TenantAccessException(ErrorCode.ACCESS_DENIED));
+    }
+    Optional<VerifiedScope> findForCreation(AgentReleaseStore.Stored release,PermissionProtocol.Scope target,
+            String classification,DependencyLineage.Limits limits)throws IOException {
+        return find(release,target,"task.create",classification,limits,null,null);
+    }
+    private Optional<VerifiedScope> find(AgentReleaseStore.Stored release,PermissionProtocol.Scope target,String action,String classification,
+            DependencyLineage.Limits limits,FormalRunControlAccess.StartRun start,TaskPlanDraftControlAccess.Proof planDraft)throws IOException {
         Objects.requireNonNull(release); Objects.requireNonNull(limits); json.scope(json.tree(target));
         ProjectSchema.text(classification, 24);
         if (!Set.of("task.create", "plan.confirm", "task.run").contains(action))
@@ -100,18 +110,18 @@ public final class AgentReleaseScopeAuthority {
         var admission = release.admission(); String tenant = admission.context().tenant_id();
         String actor = admission.actorId(), project = target.project_id();
         if (!tenant.equals(target.tenant_id()) || project == null || target.resource_id() == null
-                || release.agent().projectId() != null && !project.equals(release.agent().projectId())) denied();
+                || release.agent().projectId() != null && !project.equals(release.agent().projectId())) return Optional.empty();
         if ("task.create".equals(action) ? !"PROJECT".equals(target.resource_kind()) || !project.equals(target.resource_id())
                 : !"TASK".equals(target.resource_kind())) mismatch();
         releases.requireUnchanged(release);
-        if (!"ACTIVE".equals(single(permissions.projectStatus(project)))) denied();
+        if (!"ACTIVE".equals(single(permissions.projectStatus(project)))) return Optional.empty();
         var grant = (planDraft!=null?planDraft.requireOriginalAction(target,action,release.purpose()):start==null?resources.require(admission, target, action, release.purpose()):resources.requireStartRun(admission,target,start));
         var approved = release.content().manifest().releaseScope();
         if (!tenant.equals(approved.tenantId()) || !approved.allowedClassifications().contains(classification)
-                || "PROJECTS".equals(approved.projectMode()) && !approved.projectIds().contains(project)) denied();
+                || "PROJECTS".equals(approved.projectMode()) && !approved.projectIds().contains(project)) return Optional.empty();
         var values = new HashMap<String,Object>(); values.put("userId", actor); values.put("id", release.release().releaseId());
         values.put("projectId", project); values.put("action", action); values.put("limit", Math.addExact(limits.maximumVersions(), 1));
-        var scopes = bounded(mapper.scopes(values), limits.maximumVersions()); if (scopes.isEmpty()) denied();
+        var scopes = bounded(mapper.scopes(values), limits.maximumVersions()); if (scopes.isEmpty()) return Optional.empty();
         for (var row : scopes) {
             WireValues.uuid(row.scopeRevision()); WireValues.uuid(row.createdBy()); WireValues.revision(row.revision().toString());
             WireValues.hash(row.contentSha256()); Objects.requireNonNull(row.createdAt()); Objects.requireNonNull(row.updatedAt());
@@ -136,11 +146,11 @@ public final class AgentReleaseScopeAuthority {
                 if (proof != null) roleProofs.add(proof);
             }
         }
-        if (!member && roleProofs.isEmpty()) denied();
+        if (!member && roleProofs.isEmpty()) return Optional.empty();
         // 范围名单不授予业务权限，原动作许可和当前持久范围共同进入结果。
         releases.requireUnchanged(release);
         if (!grant.equals((planDraft!=null?planDraft.requireOriginalAction(target,action,release.purpose()):start==null?resources.require(admission, target, action, release.purpose()):resources.requireStartRun(admission,target,start)))) stale();
-        return new VerifiedScope(release, target, action, classification, limits, scopes, roleProofs, grant,start,planDraft);
+        return Optional.of(new VerifiedScope(release, target, action, classification, limits, scopes, roleProofs, grant,start,planDraft));
     }
 
     private RoleProof role(AgentReleaseStore.Stored release, PermissionProtocol.Scope target, String action,

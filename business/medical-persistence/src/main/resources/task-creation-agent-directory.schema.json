@@ -1,0 +1,31 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"urn:medical:task-creation-agent-directory:1.0.0",
+  "$defs":{
+    "Cursor":{"type":"string","minLength":1,"maxLength":2048,"pattern":"^[A-Za-z0-9_-]+$"},
+    "Query":{"type":"object","additionalProperties":false,"properties":{
+      "limit":{"type":"integer","minimum":1,"maximum":100},"after":{"$ref":"#/$defs/Cursor"},
+      "q":{"type":"string","minLength":1,"maxLength":256}
+    }},
+    "Filters":{"type":"object","additionalProperties":false,"required":["limit","q"],"properties":{
+      "limit":{"type":"integer","minimum":1,"maximum":100},"q":{"type":["string","null"],"minLength":1,"maxLength":256}
+    }},
+    "Entry":{"type":"object","additionalProperties":false,"required":["release_id","agent_id","agent_version_id","name","status","current","released_at","template_versions","source_scope_policy","max_cost_amount","currency"],"properties":{
+      "release_id":{"$ref":"urn:medical:projects:1.0.0#/$defs/Id"},
+      "agent_id":{"$ref":"urn:medical:projects:1.0.0#/$defs/Id"},
+      "agent_version_id":{"$ref":"urn:medical:projects:1.0.0#/$defs/Id"},
+      "name":{"type":"string","minLength":1,"maxLength":100},"status":{"const":"PUBLISHED"},"current":{"const":true},
+      "released_at":{"$ref":"urn:medical:projects:1.0.0#/$defs/Time"},
+      "template_versions":{"type":"array","maxItems":1000,"uniqueItems":true,"items":{"$ref":"urn:medical:projects:1.0.0#/$defs/Basis"}},
+      "source_scope_policy":{"$ref":"urn:medical:projects:1.0.0#/$defs/Basis"},
+      "max_cost_amount":{"type":"string","pattern":"^(?:0|[1-9][0-9]*)(?:\\.[0-9]+)?$","maxLength":128},
+      "currency":{"type":"string","minLength":1,"maxLength":16}
+    }},
+    "Directory":{"type":"object","additionalProperties":false,"required":["schema_version","tenant_id","project_id","current_context","query","items","next_after","complete"],"properties":{
+      "schema_version":{"const":"1.0.0"},"tenant_id":{"$ref":"urn:medical:projects:1.0.0#/$defs/Id"},
+      "project_id":{"$ref":"urn:medical:projects:1.0.0#/$defs/Id"},"current_context":{"$ref":"urn:medical:projects:1.0.0#/$defs/Context"},
+      "query":{"$ref":"#/$defs/Filters"},"items":{"type":"array","maxItems":100,"items":{"$ref":"#/$defs/Entry"}},
+      "next_after":{"anyOf":[{"$ref":"#/$defs/Cursor"},{"type":"null"}]},"complete":{"type":"boolean"}
+    }}
+  }
+}

@@ -9,6 +9,14 @@ import type { RequestMetadata } from './request-metadata'
 
 export type ExportPurpose = 'FORMAL_BODY' | 'REVIEW_PACKAGE' | 'INTERNAL_EXCHANGE'
 export type ExportFormat = 'DOCX' | 'PDF' | 'MARKDOWN'
+export function exportActionAllowed(session: MedicalSession, projectId: string, documentId: string, action: 'artifact.export' | 'export.read'): boolean {
+  const context = session.current_context
+  return context !== null && session.action_summary.some(item => item.action === action
+    && (item.project_id === null || item.project_id === projectId) && (
+      item.resource_kind === 'ENTERPRISE' && item.resource_id === context.tenant_id && item.project_id === null
+      || item.resource_kind === 'PROJECT' && item.resource_id === projectId && item.project_id === projectId
+      || item.resource_kind === 'DOCUMENT' && (item.resource_id === null || item.resource_id === documentId)))
+}
 export interface ExportBasis {
   schema_version: '1.0.0'; document_id: string; document_revision: string; template_version: string
   format_profile_revision: string; review_manifest_sha256: string

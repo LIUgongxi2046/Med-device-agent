@@ -21,13 +21,27 @@ const usePermissionStore = defineStore(
       defaultRoutes: [],
       topbarRouters: [],
       sidebarRouters: [],
-      frameworkRoutes: []
+      frameworkRoutes: [],
+      medicalNavigationIdentity: null
     }),
     actions: {
-      setMedicalRoutes(authenticated, frameworkRouters = []) {
+      suspendMedicalRoutes() { medicalFrameworkRegistry.suspend() },
+      setMedicalRoutes(authenticated, frameworkRouters = [], identity = null) {
+        // 只有当前服务端身份与完整授权均一致时，继续使用已登记的导航组件。
+        if (authenticated && identity !== null && identity === this.medicalNavigationIdentity) {
+          medicalFrameworkRegistry.resume()
+          return
+        }
         medicalFrameworkRegistry.clear()
+        this.medicalNavigationIdentity = authenticated ? identity : null
         const workbench = constantRoutes.find(route => route.children?.some(child => child.name === 'Index'))
-        const routes = authenticated ? [workbench, ...medicalRoutes.filter(route => !route.hidden)].filter(Boolean) : []
+        const navigationRoots = new Set(['/enterprises/members', '/enterprises/roles', '/sources/uploads', '/account'])
+        const agentEntries = new Set(['MedicalExecutionPolicies', 'MedicalRuntimeRetention', 'MedicalModelRuntime',
+          'MedicalFormalEvaluationContextBindings', 'MedicalFormalPublication', 'MedicalFormalAgentDrafts', 'MedicalFormalCapabilities'])
+        const routes = authenticated ? [workbench, ...medicalRoutes.filter(route => !route.hidden || navigationRoots.has(route.path))
+          .map(route => ({ ...route, hidden: false, ...(route.path === '/agents' ? { children: route.children.map(child => ({ ...child,
+            ...(agentEntries.has(child.name) ? { hidden: false } : {}),
+            ...(child.name === 'MedicalSimulationRules' ? { path: 'simulation-rules' } : {}) })) } : {}) }))].filter(Boolean) : []
         const approved = authenticated ? prepareMedicalFrameworkRoutes(frameworkRouters, router.getRoutes(), view => /^(system|monitor|tool)\//.test(view) && Boolean(loadView(view))) : []
         this.frameworkRoutes = filterAsyncRouter(approved)
         const existingNames = new Set([...router.getRoutes().map(route => route.name), ...frameworkRouteNames(this.frameworkRoutes)])
@@ -40,7 +54,7 @@ const usePermissionStore = defineStore(
         ).map(markMedicalFrameworkRoute) : []
         medicalFrameworkRegistry.replace([...this.frameworkRoutes, ...drilldowns])
         this.routes = routes.concat(this.frameworkRoutes); this.addRoutes = []
-        this.sidebarRouters = routes; this.topbarRouters = routes; this.defaultRoutes = routes
+        this.sidebarRouters = this.routes; this.topbarRouters = this.routes; this.defaultRoutes = this.routes
       },
       isMedicalFrameworkRoute(name) { return medicalFrameworkRegistry.has(name) },
       setRoutes(routes) {

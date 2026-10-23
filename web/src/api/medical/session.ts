@@ -3,14 +3,14 @@ import { envelope, fail, revision, validate, validContext, validSession } from '
 import type { Context, MedicalSession, SelectionOptions } from './protocol'
 
 export async function readSession(signal: AbortSignal): Promise<MedicalSession> {
-  const value = envelope(await request.get('/api/session', { medical: 'envelope', signal, headers: { 'X-Schema-Version': '1.0.0' } }))
+  const value = envelope(await request.get('/api/session', { medical: 'envelope', signal, timeout: 60000, headers: { 'X-Schema-Version': '1.0.0' } }))
   const session = validate<MedicalSession>('urn:medical:identity', value.data)
   validSession(session, value.resource_revision)
   return session
 }
 
 export async function readOptions(signal: AbortSignal): Promise<SelectionOptions> {
-  const value = envelope(await request.get('/api/session/tenant-selection-options', { medical: 'envelope', signal, headers: { 'X-Schema-Version': '1.0.0' } }))
+  const value = envelope(await request.get('/api/session/tenant-selection-options', { medical: 'envelope', signal, timeout: 60000, headers: { 'X-Schema-Version': '1.0.0' } }))
   const options = validate<SelectionOptions>('urn:medical:selection-options', value.data)
   revision(options.expected_context_revision)
   if (value.resource_revision !== options.expected_context_revision || (options.selected_tenant_id === null) !== (options.expected_context_revision === '0')) {
@@ -34,7 +34,8 @@ export async function loginAccount(username: string, password: string): Promise<
   const csrf = await readSessionCsrf(new AbortController().signal)
   const validator = new URLSearchParams()
   validator.set('username', username); validator.set('password', password); validator.set('_csrf', csrf.token)
-  const logged = await request.post('/auth/login', validator, { medical: 'auth', headers: { 'Content-Type': 'application/x-www-form-urlencoded' } })
+  // 密码校验包含 BCrypt 运算，独立设置认证等待时间以覆盖本机服务繁忙时的处理。
+  const logged = await request.post('/auth/login', validator, { medical: 'auth', timeout: 60000, headers: { 'Content-Type': 'application/x-www-form-urlencoded' } })
   if (logged.status !== 200) envelope(logged)
   const target = new URL(logged.request.responseURL)
   if (target.origin !== location.origin || target.pathname !== '/local-auth/account.html') fail('AUTHENTICATION_FAILED', '账户登录未取得明确结果')

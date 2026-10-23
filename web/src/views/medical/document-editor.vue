@@ -14,7 +14,7 @@
       <p>当前版本：{{ saved.document_revision }}；记录修订：{{ saved.revision }}</p>
       <p v-if="hasUnsaved" role="status">当前正文包含尚未保存的编辑</p>
       <p v-if="currentSnapshot && currentSnapshot.document_revision !== saved.document_revision" role="status">服务器文稿已经更新；当前编辑保留原版本，请比较最新内容。</p>
-      <p v-if="!editable && !reviewMode">当前文稿允许读取；编辑需要有效权限与未签发状态。</p>
+      <p v-if="currentSnapshot && !currentSnapshot.allowed_actions.includes('document.edit') && !reviewMode">当前文稿允许读取；保存需要正文写入、保存后检查权限及未签发状态。</p>
       <el-button v-if="!reviewMode" :disabled="!editable || !draft?.canUndo || unconfirmedFields > 0" @click="undo">撤销编辑</el-button>
       <el-button v-if="!reviewMode" :disabled="!editable || !draft?.canRedo || unconfirmedFields > 0" @click="redo">重做编辑</el-button>
       <p v-if="!reviewMode">当前会话保留最近100次正文编辑，保存后的撤销内容通过新修订保存。</p>
@@ -31,13 +31,13 @@
             <button type="button" @click="locatePanel('professional')">专业检查与总稿</button>
           </nav>
           <p class="scope-note">字段编辑确认仅替换正文值；读取来源不代表其支持当前陈述。技术结构检查不等于专业核验、审查确认或签发。</p>
-          <p class="scope-note">候选列表及采用服务、专业检查与总稿核验结果尚未接通；本地查看和选择不会改变正式状态。</p>
+          <p class="scope-note">候选采用使用服务端预览及明确确认；专业检查、人工审查和签发分别核验。</p>
         </template>
       </document-body-reader>
       <p v-if="sourceReturnNotice" role="status">{{ sourceReturnNotice }}</p>
       <p v-if="locationNotice" role="status">{{ locationNotice }}</p>
       <details ref="verificationPanel" class="document-inspector" tabindex="-1"><summary>字段核验工作台 · 当前正文值与来源线索</summary><div class="fv-preparation-actions"><el-button :disabled="!fieldNavigationContext.canReadMapping || fieldPreparationLoading || fieldVerification?.hasLocalDraft()" @click="loadFieldPreparation">{{ fieldPreparationLoading ? '正在读取当前提议映射' : '读取当前任务提议映射与固定来源' }}</el-button><p v-if="fieldPreparationNotice" role="status">{{ fieldPreparationNotice }}</p></div><document-field-verification ref="fieldVerification" :body="body" :preparation="fieldPreparation" :navigation-context="fieldNavigationContext" :can-open-evidence="fieldEvidenceAvailable" @open-field-targets="openFieldTargets" @open-source-exact="openFieldSource" @open-evidence="openFieldEvidence" /></details>
-      <details v-if="!reviewMode" ref="candidatesPanel" class="document-inspector" tabindex="-1"><summary>章节候选 · 预览与比较</summary><document-chapter-candidates :current-body="currentSnapshot?.document_revision === saved.document_revision ? baseline : null" :current-revision="currentSnapshot?.document_revision ?? null" :active="active" :dirty="hasUnsaved" /></details>
+      <details v-if="!reviewMode" ref="candidatesPanel" class="document-inspector" tabindex="-1" @toggle="candidatesOpen = ($event.target as HTMLDetailsElement).open"><summary>章节候选 · 预览与比较</summary><document-candidate-adoption :session="session" :snapshot="saved" :active="active && candidatesOpen && !historyVisible && !loading && !writing && !annotationBusy && !comparing" :dirty="hasUnsaved" :is-current="currentSnapshot?.document_revision === saved.document_revision" @adopted="load()" /></details>
       <details ref="fieldsPanel" class="document-inspector" tabindex="-1"><summary>字段原始值与适用条件 · {{ body.fields.length }} 项</summary>
       <el-card v-for="field in body.fields" :key="field.field_id" shadow="never">
         <p>字段标识：{{ field.field_id }}</p>
@@ -70,7 +70,7 @@
       <document-review-workspace v-if="reviewMode" :return-context-key="reviewReturnContextKey" @navigate-return="openReviewReturn" :saved-body="baseline ? { documentRevision: saved.document_revision, body: baseline } : null" :snapshot="saved" :dirty="hasUnsaved" :is-current="currentSnapshot?.document_revision === saved.document_revision" :active="active && !historyVisible" @navigate-write="emit('navigateWrite')" />
       <document-review-return v-if="reviewMode" ref="reviewReturnPanel" :session="session" :snapshot="saved" :active="active && !historyVisible" :dirty="hasUnsaved" v-bind="taskId ? { taskId } : {}" @returned="emit('returned', $event)" />
       <document-gru-records v-bind="baseline && !hasUnsaved ? { savedBody: baseline } : {}" :session="session" :snapshot="saved" :active="active && !historyVisible" :dirty="hasUnsaved" :selection="annotationSelection" />
-      <document-export :session="session" :document-id="documentId" :document-revision="saved.document_revision" :active="active && !hasUnsaved" />
+      <document-export :session="session" :project-id="projectId" :document-id="documentId" :document-revision="saved.document_revision" :active="active && !hasUnsaved" />
     </template>
     <saved-document-comparison v-if="saved" :session="session" :snapshot="saved" :active="active && !historyVisible"
       :disabled="writing || loading || comparing || annotationBusy || user.medicalWriting || historyLoading" />
@@ -137,7 +137,7 @@ import { documentDraftKey, retainDocumentDraft, resumeDocumentDraft, returnDocum
 import useUserStore from '@/store/modules/user'
 import DocumentFieldEditor from './document-field-editor.vue'
 import DocumentFieldVerification from './document-field-verification.vue'
-import DocumentChapterCandidates from './document-chapter-candidates.vue'
+import DocumentCandidateAdoption from './document-candidate-adoption.vue'
 import DocumentExport from './document-export.vue'
 import DocumentGruRecords from './document-gru-records.vue'
 import DocumentTechnicalCheck from './document-technical-check.vue'
@@ -165,6 +165,7 @@ function openReviewReturn(handoff?: LocalReturnHandoff): boolean {
   return reviewReturnPanel.value?.openFromReview(handoff, reviewReturnContextKey.value) ?? false
 }
 const professionalPanel = ref<HTMLDetailsElement>(); const verificationPanel = ref<HTMLDetailsElement>(); const candidatesPanel = ref<HTMLDetailsElement>()
+const candidatesOpen = ref(false)
 const fieldsPanel = ref<HTMLDetailsElement>(); const evidencePanel = ref<HTMLDetailsElement>()
 const savePanel = ref<HTMLElement>(); const checkPanel = ref<HTMLElement>()
 function locatePanel(panel: 'fields' | 'evidence' | 'save' | 'check' | 'verification' | 'candidates' | 'professional'): void {

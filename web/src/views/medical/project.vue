@@ -31,9 +31,9 @@
           <el-card shadow="never" class="project-panel">
             <template #header><div class="section-heading"><h2>项目属性</h2><el-button v-if="project.allowed_actions.includes('profile.confirm') && ['PENDING', 'ACTIVE'].includes(project.status)" text type="primary" :disabled="user.medicalWriting" @click="go('/profile')">修订属性</el-button></div></template>
             <el-table :data="project.profile.attributes" row-key="key" empty-text="当前项目尚未返回属性">
-              <el-table-column prop="key" label="属性名称" min-width="150" />
+              <el-table-column label="属性名称" min-width="150"><template #default="scope">{{ attributeLabels[scope.row.key] ?? scope.row.key }}</template></el-table-column>
               <el-table-column label="核查状态" min-width="120"><template #default="scope"><el-tag :type="scope.row.status === 'UNKNOWN' ? 'warning' : 'info'">{{ scope.row.status === 'UNKNOWN' ? '尚未确认' : '已有声明依据' }}</el-tag></template></el-table-column>
-              <el-table-column label="原始值" min-width="200"><template #default="scope">{{ scope.row.status === 'UNKNOWN' ? '尚未确认' : formatProjectJson(scope.row.value) }}</template></el-table-column>
+              <el-table-column label="属性内容" min-width="200"><template #default="scope">{{ projectAttributeText(project,scope.row.key) }}</template></el-table-column>
               <el-table-column prop="reason" label="说明" min-width="180" />
             </el-table>
           </el-card>
@@ -90,7 +90,7 @@ import { readProject, listWorkItems } from '@/api/medical/projects'
 import { capabilityAllowed } from '@/api/medical/formal-capability-domain'
 import { projectActionAllowed } from '@/api/medical/project-write'
 import { sourceUploadAllowed } from '@/api/medical/source-uploads'
-import { formatProjectJson } from '@/api/medical/project-json'
+import { projectAttributeText, projectStageLabels } from '@/api/medical/project-workspace'
 import { useMedicalRouteRead } from '@/api/medical/route-read'
 import { waitingTaskLocation, readWaitingTaskContext } from '@/utils/medical-task-context'
 import SessionPanel from './session-panel.vue'
@@ -98,7 +98,8 @@ import SessionPanel from './session-panel.vue'
 const user = useUserStore(); const route = useRoute(); const router = useRouter()
 const project = ref(null); const loading = ref(false); const error = ref('')
 const waiting = ref(null); const waitingLoading = ref(false); const waitingError = ref('')
-const statuses = { PENDING: '建档待确认', ACTIVE: '使用中', PAUSED: '已暂停', ARCHIVED: '已归档' }
+const statuses = projectStageLabels
+const attributeLabels = {product_name:'产品名称',device_class:'器械类别',application_path:'注册路径',ivd:'产品类型',directory_profile:'申请资料目录'}
 const basePath = computed(() => '/projects/' + project.value?.project_id)
 const canReadTasks = computed(() => project.value?.allowed_actions.includes('project.task.read') && projectActionAllowed(user.medicalSession, 'project.task.read', project.value.project_id))
 const canConfigurePackage = computed(() => project.value && capabilityAllowed(user.medicalSession, project.value.project_id))

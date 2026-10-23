@@ -1,19 +1,20 @@
 <template>
   <main class="medical-page">
-    <h1>上传企业资料</h1>
+    <header class="upload-entry__heading"><div><h1>上传企业资料</h1><p>选择使用项目，上传并登记当前组织的企业资料。</p></div><el-tag effect="plain">企业资料库</el-tag></header>
     <session-panel />
-    <p>资料归属企业，所选项目仅用于上传处理。</p>
-    <p>上传后可在资料处理和核准页查看进度。</p>
-    <p v-if="!allowed" role="alert">需要当前企业身份、项目读取及企业来源维护权限。</p>
+    <el-alert title="资料归属当前企业，所选项目用于上传处理。上传完成后可以查看处理进度及人工核准结果。" type="info" :closable="false" show-icon />
+    <el-alert v-if="!allowed" title="需要当前企业身份、项目读取及企业来源维护权限。" type="warning" :closable="false" show-icon />
     <template v-else>
-      <el-button :disabled="loading" @click="read()">重新读取项目</el-button>
+      <el-card shadow="never" class="upload-entry__projects"><template #header><div class="upload-entry__heading"><h2>选择使用项目</h2><el-button :loading="loading" @click="read()">刷新项目</el-button></div></template>
       <p v-if="loading" role="status">正在读取当前获授权项目</p>
       <p v-if="error" role="alert">{{ error }}</p>
-      <p v-if="listing && !listing.projects.length">当前页没有获授权的使用中项目。</p>
-      <ul v-if="listing"><li v-for="project in listing.projects" :key="project.project_id">
-        <router-link :to="{ path: '/projects/' + project.project_id + '/uploads', query: { ownership: 'ENTERPRISE' } }">{{ project.name }}：选择此项目</router-link>
-      </li></ul>
-      <el-button :disabled="loading || !listing?.next_after" @click="read(listing?.next_after)">读取下一页</el-button>
+      <el-table :data="listing?.projects ?? []" row-key="project_id" v-loading="loading" border>
+        <el-table-column prop="name" label="项目名称" min-width="240" show-overflow-tooltip />
+        <el-table-column label="项目状态" width="130"><template #default="scope"><el-tag type="success" effect="plain">{{ scope.row.status === 'ACTIVE' ? '使用中' : scope.row.status }}</el-tag></template></el-table-column>
+        <el-table-column label="操作" width="160" fixed="right"><template #default="scope"><router-link :to="{ path: '/projects/' + scope.row.project_id + '/uploads', query: { ownership: 'ENTERPRISE' } }"><el-button type="primary" plain>上传企业资料</el-button></router-link></template></el-table-column>
+        <template #empty><el-empty description="当前页没有获授权的使用中项目" :image-size="88" /></template>
+      </el-table>
+      <div class="upload-entry__footer"><span>项目目录根据当前组织及上传权限读取</span><el-button v-if="listing?.next_after" :loading="loading" @click="read(listing?.next_after)">读取下一页</el-button></div></el-card>
     </template>
   </main>
 </template>
@@ -50,3 +51,12 @@ function visibility(): void { if (document.hidden) clear() }
 document.addEventListener('visibilitychange', visibility)
 onBeforeUnmount(() => { clear(); document.removeEventListener('visibilitychange', visibility) })
 </script>
+<style scoped>
+.upload-entry__heading { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+.upload-entry__heading h1, .upload-entry__heading h2 { margin: 0 0 8px; }
+.upload-entry__heading h2 { font-size: 18px; }
+.upload-entry__heading p, .upload-entry__footer { color: var(--el-text-color-secondary); line-height: 1.6; }
+.upload-entry__projects { margin-top: 24px; }
+.upload-entry__footer { display: flex; align-items: center; justify-content: space-between; margin-top: 16px; }
+@media (max-width: 600px) { .upload-entry__heading, .upload-entry__footer { align-items: flex-start; flex-direction: column; } }
+</style>

@@ -1,11 +1,16 @@
-# Med-device-agent
+# Med-device-Agent Workspace
 
-医疗器械企业 Agent 平台，面向注册资料与项目知识管理。仓库包含产品需求、架构和详细设计文档，以及 Web 前端、Java 业务服务、Python 模型与文档服务、TypeScript Agent 执行器和共享数据协议。
+> **项目未开发完成，请优先查阅文档。**
+>
+> 当前功能、页面还原和业务验收仍在进行中。使用、接续开发或部署前，请阅读[产品需求文档](PRD.md)、[开发记录索引](docs/development/index.md)和[原型还原任务记录](docs/development/PROTOTYPE-RESTORATION-20261022.md)，核对各项功能的实现范围、验证结果及待完成事项。
+
+医疗设备智能工作站，面向注册资料与项目知识管理。仓库包含产品需求、架构和详细设计文档，以及 Web 前端、Java 业务服务、Python 模型与文档服务、TypeScript Agent 执行器和共享数据协议。
 
 平台支持企业与项目权限管理、资料和模板维护、任务计划、来源追溯、文档草稿生成、规则检查、人工审查与签发记录。法规适用性、业务结论和正式签发由获授权人员确认；模型输出作为待审内容，不能代替监管批准或专业审查。
 
 ## 项目状态
 
+- 项目保持开发中状态，尚未完成全部 PRD 功能及高保真 UI 还原；当前代码提交包含进行中的工作，不代表完整业务验收通过。
 - [产品需求文档](PRD.md)当前标记为 `DRAFT`，真实客户业务验收状态为 `NOT_RUN`。
 - [概要设计](HLD.md)与各详细设计文档说明目标架构和验证要求。标记为 `PROPOSED` 的技术决策仍需按文档完成验证。
 
@@ -38,7 +43,7 @@ npm run dev:medical
 开发服务器监听 `127.0.0.1:18083`。医疗业务模式从本地 `web/.env.medical` 读取配置；该文件不纳入版本控制。联调后端时，设置以下配置并确保后端地址为项目 Vite 配置允许的本地地址：
 
 ```dotenv
-VITE_APP_TITLE=医疗器械业务平台
+VITE_APP_TITLE=医疗设备智能工作站
 VITE_APP_ENV=medical
 VITE_APP_BASE_API=/api
 VITE_MEDICAL_BACKEND=http://127.0.0.1:18080
@@ -55,6 +60,8 @@ npm run typecheck:medical
 
 ## 项目文档
 
+- [开发记录索引与当前进度](docs/development/index.md)
+- [原型功能与页面还原任务](docs/development/PROTOTYPE-RESTORATION-20261022.md)
 - [产品需求规格说明书](PRD.md)
 - [概要设计与架构决策](HLD.md)
 - [Agent 编排与治理详细设计](LLD-Agent.md)

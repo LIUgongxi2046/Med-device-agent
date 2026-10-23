@@ -52,7 +52,8 @@ public final class TemplateDefinitionSchema {
         ProjectSchema.text(request.reason(), 2000);
         requireContent(request.content());
         String content = json.canonicalObject(request.content());
-        return new TemplateProtocol.Validated(request, content, DigestUtils.sha256Hex(content), manifest, references(node));
+        return new TemplateProtocol.Validated(request, content, DigestUtils.sha256Hex(content), manifest,
+                references(mapper.readTree(json.canonicalObject(request))));
     }
 
     public TemplateProtocol.Content content(byte[] bytes) throws IOException {

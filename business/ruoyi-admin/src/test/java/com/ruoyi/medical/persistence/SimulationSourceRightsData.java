@@ -44,7 +44,6 @@ public final class SimulationSourceRightsData implements AutoCloseable {
         var original=writeObject(json.canonical(body).getBytes(StandardCharsets.UTF_8)); authorizationSha256=original.sha256();
         transaction.executeWithoutResult(status -> org.springframework.util.function.ThrowingSupplier.of(() -> {
             jdbc.update("UPDATE rights_revision SET status='PENDING_REVIEW' WHERE tenant_id=? AND rights_revision=?",tasks.tenant,documents.rights);
-            insert("source_lifecycle_state",metadata(row("source_version",documents.sourceVersion,"status","ACTIVE","last_decision_id",null,"revision",1,"updated_at",tasks.updated)));
             jdbc.update("INSERT INTO source_rights_state(tenant_id,source_version,rights_revision,last_decision_id,revision,updated_at,schema_version,schema_manifest_sha256,created_by,created_at,classification) "
                 +"SELECT v.tenant_id,v.source_version,v.rights_revision,NULL,1,v.created_at,r.schema_version,r.schema_manifest_sha256,v.created_by,v.created_at,s.classification "
                 +"FROM source_version v JOIN rights_revision r ON r.tenant_id=v.tenant_id AND r.source_version=v.source_version AND r.rights_revision=v.rights_revision "
@@ -159,7 +158,6 @@ public final class SimulationSourceRightsData implements AutoCloseable {
             jdbc.update("DELETE FROM content_node WHERE tenant_id=?",tasks.tenant);
             jdbc.update("DELETE FROM source_rights_state WHERE tenant_id=?",tasks.tenant);
             jdbc.update("DELETE FROM source_rights_decision WHERE tenant_id=?",tasks.tenant);
-            jdbc.update("DELETE FROM source_lifecycle_state WHERE tenant_id=?",tasks.tenant);
         });
     }
 }

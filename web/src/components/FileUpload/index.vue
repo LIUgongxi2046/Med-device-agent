@@ -2,6 +2,7 @@
   <div class="upload-file">
     <el-upload
       multiple
+      :drag="dropzone"
       :action="selectionOnly ? '' : uploadFileUrl"
       :auto-upload="!selectionOnly"
       :on-change="handleFileSelection"
@@ -20,7 +21,8 @@
       v-if="!disabled"
     >
       <!-- 上传按钮 -->
-      <el-button type="primary">选取文件</el-button>
+      <template v-if="dropzone"><el-icon class="el-icon--upload"><UploadFilled /></el-icon><div class="el-upload__text">拖动文件至此处，或<em>点击选择文件</em></div><div class="upload-dropzone-help">支持同时选择多个文件，逐项填写来源与使用许可后提交</div></template>
+      <el-button v-else type="primary">选取文件</el-button>
     </el-upload>
     <!-- 上传提示 -->
     <div class="el-upload__tip" v-if="showTip && !disabled">
@@ -48,6 +50,10 @@ import { getToken } from "@/utils/auth"
 import Sortable from 'sortablejs'
 
 const props = defineProps({
+  dropzone: {
+    type: Boolean,
+    default: false
+  },
   modelValue: [String, Object, Array],
   // 业务页面接管原始文件与接收协议。
   selectionOnly: {
@@ -253,6 +259,7 @@ onMounted(() => {
 .upload-file-uploader {
   margin-bottom: 5px;
 }
+.upload-dropzone-help { margin-top: 12px; color: var(--el-text-color-secondary); line-height: 1.6; }
 .upload-file-list .el-upload-list__item {
   border: 1px solid #e4e7ed;
   line-height: 2;

@@ -8,11 +8,12 @@
   "scripts": {
     "dev": "vite",
     "build:prod": "vite build",
-    "build:medical": "npm run check:medical-schemas && vite build --mode medical",
+    "build:medical": "npm run check:medical-schemas && npm run check:medical-consumers && node --max-old-space-size=4096 node_modules/vite/bin/vite.js build --mode medical",
     "build:stage": "vite build --mode staging",
     "preview": "vite preview",
     "dev:medical": "vite --mode medical --host 127.0.0.1 --port 18083 --strictPort",
-    "typecheck:medical": "npm run check:medical-schemas && vue-tsc --noEmit -p tsconfig.medical.json",
+    "typecheck:medical": "npm run check:medical-schemas && npm run check:medical-consumers && vue-tsc --noEmit -p tsconfig.medical.json",
+    "check:medical-consumers": "node scripts/audit-schema-consumers.mjs",
     "check:medical-schemas": "node scripts/check-medical-schemas.mjs"
   },
   "repository": {
@@ -32,8 +33,8 @@
     "dompurify": "3.4.17",
     "echarts": "6.1.0",
     "element-plus": "2.13.1",
-    "exceljs": "4.4.0",
     "eventsource-parser": "4.1.1",
+    "exceljs": "4.4.0",
     "file-saver": "2.0.5",
     "fuse.js": "7.1.0",
     "js-beautify": "1.15.4",
@@ -57,10 +58,11 @@
   },
   "devDependencies": {
     "@spiriit/vite-plugin-svg-spritemap": "6.0.0",
-    "@vitejs/plugin-vue": "5.2.4",
+    "@types/file-saver": "2.0.7",
     "@types/katex": "0.16.8",
     "@types/markdown-it": "14.2.0",
     "@types/papaparse": "5.5.2",
+    "@vitejs/plugin-vue": "5.2.4",
     "sass-embedded": "1.97.2",
     "svgo": "4.1.0",
     "typescript": "5.9.3",

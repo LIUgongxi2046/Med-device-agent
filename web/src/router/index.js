@@ -95,6 +95,14 @@ export const medicalRoutes = [
     { path: ':ruleId', component: () => import('@/views/medical/rule-management.vue'), name: 'MedicalRuleDetail', hidden: true,
       meta: { medical: true, noCache: true, title: '固定规则版本', activeMenu: '/rules' } }
   ] },
+  { path: '/operations', component: Layout, meta: { medical: true }, children: [
+    { path: '', component: () => import('@/views/medical/business-operations.vue'), name: 'MedicalBusinessOperations',
+      meta: { medical: true, noCache: true, title: '用量与成本', icon: 'chart' } }
+  ] },
+  { path: '/feedback', component: Layout, meta: { medical: true }, children: [
+    { path: '', component: () => import('@/views/medical/business-feedback.vue'), name: 'MedicalBusinessFeedback',
+      meta: { medical: true, noCache: true, title: '反馈改进', icon: 'message' } }
+  ] },
   { path: '/document-save-audit', component: Layout, meta: { medical: true }, children: [
     { path: '', component: () => import('@/views/medical/document-save-audit.vue'), name: 'MedicalDocumentSaveAudit',
       meta: { medical: true, noCache: true, title: '文稿保存审计', icon: 'list' } }
@@ -156,14 +164,14 @@ export const medicalRoutes = [
       meta: { medical: true, noCache: true, title: '项目详情', activeMenu: '/projects' } }
   ] },
   { path: '/connections', component: Layout, meta: { medical: true }, children: [
-    { path: '', component: () => import('@/views/medical/connections.vue'), name: 'MedicalConnections',
-      meta: { medical: true, noCache: true, title: '客户系统连接', icon: 'link' } }
+    { path: '', component: () => import('@/views/medical/connector-workspace.vue'), name: 'MedicalConnections',
+      meta: { medical: true, noCache: true, title: '企业与连接', icon: 'link' } }
   ] },
   { path: '/scenarios', component: Layout, meta: { medical: true }, children: [
     { path: '', component: () => import('@/views/medical/scenarios.vue'), name: 'MedicalScenarios',
       meta: { medical: true, noCache: true, title: '场景目录', icon: 'list' } }
   ] },
-  { path: '/agents', component: Layout, meta: { medical: true }, children: [
+  { path: '/agents', component: Layout, meta: { medical: true, title: 'Agent 管理', icon: 'system' }, children: [
     { path: 'execution-policies/new', component: () => import('@/views/medical/execution-policy-create.vue'), name: 'MedicalExecutionPolicyCreate', hidden: true,
       meta: { medical: true, noCache: true, title: '登记执行策略', activeMenu: '/agents' } },
     { path: 'execution-policies/:versionId', component: () => import('@/views/medical/execution-policy-detail.vue'), name: 'MedicalExecutionPolicyDetail', hidden: true,

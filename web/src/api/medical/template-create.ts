@@ -1,7 +1,7 @@
 import request from '@/utils/request'
 import { envelope, fail, revision, validate, validContext } from './protocol'
 import type { Basis, Context, MedicalSession } from './protocol'
-import { canonicalTemplateValue, templateValueDigest } from './template-approval'
+import { canonicalTemplateValue, templateValueDigest, TEMPLATE_REQUEST_TIMEOUT_MS } from './template-approval'
 import type { ReviewTemplate, TemplateContent } from './template-approval'
 import { projectTextIssue } from './project-write'
 import { readOperation } from './operations'
@@ -84,7 +84,7 @@ export async function submitTemplateCreate(session: MedicalSession, pending: Pen
   if (!templateCreateAllowed(session) || pending.actor !== session.user.user_id || pending.tenant_id !== context.tenant_id
       || canonicalTemplateValue(context) !== canonicalTemplateValue(pending.context) || await templateValueDigest(body) !== pending.body_sha256
       || await templateValueDigest(body.content) !== pending.content_sha256) fail('CONTENT_MISMATCH', '模板创建请求与当前身份或原参数不一致')
-  const raw = await request.post('/api/template-versions', body, { medical: 'envelope', headers: {
+  const raw = await request.post('/api/template-versions', body, { medical: 'envelope', timeout: TEMPLATE_REQUEST_TIMEOUT_MS, headers: {
     'X-Schema-Version': '1.0.0', 'X-Context-Revision': pending.context.context_revision, 'Idempotency-Key': pending.key,
     [session.csrf.header_name]: session.csrf.token } })
   const response = envelope(raw); const result = validate<TemplateCreated>('urn:medical:template-operations:1.0.0#/$defs/Created', response.data)

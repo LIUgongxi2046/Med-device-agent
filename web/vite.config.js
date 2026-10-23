@@ -1,6 +1,8 @@
 import { defineConfig, loadEnv } from 'vite'
 import path from 'path'
 import createVitePlugins from './vite/plugins'
+import localOwnerCredentials from './vite/plugins/local-owner-credentials.mjs'
+import { brand } from './branding.mjs'
 
 const baseUrl = 'http://localhost:8080' // 后端接口
 
@@ -9,7 +11,7 @@ export default defineConfig(({ mode, command }) => {
   const env = loadEnv(mode, process.cwd())
   if (mode === 'medical') {
     env.VITE_APP_ENV = 'medical'
-    env.VITE_APP_TITLE ||= '医疗器械 Agent 平台'
+    env.VITE_APP_TITLE = brand.chineseName
   }
   env.VITE_APP_TITLE ||= '若依管理系统'
   const { VITE_APP_ENV } = env
@@ -41,7 +43,10 @@ export default defineConfig(({ mode, command }) => {
       ...(mode === 'medical' ? { 'import.meta.env.VITE_APP_ENV': JSON.stringify('medical') } : {}),
       'import.meta.env.VITE_APP_TITLE': JSON.stringify(env.VITE_APP_TITLE)
     },
-    plugins: createVitePlugins(env, command === 'build'),
+    plugins: [
+      ...createVitePlugins(env, command === 'build'),
+      ...(mode === 'medical' && command === 'serve' ? [localOwnerCredentials()] : [])
+    ],
     resolve: {
       // https://cn.vitejs.dev/config/#resolve-alias
       alias: {

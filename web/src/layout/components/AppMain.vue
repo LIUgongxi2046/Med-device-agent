@@ -3,7 +3,10 @@
     <library-sections v-if="userStore.medicalMode && route.path.startsWith('/library')" />
     <el-alert v-if="route.meta.medicalFramework && !frameworkReady" :title="userStore.medicalLoading ? '正在核查当前账户' : '请重新核查当前账户后访问管理页面'" type="info" :closable="false" show-icon />
     <router-view v-slot="{ Component, route }">
-      <transition name="fade-transform" mode="out-in">
+      <keep-alive v-if="userStore.medicalMode" :include="tagsViewStore.cachedViews">
+        <component v-if="!route.meta.link && (!route.meta.medicalFramework || frameworkReady)" :is="Component" :key="route.meta.medicalFramework ? route.path + ':' + userStore.medicalGeneration : route.path" />
+      </keep-alive>
+      <transition v-else name="fade-transform" mode="out-in">
         <keep-alive :include="tagsViewStore.cachedViews">
           <component v-if="!route.meta.link && (!route.meta.medicalFramework || frameworkReady)" :is="Component" :key="route.meta.medicalFramework ? route.path + ':' + userStore.medicalGeneration : route.path"/>
         </keep-alive>
@@ -45,12 +48,6 @@ function addIframe() {
 </script>
 
 <style lang="scss" scoped>
-.app-main.medical-main { min-height: calc(100vh - 68px); }
-.fixed-header + .app-main.medical-main {
-  margin-top: 68px;
-  height: calc(100vh - 68px);
-  min-height: 0;
-}
 .app-main {
   /* 50= navbar  50  */
   min-height: calc(100vh - 50px);
@@ -89,6 +86,8 @@ function addIframe() {
 
 /* 移动端fixed-header优化 */
 @media screen and (max-width: 991px) {
+  .fixed-header + .app-main.medical-main { margin-top: 104px; height: calc(100dvh - 104px); min-height: 0; }
+  .hasTagsView .fixed-header + .app-main.medical-main { margin-top: 138px; height: calc(100dvh - 138px); min-height: 0; }
   .fixed-header + .app-main {
     padding-bottom: max(60px, calc(constant(safe-area-inset-bottom) + 40px));
     padding-bottom: max(60px, calc(env(safe-area-inset-bottom) + 40px));

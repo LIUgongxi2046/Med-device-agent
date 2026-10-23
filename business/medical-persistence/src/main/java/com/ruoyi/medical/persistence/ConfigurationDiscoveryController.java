@@ -16,8 +16,28 @@ public final class ConfigurationDiscoveryController {
     private final ApplicationSessionIdentity identities;
     private final ConfigurationDiscoveryService listings;
     private final ConfigurationDiscoverySchema schema;
-    public ConfigurationDiscoveryController(ApplicationSessionIdentity identities, ConfigurationDiscoveryService listings, ConfigurationDiscoverySchema schema) {
+    private final TemplateDirectoryService templates;
+    private final RuleBusinessDefinitionStore businessRules;
+    private final RuleBusinessDirectorySchema businessDirectory;
+    public ConfigurationDiscoveryController(ApplicationSessionIdentity identities, ConfigurationDiscoveryService listings, ConfigurationDiscoverySchema schema, TemplateDirectoryService templates,
+            RuleBusinessDefinitionStore businessRules, RuleBusinessDirectorySchema businessDirectory) {
         this.identities = identities; this.listings = listings; this.schema = schema;
+        this.templates = templates;
+        this.businessRules = businessRules; this.businessDirectory = businessDirectory;
+    }
+    @GetMapping("/api/business-rule-directory")
+    public JsonNode businessRules(HttpServletRequest request, HttpServletResponse response, Authentication authentication,
+            @RequestHeader(value="X-Schema-Version", required=false) String version,
+            @RequestHeader(value="X-Context-Revision", required=false) String context) {
+        headers(version, context); var query = businessDirectory.query(request.getParameterMap());
+        return response(response, listings.businessRules(identities.requireCurrent(request, authentication), context, query, businessRules, businessDirectory));
+    }
+    @GetMapping("/api/templates")
+    public JsonNode templates(HttpServletRequest request, HttpServletResponse response, Authentication authentication,
+            @RequestHeader(value="X-Schema-Version", required=false) String version,
+            @RequestHeader(value="X-Context-Revision", required=false) String context) {
+        headers(version, context); var query = schema.query(request.getParameterMap());
+        return response(response, templates.list(identities.requireCurrent(request, authentication), context, query));
     }
     @GetMapping("/api/model-config-revisions")
     public JsonNode models(HttpServletRequest request, HttpServletResponse response, Authentication authentication,

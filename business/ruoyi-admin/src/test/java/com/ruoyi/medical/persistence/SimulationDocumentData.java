@@ -101,6 +101,8 @@ public final class SimulationDocumentData implements AutoCloseable {
         insert("source_version", metadata(row("source_id", source, "source_version", sourceVersion, "version_no", 1, "original_sha256", original.sha256(),
             "object_key", original.objectKey(), "object_version", original.objectVersion(), "media_type", original.mediaType(), "size_bytes", original.sizeBytes(),
             "publisher_version", "SIMULATION-1", "provenance", serialize(row("data_kind", "SIMULATION", "purpose", "DOCUMENT_DEVELOPMENT")), "rights_revision", rights), false));
+        insert("source_lifecycle_state", metadata(row("source_version", sourceVersion, "status", "ACTIVE", "last_decision_id", null,
+            "revision", 1, "updated_at", tasks.updated), true));
         var rightsBody = row("schema_version", "1.0.0", "tenant_id", tasks.tenant, "rights_revision", rights, "source_version", sourceVersion,
             "purpose", "DOCUMENT_BODY", "allowed_actions", List.of("READ", "STORE", "ENTERPRISE_USE"), "providers", List.of(), "regions", List.of("LOCAL"),
             "valid_from", null, "valid_to", null, "classification", "INTERNAL", "evidence_manifest", row("owner", "SIMULATION 样例企业",
@@ -132,7 +134,7 @@ public final class SimulationDocumentData implements AutoCloseable {
     }
 
     private void seedGrants() throws Exception {
-        for (String action : List.of("document.read", "document.write", "task.read", "project.read", "dependency.read", "template.read", "template.write", "configuration.read", "artifact.read", "source.read", "plan.confirm")) {
+        for (String action : List.of("document.read", "document.write", "document.check", "task.read", "project.read", "dependency.read", "template.read", "template.write", "configuration.read", "artifact.read", "source.read", "plan.confirm")) {
             var condition = row("schema_version", "1.0.0", "identity_modes", List.of("local"), "purposes", List.of("DOCUMENT_BODY"),
                 "delegation", row("actions", List.of(), "role_ids", List.of(), "resource_kinds", List.of(), "project_ids", List.of(), "resource_ids", List.of()));
             json.condition(serialize(condition));
@@ -318,7 +320,7 @@ public final class SimulationDocumentData implements AutoCloseable {
             for (String table : List.of("document_section", "section_revision", "document_revision_state",
                     "content_read_range", "content_read_receipt", "object_upload_part", "artifact_upload_binding", "object_upload_session", "artifact_upload_grant", "document_revision_meta", "document_revision", "document_head",
                     "plan_content_revision", "plan_section_node", "plan_section", "task_plan_decision", "plan_revision", "artifact_content_binding", "lineage_edge", "dependency_access_member", "dependency_access_manifest",
-                    "scope_member", "project_source_binding", "source_use_gate", "approval_decision", "index_manifest", "source_chunk", "parse_version", "rights_revision", "source_version", "source",
+                    "scope_member", "project_source_binding", "source_use_gate", "approval_decision", "index_manifest", "source_chunk", "parse_version", "rights_revision", "source_lifecycle_state", "source_version", "source",
                     "template_definition_dependency", "field_definition", "requirement_node", "template_definition")) jdbc.update("DELETE FROM " + table + " WHERE tenant_id=?", tasks.tenant);
             jdbc.update("DELETE FROM task_input_revision WHERE tenant_id=? AND task_revision=?", tasks.tenant, taskRevision);
             jdbc.update("UPDATE task_head SET current_revision=NULL WHERE tenant_id=? AND current_revision=?", tasks.tenant, taskRevision);

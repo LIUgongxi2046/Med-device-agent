@@ -1,5 +1,5 @@
 <template>
-  <div class="app-container">
+  <div class="app-container" v-loading="loading">
     <el-row :gutter="10">
       <el-col :span="24" class="card-box">
         <el-card>
@@ -73,25 +73,35 @@ import { createCacheChartOptions } from '@/utils/cache-chart-options'
 const cache = ref([])
 const commandstats = ref(null)
 const usedmemory = ref(null)
-const { proxy } = getCurrentInstance()
-
-function getList() {
-  proxy.$modal.loading("正在加载缓存监控数据，请稍候！")
-  getCache().then(response => {
-    proxy.$modal.closeLoading()
-    cache.value = response.data
-
-    const options = createCacheChartOptions(response.data)
-    const commandstatsIntance = echarts.init(commandstats.value, "v5")
-    commandstatsIntance.setOption(options.commands)
-    const usedmemoryInstance = echarts.init(usedmemory.value, "v5")
-    usedmemoryInstance.setOption(options.memory)
-    window.addEventListener("resize", () => {
-      commandstatsIntance.resize()
-      usedmemoryInstance.resize()
-    })
-  })
+const loading = ref(false)
+let generation = 0, inactive = false
+let commandsChart = null, memoryChart = null
+function resize() { commandsChart?.resize(); memoryChart?.resize() }
+function release() {
+  generation++
+  commandsChart?.dispose(); memoryChart?.dispose()
+  commandsChart = null; memoryChart = null
+  window.removeEventListener('resize', resize)
 }
-
-getList()
+async function getList() {
+  const current = ++generation
+  loading.value = true
+  try {
+    const response = await getCache()
+    if (current !== generation) return
+    cache.value = response.data
+    await nextTick()
+    if (current !== generation) return
+    const options = createCacheChartOptions(response.data)
+    commandsChart = echarts.init(commandstats.value, 'v5')
+    commandsChart.setOption(options.commands)
+    memoryChart = echarts.init(usedmemory.value, 'v5')
+    memoryChart.setOption(options.memory)
+    window.addEventListener('resize', resize)
+  } finally { if (current === generation) loading.value = false }
+}
+onMounted(getList)
+onDeactivated(() => { inactive = true; release() })
+onActivated(() => { if (inactive) { inactive = false; return getList() } })
+onBeforeUnmount(release)
 </script>

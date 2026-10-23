@@ -1,0 +1,11 @@
+# ACCOUNT-WORKSPACE-20261022 账户默认工作组织
+
+任务状态来源为本文，关联WORKSPACE-ACCEPTANCE-20261022 WA-01，当前ACCEPTED，文档CURRENT。用户要求工作组织与账号绑定，普通账户默认绑定，超管默认一个组织。采用现有有效成员关系，绑定一个账户默认组织；显式切换更新绑定，重新登录恢复该组织。账户没有有效成员关系时不授予组织访问权限。
+
+platform_account_workspace按user_id保存唯一默认组织，引用平台有效成员路由。BusinessSessionController通过AccountWorkspaceSelection初始化会话；TenantSelectionService在原事务中更新账户绑定。所有组织选择继续通过tenant-selections的成员校验、审计、幂等和上下文修订。
+
+验收AW-01：真实超管登录自动取得一个工作组织；AW-02：选择另一个已有有效组织，注销及重新登录后保持该组织；AW-03：普通账户只进入有效成员组织；AW-04：未绑定及已撤销关系不得取得访问资格。测试使用真实本地服务，数据写入范围为本任务获准验收资料。
+
+迁移179已经应用，当前累计1029项变更，执行前具有完整数据库备份。超管实际切换与重新登录、普通账号默认选择及重新登录、普通账号系统管理拒绝、未分配组织账号的组织与项目访问拒绝均通过。证据为.implementation-work/account-workspace-browser.json及member-workspace-checks.json，测试直接访问当前本地服务。
+
+独立验收账号acceptance_revoked通过真实成员停用接口完成停用。重新登录后没有恢复原默认组织，项目接口返回403，超管成员目录显示DISABLED；专项证据为.implementation-work/revoked-workspace-checks.json。AW-01至AW-04全部通过。

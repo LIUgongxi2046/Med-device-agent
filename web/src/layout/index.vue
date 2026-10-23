@@ -1,9 +1,9 @@
 <template>
   <div :class="classObj" class="app-wrapper" :style="{ '--current-color': theme, '--current-color-light': theme + '1a', '--current-color-dark-bg': theme + '33' }">
     <div v-if="device === 'mobile' && sidebar.opened" class="drawer-bg" @click="handleClickOutside"/>
-    <sidebar v-if="!sidebar.hide && !(userStore.medicalMode && device === 'mobile')" class="sidebar-container" :style="medicalSidebarStyle" />
-    <div :class="{ hasTagsView: needTagsView, sidebarHide: sidebar.hide }" class="main-container" :style="medicalMainStyle">
-      <div :class="{ 'fixed-header': fixedHeader }" :style="medicalHeaderStyle">
+    <sidebar v-if="!sidebar.hide" class="sidebar-container" />
+    <div :class="{ hasTagsView: needTagsView, sidebarHide: sidebar.hide }" class="main-container">
+      <div :class="{ 'fixed-header': fixedHeader }">
         <navbar @setLayout="setLayout" />
         <tags-view v-if="needTagsView" />
       </div>
@@ -28,12 +28,8 @@ const userStore = useUserStore()
 const theme = computed(() => settingsStore.theme)
 const sidebar = computed(() => useAppStore().sidebar)
 const device = computed(() => useAppStore().device)
-const needTagsView = computed(() => settingsStore.tagsView && !useUserStore().medicalMode)
+const needTagsView = computed(() => settingsStore.tagsView)
 const fixedHeader = computed(() => settingsStore.fixedHeader)
-const medicalMargin = computed(() => device.value === 'mobile' || sidebar.value.hide ? '0px' : sidebar.value.opened ? '220px' : '54px')
-const medicalSidebarStyle = computed(() => userStore.medicalMode ? { width: sidebar.value.opened ? '220px' : '54px' } : {})
-const medicalMainStyle = computed(() => userStore.medicalMode ? { marginLeft: medicalMargin.value } : {})
-const medicalHeaderStyle = computed(() => userStore.medicalMode ? { width: `calc(100% - ${medicalMargin.value})` } : {})
 
 const classObj = computed(() => ({
   hideSidebar: !sidebar.value.opened,
@@ -52,7 +48,7 @@ watch(() => device.value, () => {
 })
 
 watchEffect(() => {
-  if (width.value < (userStore.medicalMode ? 900 : WIDTH)) {
+  if (width.value < WIDTH) {
     useAppStore().toggleDevice('mobile')
     useAppStore().closeSideBar({ withoutAnimation: true })
   } else {

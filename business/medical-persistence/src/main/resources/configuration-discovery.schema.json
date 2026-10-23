@@ -32,6 +32,33 @@
         "next_after": {"anyOf": [{"$ref": "#/$defs/Cursor"}, {"type": "null"}]}
       }
     },
+    "TemplateSummary": {
+      "type": "object", "additionalProperties": false,
+      "required": ["tenant_id", "template_version", "document_type", "application_path", "ivd", "status", "revision", "reason", "created_by", "created_at", "content_sha256"],
+      "properties": {
+        "tenant_id": {"$ref": "urn:medical:model-configuration:1.0.0#/$defs/Id"},
+        "template_version": {"$ref": "urn:medical:model-configuration:1.0.0#/$defs/Id"},
+        "document_type": {"type": "string", "minLength": 1, "maxLength": 64},
+        "application_path": {"type": "string", "minLength": 1, "maxLength": 64},
+        "ivd": {"type": "boolean"}, "status": {"enum": ["DRAFT", "APPROVED", "RETURNED", "DISABLED"]},
+        "revision": {"$ref": "urn:medical:model-configuration:1.0.0#/$defs/Positive"},
+        "reason": {"type": "string", "minLength": 1, "maxLength": 2000},
+        "created_by": {"$ref": "urn:medical:model-configuration:1.0.0#/$defs/Id"},
+        "created_at": {"type": "string", "format": "date-time"},
+        "content_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+      }
+    },
+    "TemplateList": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "tenant_id", "current_context", "items", "next_after"],
+      "properties": {
+        "schema_version": {"const": "1.0.0"},
+        "tenant_id": {"$ref": "urn:medical:model-configuration:1.0.0#/$defs/Id"},
+        "current_context": {"$ref": "#/$defs/Context"},
+        "items": {"type": "array", "maxItems": 100, "items": {"$ref": "#/$defs/TemplateSummary"}},
+        "next_after": {"anyOf": [{"$ref": "#/$defs/Cursor"}, {"type": "null"}]}
+      }
+    },
     "RuleList": {
       "type": "object", "additionalProperties": false,
       "required": ["schema_version", "tenant_id", "current_context", "items", "next_after"],

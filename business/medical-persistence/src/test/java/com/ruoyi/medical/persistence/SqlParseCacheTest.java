@@ -2,12 +2,14 @@ package com.ruoyi.medical.persistence;
 
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.ruoyi.medical.persistence.mapper.TenantWatermarkMapper;
+import com.ruoyi.medical.persistence.mapper.PermissionMapper;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import net.sf.jsqlparser.parser.CCJSqlParserUtil;
 import net.sf.jsqlparser.statement.select.PlainSelect;
+import net.sf.jsqlparser.statement.select.SetOperationList;
 import org.commonmark.node.AbstractVisitor;
 import org.commonmark.node.FencedCodeBlock;
 import org.commonmark.parser.Parser;
@@ -16,6 +18,40 @@ import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import static org.junit.jupiter.api.Assertions.*;
 
 class SqlParseCacheTest {
+    @Test
+    void concurrentMapperReadsKeepIndependentTrees() throws Exception {
+        String sql=currentMapperSql();
+        var original=CCJSqlParserUtil.parse(sql);
+        var cache=new FailFastSqlParseCache();
+        cache.putStatement(sql,original);
+        var executor=java.util.concurrent.Executors.newFixedThreadPool(8);
+        try {
+            var work=new ArrayList<java.util.concurrent.Callable<Boolean>>();
+            for(int index=0;index<32;index++)work.add(()->{
+                var current=assertInstanceOf(PlainSelect.class,cache.getStatement(sql));
+                assertEquals(original.toString(),current.toString());
+                current.getSelectItems().clear();
+                assertEquals(original.toString(),cache.getStatement(sql).toString());
+                return true;
+            });
+            for(var result:executor.invokeAll(work,60,java.util.concurrent.TimeUnit.SECONDS))assertTrue(result.get());
+        } finally {executor.shutdownNow();}
+    }
+    @Test
+    void configurationOwnershipUnionKeepsIndependentBranches() throws Exception {
+        var factory = new MedicalPersistenceConfiguration().medicalSqlSessionFactory(new DriverManagerDataSource());
+        String sql = factory.getConfiguration().getMappedStatement(PermissionMapper.class.getName() + ".resourceOwner")
+            .getBoundSql(java.util.Map.of("kind", "CONFIGURATION", "resourceId", "00000000-0000-0000-0000-000000000001")).getSql();
+        var original = CCJSqlParserUtil.parse(sql);
+        var cache = new FailFastSqlParseCache();
+        cache.putStatement(sql, original);
+        var first = assertInstanceOf(SetOperationList.class, cache.getStatement(sql));
+        first.getSelects().clear();
+        var next = assertInstanceOf(SetOperationList.class, cache.getStatement(sql));
+        assertEquals(2, next.getSelects().size());
+        assertEquals(original.toString(), next.toString());
+    }
+
     private String currentMapperSql() throws Exception {
         var factory = new MedicalPersistenceConfiguration().medicalSqlSessionFactory(new DriverManagerDataSource());
         return factory.getConfiguration().getMappedStatement(TenantWatermarkMapper.class.getName() + ".lockCurrentTenant")

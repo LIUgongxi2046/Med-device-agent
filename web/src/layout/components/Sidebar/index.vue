@@ -12,46 +12,58 @@
         :collapse-transition="false"
         mode="vertical"
         :class="sideTheme"
+        @select="handleSelection"
       >
-        <template v-if="userStore.medicalMode">
-          <el-menu-item-group v-for="group in medicalGroups" :key="group.title">
-            <template #title><span v-if="!isCollapse">{{ group.title }}</span></template>
-            <sidebar-item v-for="item in group.routes" :key="item.path" :item="item" :base-path="item.path" />
-          </el-menu-item-group>
+        <template v-if="isMedical">
+          <template v-for="group in businessNavigation" :key="group.id">
+            <sidebar-item v-if="group.direct" :item="group.routes[0]" :base-path="group.routes[0].path" />
+            <el-sub-menu v-else :index="'business-' + group.id" teleported>
+              <template #title>
+                <svg-icon :icon-class="group.icon" />
+                <span class="menu-title">{{ group.title }}</span>
+              </template>
+              <sidebar-item v-for="item in group.routes" :key="item.path" :item="item" :base-path="item.path" :is-nest="true" class="nest-menu" />
+            </el-sub-menu>
+          </template>
         </template>
-        <sidebar-item v-else v-for="(item, index) in sidebarRouters" :key="item.path + index" :item="item" :base-path="item.path" />
+        <template v-else>
+          <sidebar-item v-for="(item, index) in sidebarRouters" :key="item.path + index" :item="item" :base-path="item.path" />
+        </template>
       </el-menu>
     </el-scrollbar>
   </div>
 </template>
 
 <script setup>
-import { medicalNavigationGroups } from '@/components/Medical/navigation'
 import Logo from './Logo'
 import SidebarItem from './SidebarItem'
 import variables from '@/assets/styles/variables.module.scss'
 import useAppStore from '@/store/modules/app'
 import useSettingsStore from '@/store/modules/settings'
 import usePermissionStore from '@/store/modules/permission'
-import useUserStore from '@/store/modules/user'
-import tokens from '../../../../../ui-delivery/tokens.json'
+import { medicalNavigationGroups } from '@/components/Medical/navigation'
 
-const userStore = useUserStore()
-const medicalGroups = computed(() => medicalNavigationGroups(permissionStore.sidebarRouters, permissionStore.frameworkRoutes))
 const route = useRoute()
 const appStore = useAppStore()
 const settingsStore = useSettingsStore()
 const permissionStore = usePermissionStore()
 
 const sidebarRouters = computed(() => permissionStore.sidebarRouters)
+const isMedical = import.meta.env.VITE_APP_ENV === 'medical'
+const businessNavigation = computed(() => isMedical ? medicalNavigationGroups(sidebarRouters.value) : [])
 const showLogo = computed(() => settingsStore.sidebarLogo)
 const sideTheme = computed(() => settingsStore.sideTheme)
 const theme = computed(() => settingsStore.theme)
 const isCollapse = computed(() => !appStore.sidebar.opened)
 
+function handleSelection() {
+  if (appStore.device === 'mobile' && appStore.sidebar.opened) {
+    appStore.closeSideBar({ withoutAnimation: false })
+  }
+}
+
 // 获取菜单背景色
 const getMenuBackground = computed(() => {
-  if (useUserStore().medicalMode) return tokens.color.brand.nav
   if (settingsStore.isDark) {
     return 'var(--sidebar-bg)'
   }
@@ -60,7 +72,6 @@ const getMenuBackground = computed(() => {
 
 // 获取菜单文字颜色
 const getMenuTextColor = computed(() => {
-  if (useUserStore().medicalMode) return tokens.color.text.inverse
   if (settingsStore.isDark) {
     return 'var(--sidebar-text)'
   }
@@ -69,6 +80,12 @@ const getMenuTextColor = computed(() => {
 
 const activeMenu = computed(() => {
   const { meta, path } = route
+  if (isMedical) {
+    const current = businessNavigation.value.flatMap(group => group.routes)
+      .filter(item => path === item.path || path.startsWith(item.path + '/'))
+      .sort((left, right) => right.path.length - left.path.length)[0]
+    if (current) return current.path
+  }
   if (meta.activeMenu) {
     return meta.activeMenu
   }

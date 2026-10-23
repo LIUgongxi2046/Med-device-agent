@@ -31,5 +31,9 @@ public final class ProjectProtocol {
         public boolean permits(String project) { return enterprise || project != null && projects.contains(project); }
         public boolean available() { return enterprise || !projects.isEmpty(); }
     }
-    public record Query(int limit, String after, String name, String status, String responsible, String project) { }
+    public record Query(int limit, String after, String name, String status, String responsible, String project, String keyword) {
+        public Query(int limit, String after, String name, String status, String responsible, String project) {
+            this(limit, after, name, status, responsible, project, null);
+        }
+    }
 }

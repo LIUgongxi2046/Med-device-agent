@@ -14,6 +14,7 @@ def main():
     parser = argparse.ArgumentParser(description="绑定当前本地C02受保护配置到独立应用配置")
     parser.add_argument("--configuration-receipt", required=True, type=Path)
     parser.add_argument("--source-profile", required=True, type=Path)
+    parser.add_argument("--replace-existing", action="store_true")
     args = parser.parse_args()
     receipt_path = args.configuration_receipt.resolve(strict=True)
     receipt_path.relative_to(objects.ROOT / ".implementation-work/runtime")
@@ -31,8 +32,15 @@ def main():
     source = args.source_profile.resolve(strict=True)
     source.relative_to(objects.ROOT / ".implementation-work/runtime/application-profiles")
     profile = yaml.safe_load(objects.private_file(source))
-    if "run-authority" in profile["medical"]:
+    previous = profile["medical"].get("run-authority")
+    if previous is not None and not args.replace_existing:
         raise ValueError("RUN_AUTHORITY_PROFILE_ALREADY_CONFIGURED")
+    if args.replace_existing:
+        if not isinstance(previous, dict) or previous.get("enabled") is not True \
+                or previous.get("configuration-owner") != receipt["configuration_owner"] \
+                or previous.get("maximum-configuration-bytes") != receipt["maximum_configuration_bytes"]:
+            raise ValueError("RUN_AUTHORITY_CURRENT_PROFILE_REQUIRED")
+        Path(previous["configuration-directory"]).resolve(strict=True).relative_to(objects.ROOT / ".implementation-work/runtime/run-authority")
     profile["medical"]["run-authority"] = {"enabled": True, "configuration-directory": str(configuration),
         "configuration-owner": receipt["configuration_owner"], "maximum-configuration-bytes": receipt["maximum_configuration_bytes"]}
     identity = str(uuid4())
@@ -47,6 +55,8 @@ def main():
     reread = yaml.safe_load(objects.private_file(target))
     authority = reread["medical"].pop("run-authority")
     original = yaml.safe_load(objects.private_file(source))
+    if args.replace_existing:
+        original["medical"].pop("run-authority")
     if reread != original:
         raise ValueError("RUN_AUTHORITY_ORIGINAL_APPLICATION_PROFILE_CHANGED")
     proof = directory / "run-authority-profile.json"

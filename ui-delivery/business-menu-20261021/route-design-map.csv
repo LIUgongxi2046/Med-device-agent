@@ -1,0 +1,4 @@
+source_id,screen_id,name,source_type,status,artifact_path,required_states,notes
+Sidebar,sidebar,业务分类侧栏,EXPLICIT,VERIFIED,../../web/src/layout/components/Sidebar/index.vue,展开/收起/当前项/移动抽屉,共享47项已授权入口
+/index,home,首页功能目录,EXPLICIT,VERIFIED,../../web/src/views/index.vue,全部分类/唯一入口,使用共享业务分类
+MobileNavigation,mobile-component,既有移动导航组件,EXPLICIT,OBSERVED,../../web/src/components/Medical/MobileNavigation.vue,共享分类,组件编译检查

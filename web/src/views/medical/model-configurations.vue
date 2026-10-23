@@ -1,10 +1,12 @@
 <template>
   <main ref="pageElement" class="medical-page model-configurations">
-    <h1>模型配置草稿</h1><session-panel />
-    <el-alert type="warning" :closable="false" title="仅保存DRAFT草稿" description="保存不会启用模型、调用供应商或修改实际凭据。依赖仅核验登记引用；连接验证、价格批准、政策批准及运行资格尚未完成。" />
+    <header class="model-page-heading"><div><span class="model-page-heading__eyebrow">MODEL CONFIGURATION</span><h1>模型配置草稿</h1><p>维护供应商、模型能力与数据政策，管理可追溯的配置版本。</p></div><el-button v-if="user.medicalSession?.current_context" type="primary" :disabled="busy || pending !== null || !mayCreate" @click="requestStart('NEW')"><el-icon><Plus /></el-icon>新建草稿</el-button></header>
+    <session-panel />
+    <el-alert v-if="user.medicalSession?.current_context && (!mayRead || !mayCreate)" type="warning" :closable="false" show-icon :title="!mayRead ? '当前组织未授予模型配置读取权限' : '当前组织可读取模型配置，尚未授予新建权限'" description="组织切换后使用该组织的实际业务授权。相关操作按钮会根据当前权限显示可用状态。" />
+    <el-alert type="info" :closable="false" show-icon title="当前为配置草稿管理" description="草稿保存与运行启用分别管理。保存不会调用供应商或修改实际凭据；连接验证、价格批准、政策批准及运行资格由对应流程确认。" />
     <template v-if="user.medicalSession?.current_context">
       <section class="model-section" aria-label="当前模型配置目录">
-        <h2>当前模型配置</h2>
+        <div class="model-section-heading"><div><h2>模型配置目录</h2><p>查询当前组织下获授权的模型，查看固定版本或继续维护草稿。</p></div><el-tag effect="plain">DRAFT</el-tag></div>
         <el-form :inline="true" @submit.prevent="searchList">
           <el-form-item label="供应商、模型、版本或配置标识" for="model-list-search" :error="listError"><el-input id="model-list-search" v-model="query" clearable maxlength="256" :disabled="busy" /></el-form-item>
           <el-form-item label="每页数量" for="model-list-limit"><el-select id="model-list-limit" v-model="limit" :disabled="busy"><el-option v-for="size in ['10','20','50','100']" :key="size" :label="size" :value="size" /></el-select></el-form-item>
@@ -32,18 +34,17 @@
         <el-button v-if="mayReplay" :disabled="busy" @click="resume">填写完全相同的原请求</el-button>
         <p v-if="lookupResult" role="status">{{ lookupMessage }}</p>
       </section>
-      <section class="model-section" aria-label="读取固定模型草稿">
+      <details class="model-history"><summary>按修订标识读取历史版本</summary><section class="model-section" aria-label="读取固定模型草稿">
         <h2>读取固定版本</h2>
         <p>也可填写保存回执中的固定修订标识，读取历史草稿。</p>
         <el-form :inline="true" @submit.prevent="readSelected">
           <el-form-item label="固定模型修订标识（UUID）" for="model-read-id" :error="readError"><el-input id="model-read-id" v-model="readId" class="model-id-input" autocomplete="off" :disabled="busy" /></el-form-item>
           <el-button native-type="submit" :disabled="busy || !mayRead" :loading="reading">读取草稿</el-button>
-          <el-button :disabled="busy || pending !== null || !mayCreate" @click="requestStart('NEW')">新建草稿</el-button>
         </el-form>
         <p v-if="!mayRead">当前身份缺少配置读取授权。</p>
         <p v-if="!mayCreate">新建需要对应企业或项目的model.configure授权；具体配置权限不能替代新建权限。</p>
         <p v-if="reading" role="status">正在读取当前授权下的固定版本</p>
-      </section>
+      </section></details>
       <section v-if="view" class="model-section" aria-label="固定草稿详情">
         <div class="model-section-heading"><h2>固定草稿详情</h2><el-tag type="warning">DRAFT · 未启用</el-tag></div>
         <el-descriptions :column="1" border><el-descriptions-item v-for="row in detailRows" :key="row.label" :label="row.label"><span class="model-wrap">{{ row.value }}</span></el-descriptions-item></el-descriptions>
@@ -54,14 +55,14 @@
       </section>
       <p v-if="completed" role="status" class="model-complete">已确认原操作完成，并回读固定草稿{{ completed }}。状态仍为DRAFT，未调用供应商。</p>
       <section v-if="editorOpen" class="model-section" aria-label="模型草稿表单">
-        <h2>{{ editingConfig ? '修订模型草稿' : '新建模型草稿' }}</h2>
+        <div class="model-section-heading"><div><h2>{{ editingConfig ? '修订模型草稿' : '新建模型草稿' }}</h2><p>按分区填写实际资料，完成范围确认后保存当前草稿。</p></div><el-tag type="warning" effect="plain">尚未保存</el-tag></div>
         <p v-if="editingConfig">配置：{{ editingConfig }}；原维护修订：{{ expectedRevision }}；固定依据：{{ basedOn?.version_id }}</p>
-        <el-form label-position="top" :disabled="busy" @submit.prevent>
+        <el-form class="model-scope-form" label-position="top" :disabled="busy" @submit.prevent>
           <el-form-item label="配置范围" :error="issue('/project_id')"><el-radio-group v-model="scope" :disabled="editingConfig !== null || pending !== null" aria-label="配置范围"><el-radio value="ENTERPRISE">本企业</el-radio><el-radio value="PROJECT">指定项目</el-radio></el-radio-group></el-form-item>
           <el-form-item v-if="scope === 'PROJECT'" label="项目标识（UUID）" for="model-project-id" :error="issue('/project_id')"><el-input id="model-project-id" v-model="projectId" :disabled="editingConfig !== null || pending !== null" /></el-form-item>
         </el-form>
         <model-configuration-fields ref="fields" :disabled="busy" :issues="issues" />
-        <el-form label-position="top" :disabled="busy" @submit.prevent="submit">
+        <el-form class="model-save-form" label-position="top" :disabled="busy" @submit.prevent="submit">
           <el-form-item label="本次保存理由" for="model-reason" :error="issue('/reason')"><el-input id="model-reason" v-model="reason" type="textarea" :rows="3" maxlength="2000" autocomplete="off" /></el-form-item>
           <el-form-item label="保存范围确认"><el-checkbox v-model="attested">我确认以上为实际配置和已有引用；本次仅保存草稿，不代表批准或启用。</el-checkbox></el-form-item>
           <el-alert v-if="issues.length" type="error" :closable="false" :title="issues[0]!.message" />
@@ -90,6 +91,7 @@ import type { OperationLookup } from '@/api/medical/operations'
 import type { ModelListing } from '@/api/medical/model-configurations'
 import SessionPanel from './session-panel.vue'
 import ModelConfigurationFields from './model-configuration-fields.vue'
+import { Plus } from '@element-plus/icons-vue'
 const user = useUserStore(); const route = useRoute(); const router = useRouter()
 const fields = ref<InstanceType<typeof ModelConfigurationFields> | null>(null); const pageElement = ref<HTMLElement | null>(null)
 const listing = ref<ModelListing | null>(null); const listingLoading = ref(false); const query = ref(''); const limit = ref('20'); const listError = ref('')
@@ -259,12 +261,22 @@ window.addEventListener('beforeunload', beforeUnload); document.addEventListener
 onBeforeUnmount(() => { mounted = false; window.removeEventListener('beforeunload', beforeUnload); document.removeEventListener('visibilitychange', visibility); clear() })
 </script>
 <style scoped>
+.model-configurations { max-width: 1280px; }
+.model-page-heading { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin-bottom: 24px; }
+.model-page-heading h1 { margin: 4px 0 8px; }
+.model-page-heading p, .model-section-heading p { margin: 0; color: var(--el-text-color-secondary); font-size: 13px; }
+.model-page-heading__eyebrow { font-size: 11px; font-weight: 600; letter-spacing: 1.3px; color: var(--el-color-primary); }
 .model-section { margin: 24px 0; padding: 22px; border: 1px solid var(--el-border-color); border-radius: 8px; background: var(--el-bg-color); }
-.model-section-heading { display: flex; align-items: center; gap: 16px; }
-.model-section h2 { margin-top: 0; font-size: 20px; }
+.model-section-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 24px; }
+.model-section h2 { margin: 0 0 6px; font-size: 18px; }
+.model-scope-form, .model-save-form { padding: 20px; border-radius: 12px; background: var(--el-fill-color-light); }
+.model-save-form { margin-bottom: 0; }
+.model-history { border: 1px solid var(--el-border-color-lighter); border-radius: 12px; padding: 16px 22px; background: var(--el-bg-color); margin: 24px 0; }
+.model-history summary { cursor: pointer; font-size: 13px; color: var(--el-text-color-regular); }
+.model-history .model-section { border: 0; padding: 20px 0 0; margin: 0; }
 .model-id-input { width: min(82vw,390px); }
 .model-wrap { overflow-wrap: anywhere; white-space: pre-wrap; }
-.model-form-actions { display: flex; gap: 12px; margin-top: 18px; }
+.model-form-actions { display: flex; gap: 12px; margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--el-border-color-lighter); }
 p { line-height: 1.6; overflow-wrap: anywhere; }.model-complete { color: var(--el-color-success); }
-@media (max-width: 700px) { .model-section { padding: 14px; } :deep(.el-descriptions__content) { word-break: break-word; } }
+@media (max-width: 700px) { .model-section { padding: 18px; } .model-page-heading { align-items: flex-start; flex-direction: column; gap: 16px; } .model-form-actions { flex-wrap: wrap; } .model-form-actions .el-button { flex: 1; margin-left: 0; } .model-scope-form, .model-save-form { padding: 16px; } :deep(.el-descriptions__content) { word-break: break-word; } }
 </style>

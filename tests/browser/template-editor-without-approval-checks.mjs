@@ -1,0 +1,21 @@
+import assert from 'node:assert/strict'
+import { readFileSync, writeFileSync } from 'node:fs'
+import { chromium } from 'playwright'
+const root=new URL('../../',import.meta.url),origin='http://127.0.0.1:18083'
+const member=JSON.parse(readFileSync(new URL('.implementation-work/runtime/acceptance-member-credentials.json',root))),receipt=JSON.parse(readFileSync(new URL('.implementation-work/template-profile-controls-checks.json',root)))
+const browser=await chromium.launch({channel:'chrome',headless:true}),context=await browser.newContext(),page=await context.newPage();page.setDefaultTimeout(120000)
+let phase='登录模板编辑人员'
+page.on('response',response=>{const path=new URL(response.url()).pathname;if(path.startsWith('/api/'))console.log(response.status(),path)})
+page.on('pageerror',failure=>console.log('页面错误',failure.message))
+try{
+ const csrf=await(await context.request.get(origin+'/auth/csrf')).json();assert.equal((await context.request.post(origin+'/auth/login',{form:{username:member.username,password:member.password},headers:{Origin:origin,[csrf.header_name]:csrf.token},maxRedirects:0})).status(),302)
+ const session=(await(await context.request.get(origin+'/api/session',{headers:{'X-Schema-Version':'1.0.0'}})).json()).data;assert.equal(session.user.platform_role,'USER');assert.equal(session.action_summary.some(item=>item.action==='template.approve'),false)
+ phase='读取原完整模板';await page.goto(origin+'/templates/new?from='+receipt.template_version);await page.getByRole('button',{name:'配置章节',exact:true}).first().waitFor()
+ const reason='SIMULATION 无核准权限的模板修订 '+Date.now();await page.getByRole('textbox',{name:'创建或修订理由',exact:true}).fill(reason);await page.getByText('已经核查全部目录、字段、附件、条件、依据及版式；本次只保存草稿',{exact:true}).click()
+ phase='真实保存模板修订';const write=page.waitForResponse(response=>new URL(response.url()).pathname==='/api/template-versions'&&response.request().method()==='POST');await page.getByRole('button',{name:'保存模板草稿',exact:true}).click();const saved=await write;assert.equal(saved.status(),201);const created=(await saved.json()).data.template;assert.equal(created.created_by,session.user.user_id);assert.equal(created.base_version.version_id,receipt.template_version);assert.equal(created.status,'DRAFT')
+ await page.locator('[data-template-created]').waitFor();await page.getByRole('link',{name:'返回模板中心',exact:true}).click()
+ phase='读取人员模板目录';const catalogue=page.locator('[data-template-list]');await catalogue.getByRole('textbox',{name:'查找模板',exact:true}).fill(reason);await catalogue.getByRole('button',{name:'查询模板',exact:true}).click();const row=catalogue.getByRole('row').filter({hasText:reason});await row.waitFor();await row.getByRole('button',{name:'查看模板',exact:true}).click()
+ phase='读取模板详情';await page.getByRole('heading',{name:'模板详情',exact:true}).waitFor();await page.locator('[data-template-preview]').waitFor();assert.equal(await page.getByRole('button',{name:'登记人工决定',exact:true}).count(),0);assert.ok((await page.locator('[data-template-preview]').innerText()).includes(reason));assert.equal(await page.getByRole('button',{name:'修改章节配置',exact:true}).isEnabled(),true)
+ phase='进入独立修订';const read=page.waitForResponse(response=>new URL(response.url()).pathname==='/api/template-versions/'+created.template_version+'/definition-view');await page.getByRole('button',{name:'修改章节配置',exact:true}).click();assert.equal((await read).status(),200);await page.getByRole('button',{name:'配置章节',exact:true}).first().waitFor()
+ writeFileSync(new URL('.implementation-work/template-editor-without-approval-checks.json',root),JSON.stringify({verified_at:new Date().toISOString(),template_version:created.template_version,checks:['ACTUAL_TEMPLATE_EDITOR_IDENTITY','READ_ORIGINAL_WITHOUT_APPROVAL','ACTUAL_REVISION_SAVE','DRAFT_REMAINS_UNAPPROVED','READ_ONLY_DIRECTORY_AND_DETAILS','APPROVAL_ACTION_HIDDEN','INDEPENDENT_REVISION_ENTRY'],screenshots:false},null,2),{mode:0o600});console.log('普通模板编辑人员的完整读取、真实修订和独立核准边界核查通过')
+}catch(failure){console.log('当前地址',page.url());console.log('当前标题',await page.locator('h1,h2').allTextContents());console.log('当前提示',await page.getByRole('alert').allTextContents());throw new Error(phase+'：'+failure.message.split('\n')[0])}finally{await context.close();await browser.close()}

@@ -72,9 +72,12 @@ app.component('Editor', Editor)
 app.use(router)
 app.use(store)
 const medicalChannel = new BroadcastChannel('medical-enterprise-context')
+window.addEventListener('unhandledrejection', event => {
+  if (isCancel(event.reason)) event.preventDefault()
+})
 window.addEventListener('medical-failure', event => {
   const user = useUserStore()
-  user.invalidateMedical()
+  if (event.detail.code !== 'DEPENDENCY_UNAVAILABLE') user.invalidateMedical()
   user.medicalError = event.detail
   if (event.detail.code === 'AUTHENTICATION_REQUIRED') void router.replace('/access')
 })
@@ -82,10 +85,12 @@ app.config.errorHandler = error => {
   if (isCancel(error)) return
   const user = useUserStore()
   if (!user.medicalMode) throw error
-  user.invalidateMedical()
+  if (!(error instanceof MedicalFailure) || error.code !== 'DEPENDENCY_UNAVAILABLE') user.invalidateMedical()
   user.medicalError = error instanceof MedicalFailure ? error : new MedicalFailure('INTERNAL_ERROR', '业务操作未完成，请重新读取会话')
 }
 router.onError((error, target) => {
+  // 已被新导航取消的读取继续终止，当前导航保留自己的会话核查。
+  if (isCancel(error)) return
   const user = useUserStore()
   if (!user.medicalMode) throw error
   user.invalidateMedical()

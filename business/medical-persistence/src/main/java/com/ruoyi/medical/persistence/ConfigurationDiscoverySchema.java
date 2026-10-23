@@ -42,7 +42,7 @@ public final class ConfigurationDiscoverySchema {
                 SchemaValidatorsConfig.builder().formatAssertionsEnabled(true).build());
         simulationSchema.initializeValidators(); definition("SimulationModelList").initializeValidators();
         schema.initializeValidators();
-        for (String kind : List.of("Query", "ModelList", "RuleList")) definition(kind).initializeValidators();
+        for (String kind : List.of("Query", "ModelList", "RuleList", "TemplateList")) definition(kind).initializeValidators();
     }
 
     Query query(Map<String,String[]> parameters) {
@@ -70,14 +70,14 @@ public final class ConfigurationDiscoverySchema {
     void verify(String kind, JsonNode value) {
         if (value == null || !definition(kind).validate(value).isEmpty()) invalid();
         if ("Query".equals(kind)) return;
-        if (!List.of("ModelList", "SimulationModelList", "RuleList").contains(kind)) invalid();
+        if (!List.of("ModelList", "SimulationModelList", "RuleList", "TemplateList").contains(kind)) invalid();
         String tenant = value.required("tenant_id").textValue(); var context = value.required("current_context");
         if (!tenant.equals(context.required("tenant_id").textValue())) invalid();
         for (String field : List.of("context_revision", "auth_epoch", "governance_epoch")) PermissionSchema.revision(context.required(field).textValue());
         String previous = null;
         for (var item : value.required("items")) {
-            var target = kind.endsWith("ModelList") ? item : item.required("rule");
-            String id = target.required(kind.endsWith("ModelList") ? "config_id" : "rule_version").textValue();
+            var target = kind.endsWith("ModelList") || kind.equals("TemplateList") ? item : item.required("rule");
+            String id = target.required(kind.endsWith("ModelList") ? "config_id" : kind.equals("TemplateList") ? "template_version" : "rule_version").textValue();
             if (!tenant.equals(target.required("tenant_id").textValue()) || previous != null && previous.compareTo(id) >= 0) invalid();
             if (kind.endsWith("ModelList") && !item.required("model_config_revision").equals(item.required("current_model_revision"))) invalid();
             previous = id;

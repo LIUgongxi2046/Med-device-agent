@@ -32,7 +32,7 @@ export interface WorkItemFilter {
   status?: WorkItemStatus
 }
 
-function checkProject(project: Project, context: Context): void {
+export function checkProject(project: Project, context: Context): void {
   if (project.tenant_id !== context.tenant_id) fail('CONTENT_MISMATCH', '项目响应与当前企业不一致')
   revision(project.revision)
   for (const count of Object.values(project.children)) if (count !== null) revision(count)

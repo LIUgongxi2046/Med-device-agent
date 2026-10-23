@@ -19,7 +19,8 @@
     </sql>
     <resultMap id="domainOwner" type="com.ruoyi.medical.persistence.VersionResourceProtocol$DomainOwnerRow">
         <constructor>
-            <arg column="domain" javaType="java.lang.String"/>
+            <idArg column="domain" javaType="java.lang.String"/>
+            <idArg column="version_id" javaType="java.lang.String"/>
             <arg resultMap="owner" javaType="com.ruoyi.medical.persistence.VersionResourceProtocol$OwnerRow"/>
         </constructor>
     </resultMap>

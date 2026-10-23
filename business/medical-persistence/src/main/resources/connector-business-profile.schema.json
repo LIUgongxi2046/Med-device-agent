@@ -1,0 +1,11 @@
+{
+ "$schema":"https://json-schema.org/draft/2020-12/schema",
+ "$id":"urn:medical:connector-business-profile:1.0.0",
+ "$defs":{
+  "Id":{"type":"string","format":"uuid"},
+  "Hash":{"type":"string","pattern":"^[a-f0-9]{64}$"},
+  "Profile":{"type":"object","additionalProperties":false,"required":["name","owner_user_id","description","scope_kind","scope_project_id"],"properties":{"name":{"type":"string","minLength":1,"maxLength":200},"owner_user_id":{"$ref":"#/$defs/Id"},"description":{"type":"string","minLength":1,"maxLength":4000},"scope_kind":{"enum":["ENTERPRISE","PROJECT"]},"scope_project_id":{"anyOf":[{"$ref":"#/$defs/Id"},{"type":"null"}]}},"allOf":[{"if":{"properties":{"scope_kind":{"const":"ENTERPRISE"}}},"then":{"properties":{"scope_project_id":{"type":"null"}}},"else":{"properties":{"scope_project_id":{"$ref":"#/$defs/Id"}}}}]},
+  "Create":{"type":"object","additionalProperties":false,"required":["schema_version","profile","definition"],"properties":{"schema_version":{"const":"1.0.0"},"profile":{"$ref":"#/$defs/Profile"},"definition":{"type":"object"}}},
+  "Stored":{"type":"object","additionalProperties":false,"required":["schema_version","tenant_id","config_revision","definition_sha256","profile","profile_sha256","schema_manifest_sha256","created_by","created_at"],"properties":{"schema_version":{"const":"1.0.0"},"tenant_id":{"$ref":"#/$defs/Id"},"config_revision":{"$ref":"#/$defs/Id"},"definition_sha256":{"$ref":"#/$defs/Hash"},"profile":{"$ref":"#/$defs/Profile"},"profile_sha256":{"$ref":"#/$defs/Hash"},"schema_manifest_sha256":{"$ref":"#/$defs/Hash"},"created_by":{"$ref":"#/$defs/Id"},"created_at":{"type":"string","format":"date-time"}}}
+ }
+}

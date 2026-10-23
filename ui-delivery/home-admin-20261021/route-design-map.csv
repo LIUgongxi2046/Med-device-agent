@@ -1,0 +1,7 @@
+source_id,screen_id,name,source_type,status,artifact_path,required_states,notes
+/index,home,首页与功能导航,EXPLICIT,VERIFIED,../../web/src/views/index.vue,未选企业/选定企业/加载/明暗主题,47项唯一入口与真实项目数据
+/system/user,user,若依用户管理,EXPLICIT,VERIFIED,../../web/src/views/system/user/index.vue,当前超管/列表读取,真实账号与现有数据
+Sidebar,sidebar,若依侧栏,EXPLICIT,VERIFIED,../../web/src/layout/components/Sidebar/index.vue,展开/收起/移动端,使用若依原生菜单
+Navbar,navbar,若依顶部导航,EXPLICIT,VERIFIED,../../web/src/layout/components/Navbar.vue,账户/主题/企业入口,共享若依组件
+TagsView,tags,若依标签页,EXPLICIT,VERIFIED,../../web/src/layout/components/TagsView/index.vue,首页/用户管理/返回,现有组件
+AppMain,main,若依内容区域,EXPLICIT,VERIFIED,../../web/src/layout/components/AppMain.vue,固定顶部/内部滚动/移动端,50px导航与34px标签页

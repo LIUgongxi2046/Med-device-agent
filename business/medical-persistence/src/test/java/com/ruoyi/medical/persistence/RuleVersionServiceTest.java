@@ -101,8 +101,12 @@ class RuleVersionServiceTest {
         var datasource = mock(DataSource.class); var connection = mock(Connection.class); var statement = mock(PreparedStatement.class);
         when(datasource.getConnection()).thenReturn(connection); when(connection.prepareStatement(anyString())).thenReturn(statement); when(statement.executeUpdate()).thenReturn(1);
         var store = new RuleVersionStore(mapper, permissions, authority, dependencies, schema, json, policy);
-        service = new RuleVersionService(access, mapper, permissions, authority, dependencies, schema, store, json, policy);
-        approval = new RuleVersionApprovalService(access, mapper, store, dependencies, schema, authority, permissions, json, policy, datasource);
+        var projectRoot=java.nio.file.Path.of(System.getProperty("medical.projectRoot")).toRealPath();
+        var localSecrets=com.fasterxml.jackson.databind.json.JsonMapper.builder().build().readTree(java.nio.file.Files.readAllBytes(projectRoot.resolve(".implementation-work/runtime/service-secrets.json")));
+        var businessData=new org.springframework.jdbc.datasource.DriverManagerDataSource("jdbc:mysql://127.0.0.1:13306/medical_local?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC","medical_runtime",localSecrets.required("database_password").asText());
+        var business=new RuleBusinessDefinitionStore(businessData,json);
+        service = new RuleVersionService(access, mapper, permissions, authority, dependencies, schema, store, json, policy,business);
+        approval = new RuleVersionApprovalService(access, mapper, store, dependencies, schema, authority, permissions, json, policy, datasource,business);
     }
     private Object scoped(Function<EnterpriseAccess.Admission,Object> operation) {
         try (var scope = TenantScope.open(new TenantScope.Identity(TENANT, USER, new BigInteger(admission.context().context_revision()), admission.watermarks().authEpoch(), admission.watermarks().governanceEpoch()))) {

@@ -1,7 +1,8 @@
 <template>
   <section class="document-export" aria-label="文稿导出" data-document-export>
     <h4>文稿导出</h4>
-    <el-button :disabled="!active || loading || writing" @click="loadBasis">读取导出依据</el-button>
+    <p v-if="!preparationAllowed" role="status">当前身份没有此文稿的导出准备与导出记录读取权限。</p>
+    <el-button :disabled="!active || !preparationAllowed || loading || writing" @click="loadBasis">读取导出依据</el-button>
     <p v-if="loading" role="status">正在读取审查状态和格式版本</p>
     <section v-if="pendingRequests.length > 0" aria-label="原导出请求">
       <p v-if="recoveryMessage" role="status">{{ recoveryMessage }}</p>
@@ -117,12 +118,14 @@
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
 import type { MedicalSession } from '@/api/medical/protocol'
 import { fail } from '@/api/medical/protocol'
-import { createExport, downloadExportItem, downloadExportForReview, executeExportItem, readExport, readExportBasis, readExportHistory, recoverExportRequest, retryExportItem } from '@/api/medical/exports'
+import { createExport, downloadExportItem, downloadExportForReview, executeExportItem, exportActionAllowed, readExport, readExportBasis, readExportHistory, recoverExportRequest, retryExportItem } from '@/api/medical/exports'
 import type { ExportBasis, ExportFormat, ExportItem, ExportPurpose, ExportView, ExportHistory } from '@/api/medical/exports'
 import { clearExpiredRequestMetadata, confirmRequestMetadata, listRequestMetadata } from '@/api/medical/request-metadata'
 import type { RequestMetadata } from '@/api/medical/request-metadata'
 
-const props = defineProps<{ session: MedicalSession; documentId: string; documentRevision: string; active: boolean }>()
+const props = defineProps<{ session: MedicalSession; projectId: string; documentId: string; documentRevision: string; active: boolean }>()
+const preparationAllowed = computed(() => exportActionAllowed(props.session, props.projectId, props.documentId, 'artifact.export')
+  && exportActionAllowed(props.session, props.projectId, props.documentId, 'export.read'))
 const basis = shallowRef<ExportBasis | null>(null); const current = shallowRef<ExportView | null>(null)
 const history = shallowRef<ExportView[]>([])
 const historyMeta = shallowRef<ExportHistory | null>(null); const historyPage = ref(1); const historySize = 20
@@ -160,7 +163,7 @@ function syncPending(): void {
     ? listRequestMetadata(props.session).filter(value => value.scope_id === props.documentId && (value.operation === 'EX-01' || value.operation === 'EX-04')) : []
 }
 async function loadBasis(): Promise<void> {
-  if (!props.active || document.hidden || loading.value || writing.value) return
+  if (!props.active || !preparationAllowed.value || document.hidden || loading.value || writing.value) return
   const request = new AbortController(); controller?.abort(); controller = request; const version = generation; loading.value = true
   try {
     const [value, records] = await Promise.all([
@@ -287,7 +290,7 @@ function remember(value: ExportView): void {
   else historyNeedsRefresh.value = true
 }
 watch(() => [props.active, props.session, props.session.user.user_id, props.session.current_context?.tenant_id, props.session.current_context?.context_revision,
-  props.session.current_context?.auth_epoch, props.session.current_context?.governance_epoch, props.documentId, props.documentRevision], () => { clear(); syncPending(); if (props.active && !document.hidden) void loadBasis().catch(error => { continuationError.value = error instanceof Error ? error.message : '导出依据读取失败' }) }, { immediate: true, flush: 'sync' })
+  props.session.current_context?.auth_epoch, props.session.current_context?.governance_epoch, props.projectId, props.documentId, props.documentRevision], () => { clear(); syncPending(); if (props.active && preparationAllowed.value && !document.hidden) void loadBasis().catch(error => { continuationError.value = error instanceof Error ? error.message : '导出依据读取失败' }) }, { immediate: true, flush: 'sync' })
 function visibilityChanged(): void { if (document.hidden) { if (continuation !== null) clearTimeout(continuation); continuation = null } else scheduleContinuation() }
 onMounted(() => document.addEventListener('visibilitychange', visibilityChanged))
 onBeforeUnmount(() => { document.removeEventListener('visibilitychange', visibilityChanged); clear() })

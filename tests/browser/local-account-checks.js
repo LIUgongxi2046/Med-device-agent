@@ -11,7 +11,7 @@ const runtime = resolve(root, ".implementation-work/runtime");
 const origin = "http://127.0.0.1:18080";
 const credentialPath = resolve(runtime, "owner-credentials.json");
 const owner = JSON.parse(await readFile(credentialPath, "utf8"));
-assert.equal(owner.username, userInfo().username, "检查必须使用当前真实操作系统所有者");
+assert.equal((await stat(credentialPath)).uid, userInfo().uid, "凭据文件必须属于当前操作系统所有者");
 assert.equal((await stat(credentialPath)).mode & 0o777, 0o600);
 assert.equal((await stat(runtime)).mode & 0o777, 0o700);
 const checks = [];

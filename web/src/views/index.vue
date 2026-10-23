@@ -1,15 +1,39 @@
 <template>
-  <main class="medical-page workbench">
+  <main class="app-container medical-page workbench">
     <header class="workbench__header">
-      <div>
-        <p class="workbench__eyebrow">MEDICAL DEVICE AGENT</p>
-        <h1>医疗业务工作台</h1>
-        <p>查看当前企业的待办事项、重点项目、任务进度和场景入口。</p>
+      <div class="workbench__brand">
+        <img :src="brand.logo" :alt="brand.chineseName + ' Logo'" width="56" height="56">
+        <div>
+          <p class="workbench__eyebrow">{{ brand.englishName }}</p>
+          <h1>{{ brand.chineseName }}</h1>
+          <p>查看当前企业的待办事项、重点项目、任务进度和场景入口。</p>
+        </div>
       </div>
       <el-button :loading="loading" :disabled="loading || !session?.current_context" @click="load()">刷新工作台</el-button>
     </header>
 
+    <el-card shadow="never" class="workspace-summary">
+      <template #header><div class="section-heading"><h2>{{ user.nickName }}，欢迎使用</h2><el-tag :type="isAdministrator ? 'danger' : 'info'">{{ isAdministrator ? '超级管理员' : '当前账户' }}</el-tag></div></template>
+      <el-row :gutter="20">
+        <el-col :xs="12" :sm="6"><el-statistic title="可用功能" :value="functionCount" /></el-col>
+        <el-col :xs="12" :sm="6"><el-statistic title="有效企业空间" :value="activeEnterpriseCount" /></el-col>
+        <el-col :xs="24" :sm="12"><p class="workspace-summary__label">当前工作空间</p><p class="workspace-summary__context">{{ session?.current_context?.tenant_id ?? '请选择企业空间，查看项目与任务数据' }}</p></el-col>
+      </el-row>
+    </el-card>
+
     <session-panel />
+
+    <section data-workspace-navigation class="workspace-navigation" aria-labelledby="workspace-navigation-title">
+      <div class="section-heading"><h2 id="workspace-navigation-title">功能导航</h2><el-tag effect="plain">{{ functionCount }} 项功能</el-tag></div>
+      <el-card v-for="group in functionGroups" :key="group.title" shadow="never" class="workspace-navigation__group">
+        <template #header><h3>{{ group.title }}</h3></template>
+        <el-row :gutter="16">
+          <el-col v-for="entry in group.entries" :key="entry.path" :xs="12" :sm="8" :lg="6">
+            <router-link :to="entry.path" class="workspace-navigation__link"><el-button text><svg-icon :icon-class="entry.icon" /><span>{{ entry.title }}</span><el-icon><ArrowRight /></el-icon></el-button></router-link>
+          </el-col>
+        </el-row>
+      </el-card>
+    </section>
 
     <el-alert v-if="!session?.current_context" title="请选择企业空间后查看业务工作台" type="info" :closable="false" show-icon />
     <template v-else>
@@ -141,7 +165,7 @@
 <script setup lang="ts" name="Index">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import useUserStore from '@/store/modules/user'
-import { listProjects, listWorkItems } from '@/api/medical/projects'
+import { listProjects, listWorkItems, readProject } from '@/api/medical/projects'
 import type { WorkItemListing } from '@/api/medical/projects'
 import { listScenarios } from '@/api/medical/scenarios'
 import type { PlannedScenario, ScenarioPage } from '@/api/medical/scenarios'
@@ -155,12 +179,21 @@ import { workbenchCount, recentWorkbenchProjects } from '@/utils/medical-workben
 import { waitingTaskLocation } from '@/utils/medical-task-context'
 import DocumentRevisionAssignmentQueue from '@/views/medical/document-revision-assignment-queue.vue'
 import SessionPanel from '@/views/medical/session-panel.vue'
+import { brand } from '../../branding.mjs'
+import { ArrowRight } from '@element-plus/icons-vue'
+import usePermissionStore from '@/store/modules/permission'
+import { medicalNavigationEntries } from '@/components/Medical/navigation'
 
 const user = useUserStore()
 const session = computed<MedicalSession | null>(() => user.medicalSession)
+const permission = usePermissionStore()
+const isAdministrator = computed(() => user.roles.includes('admin') && user.permissions.includes('*:*:*'))
+const activeEnterpriseCount = computed(() => session.value?.memberships.filter(member => member.status === 'ACTIVE').length ?? 0)
+const functionGroups = computed(() => medicalNavigationEntries(permission.routes))
+const functionCount = computed(() => functionGroups.value.reduce((total: number, group: { entries: unknown[] }) => total + group.entries.length, 0))
 const loading = ref(false)
 const projects = ref<Listing | null>(null)
-const projectDetails = computed(() => recentWorkbenchProjects(projects.value?.projects ?? []))
+const projectDetails = ref<Project[]>([])
 const workItems = ref<WorkItemListing | null>(null)
 const scenarios = ref<ScenarioPage | null>(null)
 const projectStatuses: Record<Project['status'], string> = { PENDING: '建档待确认', ACTIVE: '使用中', PAUSED: '已暂停', ARCHIVED: '已归档' }
@@ -214,6 +247,7 @@ function clear(): void {
   controller = null
   loading.value = false
   projects.value = null
+  projectDetails.value = []
   taskController?.abort()
   taskController = null
   selectedProject.value = ''
@@ -243,7 +277,11 @@ async function load(after?: string | null): Promise<void> {
   }
   try {
     await Promise.all([
-      canReadProjects.value ? section('projects', () => listProjects(actual.current_context!, {}, reading.signal), value => { projects.value = value }) : Promise.resolve(),
+      canReadProjects.value ? section('projects', async () => {
+        const listing = await listProjects(actual.current_context!, {}, reading.signal)
+        const details = await Promise.all(recentWorkbenchProjects(listing.projects).map(project => readProject(actual.current_context!, project.project_id, reading.signal)))
+        return { listing, details }
+      }, value => { projects.value = value.listing; projectDetails.value = value.details }) : Promise.resolve(),
       canReadWorkItems.value ? section('items', () => listWorkItems(actual, { limit: 50, status: 'WAITING_INPUT', assignee_id: actual.user.user_id, ...(after ? { after } : {}) }, reading.signal), value => { workItems.value = value; queueSession = actual }) : Promise.resolve(),
       section('scenarios', () => listScenarios(actual, { limit: 50 }, null, reading.signal), value => { scenarios.value = value })
     ])
@@ -279,8 +317,23 @@ onBeforeUnmount(() => { document.removeEventListener('visibilitychange', visibil
 <style scoped lang="scss">
 .queue-footer { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 12px; }
 .workbench {
-  color: #263445;
+  max-width: none;
+  padding: 20px;
+  color: var(--el-text-color-primary);
+  background: var(--el-bg-color-page);
 }
+.workspace-summary, .workspace-context, .workspace-navigation__group { margin-bottom: 20px; }
+.workspace-summary h2, .workspace-context h2, .workspace-navigation h2, .workspace-navigation h3 { margin: 0; }
+.workspace-summary .section-heading { margin-bottom: 0; }
+.workspace-summary__label { margin: 0 0 8px; color: var(--el-text-color-regular); }
+.workspace-summary__context { margin: 0; overflow-wrap: anywhere; }
+.workspace-summary :deep(.el-col) { margin-top: 8px; margin-bottom: 8px; }
+.workspace-navigation__link { display: block; margin-bottom: 8px; }
+.workspace-navigation__link .el-button { width: 100%; height: auto; justify-content: flex-start; min-height: 44px; white-space: normal; text-align: left; color: var(--el-text-color-primary); }
+.workspace-navigation__link :deep(.el-button > span) { display: flex; width: 100%; gap: 10px; align-items: center; }
+.workspace-navigation__link :deep(.el-button > span > span) { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.workspace-navigation__link :deep(.svg-icon), .workspace-navigation__link :deep(.el-icon) { flex-shrink: 0; }
+.workspace-navigation__link :deep(.el-icon) { margin-left: auto; color: var(--el-text-color-secondary); }
 .workbench__header,
 .section-heading,
 .project-card__title,
@@ -293,6 +346,9 @@ onBeforeUnmount(() => { document.removeEventListener('visibilitychange', visibil
 .workbench__header {
   margin-bottom: 20px;
 }
+.workbench__brand { display: flex; align-items: center; gap: 16px; min-width: 0; }
+.workbench__brand > img { flex: 0 0 56px; object-fit: contain; border-radius: 12px; background: #fff; }
+.workbench__brand > div { min-width: 0; overflow-wrap: anywhere; }
 .workbench__header h1,
 .workbench__section h2,
 .scenario-card h3 {
@@ -318,7 +374,7 @@ onBeforeUnmount(() => { document.removeEventListener('visibilitychange', visibil
   display: block;
 }
 .metric-card span {
-  color: #606266;
+  color: var(--el-text-color-regular);
 }
 .metric-card strong {
   margin-top: 8px;
@@ -333,7 +389,7 @@ onBeforeUnmount(() => { document.removeEventListener('visibilitychange', visibil
 .section-heading p,
 .scenario-card p,
 .project-card p {
-  color: #606266;
+  color: var(--el-text-color-regular);
 }
 .project-card dl {
   display: grid;
@@ -344,10 +400,10 @@ onBeforeUnmount(() => { document.removeEventListener('visibilitychange', visibil
 .project-card dl div {
   padding: 10px;
   border-radius: 6px;
-  background: #f5f7fa;
+  background: var(--el-fill-color-light);
 }
 .project-card dt {
-  color: #606266;
+  color: var(--el-text-color-regular);
   font-size: 12px;
 }
 .project-card dd {

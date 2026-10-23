@@ -145,6 +145,7 @@ public final class DocumentRevisionService {
         if (owner.projectId() == null) denied();
         var scope = new PermissionProtocol.Scope(admission.context().tenant_id(), owner.projectId(), "DOCUMENT", documentId);
         resources.require(admission, scope, "document.write", PURPOSE);
+        resources.require(admission, scope, "document.check", "DOCUMENT_BODY");
         var values = values(admission, key, documentId, input, hash); values.put("projectId", owner.projectId());
         var operations = writes.operation(values);
         if (operations.size() > 1) mismatch();

@@ -125,6 +125,17 @@ public final class OperationsFeedbackService {
             return result;
         }).get());
     }
+    JsonNode lookup(ApplicationSessionIdentity.Verified subject,String context,String key){
+        json.headers(context,key);return access.execute(subject,a->ThrowingSupplier.of(()->{
+            if(!a.context().context_revision().equals(context))throw new TenantAccessException(ErrorCode.CONTEXT_CHANGED);
+            var rows=db.queryForList("SELECT * FROM operations_feedback_event WHERE tenant_id=? AND created_by=? AND idempotency_key=?",tenant(a),a.actorId(),key);
+            var result=json.object().put("schema_version","1.0.0").put("lookup_status",rows.isEmpty()?"NOT_FOUND":"FOUND");
+            if(rows.isEmpty()){result.putNull("receipt");result.putNull("request_sha256");return result;}
+            var row=one(rows);var value=receipt(row);authorize(a,context,value.required("project_id").asText(),"feedback.read");result.put("request_sha256",str(row,"request_sha256"));
+            var f=load(a,value.required("feedback_id").asText());if(!str(f,"target_version").equals(value.required("target_version").asText()))mismatch();
+            result.set("receipt",value);return result;
+        }).get());
+    }
     static void requireTransition(String from,String to){
         boolean allowed=switch(from){case "OPEN"->Set.of("REVIEWED","REJECTED").contains(to);case "REVIEWED"->Set.of("REVISION_LINKED","REJECTED").contains(to);case "REVISION_LINKED"->"EVALUATED".equals(to);case "EVALUATED"->"PUBLISHED".equals(to);case "PUBLISHED"->"CLOSED".equals(to);default->false;};
         if(!allowed)throw new TenantAccessException(ErrorCode.ACTION_STALE);

@@ -1,34 +1,27 @@
 <template>
   <div class="navbar" :class="['nav' + navType, { 'medical-navbar': userStore.medicalMode }]">
-    <hamburger v-if="!(userStore.medicalMode && appStore.device === 'mobile')" id="hamburger-container" :is-active="appStore.sidebar.opened" class="hamburger-container" @toggleClick="toggleSideBar" />
-    <medical-mobile-navigation v-if="userStore.medicalMode && appStore.device === 'mobile'" />
+    <hamburger id="hamburger-container" :is-active="appStore.sidebar.opened" class="hamburger-container" @toggleClick="toggleSideBar" />
     <breadcrumb v-if="navType == 1" id="breadcrumb-container" class="breadcrumb-container" />
-    <top-nav v-if="navType == 2 && !userStore.medicalMode" id="topmenu-container" class="topmenu-container" />
-    <template v-if="settingsStore.navType == 3 && !userStore.medicalMode">
+    <top-nav v-if="navType == 2" id="topmenu-container" class="topmenu-container" />
+    <organization-switcher v-if="userStore.medicalMode" />
+    <template v-if="settingsStore.navType == 3">
       <logo v-show="settingsStore.sidebarLogo" :collapse="false"></logo>
       <top-bar id="topbar-container" class="topbar-container" />
     </template>
 
     <div class="right-menu">
       <template v-if="userStore.medicalMode">
-        <el-popover v-if="userStore.medicalSession" placement="bottom-end" :width="360" trigger="click">
-          <template #reference><el-button text :disabled="userStore.medicalWriting">企业空间</el-button></template>
-          <session-panel />
-        </el-popover>
         <router-link v-if="userStore.medicalSession && route.params.projectId" :to="'/projects/' + route.params.projectId" class="medical-current-project">当前项目</router-link>
-        <span v-if="userStore.medicalSession" data-medical-user>{{ userStore.name }}</span>
-        <router-link v-if="userStore.medicalSession" to="/account">本人账户</router-link>
-        <el-button v-if="userStore.medicalSession" :disabled="userStore.medicalWriting" @click="logoutBusiness">退出业务账户</el-button>
       </template>
-      <template v-if="!userStore.medicalMode && appStore.device !== 'mobile'">
+      <template v-if="appStore.device !== 'mobile'">
         <header-search id="header-search" class="right-menu-item" />
 
         <el-tooltip content="源码地址" effect="dark" placement="bottom">
-          <ruo-yi-git id="ruoyi-git" class="right-menu-item hover-effect" />
+          <ruo-yi-git v-if="!userStore.medicalMode" id="ruoyi-git" class="right-menu-item hover-effect" />
         </el-tooltip>
 
         <el-tooltip content="文档地址" effect="dark" placement="bottom">
-          <ruo-yi-doc id="ruoyi-doc" class="right-menu-item hover-effect" />
+          <ruo-yi-doc v-if="!userStore.medicalMode" id="ruoyi-doc" class="right-menu-item hover-effect" />
         </el-tooltip>
 
         <screenfull id="screenfull" class="right-menu-item hover-effect" />
@@ -44,25 +37,26 @@
           <size-select id="size-select" class="right-menu-item hover-effect" />
         </el-tooltip>
 
-        <el-tooltip content="消息通知" effect="dark" placement="bottom">
+        <el-tooltip v-if="canReadNotices" content="消息通知" effect="dark" placement="bottom">
           <header-notice id="header-notice" class="right-menu-item hover-effect" />
         </el-tooltip>
       </template>
 
-      <el-dropdown v-if="!userStore.medicalMode" @command="handleCommand" class="avatar-container right-menu-item hover-effect" trigger="hover">
+      <el-dropdown @command="handleCommand" class="avatar-container right-menu-item hover-effect" trigger="click">
         <div class="avatar-wrapper">
           <img :src="userStore.avatar" class="user-avatar" />
           <span class="user-nickname"> {{ userStore.nickName }} </span>
         </div>
         <template #dropdown>
           <el-dropdown-menu>
-            <router-link to="/user/profile">
+            <router-link :to="userStore.medicalMode ? '/account' : '/user/profile'">
               <el-dropdown-item>个人中心</el-dropdown-item>
             </router-link>
+            <router-link v-if="userStore.medicalMode" to="/member-invitations/acceptances"><el-dropdown-item>接受组织邀请</el-dropdown-item></router-link>
             <el-dropdown-item command="setLayout" v-if="settingsStore.showSettings">
                 <span>布局设置</span>
             </el-dropdown-item>
-            <el-dropdown-item command="lockScreen">
+            <el-dropdown-item v-if="!userStore.medicalMode" command="lockScreen">
                 <span>锁定屏幕</span>
             </el-dropdown-item>
             <el-dropdown-item divided command="logout">
@@ -77,8 +71,7 @@
 
 <script setup>
 import { ElMessageBox } from 'element-plus'
-import MedicalMobileNavigation from '@/components/Medical/MobileNavigation.vue'
-import SessionPanel from '@/views/medical/session-panel.vue'
+import OrganizationSwitcher from '@/components/Medical/OrganizationSwitcher.vue'
 import Breadcrumb from '@/components/Breadcrumb'
 import TopNav from './TopNav'
 import TopBar from './TopBar'
@@ -101,7 +94,14 @@ const appStore = useAppStore()
 const userStore = useUserStore()
 const lockStore = useLockStore()
 const settingsStore = useSettingsStore()
-const navType = computed(() => userStore.medicalMode ? (appStore.device === 'mobile' ? 2 : 1) : settingsStore.navType)
+const navType = computed(() => settingsStore.navType)
+const canReadNotices = computed(() => {
+  if (!userStore.medicalMode) return true
+  const session = userStore.medicalSession
+  const navigation = userStore.frameworkNavigation
+  return session !== null && navigation !== null && navigation.user_id === session.user.user_id
+    && navigation.permissions.some(permission => permission === '*:*:*' || permission === 'system:notice:list')
+})
 
 function toggleSideBar() {
   appStore.toggleSideBar()
@@ -121,7 +121,8 @@ function handleCommand(command) {
       lockScreen()
       break
     case "logout":
-      logout()
+      if (userStore.medicalMode) void logoutBusiness()
+      else logout()
       break
     default:
       break
@@ -193,20 +194,13 @@ async function toggleTheme(event) {
 </script>
 
 <style lang='scss' scoped>
-.navbar.medical-navbar {
-  height: 68px;
-  padding-right: 16px;
-  .right-menu { gap: 16px; }
-  .topmenu-container { position: static; flex: 1; }
-  .right-menu { min-width: 0; }
-  [data-medical-user] { max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  @media (max-width: 650px) {
-    padding-right: 8px;
-    .right-menu { gap: 8px; }
-    [data-medical-user], .medical-current-project { display: none; }
-    .right-menu .el-button { margin-left: 0; padding: 8px; }
-  }
+.medical-navbar :deep(.breadcrumb-container) { min-width: 0; flex: 0 1 auto; overflow: hidden; }
+@media (max-width: 991px) {
+  .navbar.medical-navbar { height: 104px; align-items: flex-start; }
+  .navbar.medical-navbar .right-menu { height: 50px; }
 }
+@media (max-width: 480px) { .medical-navbar .user-nickname { display: none; } }
+
 .navbar.nav3 {
   .hamburger-container {
     display: none !important;

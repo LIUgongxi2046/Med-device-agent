@@ -17,6 +17,8 @@
         <el-button text :type="commonView === 'RECYCLED' ? 'primary' : ''" @click="applyCommonView('RECYCLED')">回收区</el-button>
         <el-divider />
         <h2>文件夹</h2>
+        <p v-if="!mayManageFolders" class="folder-permission">当前组织未授予此范围的文件夹维护权限。</p>
+        <template v-else>
         <el-button v-for="folder in folders" :key="folder.folder_id" text
           :type="selectedFolder === folder.folder_id ? 'primary' : ''" @click="selectFolder(folder.folder_id)">
           {{ folder.name }}
@@ -33,6 +35,7 @@
           </el-select>
           <el-button :loading="writing" @click="moveFolder">移动文件夹</el-button>
           <el-button type="danger" plain :loading="writing" @click="deleteFolder">删除文件夹</el-button>
+        </template>
         </template>
       </aside>
       <div class="catalogue-main">
@@ -96,6 +99,7 @@ import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import { ElMessageBox } from 'element-plus'
 import { useRoute } from 'vue-router'
 import { sourceUploadAllowed } from '@/api/medical/source-uploads'
+import { projectActionAllowed } from '@/api/medical/project-write'
 import ProjectScopeSelect from '@/components/Medical/ProjectScopeSelect.vue'
 import SessionPanel from './session-panel.vue'
 import useUserStore from '@/store/modules/user'
@@ -118,6 +122,7 @@ let controller: AbortController | null = null; let folderController: AbortContro
 let contextGeneration = 0
 const active = useMedicalRouteRead('MedicalSourceCatalogue', clear)
 const activeFolder = computed(() => folders.value.find(item => item.folder_id === selectedFolder.value) ?? null)
+const mayManageFolders = computed(() => projectActionAllowed(user.medicalSession, 'source.write', filters.project_id || null))
 const folderTargets = computed(() => folders.value.filter(item => item.folder_id !== selectedFolder.value))
 function labelText(value: string[]): string { return value.join('、') }
 function query(after?: string): SourceCatalogueQuery {
@@ -155,6 +160,7 @@ async function read(after?: string): Promise<void> {
 }
 async function readFolders(): Promise<void> {
   const session: MedicalSession | null = user.medicalSession; if (!active.value || !session?.current_context || document.hidden) return
+  if (!mayManageFolders.value) { folders.value = []; selectedFolder.value = null; return }
   folderController?.abort(); const reading = new AbortController(); folderController = reading
   const result = await readSourceFolders(session, filters.project_id || null, reading.signal)
   if (folderController !== reading || !active.value || user.medicalSession !== session || document.hidden || reading.signal.aborted) return
@@ -255,6 +261,7 @@ onBeforeUnmount(clear)
 .catalogue-layout { display: grid; grid-template-columns: 208px minmax(0, 1fr); gap: 24px; }
 .folder-panel { display: flex; flex-direction: column; gap: 8px; }
 .folder-panel h2 { margin: 0 0 8px; }
+.folder-permission { color: var(--el-text-color-secondary); font-size: 12px; line-height: 1.7; }
 .folder-panel .el-button { margin-left: 0; justify-content: flex-start; }
 .folder-panel .el-input, .folder-panel .el-select { width: 100%; }
 .batch-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 12px 0; }

@@ -9,7 +9,7 @@ export interface FrameworkNavigation {
 
 export async function readFrameworkNavigation(session: MedicalSession, signal: AbortSignal): Promise<FrameworkNavigation> {
   if (session.user.username === null || session.user.platform_role === null) fail('ACCESS_DENIED', '当前身份没有关联本地系统账户')
-  const response = envelope(await request.get('/api/framework/navigation', { medical: 'envelope', signal,
+  const response = envelope(await request.get('/api/framework/navigation', { medical: 'envelope', signal, timeout: 60000,
     headers: { 'X-Schema-Version': '1.0.0' } }))
   const value = validate<FrameworkNavigation>('urn:medical:framework-navigation:1.0.0', response.data)
   if (value.user_id !== session.user.user_id || response.resource_revision !== null

@@ -34,7 +34,7 @@ public class FrameworkFrontendConfiguration implements WebMvcConfigurer {
         "/library/versions/{sourceVersion}", "/library/versions/{sourceVersion}/rights",
         "/templates", "/templates/new", "/templates/{templateId}/approval",
         "/rules", "/rules/new", "/rules/{ruleId}", "/model-configurations", "/simulation-model-configurations",
-        "/document-save-audit", "/evaluation", "/evaluation/new", "/evaluation/{evaluationId}",
+        "/document-save-audit", "/operations", "/feedback", "/evaluation", "/evaluation/new", "/evaluation/{evaluationId}",
         "/enterprises/members", "/enterprises/roles", "/enterprises/registrations", "/enterprises/registration-reviews", "/enterprises/registration-reviews/{registrationId}",
         "/agents/execution-policies", "/agents/execution-policies/new", "/agents/execution-policies/{versionId}",
         "/agents/model-runtime", "/agents/retention", "/agents/drafts", "/agents/publication", "/agents/context-bindings",

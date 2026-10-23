@@ -171,4 +171,7 @@
     <include file="db/migration/176-framework-binding-governance.sql" relativeToChangelogFile="false"/>
     <include file="db/migration/177-knowledge-rule-feedback.sql" relativeToChangelogFile="false"/>
     <include file="db/migration/178-framework-form-publication.sql" relativeToChangelogFile="false"/>
+    <include file="db/migration/179-account-workspace.sql" relativeToChangelogFile="false"/>
+    <include file="db/migration/180-rule-business-definition.sql" relativeToChangelogFile="false"/>
+    <include file="db/migration/181-connector-business-profile.sql" relativeToChangelogFile="false"/>
 </databaseChangeLog>

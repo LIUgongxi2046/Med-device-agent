@@ -6,6 +6,8 @@ import type { JsonValue } from './template-approval'
 import { projectTextIssue } from './project-write'
 import { readOperation } from './operations'
 import type { Operation } from './operations'
+import { readRuleBusiness, validateRuleBusiness } from './rule-business'
+import type { RuleBusinessDefinition, StoredRuleBusiness } from './rule-business'
 
 export const ruleEngine = 'spring-spel-6.2.19-boolean-v1'
 export const ruleSchema = 'urn:medical:rule-version-workflow:1.0.0#/$defs/'
@@ -82,7 +84,7 @@ export function validateRuleCreate(body: unknown): RuleCreateBody {
   }
   ruleDependencies(value); return value
 }
-async function checkStored(session: MedicalSession, id: string, value: StoredRule, resourceRevision: string | null): Promise<void> {
+export async function checkStored(session: MedicalSession, id: string, value: StoredRule, resourceRevision: string | null): Promise<void> {
   validate(ruleSchema + 'StoredRule', value); positive(value.revision); positive(value.authority_revision)
   const body = validateRuleCreate({ schema_version: '1.0.0', content_schema_ref: contentSchema, content: value.content, base_version: value.base_version, reason: value.reason })
   if (value.tenant_id !== current(session).tenant_id || value.rule_version !== id || value.revision !== resourceRevision
@@ -131,11 +133,11 @@ function checkApproval(body: RuleApprovalBody): void {
   validate(ruleSchema + 'Decide', body); positive(body.expected_revision)
   if (body.target_revision !== body.baseline_manifest.rule_version || projectTextIssue(body.reason, 2000)) fail('SCHEMA_INVALID', '规则决定目标、理由或审查清单无效')
 }
-export async function prepareRuleWrite(session: MedicalSession, body: RuleCreateBody | RuleApprovalBody): Promise<PendingRuleWrite> {
+export async function prepareRuleWrite(session: MedicalSession, body: RuleCreateBody | RuleApprovalBody, business?:RuleBusinessDefinition|string): Promise<PendingRuleWrite> {
   const context = current(session); const approval = 'decision' in body; const id = approval ? body.target_revision : null
   if (approval) checkApproval(body); else validateRuleCreate(body)
   if (!ruleAllowed(session, approval ? 'rule.approve' : 'rule.write', id ?? undefined)) fail('ACCESS_DENIED', '当前规则操作缺少明确权限')
-  const hash = await digest(body); const saved = readPendingRule(session, id)
+  const hash = await digest(ruleWriteBody(body,business)); const saved = readPendingRule(session, id)
   if (saved) {
     if (saved.body_sha256 !== hash || canonical(saved.context) !== canonical(context)) fail('IDEMPOTENCY_CONFLICT', '原规则请求待核查，请保留完整原参数、上下文和请求标识')
     return saved
@@ -148,33 +150,44 @@ export async function prepareRuleWrite(session: MedicalSession, body: RuleCreate
   // Only request identity and hashes persist. Rule text, source details and reasons stay in page memory.
   sessionStorage.setItem(storageKey(session, id), JSON.stringify(value)); return value
 }
-async function verifyWrite(session: MedicalSession, pending: PendingRuleWrite, body: RuleCreateBody | RuleApprovalBody): Promise<void> {
+function ruleWriteBody(body:RuleCreateBody|RuleApprovalBody,business?:RuleBusinessDefinition|string):unknown{
+  if(business===undefined)return body
+  if('decision' in body){if(typeof business!=='string')fail('SCHEMA_INVALID','规则人工决定需要当前业务定义摘要');validate(ruleSchema+'Hash',business);return {decision:body,business_definition_sha256:business}}
+  if(typeof business==='string')fail('SCHEMA_INVALID','规则创建需要完整业务定义')
+  return {schema_version:'1.0.0',rule:body,definition:validateRuleBusiness(business)}
+}
+async function verifyWrite(session: MedicalSession, pending: PendingRuleWrite, body: RuleCreateBody | RuleApprovalBody,business?:RuleBusinessDefinition|string): Promise<void> {
   validate(pendingSchema, pending); validContext(pending.context)
   if (pending.actor !== session.user.user_id || pending.tenant_id !== current(session).tenant_id || canonical(pending.context) !== canonical(current(session))
       || !ruleAllowed(session, pending.operation === 'TP-03' ? 'rule.write' : 'rule.approve', pending.target_id ?? undefined)
-      || await digest(body) !== pending.body_sha256) fail('CONTENT_MISMATCH', '原规则请求与当前身份、上下文或完整参数不一致')
+      || await digest(ruleWriteBody(body,business)) !== pending.body_sha256) fail('CONTENT_MISMATCH', '原规则请求与当前身份、上下文或完整参数不一致')
   const saved = readPendingRule(session, pending.target_id)
   if (!saved || canonical(saved) !== canonical(pending)) fail('CONTENT_MISMATCH', '规则请求标识需要重新核查')
 }
 function headers(session: MedicalSession, pending: PendingRuleWrite): Record<string, string> {
   return { 'X-Schema-Version': '1.0.0', 'X-Context-Revision': pending.context.context_revision, 'Idempotency-Key': pending.key, [session.csrf.header_name]: session.csrf.token }
 }
-export async function submitRuleCreate(session: MedicalSession, pending: PendingRuleWrite, body: RuleCreateBody): Promise<RuleCreated> {
-  validateRuleCreate(body); await verifyWrite(session, pending, body)
+export async function submitRuleCreate(session: MedicalSession, pending: PendingRuleWrite, body: RuleCreateBody,business?:RuleBusinessDefinition): Promise<RuleCreated> {
+  validateRuleCreate(body); await verifyWrite(session, pending, body,business)
   if (pending.operation !== 'TP-03' || pending.target_id !== null || pending.content_sha256 !== await digest(body.content)) fail('CONTENT_MISMATCH', '原规则创建身份不一致')
-  const raw = await request.post('/api/rule-versions', body, { medical: 'envelope', headers: headers(session, pending) })
+  const raw = await request.post(business?'/api/business-rule-versions':'/api/rule-versions', ruleWriteBody(body,business), { medical: 'envelope', headers: headers(session, pending) })
   const response = envelope(raw); const value = validate<RuleCreated>(ruleSchema + 'Created', response.data)
   await checkStored(session, value.rule.rule_version, value.rule, response.resource_revision)
   if (raw.status !== 201 || value.rule.revision !== '1' || value.rule.status !== 'DRAFT' || value.rule.created_by !== pending.actor
       || value.rule.content_sha256 !== pending.content_sha256 || canonical(value.rule.content) !== canonical(body.content)
       || canonical(value.rule.base_version) !== canonical(body.base_version) || value.rule.reason !== body.reason) fail('CONTENT_MISMATCH', '规则创建回执与原参数或主体不一致')
+  if(business){const stored=await readRuleBusiness(session,value.rule,new AbortController().signal);if(!stored||canonical(stored.definition)!==canonical(business))fail('CONTENT_MISMATCH','业务规则保存后读取的定义与原请求不一致')}
   return value
 }
-export async function submitRuleApproval(session: MedicalSession, pending: PendingRuleWrite, body: RuleApprovalBody): Promise<RuleReceipt> {
-  checkApproval(body); await verifyWrite(session, pending, body)
+export async function verifyRuleCreationRecovery(pending:PendingRuleWrite,rule:StoredRule,business:StoredRuleBusiness|null){
+  const input:RuleCreateBody={schema_version:'1.0.0',content_schema_ref:contentSchema,content:rule.content,base_version:rule.base_version,reason:rule.reason}
+  if(await digest(ruleWriteBody(input,business?.definition))!==pending.body_sha256)fail('CONTENT_MISMATCH','原规则创建与完整业务定义的摘要不一致')
+}
+export async function submitRuleApproval(session: MedicalSession, pending: PendingRuleWrite, body: RuleApprovalBody,businessHash?:string): Promise<RuleReceipt> {
+  checkApproval(body); await verifyWrite(session, pending, body,businessHash)
   if (pending.operation !== 'TP-04' || pending.target_id !== body.target_revision || pending.expected_revision !== body.expected_revision
       || pending.decision !== body.decision || pending.content_sha256 !== body.baseline_manifest.content_sha256) fail('CONTENT_MISMATCH', '原规则决定目标或基线不一致')
-  const raw = await request.post('/api/rule-versions/' + pending.target_id + '/approval-decisions', body, { medical: 'envelope', headers: headers(session, pending) })
+  const raw = await request.post('/api/rule-versions/' + pending.target_id + '/approval-decisions', body, { medical: 'envelope', headers: {...headers(session, pending),...(businessHash?{'X-Rule-Business-SHA256':businessHash}:{})} })
   const response = envelope(raw); const value = validate<RuleReceipt>(ruleSchema + 'Receipt', response.data); validContext(value.current_context); positive(value.revision)
   const statuses = { APPROVE: 'APPROVED', RETURN: 'RETURNED', DISABLE: 'DISABLED' } as const
   if (raw.status !== 200 || response.resource_revision !== value.revision || value.rule_version !== pending.target_id || value.actor_id !== pending.actor

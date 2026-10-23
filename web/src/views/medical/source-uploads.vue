@@ -8,7 +8,7 @@
     <p v-else-if="!permitted">上传资料需要当前企业身份及来源维护权限</p>
     <section v-if="permitted" data-source-upload-queue>
       <p>支持 PDF、DOCX、XLSX、CSV、PPTX、Markdown、TXT 和 PNG/JPEG/TIFF 图片。文件分别填写来源和许可，服务器逐项核查容量、格式与内容。</p>
-      <file-upload :selection-only="true" :file-type="Object.keys(sourceMediaTypes)" :file-size="0" :limit="100" :drag="false"
+      <file-upload :selection-only="true" :dropzone="true" :file-type="Object.keys(sourceMediaTypes)" :file-size="0" :limit="100" :drag="false"
         :disabled="busy || user.medicalWriting" @select-file="selectFile" />
       <p v-if="reselect">请选择原文件：{{ reselect.id }}。继续前将核查原文件大小和摘要。</p>
       <el-button :disabled="busy || user.medicalWriting" @click="recover">查询原上传记录</el-button>

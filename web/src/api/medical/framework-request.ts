@@ -1,10 +1,18 @@
 import { projectFrameworkNativeWrite } from '@/components/Medical/FrameworkBindingNativeProjection'
+import { CanceledError } from 'axios'
 import type { AxiosResponse, InternalAxiosRequestConfig } from 'axios'
 import useUserStore from '@/store/modules/user'
 import { tansParams } from '@/utils/ruoyi'
 import { envelope, fail } from './protocol'
 
 const frameworkPrefixes = ['/system/', '/monitor/', '/tool/', '/common/']
+
+export function requireFrameworkRequestCurrent(config: InternalAxiosRequestConfig): void {
+  const identity = config.medicalFrameworkIdentity
+  if (identity !== undefined && identity.generation !== useUserStore().medicalGeneration) {
+    throw new CanceledError('原管理请求对应的页面会话已经更新', config)
+  }
+}
 
 export function prepareFrameworkRequest(config: InternalAxiosRequestConfig): void {
   const user = useUserStore()
@@ -54,13 +62,14 @@ export function prepareFrameworkRequest(config: InternalAxiosRequestConfig): voi
 }
 
 export async function verifyFrameworkResponse(response: AxiosResponse<unknown>): Promise<void> {
+  requireFrameworkRequestCurrent(response.config)
+  const identity = response.config.medicalFrameworkIdentity
+  const user = useUserStore()
   if (response.status < 200 || response.status >= 300) {
     const value = response.data instanceof Blob ? JSON.parse(await response.data.text())
       : response.data instanceof ArrayBuffer ? JSON.parse(new TextDecoder().decode(response.data)) : response.data
     envelope({ ...response, data: value })
   }
-  const identity = response.config.medicalFrameworkIdentity
-  const user = useUserStore()
   if (identity === undefined || user.medicalSession === null || document.hidden
       || identity.actor !== user.medicalSession.user.user_id || identity.generation !== user.medicalGeneration) {
     fail('CONTEXT_CHANGED', '原管理响应对应的会话已经变化，请重新读取')

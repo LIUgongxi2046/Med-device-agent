@@ -154,6 +154,7 @@ public final class RuleVersionSchema {
         if (!envelope(node.required("data"), node.required("request_id").textValue()).equals(node)) invalid(); return node;
     }
     JsonNode read(String content) throws IOException { return reader.readTree(content); }
+    boolean same(JsonNode actual, JsonNode expected) throws IOException { return json.canonical(actual).equals(json.canonical(expected)); }
     String manifestSha256() { return manifest; }
     String contentManifestSha256() { return contentSchema.ruleManifestSha256(); }
     private static void positive(String value) { if (PermissionSchema.revision(value).signum() <= 0) invalid(); }

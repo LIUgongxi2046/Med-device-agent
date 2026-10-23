@@ -30,13 +30,16 @@ public final class TenantSelectionService {
     private final TenantSelectionMapper operations;
     private final BusinessSessionSchema schema;
     private final IdentityDirectoryPolicy policy;
+    private final AccountWorkspaceBinding workspace;
 
     public TenantSelectionService(@Qualifier("masterDataSource") DataSource master, ApplicationSessionIdentity identities,
             BusinessSessionDirectory directory, MemberDiscovery discovery, TenantTransaction transactions,
-            TenantMemberMapper members, TenantSelectionMapper operations, BusinessSessionSchema schema, IdentityDirectoryPolicy policy) {
+            TenantMemberMapper members, TenantSelectionMapper operations, BusinessSessionSchema schema, IdentityDirectoryPolicy policy,
+            AccountWorkspaceBinding workspace) {
         jdbc = new JdbcTemplate(master); this.identities = identities; this.directory = directory;
         this.discovery = discovery; this.transactions = transactions; this.members = members;
         this.operations = operations; this.schema = schema; this.policy = policy;
+        this.workspace = workspace;
     }
 
     public JsonNode select(ApplicationSessionIdentity.Verified subject, BusinessSessionProtocol.SelectionRequest request,
@@ -106,6 +109,7 @@ public final class TenantSelectionService {
                         subject.sessionId(), subject.user().user_id(), header));
                 requireOne(operations.saveOperation(subject.user().user_id(), operationId, key, sha256, schema.canonical(result),
                         request.tenant_id(), schema.manifestSha256(), policy.classification()));
+                workspace.remember(subject.user().user_id(), request.tenant_id());
                 requireOne(operations.saveAudit(subject.user().user_id(), UUID.randomUUID().toString(), schema.audit(
                         new BusinessSessionProtocol.SelectionAudit("1.0.0", "SESSION_CONTEXT", request.tenant_id(),
                         subject.user().user_id(), subject.sessionId(), revision)), requestId, schema.manifestSha256(), policy.classification()));

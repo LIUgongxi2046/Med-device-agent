@@ -376,7 +376,7 @@ final class SourceUploadTransport {
             };
             current.requireCurrent();
             try (var lease = concurrency.acquire(original.tenantId(), subject.user().user_id(), limits, current::requireCurrent);
-                    var verified = reader.readVerified(reference, lease.guard(current::requireCurrent))) {
+                    var verified = reader.readVerified(reference, lease)) {
                 byte[] bytes = new byte[original.expectedSize().intValueExact()];
                 for (int start = 0; start < bytes.length;) {
                     int length = Math.min(S3ObjectReader.MAX_SEGMENT_BYTES, bytes.length - start);

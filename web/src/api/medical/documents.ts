@@ -14,6 +14,7 @@ export interface DocumentReadLimits { maximumPages: number; maximumBytes: number
 export interface SavedDocument { snapshot: DocumentSnapshot; body: DocumentBody }
 export type DocumentSaveResult = { kind: 'SAVED'; document: SavedDocument }
   | { kind: 'PENDING'; operation: Operation }
+const documentRequestTimeout = 120000
 
 export async function prepareDocumentDraftSave(session: () => MedicalSession, saved: DocumentSnapshot, draft: DocumentEditBuffer,
   dependencyId: string, reason: string, capacity: DocumentReadLimits): Promise<{
@@ -78,7 +79,7 @@ export async function readDocumentSnapshot(session: MedicalSession, projectId: s
   if (documentRevision !== undefined) validate(documentReference + 'Id', documentRevision)
   const original = { ...context(session) }, actor = session.user.user_id
   const path = '/api/documents/' + documentId + (documentRevision === undefined ? '' : '/revisions/' + documentRevision)
-  const raw = await request.get(path, { medical: 'envelope', signal, timeout: 60000, headers: headers(session) })
+  const raw = await request.get(path, { medical: 'envelope', signal, timeout: documentRequestTimeout, headers: headers(session) })
   current(session, original, actor, signal)
   const response = envelope(raw)
   if (raw.status !== 200) fail('CONTENT_MISMATCH', '文稿读取响应状态无效')
@@ -94,7 +95,7 @@ export async function readDocumentDependency(session: MedicalSession, saved: Doc
   const original = { ...context(session) }, actor = session.user.user_id
   validate(documentReference + 'DocumentSnapshot', saved)
   if (!saved.allowed_actions.includes('document.edit')) fail('ACCESS_DENIED', '当前文稿没有编辑权限')
-  const raw = await request.get('/api/documents/' + saved.document_id + '/dependency-access-set', { medical: 'envelope', signal, timeout: 60000,
+  const raw = await request.get('/api/documents/' + saved.document_id + '/dependency-access-set', { medical: 'envelope', signal, timeout: documentRequestTimeout,
     params: { document_revision: saved.document_revision, expected_revision: saved.revision }, headers: headers(session) })
   current(session, original, actor, signal); const response = envelope(raw)
   if (raw.status !== 200 || response.resource_revision !== saved.revision) fail('REVISION_CONFLICT', '正文编辑依据与当前修订不一致')
@@ -126,7 +127,7 @@ export async function readDocumentBody(session: MedicalSession, saved: DocumentS
   do {
     current(session, original, actor, signal)
     if (++pages > capacity.maximumPages) fail('CONTEXT_LIMIT', '正文分页超过配置容量')
-    const raw = await request.get('/api/documents/' + saved.document_id + '/body', { medical: 'envelope', signal, timeout: 60000,
+    const raw = await request.get('/api/documents/' + saved.document_id + '/body', { medical: 'envelope', signal, timeout: documentRequestTimeout,
       params: { document_revision: saved.document_revision, limit: capacity.pageSize, ...(cursor === null ? {} : { cursor }) },
       headers: headers(session) })
     current(session, original, actor, signal)
@@ -257,7 +258,7 @@ export class PendingDocumentSave {
           expected_revision: this.baseline.revision, media_type: 'application/json', size_bytes: this.content.sizeBytes,
           sha256: this.content.sha256, schema_ref: documentBodyReference, dependency_access_set_id: this.dependencyId }
         validate(documentReference + 'UploadRequest', body)
-        const raw = await request.post('/api/artifact-upload-grants', body, { medical: 'envelope', signal, timeout: 60000,
+        const raw = await request.post('/api/artifact-upload-grants', body, { medical: 'envelope', signal, timeout: documentRequestTimeout,
           headers: headers(this.current(signal), this.grantKey) })
         this.current(signal)
         const response = envelope(raw), grant = validate<UploadGrant>(documentReference + 'UploadGrant', response.data)
@@ -292,7 +293,7 @@ export class PendingDocumentSave {
         const body: UploadCompletion = { sha256: this.content.sha256, size_bytes: this.content.sizeBytes, expected_revision: this.baseline.revision }
         validate(documentReference + 'UploadCompletion', body)
         const raw = await request.post('/api/artifact-upload-grants/' + this.grant.grant_id + '/completions', body,
-          { medical: 'envelope', signal, timeout: 60000, headers: headers(this.current(signal), this.completionKey) })
+          { medical: 'envelope', signal, timeout: documentRequestTimeout, headers: headers(this.current(signal), this.completionKey) })
         this.current(signal)
         const response = envelope(raw), receipt = validate<ArtifactReceipt>(documentReference + 'ArtifactReceipt', response.data)
         if (raw.status !== 200 || receipt.sha256 !== this.content.sha256 || ![documentBodyReference, documentReference + 'DocumentBody'].includes(receipt.schema_ref)
@@ -305,7 +306,7 @@ export class PendingDocumentSave {
           body_schema_revision: this.baseline.body_schema_revision, reason: this.reason }
         validate(documentReference + 'RevisionInput', body)
         const raw = await request.post('/api/documents/' + this.baseline.document_id + '/revisions', body,
-          { medical: 'envelope', signal, timeout: 60000, headers: headers(this.current(signal), this.revisionKey) })
+          { medical: 'envelope', signal, timeout: documentRequestTimeout, headers: headers(this.current(signal), this.revisionKey) })
         this.current(signal)
         const response = envelope(raw), saved = snapshot(response.data, response.resource_revision,
           this.baseline.project_id, this.baseline.document_id)

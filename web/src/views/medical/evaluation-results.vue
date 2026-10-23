@@ -1,6 +1,6 @@
 <template>
   <main class="medical-page">
-    <h1>评测与结果</h1><session-panel />
+    <h1>评测与运营</h1><operations-navigation />
     <p>登记评测资料、记录评分并查看结果。</p>
     <el-alert title="当前处理已有输出，候选运行需另行完成。" type="info" :closable="false" />
     <p v-if="!session?.current_context">请先选择获授权企业空间。</p>
@@ -118,7 +118,7 @@ import { canonicalEvaluation, evaluationAllowed, evaluationFailureMessage, evalu
   effectiveEvaluationScores, evaluationRequirementLabel, parseEvaluationJson, prepareEvaluation, readPendingEvaluation, validateEvaluationCreate } from '@/api/medical/evaluation-domain'
 import type { EvaluationAction, EvaluationAppend, EvaluationCreate, EvaluationFinalize, EvaluationRead, EvaluationVerdict, PendingEvaluation } from '@/api/medical/evaluation-domain'
 import { readEvaluation, readEvaluationScores, recoverEvaluation, submitEvaluation } from '@/api/medical/evaluations'
-import SessionPanel from './session-panel.vue'
+import OperationsNavigation from '@/components/Medical/OperationsNavigation.vue'
 import EvaluationDefinition from './evaluation-definition.vue'
 import EvaluationScoreEditor from './evaluation-score-editor.vue'
 import EvaluationDefinitionForm from './evaluation-definition-form.vue'

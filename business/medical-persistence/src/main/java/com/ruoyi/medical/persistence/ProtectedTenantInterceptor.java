@@ -30,7 +30,7 @@ public final class ProtectedTenantInterceptor extends TenantLineInnerInterceptor
     public ProtectedTenantInterceptor() { super(new ServerTenantHandler()); }
     private static final java.util.Set<String> IMMUTABLE_TABLES = java.util.Set.of(
         "framework_form_schema", "framework_form_approval", "framework_form_operation",
-        "knowledge_feedback_event", "knowledge_feedback_origin",
+        "knowledge_feedback_event", "knowledge_feedback_origin", "rule_business_definition", "customer_connector_business_profile",
         "platform_framework_job_revision",
         "framework_binding_manifest", "framework_binding_approval", "framework_binding_operation",
         "source_copy_authority",

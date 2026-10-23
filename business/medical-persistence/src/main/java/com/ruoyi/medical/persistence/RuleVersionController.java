@@ -41,13 +41,28 @@ public final class RuleVersionController {
             @PathVariable String id, @RequestBody byte[] body,
             @RequestHeader(value="X-Schema-Version", required=false) String version,
             @RequestHeader(value="X-Context-Revision", required=false) String context,
-            @RequestHeader(value="Idempotency-Key", required=false) String key) {
+            @RequestHeader(value="Idempotency-Key", required=false) String key,
+            @RequestHeader(value="X-Rule-Business-SHA256",required=false) String businessHash) {
         if (!"1.0.0".equals(version)) throw new SchemaRejection(ErrorCode.SCHEMA_UNSUPPORTED);
         json.headers(context, key);
         if (request.getQueryString() != null) throw new SchemaRejection(ErrorCode.SCHEMA_INVALID);
-        var result = approvals.decide(identities.requireCurrent(request, authentication), context, key, id, body);
+        var result = approvals.decide(identities.requireCurrent(request, authentication), context, key, id, body,businessHash);
         response.setHeader("Cache-Control", "no-store"); response.setHeader("X-Schema-Version", "1.0.0");
         response.setHeader("X-Request-Id", result.required("request_id").textValue()); return result;
+    }
+
+    @PostMapping(value="/api/business-rule-versions",consumes="application/json")
+    @ResponseStatus(org.springframework.http.HttpStatus.CREATED)
+    public JsonNode createBusiness(HttpServletRequest request,HttpServletResponse response,Authentication authentication,@RequestBody byte[] body,
+            @RequestHeader(value="X-Schema-Version",required=false)String version,@RequestHeader(value="X-Context-Revision",required=false)String context,@RequestHeader(value="Idempotency-Key",required=false)String key){
+        if(!"1.0.0".equals(version))throw new SchemaRejection(ErrorCode.SCHEMA_UNSUPPORTED);json.headers(context,key);if(request.getQueryString()!=null)throw new SchemaRejection(ErrorCode.SCHEMA_INVALID);
+        var result=rules.createBusiness(identities.requireCurrent(request,authentication),context,key,body);response.setHeader("Cache-Control","no-store");response.setHeader("X-Schema-Version","1.0.0");response.setHeader("X-Request-Id",result.required("request_id").asText());return result;
+    }
+    @GetMapping("/api/rule-versions/{id}/business-definition")
+    public JsonNode business(HttpServletRequest request,HttpServletResponse response,Authentication authentication,@PathVariable String id,
+            @RequestHeader(value="X-Schema-Version",required=false)String version,@RequestHeader(value="X-Context-Revision",required=false)String context){
+        if(!"1.0.0".equals(version))throw new SchemaRejection(ErrorCode.SCHEMA_UNSUPPORTED);PermissionSchema.revision(context);if(request.getQueryString()!=null)throw new SchemaRejection(ErrorCode.SCHEMA_INVALID);
+        var result=rules.readBusiness(identities.requireCurrent(request,authentication),context,id);response.setHeader("Cache-Control","no-store");response.setHeader("X-Schema-Version","1.0.0");response.setHeader("X-Request-Id",result.required("request_id").asText());return result;
     }
 
     @GetMapping("/api/rule-versions/{id}")

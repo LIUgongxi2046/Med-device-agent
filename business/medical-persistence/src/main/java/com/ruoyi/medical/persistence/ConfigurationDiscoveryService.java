@@ -48,13 +48,23 @@ public final class ConfigurationDiscoveryService {
     public JsonNode simulationModels(ApplicationSessionIdentity.Verified subject, String context, ConfigurationDiscoverySchema.Query query) {
         return list(subject, context, query, true, true);
     }
+    private record BusinessDirectory(RuleBusinessDirectorySchema.Query query, RuleBusinessDefinitionStore store, RuleBusinessDirectorySchema schema) { }
+    public JsonNode businessRules(ApplicationSessionIdentity.Verified subject, String context, RuleBusinessDirectorySchema.Query query,
+            RuleBusinessDefinitionStore business, RuleBusinessDirectorySchema directorySchema) {
+        directorySchema.filters(query);
+        return list(subject, context, query.discovery(), false, false, new BusinessDirectory(query, business, directorySchema));
+    }
     private JsonNode list(ApplicationSessionIdentity.Verified subject, String context, ConfigurationDiscoverySchema.Query query, boolean model, boolean simulation) {
+        return list(subject, context, query, model, simulation, null);
+    }
+    private JsonNode list(ApplicationSessionIdentity.Verified subject, String context, ConfigurationDiscoverySchema.Query query, boolean model, boolean simulation, BusinessDirectory business) {
         schema.validate(query);
         return access.execute(subject, admission -> ThrowingSupplier.of(() -> {
             if (!admission.context().context_revision().equals(context)) throw new TenantAccessException(ErrorCode.CONTEXT_CHANGED);
             var values = new HashMap<String,Object>(); values.put("userId", subject.user().user_id()); values.put("q", query.q()); values.put("mode", simulation ? "SIMULATION" : "EXTERNAL");
+            if (business != null) { values.put("dimension", business.query().dimension()); values.put("handling", business.query().handling()); values.put("status", business.query().status()); }
             String authorizationClock = Objects.requireNonNull(mapper.authorizationClock(values));
-            String binding = binding(admission, query, model, simulation, authorizationClock), after = cursors.after(query.after(), binding);
+            String binding = binding(admission, query, model, simulation, authorizationClock, business), after = cursors.after(query.after(), binding);
             var items = json.object().arrayNode(); String next = null, lastReturned = null; int scanned = 0;
             boolean finished = false;
             while (!finished && scanned < MAXIMUM_SCAN) {
@@ -68,10 +78,14 @@ public final class ConfigurationDiscoveryService {
                     if (!model && !candidate.id().equals(candidate.versionId())) mismatch();
                 }
                 for (var candidate : candidates.subList(0, Math.min(size, candidates.size()))) {
-                    scanned++; after = candidate.id(); JsonNode view;
+                    scanned++; after = candidate.id(); JsonNode view; JsonNode businessView = null;
                     try {
-                        view = model ? (simulation ? models.read(admission, candidate.versionId(), true) : models.read(admission, candidate.versionId())).required("data")
-                                : ruleSchema.readView(rules.read(admission, candidate.versionId()), UUID.randomUUID().toString()).required("data");
+                        if (model) view = (simulation ? models.read(admission, candidate.versionId(), true) : models.read(admission, candidate.versionId())).required("data");
+                        else {
+                            var stored = rules.read(admission, candidate.versionId());
+                            view = ruleSchema.readView(stored, UUID.randomUUID().toString()).required("data");
+                            if (business != null) businessView = business.store().read(admission, stored);
+                        }
                     } catch (TenantAccessException denied) {
                         // Dependency authorization is part of the original domain read, too. Never return a partially readable row.
                         if (denied.code() == ErrorCode.ACCESS_DENIED || denied.code() == ErrorCode.OBJECT_UNAVAILABLE) continue;
@@ -83,7 +97,9 @@ public final class ConfigurationDiscoveryService {
                             || !admission.context().tenant_id().equals(target.required("tenant_id").textValue())
                             || model && !candidate.versionId().equals(view.required("current_model_revision").textValue())) mismatch();
                     if (items.size() == query.limit()) { next = cursors.next(Objects.requireNonNull(lastReturned), binding); finished = true; break; }
-                    items.add(view); lastReturned = candidate.id();
+                    if (business == null) items.add(view);
+                    else { var entry = json.object(); entry.set("resource", view); entry.set("business", businessView == null ? json.tree(null) : businessView); items.add(entry); }
+                    lastReturned = candidate.id();
                 }
                 if (finished) break;
                 if (candidates.size() <= size) finished = true;
@@ -92,6 +108,7 @@ public final class ConfigurationDiscoveryService {
             var result = json.object(); result.put("schema_version", "1.0.0"); result.put("tenant_id", admission.context().tenant_id());
             result.set("current_context", json.tree(admission.context())); result.set("items", items); result.set("next_after", json.tree(next));
             if (!authorizationClock.equals(mapper.authorizationClock(values))) throw new TenantAccessException(ErrorCode.CURSOR_INVALID);
+            if (business != null) { result.set("query", business.schema().filters(business.query())); return business.schema().envelope(result); }
             return schema.envelope(model ? (simulation ? "SimulationModelList" : "ModelList") : "RuleList", result);
         }).get());
     }
@@ -102,8 +119,9 @@ public final class ConfigurationDiscoveryService {
             if (model) mapper.models(values); else mapper.rules(values);
         }).getList();
     }
-    private String binding(EnterpriseAccess.Admission admission, ConfigurationDiscoverySchema.Query query, boolean model, boolean simulation, String authorizationClock) throws IOException {
+    private String binding(EnterpriseAccess.Admission admission, ConfigurationDiscoverySchema.Query query, boolean model, boolean simulation, String authorizationClock, BusinessDirectory business) throws IOException {
         var value = json.object(); value.put("kind", model ? (simulation ? "SIMULATION_MODEL" : "MODEL") : "RULE"); value.put("limit", query.limit()); value.set("q", json.tree(query.q()));
+        if (business != null) { value.put("kind", "BUSINESS_RULE"); value.set("filters", business.schema().filters(business.query())); }
         value.put("actor", admission.subject().user().user_id()); value.put("session", admission.subject().sessionId());
         value.put("identity_mode", admission.subject().binding().view().mode()); value.put("context_id", admission.contextId()); value.put("authorization_clock", authorizationClock);
         value.set("context", json.tree(admission.context())); return DigestUtils.sha256Hex(json.canonical(value));

@@ -30,19 +30,29 @@ public final class CustomerConnectorService {
     private final ObjectProvider<CustomerConnectorCredentials> credentials;
     private final SourceUploadService uploads;
     private final SourceUploadTransport transport;
+    private final CustomerConnectorBusinessProfiles profiles;
     public CustomerConnectorService(EnterpriseAccess access,ResourceReadAuthority resources,PermissionAuthority grants,
             PermissionMapper permissions,PermissionSchema json,@Qualifier("masterDataSource")DataSource data,
-            ObjectProvider<CustomerConnectorAdapter> adapters,ObjectProvider<CustomerConnectorCredentials> credentials,SourceUploadService uploads,SourceUploadTransport transport){
+            ObjectProvider<CustomerConnectorAdapter> adapters,ObjectProvider<CustomerConnectorCredentials> credentials,SourceUploadService uploads,SourceUploadTransport transport,CustomerConnectorBusinessProfiles profiles){
         this.access=access;this.resources=resources;this.grants=grants;this.permissions=permissions;this.json=json;
-        this.db=new JdbcTemplate(data);db.setQueryTimeout(5);this.adapters=adapters;this.credentials=credentials;this.uploads=uploads;this.transport=transport;
+        this.db=new JdbcTemplate(data);db.setQueryTimeout(5);this.adapters=adapters;this.credentials=credentials;this.uploads=uploads;this.transport=transport;this.profiles=profiles;
     }
     public JsonNode author(ApplicationSessionIdentity.Verified subject,String context,String key,byte[] bytes){
+        return author(subject,context,key,bytes,false);
+    }
+    public JsonNode authorBusiness(ApplicationSessionIdentity.Verified subject,String context,String key,byte[] bytes){
+        return author(subject,context,key,bytes,true);
+    }
+    private JsonNode author(ApplicationSessionIdentity.Verified subject,String context,String key,byte[] bytes,boolean business){
         return access.execute(subject,a->checked(()->{
-            context(a,context);json.headers(context,key);var body=parse(bytes);definition(body);manage(a,"connector.configure");
+            context(a,context);json.headers(context,key);var request=business?profiles.input(bytes):null;var profile=request==null?null:request.required("profile");var body=request==null?parse(bytes):request.required("definition");definition(body);manage(a,"connector.configure");
             String project=text(body,"project_id"),connector=text(body,"connector_id");project(a,project,"source.write");
             String revision=id(tenant(a),"CONFIG",a.actorId(),key),canonical=json.canonical(body),digest=hash(body);
             var old=db.queryForList("SELECT * FROM customer_connector_definition WHERE tenant_id=? AND config_revision=? FOR UPDATE",tenant(a),revision);
-            if(!old.isEmpty()){if(!digest.equals(str(one(old),"definition_sha256")))bad();return view(a,revision);}
+            if(!old.isEmpty()){
+                var original=one(old);if(!digest.equals(str(original,"definition_sha256")))throw new TenantAccessException(ErrorCode.IDEMPOTENCY_CONFLICT);
+                var savedProfile=profiles.read(a,original);if(profile==null?savedProfile!=null:savedProfile==null||!profile.equals(savedProfile.required("profile")))throw new TenantAccessException(ErrorCode.IDEMPOTENCY_CONFLICT);return view(a,revision);
+            }
             var heads=db.queryForList("SELECT * FROM customer_connector_head WHERE tenant_id=? AND connector_id=? FOR UPDATE",tenant(a),connector);
             if(heads.isEmpty()){
                 if(!"0".equals(text(body,"expected_revision")))stale();
@@ -51,20 +61,43 @@ public final class CustomerConnectorService {
             changed(db.update("INSERT INTO customer_connector_definition(tenant_id,project_id,connector_id,config_revision,definition_json,definition_sha256,state,revision,created_by,created_at,updated_at,classification,schema_version,schema_manifest_sha256) VALUES(?,?,?,?,?,?,'DRAFT',1,?,UTC_TIMESTAMP(6),UTC_TIMESTAMP(6),?,'1.0.0',?)",tenant(a),project,connector,revision,canonical,digest,a.actorId(),text(body,"classification"),MANIFEST));
             changed(db.update("UPDATE customer_connector_head SET current_revision=?,revision=revision+1,updated_at=UTC_TIMESTAMP(6) WHERE tenant_id=? AND connector_id=? AND revision=?",revision,tenant(a),connector,text(body,"expected_revision")));
             changed(db.update("INSERT INTO customer_connector_cursor(tenant_id,project_id,config_revision,cursor_json,cursor_sha256,revision,created_by,created_at,updated_at,classification,schema_version,schema_manifest_sha256) VALUES(?,?,?,'null',?,0,?,UTC_TIMESTAMP(6),UTC_TIMESTAMP(6),?,'1.0.0',?)",tenant(a),project,revision,hash(json.tree(null)),a.actorId(),text(body,"classification"),MANIFEST));
+            if(profile!=null)profiles.save(a,row(a,revision),profile);
             audit(a,project,"connector.configuration_created",revision,body,text(body,"classification"));return view(a,revision);
         }));
     }
     public JsonNode read(ApplicationSessionIdentity.Verified subject,String context,String revision){return access.execute(subject,a->checked(()->{context(a,context);return view(a,revision);}));}
+    public JsonNode lookup(ApplicationSessionIdentity.Verified subject,String context,String kind,String key){
+        if(!Set.of("CREATE","DECIDE","VERIFY","SYNC").contains(kind))bad();json.headers(context,key);
+        return access.execute(subject,a->checked(()->{
+            context(a,context);manage(a,"connector.read");var result=json.object().put("schema_version","1.0.0").put("kind",kind).put("state","NOT_FOUND");result.putNull("record").putNull("configuration");
+            if("CREATE".equals(kind)){
+                String revision=id(tenant(a),"CONFIG",a.actorId(),key);var rows=db.queryForList("SELECT * FROM customer_connector_definition WHERE tenant_id=? AND config_revision=? AND created_by=?",tenant(a),revision,a.actorId());if(rows.isEmpty())return result;
+                var row=metadata(one(rows));var profile=profiles.read(a,row);var original=json.object().put("schema_version","1.0.0");original.set("definition",stored(row));original.set("profile",json.tree(profile==null?null:profile.required("profile")));var record=json.object();record.set("request",original);result.set("record",record);result.set("configuration",view(a,revision));
+            }else if("DECIDE".equals(kind)){
+                String decision=id(tenant(a),"DECISION",a.actorId(),key);var rows=db.queryForList("SELECT * FROM customer_connector_decision WHERE tenant_id=? AND decision_id=? AND actor_id=?",tenant(a),decision,a.actorId());if(rows.isEmpty())return result;
+                var row=metadata(one(rows));var definition=row(a,str(row,"config_revision"));var profile=profiles.read(a,definition);var original=JSON.readTree(str(row,"request_json"));if(!profiles.decisionHash(original,profile).equals(str(row,"request_sha256")))bad();var record=json.object().put("decision_id",decision).put("decision",str(row,"decision")).put("created_at",DatabaseTimestamp.format(KnowledgeFeedbackProofs.time(row.get("created_at"))));record.set("request",original);record.set("profile_sha256",profile==null?json.tree(null):profile.required("profile_sha256"));result.set("record",record);result.set("configuration",view(a,str(row,"config_revision")));
+            }else{
+                String run=id(tenant(a),kind,a.actorId(),key);var rows=db.queryForList("SELECT * FROM customer_connector_run WHERE tenant_id=? AND run_id=? AND kind=? AND created_by=?",tenant(a),run,kind,a.actorId());if(rows.isEmpty())return result;
+                var row=metadata(one(rows));var original=JSON.readTree(str(row,"request_json"));if(!hash(original).equals(str(row,"request_sha256")))bad();var record=json.object();record.set("request",original);record.set("run",runView(a,run));result.set("record",record);result.set("configuration",view(a,str(row,"config_revision")));
+            }
+            return result.put("state","FOUND");
+        }));
+    }
     public JsonNode decide(ApplicationSessionIdentity.Verified subject,String context,String revision,String key,byte[] bytes){
+        return decide(subject,context,revision,key,bytes,null);
+    }
+    public JsonNode decide(ApplicationSessionIdentity.Verified subject,String context,String revision,String key,byte[] bytes,String profileHash){
         return access.execute(subject,a->checked(()->{
             context(a,context);json.headers(context,key);var body=parse(bytes);closed(body,"decision","definition_sha256","expected_revision","reason");
             String decision=text(body,"decision"),reason=text(body,"reason");bounded(reason,4096);if(!Set.of("APPROVED","REVOKED").contains(decision))bad();
             var row=row(a,revision);var grant=manage(a,"connector.approve");if(!text(body,"definition_sha256").equals(str(row,"definition_sha256")))bad();
-            String decisionId=id(tenant(a),"DECISION",a.actorId(),key),requestHash=hash(body);
+            var profile=profiles.approval(a,row,profileHash);
+            String decisionId=id(tenant(a),"DECISION",a.actorId(),key),requestHash=profiles.decisionHash(body,profile);
             var existing=db.queryForList("SELECT * FROM customer_connector_decision WHERE tenant_id=? AND decision_id=?",tenant(a),decisionId);
             if(!existing.isEmpty()){var prior=metadata(one(existing));if(!revision.equals(str(prior,"config_revision"))||!requestHash.equals(str(prior,"request_sha256")))bad();return view(a,revision);}
             if(!text(body,"expected_revision").equals(str(row,"revision")))stale();
             if("APPROVED".equals(decision)){
+                if(profile!=null&&!profiles.ownerActive(a,profile))throw new TenantAccessException(ErrorCode.ACCESS_DENIED);
                 currentHead(a,row);if(!"DRAFT".equals(str(row,"state")))stale();var bodyDefinition=stored(row);
                 if(!missing(bodyDefinition).isEmpty())throw new TenantAccessException(ErrorCode.DEPENDENCY_UNAVAILABLE);
                 var credentialDirectory=credentials.getIfAvailable();if(credentialDirectory==null)throw new TenantAccessException(ErrorCode.DEPENDENCY_UNAVAILABLE);
@@ -76,10 +109,11 @@ public final class CustomerConnectorService {
             audit(a,str(row,"project_id"),"connector."+decision.toLowerCase(Locale.ROOT),revision,body,str(row,"classification"));return view(a,revision);
         }));
     }
-    private JsonNode view(EnterpriseAccess.Admission a,String revision)throws Exception{
+    JsonNode view(EnterpriseAccess.Admission a,String revision)throws Exception{
         manage(a,"connector.read");var r=row(a,revision);var b=stored(r);var result=json.object().put("schema_version","1.0.0").put("config_revision",revision)
             .put("definition_sha256",str(r,"definition_sha256")).put("approval_state",str(r,"state")).put("revision",str(r,"revision")).put("connected",false);
-        result.set("definition",b);var blockers=result.putArray("blockers");missing(b).forEach(blockers::add);
+        result.set("definition",b);var profile=profiles.read(a,r);result.set("business_profile",json.tree(profile));var blockers=result.putArray("blockers");missing(b).forEach(blockers::add);
+        if(profile!=null&&!profiles.ownerActive(a,profile))blockers.add("BUSINESS_PROFILE_OWNER_INACTIVE");
         if(!"APPROVED".equals(str(r,"state")))blockers.add("CONFIGURATION_NOT_APPROVED");
         if(missing(b).isEmpty()&&adapter(b)==null)blockers.add("CUSTOMER_PROTOCOL_ADAPTER_MISSING");
         if(credentials.getIfAvailable()==null)blockers.add("APPROVED_CREDENTIAL_DIRECTORY_MISSING");
@@ -91,7 +125,8 @@ public final class CustomerConnectorService {
         result.put("state",blockers.isEmpty()?"READY_FOR_VERIFICATION":"BLOCKED");
         var verification=db.queryForList("SELECT * FROM customer_connector_run WHERE tenant_id=? AND config_revision=? AND kind='VERIFY' ORDER BY created_at DESC,run_id DESC LIMIT 1",tenant(a),revision);
         if(!verification.isEmpty()){
-            var actual=metadata(one(verification));var observed=json.object().put("operation_id",str(actual,"run_id")).put("state",str(actual,"state"));
+            var actual=metadata(one(verification));var observed=json.object().put("operation_id",str(actual,"run_id")).put("state",str(actual,"state"))
+                .put("created_at",DatabaseTimestamp.format(KnowledgeFeedbackProofs.time(actual.get("created_at")))).put("updated_at",DatabaseTimestamp.format(KnowledgeFeedbackProofs.time(actual.get("updated_at"))));
             if(actual.get("result_json")!=null){var receipt=JSON.readTree(str(actual,"result_json"));if(!hash(receipt).equals(str(actual,"result_sha256")))bad();observed.put("result_sha256",str(actual,"result_sha256"));
                 if("VERIFIED".equals(str(actual,"state"))){observed.set("actual_scope",receipt.required("actualScope"));observed.set("external_account_id",receipt.required("externalAccountId"));}}
             result.set("last_verification",observed);
@@ -100,6 +135,9 @@ public final class CustomerConnectorService {
                 catch(TenantAccessException unavailable){blockers.add("CURRENT_CREDENTIAL_BINDING_NOT_VALID");result.put("state","BLOCKED");}
             }
         }
+        var sync=db.queryForList("SELECT * FROM customer_connector_run WHERE tenant_id=? AND config_revision=? AND kind='SYNC' ORDER BY created_at DESC,run_id DESC LIMIT 1",tenant(a),revision);
+        if(!sync.isEmpty()){var actual=metadata(one(sync));result.set("last_sync",json.object().put("operation_id",str(actual,"run_id")).put("state",str(actual,"state"))
+            .put("created_at",DatabaseTimestamp.format(KnowledgeFeedbackProofs.time(actual.get("created_at")))).put("updated_at",DatabaseTimestamp.format(KnowledgeFeedbackProofs.time(actual.get("updated_at")))));}
         result.put("connection_status_note","Connectivity is the last actual verification observation, not a claim of continuous availability.");
         return result;
     }
@@ -193,6 +231,19 @@ public final class CustomerConnectorService {
         changed(db.update("INSERT INTO customer_connector_item(tenant_id,project_id,config_revision,run_id,item_id,external_id_sha256,external_version_sha256,item_json,item_sha256,original_sha256,state,revision,created_by,created_at,updated_at,classification,schema_version,schema_manifest_sha256) VALUES(?,?,?,?,?,?,?,?,?,?,?,1,?,UTC_TIMESTAMP(6),UTC_TIMESTAMP(6),?,'1.0.0',?)",tenant(a),work.request().projectId(),work.request().configurationRevision(),work.request().operationId(),itemId,external,version,json.canonicalObject(item),hash(item),content,item.revoked()?"REVOKED":"PENDING_RIGHTS",a.actorId(),text(work.request().definition(),"classification"),MANIFEST));return false;
     }
     public JsonNode runRead(ApplicationSessionIdentity.Verified subject,String context,String run){return access.execute(subject,a->checked(()->{context(a,context);manage(a,"connector.read");return runView(a,run);}));}
+    public JsonNode history(ApplicationSessionIdentity.Verified subject,String context,String revision,String kind,String after){
+        if(!Set.of("DECIDE","VERIFY","SYNC").contains(kind))throw new SchemaRejection(ErrorCode.SCHEMA_INVALID);if(after!=null)uuid(after);
+        return access.execute(subject,a->checked(()->{
+            context(a,context);manage(a,"connector.read");var configuration=row(a,revision);project(a,str(configuration,"project_id"),"project.read");var profile=profiles.read(a,configuration);
+            var rows="DECIDE".equals(kind)?db.queryForList("SELECT * FROM customer_connector_decision WHERE tenant_id=? AND config_revision=? AND (? IS NULL OR decision_id>?) ORDER BY decision_id LIMIT 26",tenant(a),revision,after,after)
+                :db.queryForList("SELECT * FROM customer_connector_run WHERE tenant_id=? AND config_revision=? AND kind=? AND (? IS NULL OR run_id>?) ORDER BY run_id LIMIT 26",tenant(a),revision,kind,after,after);
+            var result=json.object().put("schema_version","1.0.0").put("config_revision",revision).put("kind",kind).put("complete",rows.size()<=25);var items=result.putArray("items");
+            for(var source:rows.subList(0,Math.min(25,rows.size()))){var r=metadata(source);var original=JSON.readTree(str(r,"request_json"));boolean decision="DECIDE".equals(kind);if(!(decision?profiles.decisionHash(original,profile):hash(original)).equals(str(r,"request_sha256")))bad();
+                var item=json.object().put("operation_id",str(r,decision?"decision_id":"run_id")).put("state",str(r,decision?"decision":"state")).put("actor_id",str(r,decision?"actor_id":"created_by"))
+                    .put("created_at",DatabaseTimestamp.format(KnowledgeFeedbackProofs.time(r.get("created_at")))).put("updated_at",DatabaseTimestamp.format(KnowledgeFeedbackProofs.time(r.get("updated_at"))));item.set("request",original);item.set("run",decision?json.tree(null):runView(a,str(r,"run_id")));items.add(item);}
+            if(rows.size()>25)result.put("next_after",items.get(24).required("operation_id").asText());else result.putNull("next_after");return result;
+        }));
+    }
     private JsonNode runView(EnterpriseAccess.Admission a,String id)throws Exception{
         var r=runRow(a,id);project(a,str(r,"project_id"),"source.read");var out=json.object().put("schema_version","1.0.0").put("operation_id",id).put("config_revision",str(r,"config_revision")).put("state",str(r,"state")).put("formal_source_approval",false);
         out.set("failure",json.tree(r.get("failure")));out.set("request",JSON.readTree(str(r,"request_json")));out.set("result_sha256",json.tree(r.get("result_sha256")));
@@ -269,6 +320,8 @@ public final class CustomerConnectorService {
         currentHead(a,row);if(!"APPROVED".equals(str(row,"state")))deny();var body=stored(row);if(!missing(body).isEmpty())deny();mappings(body);
         if(!permissions.databaseTime().toInstant(ZoneOffset.UTC).isBefore(Instant.parse(text(body,"expires_at"))))stale();
         var decision=metadata(one(db.queryForList("SELECT * FROM customer_connector_decision WHERE tenant_id=? AND config_revision=? AND decision='APPROVED' LIMIT 2",tenant(a),str(row,"config_revision"))));
+        var profile=profiles.read(a,row);if(profile!=null&&!profiles.ownerActive(a,profile))deny();
+        if(!profiles.decisionHash(JSON.readTree(str(decision,"request_json")),profile).equals(str(decision,"request_sha256")))bad();
         if(!str(row,"definition_sha256").equals(str(decision,"definition_sha256")))bad();
         String actor=str(decision,"actor_id");var now=permissions.databaseTime();var member=one(permissions.targetMember(actor));var binding=one(permissions.targetBinding(actor));
         if(!"ACTIVE".equals(member.status())||member.validFrom()==null||member.validFrom().isAfter(now)||member.validTo()!=null&&!member.validTo().isAfter(now)||!"ACTIVE".equals(binding.status())||!binding.mode().equals(str(decision,"identity_mode")))deny();

@@ -1,0 +1,5 @@
+source_id,screen_id,name,source_type,status,artifact_path,requirement_refs,required_states,notes
+/access,login,账户登录,EXPLICIT,VERIFIED,../../web/src/views/login.vue,AC-01/02/03,默认/加载/表单校验/密码显示/登录成功,登录别名共用组件
+/index,home,医疗设备智能工作站,EXPLICIT,VERIFIED,../../web/src/views/index.vue,AC-02/03,当前会话/首页标题,数据与权限流程保持当前定义
+Sidebar/Logo,sidebar,应用导航品牌,EXPLICIT,VERIFIED,../../web/src/layout/components/Sidebar/Logo.vue,AC-02,展开/收起,共享Logo路径
+index.html,browser,浏览器品牌,EXPLICIT,VERIFIED,../../web/index.html,AC-02,页签/Apple Touch,图标HTTP读取通过

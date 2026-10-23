@@ -51,6 +51,12 @@ public final class TemplateApprovalService {
             return schema.preview(prepared.stored(), prepared.baseline(), UUID.randomUUID().toString());
         }).get());
     }
+    public JsonNode definition(ApplicationSessionIdentity.Verified subject,String context,String id){
+        return access.execute(subject,admission->ThrowingSupplier.of(()->{
+            current(admission,context);WireValues.uuid(id);var stored=store.historicalTarget(admission,id,TemplateDependencyAuthority.PURPOSE);var prepared=prepare(admission,stored);
+            return schema.preview(prepared.stored(),prepared.baseline(),UUID.randomUUID().toString(),false);
+        }).get());
+    }
 
     public JsonNode decide(ApplicationSessionIdentity.Verified subject, String context, String key, String id, byte[] body) {
         return access.execute(subject, admission -> ThrowingSupplier.of(() -> {
@@ -113,12 +119,14 @@ public final class TemplateApprovalService {
     }
 
     private Prepared prepare(EnterpriseAccess.Admission admission, String id) throws IOException {
-        var stored = store.approvalTarget(admission, id);
+        return prepare(admission,store.approvalTarget(admission,id));
+    }
+    private Prepared prepare(EnterpriseAccess.Admission admission,TemplateProtocol.Stored stored)throws IOException{
         var request = new TemplateProtocol.VersionInput("1.0.0", stored.base_version(), "urn:medical:templates:1.0.0#/$defs/Content", stored.content(), stored.reason());
         var validated = definitions.version(json.canonicalObject(request).getBytes(java.nio.charset.StandardCharsets.UTF_8));
         if (!validated.content_sha256().equals(stored.content_sha256()) || !validated.dependency_refs().equals(stored.dependency_refs())) mismatch();
         var proofs = dependencies.require(admission, validated); var snapshot = dependencies.snapshot(admission, proofs, json);
-        var baseline = new TemplateApprovalProtocol.Baseline("1.0.0", id, stored.content_sha256(), definitions.manifestSha256(),
+        var baseline = new TemplateApprovalProtocol.Baseline("1.0.0", stored.template_version(), stored.content_sha256(), definitions.manifestSha256(),
                 stored.dependency_refs(), DigestUtils.sha256Hex(json.canonical(snapshot)));
         schema.baseline(baseline); return new Prepared(stored, baseline, snapshot);
     }

@@ -61,6 +61,13 @@ public final class TemplateController {
         response.setHeader("Cache-Control", "no-store"); response.setHeader("X-Schema-Version", "1.0.0");
         response.setHeader("X-Request-Id", result.required("request_id").textValue()); return result;
     }
+    @GetMapping("/api/template-versions/{id}/definition-view")
+    public JsonNode definition(HttpServletRequest request,HttpServletResponse response,Authentication authentication,
+            @PathVariable String id,@RequestHeader(value="X-Schema-Version",required=false)String version,@RequestHeader(value="X-Context-Revision",required=false)String context)throws IOException{
+        if(!"1.0.0".equals(version))throw new SchemaRejection(ErrorCode.SCHEMA_UNSUPPORTED);PermissionSchema.revision(context);
+        if(request.getQueryString()!=null||request.getInputStream().read()!=-1)throw new SchemaRejection(ErrorCode.SCHEMA_INVALID);
+        var result=approvals.definition(identities.requireCurrent(request,authentication),context,id);response.setHeader("Cache-Control","no-store");response.setHeader("X-Schema-Version","1.0.0");response.setHeader("X-Request-Id",result.required("request_id").asText());return result;
+    }
 
     @ExceptionHandler({com.fasterxml.jackson.core.JsonProcessingException.class, org.springframework.http.converter.HttpMessageNotReadableException.class})
     void body(HttpServletResponse response) throws IOException { new IdentityErrorResponseWriter().write(response, 422, ErrorCode.SCHEMA_INVALID); }

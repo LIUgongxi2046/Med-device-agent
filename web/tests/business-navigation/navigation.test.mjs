@@ -1,17 +1,12 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { medicalNavigationGroups, activeLibrarySection, libraryLocation } from '../../src/components/Medical/navigation.js'
+import { activeLibrarySection, libraryLocation } from '../../src/components/Medical/navigation.js'
 import { prepareMedicalFrameworkRoutes, createMedicalFrameworkRegistry, isMedicalFrameworkPath } from '../../src/components/Medical/framework-routes.js'
 const server = [{ path: '/system', name: 'System', component: 'Layout', children: [
   { path: 'user', name: 'User', component: 'system/user/index', meta: { title: '用户管理', public: true, link: 'https://invalid.example' } }
 ] }]
 const view = name => name === 'system/user/index'
-test('groups actual menus without synthesizing unavailable management pages', () => {
-  const groups = medicalNavigationGroups([{ path: '/projects' }, { path: '/agents' }, { path: '/hidden', hidden: true }], server)
-  assert.deepEqual(groups.map(group => group.title), ['核心功能', '平台管理', '系统管理'])
-  assert.equal(groups[2].routes.length, 1)
-  assert.equal(medicalNavigationGroups([], []).length, 0)
-})
+// 业务分类通过 tests/browser/business-menu-checks.mjs 使用实际服务验证。
 test('library sections retain explicit project scope and discard fixed-search history', () => {
   assert.equal(activeLibrarySection('/library/search/exact'), '/library/search')
   assert.equal(activeLibrarySection('/library/collections/new'), '/library/collections')

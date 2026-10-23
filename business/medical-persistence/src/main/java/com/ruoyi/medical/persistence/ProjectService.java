@@ -47,7 +47,9 @@ public final class ProjectService {
     }
 
     public JsonNode list(ApplicationSessionIdentity.Verified subject, String context, ProjectProtocol.Query query) {
-        return access.execute(subject, admission -> checked(() -> {
+        return access.execute(subject, admission -> checked(() -> listAuthorized(admission, context, query, false)));
+    }
+    JsonNode listAuthorized(EnterpriseAccess.Admission admission, String context, ProjectProtocol.Query query, boolean detail) throws IOException {
             current(admission, context); var values = values(admission); var grants = mapper.grants(values);
             var scope = scope(admission, grants, "project.read", "PROJECT_READING");
             if (!scope.available()) denied(ErrorCode.ACCESS_DENIED);
@@ -56,11 +58,10 @@ public final class ProjectService {
             var ids = PageHelper.startPage(1, query.limit() + 1, false)
                     .<String>doSelectPageInfo(() -> mapper.projects(values)).getList();
             var items = json.object().arrayNode();
-            for (String id : ids.subList(0, Math.min(query.limit(), ids.size()))) items.add(item(admission, values, id, grants, false));
+            for (String id : ids.subList(0, Math.min(query.limit(), ids.size()))) items.add(item(admission, values, id, grants, detail));
             var result = json.object(); result.put("schema_version", "1.0.0"); result.set("projects", items);
             result.put("total", count.toString()); result.set("next_after", json.tree(ids.size() > query.limit() ? ids.get(query.limit()-1) : null));
             return schema.envelope("Listing", result, UUID.randomUUID().toString(), null);
-        }));
     }
 
     public JsonNode read(ApplicationSessionIdentity.Verified subject, String context, String projectId) {
@@ -386,6 +387,7 @@ public final class ProjectService {
     private static void filters(Map<String,Object> values, ProjectProtocol.Access scope, ProjectProtocol.Query query) {
         values.put("enterprise", scope.enterprise()); values.put("allowedProjects", scope.projects());
         values.put("after", query.after()); values.put("name", query.name()); values.put("status", query.status()); values.put("responsible", query.responsible());
+        values.put("keyword", query.keyword());
     }
     private static String time(LocalDateTime value) { return value.toInstant(ZoneOffset.UTC).toString(); }
     private static void current(EnterpriseAccess.Admission admission, String header) { if (!admission.context().context_revision().equals(header)) denied(ErrorCode.CONTEXT_CHANGED); }

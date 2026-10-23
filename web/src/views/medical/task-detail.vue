@@ -54,7 +54,7 @@
           <details class="workspace-advanced"><summary>研究运行设置</summary><router-link :to="`/projects/${projectId}/tasks/${taskId}/node-producer-rules`">研究节点生产授权</router-link></details>
         </section>
         <section class="workspace-card"><h2>固定版本与来源</h2><dl><dt>任务版本</dt><dd>{{ current.detail.task_revision }}</dd><dt>已确认计划</dt><dd>{{ current.detail.plan_revision ?? '尚未确认计划' }}</dd><dt>来源快照</dt><dd>{{ current.detail.snapshot_id ?? '尚未形成来源快照' }}</dd></dl><p>文稿引用及原文定位在正文的来源核验区域查看；来源权限按当前会话核查。</p></section>
-        <section class="workspace-card"><h2>任务与运行</h2><p>{{ current.detail.active_run_ids.length }} 项获授权活动运行</p><p v-if="!current.detail.active_run_ids.length">当前没有获授权活动运行。运行状态以服务端记录为准。</p><details v-for="(id, index) in current.detail.active_run_ids" :key="id" class="workspace-details"><summary>运行 {{ index + 1 }} · 状态与恢复</summary><run-detail v-if="session" :session="session" :project-id="current.detail.project_id" :task-id="current.detail.task_id" :run-id="id" :active="routeActive" /></details></section>
+        <section class="workspace-card"><h2>任务与运行</h2><p>{{ current.detail.active_run_ids.length }} 项获授权活动运行</p><p v-if="!current.detail.active_run_ids.length">当前没有获授权活动运行。运行状态以服务端记录为准。</p><details v-for="(id, index) in current.detail.active_run_ids" :key="id" class="workspace-details" @toggle="toggleRun(id, $event)"><summary>运行 {{ index + 1 }} · 状态与恢复</summary><run-detail v-if="session && expandedRuns.has(id)" :session="session" :project-id="current.detail.project_id" :task-id="current.detail.task_id" :run-id="id" :active="routeActive" /></details></section>
         <section class="workspace-card"><h2>待处理事项</h2><p v-if="!current.detail.waiting_item_ids.length">当前没有获授权待办</p><ul v-else><li v-for="id in current.detail.waiting_item_ids" :key="id">{{ id }}</li></ul></section>
         <details class="workspace-card"><summary>候选资料读取</summary><p>当前任务记录尚未提供已授权的候选引用，暂不能读取候选资料。</p><candidate-read-panel v-if="session" :session="session" :project-id="projectId" :candidate-id="null" :active="routeActive" /></details>
         <details class="workspace-card"><summary>任务身份与记录</summary><dl><dt>项目标识</dt><dd>{{ current.detail.project_id }}</dd><dt>任务标识</dt><dd>{{ current.detail.task_id }}</dd><dt>当前记录修订</dt><dd>{{ current.revision }}</dd><dt>责任人员</dt><dd>{{ current.detail.owner_id }}</dd></dl></details>
@@ -90,6 +90,13 @@ const validRoute = computed(() => schemaIssues(taskIdReference, projectId.value)
 const permitted = computed(() => routeActive.value && validRoute.value && taskReadAllowed(session.value, projectId.value, taskId.value))
 const canList = computed(() => validRoute.value && projectActionAllowed(session.value, 'project.task.read', projectId.value))
 const current = ref<CurrentTask | null>(null); const loading = ref(false)
+const expandedRuns = ref<Set<string>>(new Set())
+function toggleRun(id: string, event: Event): void {
+  const next = new Set(expandedRuns.value)
+  if ((event.currentTarget as HTMLDetailsElement).open) next.add(id)
+  else next.delete(id)
+  expandedRuns.value = next
+}
 const stage = computed(() => taskWorkspaceStage(route.path))
 const configPath = computed(() => '/projects/' + projectId.value + '/tasks/' + taskId.value + '/config')
 const selectedDocument = computed(() => authorizedWorkspaceDocument(current.value?.detail.document_ids ?? [], route.params.documentId))
@@ -105,7 +112,7 @@ function focusInputRequirements(): void {
   target.open = true; target.scrollIntoView({ block: 'start' }); target.focus({ preventScroll: true })
 }
 let generation = 0; let controller: AbortController | null = null
-function clear(): void { generation += 1; controller?.abort(); controller = null; current.value = null; loading.value = false }
+function clear(): void { generation += 1; controller?.abort(); controller = null; current.value = null; loading.value = false; expandedRuns.value = new Set() }
 const routeActive = useMedicalRouteRead(['MedicalTaskDetail', 'MedicalTaskWrite', 'MedicalTaskReview'], clear)
 async function reload(): Promise<void> {
   const actual = session.value; const project = projectId.value; const task = taskId.value; const path = route.fullPath

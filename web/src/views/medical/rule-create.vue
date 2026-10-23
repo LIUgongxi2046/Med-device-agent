@@ -22,6 +22,16 @@
       <el-collapse><el-collapse-item title="完整保存核查内容"><pre>{{ full(creationReceipt ?? completedRule) }}</pre></el-collapse-item></el-collapse>
     </section>
     <el-form v-if="permitted && !completedRule" ref="formElement" label-position="top" data-rule-create-form @submit.prevent="submit">
+      <el-card shadow="never" class="rule-business-card"><template #header><h2>检查规则业务配置</h2></template>
+        <div class="rule-business-grid">
+          <el-form-item label="规则名称" :error="errors.business_name"><el-input v-model="business.name" :disabled="disabled" maxlength="200" placeholder="填写便于识别的检查名称" /></el-form-item>
+          <el-form-item label="检查维度"><el-select v-model="business.dimension" :disabled="disabled"><el-option v-for="(label,value) in ruleDimensionLabels" :key="value" :label="label" :value="value" /></el-select></el-form-item>
+          <el-form-item label="处置方式"><el-select v-model="business.handling" :disabled="disabled"><el-option v-for="(label,value) in ruleHandlingLabels" :key="value" :label="label" :value="value" /></el-select></el-form-item>
+          <el-form-item label="资料分类"><el-select v-model="business.classification" :disabled="disabled"><el-option v-for="(label,value) in ruleClassificationLabels" :key="value" :label="label" :value="value" /></el-select></el-form-item>
+        </div>
+        <el-form-item label="判断条件" :error="errors.business_condition"><el-input v-model="business.condition" :disabled="disabled" type="textarea" :rows="3" maxlength="4000" placeholder="说明检查对象、判断要求及需要人工处理的情况" /></el-form-item>
+        <p>业务条件与下方固定表达式共同进入当前版本的人工审查；自然语言说明不会自动转换为执行结果。</p>
+      </el-card>
       <p>规则只引用实际输入属性及获授权依据。此页不执行规则；未知属性保持UNKNOWN，不能据此判定适用或不适用。</p>
       <el-form-item label="固定规则引擎"><el-input :model-value="ruleEngine" readonly /></el-form-item>
       <el-form-item label="版本依据" :error="errors.base_mode">
@@ -85,7 +95,9 @@ import type { Basis, MedicalSession } from '@/api/medical/protocol'
 import { ruleConstantJsonIssue, readRuleConstantJson } from '@/api/medical/rule-values'
 import { projectTextIssue } from '@/api/medical/project-write'
 import { canonicalRule, clearRuleOperation, confirmRuleOperation, prepareRuleWrite, readPendingRule, readRule, readRulePreview,
-  ruleAllowed, ruleEngine, ruleSchema, ruleStatusLabels, submitRuleCreate, validateRuleCreate } from '@/api/medical/rule-versions'
+  ruleAllowed, ruleEngine, ruleSchema, ruleStatusLabels, submitRuleCreate, validateRuleCreate, verifyRuleCreationRecovery } from '@/api/medical/rule-versions'
+import { readRuleBusiness, ruleDimensionLabels, ruleHandlingLabels, ruleClassificationLabels, validateRuleBusiness } from '@/api/medical/rule-business'
+import type { RuleBusinessDefinition } from '@/api/medical/rule-business'
 import type { PendingRuleWrite, RuleCreateBody, RuleCreated, StoredRule } from '@/api/medical/rule-versions'
 import { lookupOperation } from '@/api/medical/operations'
 import type { OperationLookup } from '@/api/medical/operations'
@@ -93,6 +105,7 @@ import type { OperationLookup } from '@/api/medical/operations'
 const user = useUserStore(); const route = useRoute(); const router = useRouter(); const formElement = ref<FormInstance>()
 const form = reactive({ base_mode: '', base_id: '', base_hash: '', expression: '', input_keys: [] as string[], basis_manifest: [] as Basis[],
   constants: [] as { key: string; value: string; basis_refs: Basis[] }[], reason: '' })
+const business=reactive<RuleBusinessDefinition>({name:'',dimension:'CONTENT_COMPLETENESS',condition:'',handling:'MANUAL_CONFIRMATION',classification:'INTERNAL'})
 const attested = ref(false); const candidate = shallowRef<RuleCreateBody | null>(null); const pending = ref<PendingRuleWrite | null>(null)
 const errors = reactive<Record<string, string>>({}); const checking = ref(false); const lookupResult = ref<OperationLookup | null>(null)
 const completedRule = shallowRef<StoredRule | null>(null); const creationReceipt = shallowRef<RuleCreated | null>(null); const discardDialog = ref(false)
@@ -104,10 +117,25 @@ const mayRecover = computed(() => { const id = lookupResult.value?.operation?.re
 const disabled = computed(() => !permitted.value || busy.value || !mayReplay.value)
 const lookupLabels = { FOUND: '已找到原操作', NOT_FOUND: '当前未找到原操作，不能判定请求没有发送', EXPIRED: '原查询记录已过期，需要人工核查，不能自动重发' }
 let generation = 0; let nextTarget: string | null = null; let leaveApproved = false
+async function loadBase(){
+  const id=route.query.from,session=user.medicalSession,current=generation
+  if(id===undefined||pending.value||!session?.current_context||!permitted.value||document.hidden)return
+  if(typeof id!=='string'||schemaIssues(ruleSchema+'Id',id).length)fail('SCHEMA_INVALID','原规则固定版本标识无效')
+  checking.value=true
+  try{
+    const original=await readRule(session,id,new AbortController().signal),definition=await readRuleBusiness(session,original.rule,new AbortController().signal)
+    if(current!==generation||user.medicalSession!==session||document.hidden)return
+    if(original.rule.status!=='APPROVED')fail('SCOPE_STALE','规则修订需要当前已核准的原版本')
+    const stored=original.rule
+    form.base_mode='REVISION';form.base_id=id;form.base_hash=stored.content_sha256;form.expression=stored.content.expression.expression;form.input_keys=[...stored.content.expression.input_keys];form.basis_manifest=stored.content.basis_manifest.map(ref=>({...ref}));form.constants=stored.content.expression.constants.map(item=>({key:item.key,value:JSON.stringify(item.value,null,2),basis_refs:item.basis_refs.map(ref=>({...ref}))}))
+    if(definition)Object.assign(business,definition.definition)
+  }finally{if(current===generation)checking.value=false}
+}
 function full(value: unknown): string { return JSON.stringify(value, null, 2) }
 function clearForm(): void {
   form.base_mode = ''; form.base_id = ''; form.base_hash = ''; form.expression = ''; form.input_keys = []; form.basis_manifest = []; form.constants = []; form.reason = ''
   attested.value = false; candidate.value = null; for (const key of Object.keys(errors)) delete errors[key]
+  Object.assign(business,{name:'',dimension:'CONTENT_COMPLETENESS',condition:'',handling:'MANUAL_CONFIRMATION',classification:'INTERNAL'})
 }
 function reset(): void {
   generation += 1; clearForm(); pending.value = null; lookupResult.value = null; completedRule.value = null; creationReceipt.value = null; checking.value = false; discardDialog.value = false
@@ -121,8 +149,10 @@ async function body(): Promise<RuleCreateBody | null> {
   candidate.value = null; for (const key of Object.keys(errors)) delete errors[key]
   errors.base_mode = ['NEW', 'REVISION'].includes(form.base_mode) ? '' : '请确认本次版本依据'
   errors.expression = projectTextIssue(form.expression, 10000); errors.reason = projectTextIssue(form.reason, 2000)
+  errors.business_name=projectTextIssue(business.name,200);errors.business_condition=projectTextIssue(business.condition,4000)
   form.constants.forEach((constant, index) => { errors['constant_' + index] = ruleConstantJsonIssue(constant.value) })
   if (Object.values(errors).some(Boolean)) { await focusError(); return null }
+  validateRuleBusiness(business)
   const value = { schema_version: '1.0.0', content_schema_ref: 'urn:medical:rule-expressions:1.0.0#/$defs/Content',
     base_version: form.base_mode === 'REVISION' ? { version_id: form.base_id, content_sha256: form.base_hash } : null, reason: form.reason,
     content: { schema_version: '1.0.0', engine_revision: ruleEngine, expression: { schema_version: '1.0.0', engine_revision: ruleEngine,
@@ -153,6 +183,8 @@ async function recover(): Promise<void> {
   try {
     const operation = await confirmRuleOperation(session, original, found.operation_id, new AbortController().signal)
     const result = ruleAllowed(session, 'rule.read', found.resource_id) ? await readRule(session, found.resource_id, new AbortController().signal) : await readRulePreview(session, found.resource_id, new AbortController().signal)
+    const definition=await readRuleBusiness(session,result.rule,new AbortController().signal)
+    await verifyRuleCreationRecovery(original,result.rule,definition)
     if (current !== generation || user.medicalSession !== session || document.hidden) return
     clearRuleOperation(session, original, operation, result.rule); clearForm(); pending.value = null; lookupResult.value = null; completedRule.value = result.rule
   } finally { if (current === generation) checking.value = false }
@@ -165,21 +197,23 @@ async function submit(): Promise<void> {
   if (current !== generation || user.medicalSession !== session) return
   user.medicalWriting = true
   try {
-    const original = await prepareRuleWrite(session, value); pending.value = original
+    const definition=validateRuleBusiness({...business})
+    const original = await prepareRuleWrite(session, value,definition); pending.value = original
     if (current !== generation || user.medicalSession !== session || document.hidden) fail('CONTEXT_CHANGED', '规则创建尚未发送，请核查当前身份')
-    const result = await submitRuleCreate(session, original, value)
+    const result = await submitRuleCreate(session, original, value,definition)
     const operation = await confirmRuleOperation(session, original, result.operation_id, new AbortController().signal)
     if (current !== generation || user.medicalSession !== session || document.hidden) return
     clearRuleOperation(session, original, operation, result.rule); clearForm(); pending.value = null; lookupResult.value = null; creationReceipt.value = result; completedRule.value = result.rule
   } finally { user.medicalWriting = false }
 }
-function dirty(): boolean { return Boolean(form.base_mode || form.expression || form.reason || form.input_keys.length || form.basis_manifest.length || form.constants.length || attested.value) }
+function dirty(): boolean { return Boolean(business.name || business.condition || form.base_mode || form.expression || form.reason || form.input_keys.length || form.basis_manifest.length || form.constants.length || attested.value) }
 async function discard(): Promise<void> { const destination = nextTarget; clearForm(); discardDialog.value = false; nextTarget = null
   if (destination !== null) { leaveApproved = true; await router.push(destination); leaveApproved = false } }
 function beforeUnload(event: BeforeUnloadEvent): void { if (dirty() || user.medicalWriting) { event.preventDefault(); event.returnValue = '' } }
 onBeforeRouteLeave(to => { if (user.medicalWriting) return false; if (leaveApproved || !dirty()) return true; nextTarget = to.fullPath; discardDialog.value = true; return false })
 watch(form, () => { candidate.value = null; attested.value = false }, { deep: true, flush: 'sync' })
-watch(() => user.medicalSession, reset, { immediate: true, flush: 'sync' })
+watch(business,()=>{candidate.value=null;attested.value=false},{deep:true,flush:'sync'})
+watch(() => [user.medicalSession,route.fullPath],async()=>{reset();await loadBase()},{immediate:true,flush:'sync'})
 window.addEventListener('beforeunload', beforeUnload)
 onBeforeUnmount(() => { window.removeEventListener('beforeunload', beforeUnload); generation += 1; clearForm(); completedRule.value = null; creationReceipt.value = null })
 </script>
@@ -187,4 +221,5 @@ onBeforeUnmount(() => { window.removeEventListener('beforeunload', beforeUnload)
 pre { white-space: pre-wrap; overflow-wrap: anywhere; }
 fieldset { min-width: 0; margin: 16px 0; padding: 16px; border: 1px solid var(--el-border-color); }
 section { margin: 20px 0; }
+.rule-business-card{margin:24px 0}.rule-business-card h2{margin:0;font-size:17px}.rule-business-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 24px}.rule-business-card .el-select{width:100%}.rule-business-card p{color:#526279;font-size:13px;line-height:1.7}@media(max-width:650px){.rule-business-grid{grid-template-columns:1fr}}
 </style>

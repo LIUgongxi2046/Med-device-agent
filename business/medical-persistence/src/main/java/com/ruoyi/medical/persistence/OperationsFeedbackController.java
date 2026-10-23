@@ -32,6 +32,10 @@ public final class OperationsFeedbackController {
     public JsonNode history(HttpServletRequest request,HttpServletResponse response,Authentication authentication,@PathVariable String id)throws Exception{
         String context=BusinessAuditController.headers(request,response);if(request.getQueryString()!=null)BusinessOperationsSchema.invalid();return envelope(response,context,service.history(identities.requireCurrent(request,authentication),context,id));
     }
+    @GetMapping("/api/business-operations/feedback/operations/{key}")
+    public JsonNode lookup(HttpServletRequest request,HttpServletResponse response,Authentication authentication,@PathVariable String key){
+        String context=BusinessAuditController.headers(request,response);if(request.getQueryString()!=null)BusinessOperationsSchema.invalid();return envelope(response,context,service.lookup(identities.requireCurrent(request,authentication),context,key));
+    }
     private JsonNode envelope(HttpServletResponse response,String context,JsonNode result){String id=UUID.randomUUID().toString();response.setHeader("X-Request-Id",id);return json.tree(new InterfaceProtocol.Envelope("1.0.0",id,context,result));}
     private static String headers(HttpServletRequest request,HttpServletResponse response){
         response.setHeader("Cache-Control","no-store");response.setHeader("X-Schema-Version","1.0.0");

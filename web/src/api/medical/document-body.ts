@@ -103,7 +103,7 @@ export class VerifiedByteAssembly {
 }
 
 export function immutableDocumentValue<T>(value: T): T {
-  const copy = structuredClone(value)
+  const copy = JSON.parse(canonicalDocumentValue(value)) as T
   const visited = new WeakSet<object>()
   function freeze(item: unknown): void {
     if (item === null || typeof item !== 'object') return

@@ -50,24 +50,20 @@
           <el-form-item label="项目名称" :error="errors.name" for="project-write-name">
             <el-input id="project-write-name" v-model="form.name" maxlength="256" :disabled="writing" />
           </el-form-item>
-          <el-form-item label="负责人账户标识" :error="errors.responsible" for="project-write-responsible">
-            <el-input id="project-write-responsible" v-model="form.responsible" :disabled="writing" />
-            <p>填写本企业有效成员的账户标识。服务端重新核查完整成员身份。</p>
+          <el-form-item label="项目负责人" :error="errors.responsible" for="project-write-responsible">
+            <enterprise-member-selector v-model="form.responsible" input-id="project-write-responsible" label="项目负责人" :disabled="writing" />
           </el-form-item>
-          <el-form-item label="建档依据版本" :error="errors.basis" for="project-write-basis">
-            <el-input id="project-write-basis" v-model="form.basis" :disabled="writing" />
-          </el-form-item>
-          <el-form-item label="建档依据内容摘要（SHA-256）" :error="errors.hash" for="project-write-hash">
-            <el-input id="project-write-hash" v-model="form.hash" :disabled="writing" />
-            <p>依据须为本企业的实际公共版本；此项引用不替代专业核准。</p>
-          </el-form-item>
+          <rule-basis-editor v-model="creationBases" label="建档依据" resource-kind="SOURCE" :max-items="1" :disabled="writing" />
+          <el-alert v-if="errors.basis || errors.hash" :title="errors.basis || errors.hash" type="error" :closable="false" />
+          <p>选择本企业实际公共资料作为建档依据，专业核准由相应流程处理。</p>
+          <el-collapse><el-collapse-item title="高级：负责人账户标识" name="responsible"><el-form-item label="负责人账户标识" for="project-write-responsible-id"><el-input id="project-write-responsible-id" v-model="form.responsible" :disabled="writing" /></el-form-item></el-collapse-item></el-collapse>
         </template>
         <el-form-item v-if="mode === 'DECIDE'" label="项目状态决定" :error="errors.decision" for="project-write-decision">
           <el-select id="project-write-decision" v-model="form.decision" :disabled="writing">
             <el-option v-for="choice in decisions" :key="choice" :value="choice" :label="decisionLabels[choice]" />
           </el-select>
         </el-form-item>
-        <project-attributes v-if="mode !== 'DECIDE'" ref="attributesElement" :attributes="initialAttributes" :disabled="writing" />
+        <project-attributes v-if="mode !== 'DECIDE'" ref="attributesElement" :attributes="initialAttributes" :project-id="target ?? undefined" :disabled="writing" />
         <el-form-item :label="mode === 'CREATE' ? '建档原因' : '决定原因'" :error="errors.reason" for="project-write-reason">
           <el-input id="project-write-reason" v-model="form.reason" type="textarea" maxlength="2000" :disabled="writing" />
         </el-form-item>
@@ -91,7 +87,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
-import type { Attribute, MedicalSession, Project } from '@/api/medical/protocol'
+import type { Attribute, Basis, MedicalSession, Project } from '@/api/medical/protocol'
 import { fail, schemaIssues } from '@/api/medical/protocol'
 import { readProject } from '@/api/medical/projects'
 import { clearCompletedProjectWrite, confirmProjectOperation, prepareProjectWrite, projectActionAllowed,
@@ -101,6 +97,8 @@ import { lookupOperation } from '@/api/medical/operations'
 import type { OperationLookup } from '@/api/medical/operations'
 import useUserStore from '@/store/modules/user'
 import ProjectAttributes from './project-attributes.vue'
+import EnterpriseMemberSelector from './enterprise-member-selector.vue'
+import RuleBasisEditor from './rule-basis-editor.vue'
 import SessionPanel from './session-panel.vue'
 
 const user = useUserStore(); const route = useRoute(); const router = useRouter()
@@ -121,6 +119,7 @@ const initialAttributes = ref<Attribute[]>([])
 const attributesElement = ref<InstanceType<typeof ProjectAttributes> | null>(null)
 const formElement = ref<{ $el: HTMLElement } | null>(null)
 const form = reactive({ name: '', responsible: '', basis: '', hash: '', reason: '', decision: '' as ProjectDecision | '', attested: false })
+const creationBases=computed<Basis[]>({get:()=>form.basis || form.hash ? [{version_id:form.basis,content_sha256:form.hash}] : [],set:values=>{if(values.length>1)throw new Error('项目建档只允许一项实际依据版本');form.basis=values[0]?.version_id??'';form.hash=values[0]?.content_sha256??''}})
 const errors = reactive({ name: '', responsible: '', basis: '', hash: '', reason: '', decision: '', attested: '', schema: '' })
 const statuses = { PENDING: '建档待确认', ACTIVE: '使用中', PAUSED: '已暂停', ARCHIVED: '已归档' }
 const operationStatuses = { PROCESSING: '执行中', COMPLETED: '已完成', FAILED: '失败' }

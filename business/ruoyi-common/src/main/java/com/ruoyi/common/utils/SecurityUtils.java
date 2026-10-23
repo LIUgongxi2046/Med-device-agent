@@ -132,7 +132,12 @@ public class SecurityUtils
      */
     public static boolean isAdmin(Long userId)
     {
-        return userId != null && 1L == userId;
+        if (userId == null) return false;
+        if (userId == 1L) return true;
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !(authentication.getPrincipal() instanceof LoginUser current)) return false;
+        // 仅使用当前认证主体从数据库读取的有效角色判断管理身份。
+        return userId.equals(current.getUserId()) && current.getUser() != null && current.getUser().isAdmin();
     }
 
     /**

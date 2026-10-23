@@ -33,7 +33,7 @@ spring:
   datasource:
     druid:
       master:
-        url: jdbc:mysql://127.0.0.1:13306/medical_local?characterEncoding=UTF-8&serverTimezone=UTC&connectionTimeZone=UTC&useSSL=false&allowPublicKeyRetrieval=true
+        url: jdbc:mysql://127.0.0.1:13306/medical_local?characterEncoding=UTF-8&serverTimezone=UTC&connectionTimeZone=UTC&useSSL=false&allowPublicKeyRetrieval=true&cachePrepStmts=true&prepStmtCacheSize=100&prepStmtCacheSqlLimit=32768&useServerPrepStmts=true&emulateUnsupportedPstmts=false
         username: medical_runtime
         password: ${MEDICAL_LOCAL_DATABASE_PASSWORD}
         driver-class-name: com.mysql.cj.jdbc.Driver

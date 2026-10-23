@@ -77,6 +77,12 @@ public final class DocumentRevisionHttpTest {
                 data.initialize();
                 String context = success(send(http, origin, "/api/session/tenant-selections", "POST", "0", id(), JSON.writeValueAsBytes(JSON.createObjectNode()
                     .put("tenant_id", tasks.tenant).put("expected_context_revision", "0"))), 200).required("data").required("current_context").required("context_revision").textValue();
+                var sourceView = success(send(http, origin, "/api/source-versions/" + data.sourceVersion, "GET", context, null, null), 200).required("data");
+                assertEquals(data.sourceVersion, sourceView.required("source_version").textValue());
+                assertEquals("ACTIVE", sourceView.required("lifecycle_state").textValue());
+                assertEquals("1", sourceView.required("lifecycle_revision").textValue());
+                assertEquals(jdbc.queryForObject("SELECT original_sha256 FROM source_version WHERE tenant_id=? AND source_version=?",
+                    String.class, tasks.tenant, data.sourceVersion), sourceView.required("original_sha256").textValue());
                 String documentPath = "/api/documents/" + data.document;
                 var initial = success(send(http, origin, documentPath, "GET", context, null, null), 200).required("data");
                 assertEquals(data.initialRevision, initial.required("document_revision").textValue());

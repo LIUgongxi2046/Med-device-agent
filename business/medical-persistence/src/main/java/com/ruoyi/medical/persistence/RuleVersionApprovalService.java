@@ -33,14 +33,15 @@ public final class RuleVersionApprovalService {
     private final PermissionSchema json;
     private final IdentityDirectoryPolicy policy;
     private final JdbcTemplate jdbc;
+    private final RuleBusinessDefinitionStore business;
 
     public RuleVersionApprovalService(EnterpriseAccess access, RuleVersionMapper mapper, RuleVersionStore store,
             TemplateDependencyAuthority dependencies, RuleVersionSchema schema,
             ResourceReadAuthority authority, PermissionMapper permissions, PermissionSchema json, IdentityDirectoryPolicy policy,
-            @Qualifier("masterDataSource") DataSource master) {
+            @Qualifier("masterDataSource") DataSource master,RuleBusinessDefinitionStore business) {
         this.access = access; this.mapper = mapper; this.store = store; this.dependencies = dependencies;
         this.schema = schema; this.authority = authority; this.permissions = permissions;
-        this.json = json; this.policy = policy; jdbc = new JdbcTemplate(master);
+        this.json = json; this.policy = policy; jdbc = new JdbcTemplate(master);this.business=business;
     }
 
     public JsonNode baseline(ApplicationSessionIdentity.Verified subject, String context, String id) {
@@ -51,14 +52,19 @@ public final class RuleVersionApprovalService {
     }
 
     public JsonNode decide(ApplicationSessionIdentity.Verified subject, String context, String key, String id, byte[] body) {
+        return decide(subject,context,key,id,body,null);
+    }
+    public JsonNode decide(ApplicationSessionIdentity.Verified subject,String context,String key,String id,byte[] body,String businessHash){
         return access.execute(subject, admission -> ThrowingSupplier.of(() -> {
             WireValues.uuid(id);
             var witness = authority.require(admission, new PermissionProtocol.Scope(admission.context().tenant_id(), null,
                     "RULE", id), "rule.approve", TemplateDependencyAuthority.PURPOSE);
             var request = schema.decide(body);
+            var businessRecord=business.approval(admission,store.approvalTarget(admission,id),businessHash);
             if (!id.equals(request.target_revision())) throw new TenantAccessException(ErrorCode.CONTENT_MISMATCH);
             var values = new HashMap<String,Object>(); values.put("userId", subject.user().user_id()); values.put("key", key);
-            values.put("requestHash", schema.hash(id, request, context, subject.sessionId())); values.put("ruleId", id);
+            if(businessRecord!=null)values.put("businessHash",businessHash);
+            values.put("requestHash", schema.hash(id,businessRecord==null?request:Map.of("decision",request,"business_definition_sha256",businessHash,"business_schema_sha256",business.manifest()), context, subject.sessionId())); values.put("ruleId", id);
             values.put("operationManifest", schema.manifestSha256()); values.put("classification", policy.classification());
             var prior = mapper.approvalOperation(values);
             if (prior.size() > 1) mismatch();
@@ -100,11 +106,12 @@ public final class RuleVersionApprovalService {
             var audit = json.object(); audit.put("schema_version", "1.0.0"); audit.put("operation_id", operationId);
             audit.set("request", json.tree(request)); audit.set("before", json.tree(before)); audit.set("after", json.tree(after));
             audit.set("decision", decision); var payload = json.object(); payload.put("schema_version", "1.0.0"); payload.set("decision", decision);
+            if(businessRecord!=null){audit.set("business_definition",businessRecord);payload.set("business_definition",businessRecord);}
             values.put("auditId", UUID.randomUUID().toString()); values.put("eventId", UUID.randomUUID().toString()); values.put("requestId", requestId);
             one(permissions.saveAudit(subject.user().user_id(), null, (String) values.get("auditId"), "rule.approval_decided",
                     json.canonical(audit), requestId, schema.manifestSha256(), policy.classification()));
             one(permissions.saveEvent(subject.user().user_id(), (String) values.get("eventId"), id, revision, "rule.approval_decided", json.canonical(payload)));
-            if (!schema.read(single(mapper.approvalAudit(values))).equals(audit) || !schema.read(single(mapper.approvalEvent(values))).equals(payload)) mismatch();
+            if (!schema.same(schema.read(single(mapper.approvalAudit(values))), audit) || !schema.same(schema.read(single(mapper.approvalEvent(values))), payload)) mismatch();
             if (!replay(values, single(mapper.approvalOperation(values)), request, after).equals(response)) mismatch();
             return response;
         }).get());
@@ -152,6 +159,8 @@ public final class RuleVersionApprovalService {
         var event = schema.read(single(mapper.approvalEventForOperation(values)));
         if (!audit.required("decision").equals(decision) || !audit.required("request").equals(json.tree(request))
                 || !event.required("decision").equals(decision)) mismatch();
+        var businessHash=values.get("businessHash");
+        if(businessHash!=null&&(!audit.required("business_definition").required("definition_sha256").asText().equals(businessHash)||!audit.required("business_definition").equals(event.required("business_definition"))))mismatch();
         return response;
     }
 
@@ -171,7 +180,7 @@ public final class RuleVersionApprovalService {
         if (!LocalDateTime.parse(value.required("created_at").textValue(), java.time.format.DateTimeFormatter.ISO_DATE_TIME)
                 .equals(parameters.get("now"))) mismatch();
         expected.put("created_at", value.required("created_at").textValue());
-        if (!value.equals(expected)) mismatch();
+        if (!schema.same(value, expected)) mismatch();
     }
 
     private JsonNode advanceContext(EnterpriseAccess.Admission admission, Map<String,Object> values) {

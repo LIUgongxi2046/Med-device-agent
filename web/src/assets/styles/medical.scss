@@ -1,34 +1,108 @@
 .medical-page {
+  --medical-panel-radius: 8px;
+  --medical-section-gap: 24px;
+  --medical-link-color: #175FAE;
   --el-color-primary: #1768C4;
-  --el-color-success: #287044;
-  --el-color-warning: #8B570F;
-  --el-color-danger: #B23E46;
+  --el-color-primary-dark-2: #1256A4;
+  --el-color-primary-light-9: #EDF4FF;
   --el-text-color-primary: #243247;
   --el-text-color-regular: #526279;
-  --el-border-color: #DCE3EC;
-  --el-border-color-light: #E9EDF3;
-  --el-border-radius-base: 6px;
+  --el-text-color-secondary: #5C6D82;
+  --el-text-color-placeholder: #738096;
+  --el-border-color: #A6B3C5;
+  --el-border-color-light: #DCE3EC;
+  --el-border-color-lighter: #E9EDF3;
+  --el-bg-color: #FFFFFF;
+  --el-fill-color-light: #F8FAFC;
   max-width: 1480px;
+  width: 100%;
   padding: 28px;
   margin: auto;
   color: var(--el-text-color-primary);
-  font: 14px/1.6 system-ui, sans-serif;
-  h1 { font-size: 24px; line-height: 1.4; font-weight: 600; }
-  h2 { font-size: 17px; line-height: 1.5; font-weight: 600; }
-  .el-input, .el-select { min-width: 220px; }
-  .el-button, .el-input__wrapper, .el-select__wrapper { min-height: 38px; }
-  section, .el-form, .el-alert { margin-bottom: 24px; }
-  a { color: #175FAE; }
-  :focus-visible { outline: 2px solid #1768C4; outline-offset: 3px; }
+  font-size: 14px;
+  line-height: 1.6;
+  h1 { margin: 0 0 24px; font-size: 24px; line-height: 1.4; font-weight: 600; }
+  h2 { margin: 0 0 16px; font-size: 17px; line-height: 1.5; font-weight: 600; }
+  h3 { font-size: 15px; line-height: 1.6; font-weight: 600; }
+  p { overflow-wrap: anywhere; }
+  .el-input, .el-select, .el-input-number, .el-textarea { min-width: 0; max-width: 100%; }
+  .el-form-item .el-input, .el-form-item .el-select, .el-form-item .el-input-number { width: 100%; }
+  .el-button, .el-input__wrapper, .el-select__wrapper { min-height: 38px; border-radius: 6px; }
+  .el-button.is-link { min-height: 24px; }
+  .el-input__wrapper, .el-select__wrapper { background: var(--el-bg-color); }
+  .el-input.is-disabled .el-input__wrapper, .el-select__wrapper.is-disabled { background: var(--el-disabled-bg-color); }
+  .el-textarea__inner { border-radius: 6px; padding: 10px 12px; line-height: 1.65; }
+  .el-form-item { margin-bottom: 22px; min-width: 0; }
+  .el-form-item__label { height: auto; min-height: 24px; color: var(--el-text-color-regular); font-weight: 500; line-height: 1.6; padding-bottom: 6px; }
+  .el-form-item__content { min-width: 0; align-items: flex-start; gap: 8px; }
+  .el-form-item__content > p, .el-form-item__content > small { width: 100%; margin: 0; color: var(--el-text-color-secondary); font-size: 12px; line-height: 1.65; }
+  .el-form-item__error { position: static; width: 100%; padding-top: 2px; line-height: 1.6; }
+  .el-checkbox { height: auto; min-height: 32px; }
+  .el-checkbox__label { white-space: normal; line-height: 1.6; }
+  .el-radio-group, .el-checkbox-group { display: flex; flex-wrap: wrap; gap: 8px 16px; }
+  .el-form--inline { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 16px; padding: 18px 20px; border-radius: 8px; background: var(--el-fill-color-light); }
+  .el-form--inline > .el-form-item { display: flex; flex-direction: column; align-items: stretch; flex: 1 1 200px; margin: 0; }
+  .el-form--inline > .el-form-item .el-form-item__label { justify-content: flex-start; }
+  .el-form--inline > .el-button { margin-left: 0; }
+  .el-form--inline:has(.el-form-item__error) { align-items: flex-start; }
+  .el-form--label-top:has(> .el-form-item:nth-of-type(5)) { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); column-gap: 24px; }
+  .el-form--label-top:has(> .el-form-item:nth-of-type(5)) > :not(.el-form-item),
+  .el-form--label-top > .el-form-item:has(.el-textarea,.el-checkbox-group,.el-checkbox) { grid-column: 1 / -1; }
+  section, .el-form, .el-alert { margin-bottom: var(--medical-section-gap); }
+  .el-card { border-radius: var(--medical-panel-radius); }
+  .el-dialog { border-radius: 12px; }
+  .el-alert { border-radius: 8px; padding: 14px 18px; }
+  .el-alert__description { line-height: 1.7; }
+  .el-table { border-radius: 8px; font-size: 13px; --el-table-header-bg-color: var(--el-fill-color-light); }
+  .el-table th.el-table__cell { font-weight: 600; height: 46px; }
+  .el-table td.el-table__cell { padding: 12px 0; }
+  .el-descriptions { margin: 20px 0; }
+  .el-descriptions__label { color: var(--el-text-color-secondary); }
+  .el-empty { padding: 32px 0; }
+  a { color: var(--medical-link-color); }
+  :focus-visible { outline: 2px solid var(--el-color-primary); outline-offset: 3px; }
   .el-descriptions__content { overflow-wrap: anywhere; }
 }
+.medical-page:not(.workbench) > section:not(.session-notice),
+.medical-page > .el-form:not(.el-form--inline) {
+  padding: 22px;
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: var(--medical-panel-radius);
+  background: var(--el-bg-color);
+}
+.medical-page .session-notice { padding: 0; border: 0; background: none; }
+.medical-page .session-notice .el-alert { margin-bottom: 0; }
+.medical-page .medical-page { padding: 0; }
 .medical-access { max-width: 540px; }
+html.dark .medical-page {
+  --el-color-primary: inherit;
+  --el-color-primary-dark-2: inherit;
+  --el-color-primary-light-9: inherit;
+  --el-text-color-primary: inherit;
+  --el-text-color-regular: inherit;
+  --el-text-color-secondary: inherit;
+  --el-text-color-placeholder: inherit;
+  --el-border-color: inherit;
+  --el-border-color-light: inherit;
+  --el-border-color-lighter: inherit;
+  --el-bg-color: inherit;
+  --el-fill-color-light: inherit;
+  --medical-link-color: var(--el-color-primary);
+  color: var(--el-text-color-primary);
+}
+html.dark .medical-page h1 { color: var(--el-text-color-primary); }
 @media (max-width: 650px) {
   .medical-page {
     padding: 16px;
     .el-button, .el-input__wrapper, .el-select__wrapper { min-height: 44px; }
     .el-input, .el-select { min-width: 0; width: 100%; }
+    .el-form--label-top:has(> .el-form-item:nth-of-type(5)) { grid-template-columns: minmax(0,1fr); }
+    .el-form--inline { padding: 16px; gap: 12px; }
+    .el-form--inline > .el-form-item { flex-basis: 100%; }
+    .el-form--inline > .el-button { flex: 1; }
+    .el-form-item { margin-bottom: 20px; }
   }
+  .medical-page:not(.workbench) > section:not(.session-notice), .medical-page > .el-form:not(.el-form--inline) { padding: 18px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .medical-page * { transition: none !important; animation: none !important; }

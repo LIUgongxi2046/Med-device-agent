@@ -22,6 +22,17 @@ public final class DocumentCandidateAdoptionEntryService {
     private final JsonMapper mapper=JsonMapper.builder().propertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE).build();
     public DocumentCandidateAdoptionEntryService(EnterpriseAccess access,DataSource data,ResourceReadAuthority resources,DocumentReadService documents,TaskCandidateAssemblyOriginalReader originals,TaskCandidateAssemblyStageJournal stages,DocumentCandidateAdoptionAuthority authority,DocumentCandidateAdoptionService actions,DocumentCandidateAdoptionSaveService saves){this.access=access;db=new JdbcTemplate(data);db.setQueryTimeout(5);this.resources=resources;this.documents=documents;this.originals=originals;this.stages=stages;this.authority=authority;this.actions=actions;this.saves=saves;}
     private record Located(Reference reference,CommandV1 command,String document,String base){}
+    public JsonNode directory(ApplicationSessionIdentity.Verified subject,String context,String document,String after)throws Exception{
+        WireValues.uuid(document);if(after!=null)WireValues.uuid(after);
+        return tx(subject,a->{
+            same(context,a.context().context_revision());var header=one(db.queryForList("SELECT project_id FROM document_head WHERE tenant_id=? AND document_id=?",a.context().tenant_id(),document));String project=str(header,"project_id");
+            resources.require(a,new PermissionProtocol.Scope(a.context().tenant_id(),project,"DOCUMENT",document),"document.read","DOCUMENT_BODY");
+            resources.require(a,new PermissionProtocol.Scope(a.context().tenant_id(),project,"PROJECT",project),"candidate.read","DOCUMENT_BODY");
+            var rows=db.queryForList("SELECT c.candidate_id,c.base_document_revision,c.status,c.created_at,JSON_LENGTH(c.target_node_ids) AS target_node_count FROM candidate c JOIN document_revision_meta m ON m.tenant_id=c.tenant_id AND m.project_id=c.project_id AND m.document_revision=c.base_document_revision WHERE c.tenant_id=? AND c.project_id=? AND m.document_id=? AND c.candidate_kind='DOCUMENT' AND (? IS NULL OR c.candidate_id>?) ORDER BY c.candidate_id LIMIT 101",a.context().tenant_id(),project,document,after,after);
+            var items=mapper.createArrayNode();for(var row:rows.subList(0,Math.min(rows.size(),100))){var item=mapper.createObjectNode().put("candidate_id",str(row,"candidate_id")).put("base_document_revision",str(row,"base_document_revision")).put("status",str(row,"status")).put("created_at",DatabaseTimestamp.format(KnowledgeFeedbackProofs.time(row.get("created_at")))).put("target_node_count",((Number)row.get("target_node_count")).intValue());items.add(item);}
+            var value=mapper.createObjectNode().put("schema_version","1.0.0").put("document_id",document).put("project_id",project).put("complete",rows.size()<=100).put("pagination_mode","LIVE_DIRECTORY");value.set("items",items);if(rows.size()>100)value.put("next_after",items.get(99).required("candidate_id").asText());else value.putNull("next_after");return value;
+        });
+    }
     public JsonNode materialize(ApplicationSessionIdentity.Verified subject,String context,String run)throws Exception {
         var located=tx(subject,a->locate(a,context,run,null));var base=documents.readFixed(subject,context,located.document(),located.base());
         return originals.readHuman(subject,context,located.reference(),located.command(),(original,family)->view(authority.require(original.admission(),original,family,base)));

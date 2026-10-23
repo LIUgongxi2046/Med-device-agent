@@ -47,9 +47,12 @@ public final class TemplateApprovalSchema {
         if (value.dependency_refs().stream().map(PermissionProtocol.Basis::version_id).distinct().count() != value.dependency_refs().size()) invalid();
     }
     JsonNode preview(TemplateProtocol.Stored stored, TemplateApprovalProtocol.Baseline baseline, String requestId) throws IOException {
+        return preview(stored,baseline,requestId,true);
+    }
+    JsonNode preview(TemplateProtocol.Stored stored, TemplateApprovalProtocol.Baseline baseline, String requestId,boolean approval) throws IOException {
         var value = json.object(); value.put("schema_version", "1.0.0"); value.set("template", json.tree(stored));
         value.set("baseline_manifest", json.tree(baseline));
-        value.set("allowed_actions", json.tree(stored.status().equals("DISABLED") ? java.util.List.of() : java.util.List.of("template.approve")));
+        value.set("allowed_actions", json.tree(approval&&!stored.status().equals("DISABLED") ? java.util.List.of("template.approve") : java.util.List.of()));
         validate("Preview", value); shared.validate("templates", json.tree(stored.content()), "Content"); baseline(baseline);
         positive(stored.revision()); positive(stored.authority_revision()); ProjectSchema.text(stored.reason(), 2000);
         if (!stored.template_version().equals(baseline.template_version()) || !stored.content_sha256().equals(baseline.content_sha256())

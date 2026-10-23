@@ -6,6 +6,8 @@ import { projectTextIssue } from './project-write'
 import { readOperation } from './operations'
 import type { Operation } from './operations'
 
+export const TEMPLATE_REQUEST_TIMEOUT_MS = 120000
+
 export type JsonValue = null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue }
 export type JsonObject = { [key: string]: JsonValue }
 export type TemplateDecision = 'APPROVE' | 'RETURN' | 'DISABLE'
@@ -68,9 +70,15 @@ export const templateStatusLabels: Record<TemplateStatus, string> = { DRAFT: '�
 export const templateDecisionLabels: Record<TemplateDecision, string> = { APPROVE: '核准', RETURN: '退回', DISABLE: '停用' }
 
 export function templateApprovalAllowed(session: MedicalSession | null, id?: string): boolean {
+  return templateActionAllowed(session,'template.approve',id)
+}
+export function templateReadAllowed(session:MedicalSession|null,id?:string):boolean{
+  return templateActionAllowed(session,'template.read',id)
+}
+function templateActionAllowed(session:MedicalSession|null,action:'template.read'|'template.approve',id?:string):boolean{
   if (!session?.current_context) return false
   const tenant = session.current_context.tenant_id
-  return session.action_summary.some(item => item.action === 'template.approve' && item.project_id === null && (
+  return session.action_summary.some(item => item.action === action && item.project_id === null && (
     item.resource_kind === 'ENTERPRISE' && item.resource_id === tenant
     || item.resource_kind === 'TEMPLATE' && (item.resource_id === null || id === undefined || item.resource_id === id)
   ))
@@ -100,12 +108,19 @@ export function approvalDecisions(preview: TemplatePreview): TemplateDecision[] 
 }
 
 export async function readTemplatePreview(session: MedicalSession, id: string, signal: AbortSignal): Promise<TemplatePreview> {
+  return readTemplateView(session,id,signal,true)
+}
+export async function readTemplateDefinition(session:MedicalSession,id:string,signal:AbortSignal):Promise<TemplatePreview>{
+  return readTemplateView(session,id,signal,false)
+}
+async function readTemplateView(session:MedicalSession,id:string,signal:AbortSignal,approval:boolean):Promise<TemplatePreview>{
   const context = current(session); target(id)
-  if (!templateApprovalAllowed(session, id)) fail('ACCESS_DENIED', '当前模板没有人工核准权限')
-  const response = envelope(await request.get('/api/template-versions/' + id + '/approval-baseline', { medical: 'envelope', signal,
+  if (approval?!templateApprovalAllowed(session,id):!templateReadAllowed(session,id)) fail('ACCESS_DENIED', approval?'当前模板没有人工核准权限':'当前模板没有读取权限')
+  const response = envelope(await request.get('/api/template-versions/' + id + (approval?'/approval-baseline':'/definition-view'), { medical: 'envelope', signal, timeout: TEMPLATE_REQUEST_TIMEOUT_MS,
     headers: { 'X-Schema-Version': '1.0.0', 'X-Context-Revision': context.context_revision } }))
   const value = validate<TemplatePreview>(schema + 'Preview', response.data)
   const stored = value.template; const baseline = value.baseline_manifest
+  if(!approval&&value.allowed_actions.length)fail('CONTENT_MISMATCH','模板读取接口不能授予人工核准动作')
   validate('urn:medical:templates:1.0.0#/$defs/Content', stored.content)
   positive(stored.revision); positive(stored.authority_revision)
   for (const repeat of stored.content.repeat_definitions) { revision(repeat.min_count); if (repeat.max_count !== null) revision(repeat.max_count) }
@@ -155,7 +170,7 @@ export async function submitTemplateApproval(session: MedicalSession, pending: P
       || pending.expected_revision !== body.expected_revision || pending.decision !== body.decision
       || pending.content_sha256 !== body.baseline_manifest.content_sha256 || await digest(body) !== pending.body_sha256
       || !templateApprovalAllowed(session, pending.template_version)) fail('CONTENT_MISMATCH', '原模板决定与当前主体、企业或参数不一致')
-  const raw = await request.post('/api/template-versions/' + pending.template_version + '/approval-decisions', body, { medical: 'envelope',
+  const raw = await request.post('/api/template-versions/' + pending.template_version + '/approval-decisions', body, { medical: 'envelope', timeout: TEMPLATE_REQUEST_TIMEOUT_MS,
     headers: { 'X-Schema-Version': '1.0.0', 'X-Context-Revision': pending.context.context_revision,
       'Idempotency-Key': pending.key, [session.csrf.header_name]: session.csrf.token } })
   const response = envelope(raw); const result = validate<ApprovalReceipt>(schema + 'Receipt', response.data)

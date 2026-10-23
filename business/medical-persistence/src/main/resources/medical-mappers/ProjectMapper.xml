@@ -62,14 +62,23 @@
       <when test="allowedProjects != null and !allowedProjects.isEmpty()">p.project_id IN <foreach collection="allowedProjects" item="id" open="(" separator="," close=")">#{id}</foreach></when>
       <otherwise>1=0</otherwise>
     </choose>
-    <if test="after != null">AND p.project_id &gt; #{after}</if>
     <if test="name != null">AND LOCATE(#{name},r.name) &gt; 0</if>
+    <if test="keyword != null">AND (LOCATE(#{keyword},r.name) &gt; 0 OR EXISTS (
+      SELECT 1 FROM project_profile_revision search_profile
+      WHERE search_profile.tenant_id=p.tenant_id AND search_profile.project_id=p.project_id
+        AND search_profile.profile_revision=r.current_profile_revision
+        AND JSON_CONTAINS(search_profile.attributes,JSON_OBJECT('key','product_name','status','KNOWN'))=1
+        AND JSON_TYPE(JSON_EXTRACT(search_profile.attributes,REPLACE(JSON_UNQUOTE(JSON_SEARCH(search_profile.attributes,'one','product|_name','|','$[*].key')),'.key','.value')))='STRING'
+        AND LOCATE(#{keyword},JSON_UNQUOTE(JSON_EXTRACT(search_profile.attributes,REPLACE(JSON_UNQUOTE(JSON_SEARCH(search_profile.attributes,'one','product|_name','|','$[*].key')),'.key','.value')))) &gt; 0
+    ))</if>
     <if test="status != null">AND p.status=#{status}</if>
     <if test="responsible != null">AND r.responsible_user_id=#{responsible}</if>
   </sql>
   <select id="projects" resultType="java.lang.String" useCache="false" flushCache="true">
     SELECT p.project_id FROM project p JOIN project_record r ON r.tenant_id=p.tenant_id AND r.project_id=p.project_id
-    WHERE <include refid="projectFilter"/> ORDER BY p.project_id
+    WHERE <include refid="projectFilter"/>
+    <if test="after != null">AND p.project_id &gt; #{after}</if>
+    ORDER BY p.project_id
   </select>
   <select id="projectCount" resultType="java.math.BigInteger" useCache="false" flushCache="true">
     SELECT COUNT(*) FROM project p JOIN project_record r ON r.tenant_id=p.tenant_id AND r.project_id=p.project_id WHERE <include refid="projectFilter"/>

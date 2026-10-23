@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/business-operations/knowledge-feedback")
 public final class KnowledgeFeedbackController {
+    private static final org.slf4j.Logger LOG = org.slf4j.LoggerFactory.getLogger(KnowledgeFeedbackController.class);
     private final KnowledgeFeedbackService service;
     private final ApplicationSessionIdentity identities;
     private final PermissionSchema json;
@@ -45,6 +46,10 @@ public final class KnowledgeFeedbackController {
     public JsonNode history(HttpServletRequest request,HttpServletResponse response,Authentication auth,@PathVariable String id)throws Exception {
         String context=headers(request,response,false);return envelope(response,context,service.history(identities.requireCurrent(request,auth),context,id));
     }
+    @GetMapping("/operations/{key}")
+    public JsonNode lookup(HttpServletRequest request,HttpServletResponse response,Authentication auth,@PathVariable String key){
+        String context=headers(request,response,false);return envelope(response,context,service.lookup(identities.requireCurrent(request,auth),context,key));
+    }
     private static String key(HttpServletRequest request){return SimulationInputArtifactController.one(request,"Idempotency-Key");}
     private static String headers(HttpServletRequest request,HttpServletResponse response,boolean query){
         response.setHeader("Cache-Control","no-store");response.setHeader("X-Schema-Version","1.0.0");
@@ -63,6 +68,7 @@ public final class KnowledgeFeedbackController {
             if(cause instanceof org.springframework.security.core.AuthenticationException){code=ErrorCode.AUTHENTICATION_REQUIRED;status=401;break;}
             if(cause instanceof org.springframework.security.access.AccessDeniedException){code=ErrorCode.ACCESS_DENIED;status=403;break;}
         }
+        if(status==500)LOG.error("知识反馈处理失败",failure);
         new IdentityErrorResponseWriter().write(response,status,code);
     }
 }

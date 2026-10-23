@@ -10,6 +10,8 @@
         <dependency><groupId>com.ruoyi</groupId><artifactId>medical-identity</artifactId><version>${ruoyi.version}</version></dependency>
         <dependency><groupId>com.baomidou</groupId><artifactId>mybatis-plus-spring</artifactId><version>3.5.17</version></dependency>
         <dependency><groupId>com.baomidou</groupId><artifactId>mybatis-plus-jsqlparser</artifactId><version>3.5.17</version></dependency>
+        <dependency><groupId>org.apache.fury</groupId><artifactId>fury-core</artifactId><version>0.9.0</version></dependency>
+        <dependency><groupId>io.github.classgraph</groupId><artifactId>classgraph</artifactId><version>4.8.184</version></dependency>
         <dependency><groupId>com.github.ben-manes.caffeine</groupId><artifactId>caffeine</artifactId><version>3.2.4</version></dependency>
         <dependency><groupId>org.mybatis</groupId><artifactId>mybatis-spring</artifactId><version>3.0.5</version></dependency>
         <dependency><groupId>org.springframework</groupId><artifactId>spring-context</artifactId></dependency>

@@ -10,4 +10,5 @@ public interface ConfigurationDiscoveryMapper {
     String authorizationClock(Map<String,Object> values);
     List<Candidate> models(Map<String,Object> values);
     List<Candidate> rules(Map<String,Object> values);
+    List<Candidate> templates(Map<String,Object> values);
 }

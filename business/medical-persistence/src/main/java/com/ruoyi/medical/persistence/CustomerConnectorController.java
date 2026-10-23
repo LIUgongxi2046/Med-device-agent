@@ -12,10 +12,14 @@ public final class CustomerConnectorController {
  public CustomerConnectorController(ApplicationSessionIdentity identities,CustomerConnectorService service,PermissionSchema json){this.identities=identities;this.service=service;this.json=json;}
  @PostMapping(value="/api/connector-configs",consumes="application/json")
  public JsonNode author(HttpServletRequest r,HttpServletResponse s,Authentication auth)throws Exception{return service.author(subject(r,s,auth,true),context(r),key(r),body(r));}
+ @PostMapping(value="/api/business-connector-configs",consumes="application/json")
+ public JsonNode authorBusiness(HttpServletRequest r,HttpServletResponse s,Authentication auth)throws Exception{return service.authorBusiness(subject(r,s,auth,true),context(r),key(r),body(r));}
+ @GetMapping("/api/connector-operations/{kind}/{key}")
+ public JsonNode lookup(HttpServletRequest r,HttpServletResponse s,Authentication auth,@PathVariable String kind,@PathVariable String key)throws Exception{var current=subject(r,s,auth,false);empty(r);return service.lookup(current,context(r),kind,key);}
  @GetMapping("/api/connector-configs/{revision}")
  public JsonNode read(HttpServletRequest r,HttpServletResponse s,Authentication auth,@PathVariable String revision)throws Exception{return service.read(subject(r,s,auth,false),context(r),revision);}
  @PostMapping(value="/api/connector-configs/{revision}/decisions",consumes="application/json")
- public JsonNode decide(HttpServletRequest r,HttpServletResponse s,Authentication auth,@PathVariable String revision)throws Exception{return service.decide(subject(r,s,auth,true),context(r),revision,key(r),body(r));}
+ public JsonNode decide(HttpServletRequest r,HttpServletResponse s,Authentication auth,@PathVariable String revision,@RequestHeader(value="X-Connector-Profile-SHA256",required=false)String profileHash)throws Exception{return service.decide(subject(r,s,auth,true),context(r),revision,key(r),body(r),profileHash);}
  @PostMapping(value="/api/connector-configs/{revision}/verifications",consumes="application/json")
  public JsonNode verify(HttpServletRequest r,HttpServletResponse s,Authentication auth,@PathVariable String revision)throws Exception{return service.run(subject(r,s,auth,true),context(r),revision,key(r),body(r),"VERIFY",false);}
  @PostMapping(value="/api/connector-configs/{revision}/verification-recovery",consumes="application/json")
@@ -26,6 +30,8 @@ public final class CustomerConnectorController {
  public JsonNode syncRecovery(HttpServletRequest r,HttpServletResponse s,Authentication auth,@PathVariable String revision)throws Exception{return service.run(subject(r,s,auth,true),context(r),revision,key(r),body(r),"SYNC",true);}
  @GetMapping("/api/connector-runs/{run}")
  public JsonNode runRead(HttpServletRequest r,HttpServletResponse s,Authentication auth,@PathVariable String run)throws Exception{return service.runRead(subject(r,s,auth,false),context(r),run);}
+ @GetMapping({"/api/connector-configs/{revision}/history/{kind}","/api/connector-configs/{revision}/history/{kind}/{after}"})
+ public JsonNode history(HttpServletRequest r,HttpServletResponse s,Authentication auth,@PathVariable String revision,@PathVariable String kind,@PathVariable(required=false)String after)throws Exception{var current=subject(r,s,auth,false);empty(r);return service.history(current,context(r),revision,kind,after);}
  @PostMapping(value="/api/connector-items/{item}/source-import",consumes="application/json")
  public JsonNode ingest(HttpServletRequest r,HttpServletResponse s,Authentication auth,@PathVariable String item)throws Exception{return service.ingest(subject(r,s,auth,true),context(r),key(r),item,body(r));}
  private ApplicationSessionIdentity.Verified subject(HttpServletRequest request,HttpServletResponse response,Authentication auth,boolean mutation){
@@ -36,6 +42,8 @@ public final class CustomerConnectorController {
  private static void empty(HttpServletRequest r)throws Exception{if(r.getInputStream().read()!=-1)invalid();}
  private static String context(HttpServletRequest r){return r.getHeader("X-Context-Revision");}private static String key(HttpServletRequest r){return r.getHeader("Idempotency-Key");}
  private static void invalid(){throw new TenantAccessException(ErrorCode.SCHEMA_INVALID);}
+ @ExceptionHandler(SchemaRejection.class)
+ public void schema(SchemaRejection failure,HttpServletResponse response)throws java.io.IOException{new IdentityErrorResponseWriter().write(response,422,failure.code());}
  @ExceptionHandler({TenantAccessException.class,IllegalArgumentException.class,com.fasterxml.jackson.core.JsonProcessingException.class})
  public void error(Exception e,HttpServletResponse response)throws java.io.IOException{var code=e instanceof TenantAccessException t?t.code():ErrorCode.SCHEMA_INVALID;new IdentityErrorResponseWriter().write(response,code==ErrorCode.ACCESS_DENIED?403:code==ErrorCode.DEPENDENCY_UNAVAILABLE?503:409,code);}
 }

@@ -1,13 +1,15 @@
 <template>
-  <el-form ref="element" label-position="top" autocomplete="off" :disabled="disabled" @submit.prevent>
-    <h3>供应商与模型</h3>
-    <p>填写实际配置资料。本表不验证供应商连接，也不会向以下地址发出请求。</p>
+  <el-form ref="element" class="model-configuration-fields" label-position="top" autocomplete="off" :disabled="disabled" @submit.prevent>
+    <section class="model-field-section" data-model-field-section>
+    <header><span class="model-field-section__number">01</span><div><h3>供应商与模型</h3><p>定义模型身份、服务地址与部署区域。</p></div></header>
     <div class="model-field-grid">
       <el-form-item v-for="field in identityFields" :key="field.key" :label="field.label" :for="'model-' + field.key" :error="error('/definition/' + field.key)">
         <el-input :id="'model-' + field.key" v-model="form[field.key]" :maxlength="field.maximum" :placeholder="field.placeholder" autocomplete="off" />
       </el-form-item>
     </div>
-    <h3>已有凭据引用</h3>
+    </section>
+    <section class="model-field-section" data-model-field-section>
+    <header><span class="model-field-section__number">02</span><div><h3>访问凭据</h3><p>关联秘密服务中已经登记的凭据。</p></div></header>
     <el-alert type="info" :closable="false" title="仅填写已登记的引用标识，不要粘贴API密钥、密码或访问令牌。此操作不写入或验证实际凭据。" />
     <div class="model-field-grid">
       <el-form-item label="凭据引用标识（UUID）" for="model-credential_reference_id" :error="error('/definition/credential_reference_id')">
@@ -21,10 +23,12 @@
       </el-form-item>
     </div>
     <p>公开回读不返回引用路径和凭据修订。修改草稿时需要重新填写这两项；它们不会保存到浏览器存储。</p>
-    <h3>声明的能力与限额</h3>
+    </section>
+    <section class="model-field-section" data-model-field-section>
+    <header><span class="model-field-section__number">03</span><div><h3>能力与调用限额</h3><p>设置上下文容量、吞吐限制与允许的请求参数。</p></div></header>
     <div class="model-field-grid">
       <el-form-item v-for="field in countFields" :key="field.key" :label="field.label" :for="'model-' + field.key" :error="error('/definition/limits/' + field.key)">
-        <el-input :id="'model-' + field.key" v-model="form.limits[field.key]" inputmode="numeric" placeholder="正整数字符串" />
+        <el-input :id="'model-' + field.key" v-model="form.limits[field.key]" inputmode="numeric" placeholder="填写正整数" />
       </el-form-item>
       <el-form-item label="请求时限（秒，1–300）" for="model-deadline_seconds" :error="error('/definition/limits/deadline_seconds')">
         <el-input-number id="model-deadline_seconds" v-model="form.limits.deadline_seconds" :min="1" :max="300" :precision="0" />
@@ -39,7 +43,9 @@
         <el-checkbox v-model="form.limits.temperature_enabled">允许temperature（须包含none档位）</el-checkbox>
       </el-form-item>
     </div>
-    <h3>价格与数据政策依据</h3>
+    </section>
+    <section class="model-field-section" data-model-field-section>
+    <header><span class="model-field-section__number">04</span><div><h3>价格与数据政策</h3><p>关联实际依据，明确数据使用、区域及保留期限。</p></div></header>
     <p>依据必须是同一企业可用的实际登记版本及其原始SHA-256摘要。登记引用核验不代表价格批准或数据外发授权。</p>
     <div class="model-field-grid">
       <el-form-item label="价格依据版本（UUID）" for="model-price-version" :error="error('/definition/price_basis/version_id')"><el-input id="model-price-version" v-model="form.price_basis.version_id" /></el-form-item>
@@ -52,12 +58,15 @@
       <el-form-item label="保留天数（十进制整数字符串）" for="model-retention" :error="error('/definition/data_policy/retention_days')"><el-input id="model-retention" v-model="form.data_policy.retention_days" inputmode="numeric" /></el-form-item>
       <el-form-item label="训练使用政策"><el-checkbox v-model="form.data_policy.allow_training">政策允许用于训练</el-checkbox></el-form-item>
     </div>
-    <h3>请求参数协议</h3>
+    </section>
+    <section class="model-field-section" data-model-field-section>
+    <header><span class="model-field-section__number">05</span><div><h3>请求参数协议</h3><p>固定参数定义与模型协议版本，保持调用依据可追溯。</p></div></header>
     <div class="model-field-grid">
       <el-form-item label="参数Schema固定引用（URN）" for="model-parameter-ref" :error="error('/definition/request_parameter_schema_ref')"><el-input id="model-parameter-ref" v-model="form.request_parameter_schema_ref" placeholder="urn:..." /></el-form-item>
       <el-form-item label="参数Schema SHA-256" for="model-parameter-hash" :error="error('/definition/request_parameter_schema_sha256')"><el-input id="model-parameter-hash" v-model="form.request_parameter_schema_sha256" maxlength="64" /></el-form-item>
       <el-form-item label="模型协议修订" for="model-protocol-revision" :error="error('/definition/model_protocol_revision')"><el-input id="model-protocol-revision" v-model="form.model_protocol_revision" maxlength="64" /></el-form-item>
     </div>
+    </section>
   </el-form>
 </template>
 <script setup lang="ts">
@@ -107,7 +116,13 @@ function focusIssue(): void { element.value?.$el.querySelector<HTMLElement>('.is
 defineExpose({ value, clear, load, dirty, focusIssue })
 </script>
 <style scoped>
+.model-field-section { padding: 24px; border: 1px solid var(--el-border-color-lighter); border-radius: 12px; background: var(--el-fill-color-blank); }
+.model-field-section > header { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 20px; }
+.model-field-section__number { display: grid; place-items: center; width: 32px; height: 32px; flex-shrink: 0; border-radius: 8px; background: var(--el-color-primary-light-9); color: var(--el-color-primary); font-size: 12px; font-weight: 600; }
+.model-field-section h3 { margin: 0 0 4px; }
+.model-field-section header p { margin: 0; font-size: 12px; }
 .model-field-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 0 24px; margin-top: 16px; }
+.model-field-grid > .el-form-item:has(.el-textarea,.el-checkbox-group) { grid-column: 1 / -1; }
 p { color: var(--el-text-color-secondary); line-height: 1.6; }
-@media (max-width: 700px) { .model-field-grid { grid-template-columns: 1fr; } }
+@media (max-width: 700px) { .model-field-grid { grid-template-columns: minmax(0,1fr); } .model-field-section { padding: 18px; } }
 </style>

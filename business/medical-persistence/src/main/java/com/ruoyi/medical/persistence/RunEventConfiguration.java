@@ -51,7 +51,6 @@ class RunEventConfiguration {
                     if (last != null && after != null && !last.equals(after)) throw new SchemaRejection(ErrorCode.SCHEMA_INVALID);
                     String run = route.getUriVariables().get("runId"); json.requireId(run);
                     var subject = identities.requireCurrent(request, authentication);
-                    exchange.getResponse().getHeaders().set("Cache-Control", "no-store");
                     exchange.getResponse().getHeaders().set("X-Schema-Version", "1.0.0"); exchange.getResponse().getHeaders().set("X-Accel-Buffering", "no");
                     return writer.write(transport.subscribe(subject, context, run, last == null ? after : last, authentication),
                         ResolvableType.forClassWithGenerics(ServerSentEvent.class, com.fasterxml.jackson.databind.JsonNode.class),
@@ -65,11 +64,11 @@ class RunEventConfiguration {
                     String requestId = java.util.UUID.randomUUID().toString();
                     byte[] body = ThrowingSupplier.of(() -> new IdentityErrorResponseWriter().encode(code, requestId)).get();
                     exchange.getResponse().setStatusCode(org.springframework.http.HttpStatus.valueOf(status));
-                    exchange.getResponse().getHeaders().setContentType(MediaType.APPLICATION_JSON); exchange.getResponse().getHeaders().set("Cache-Control", "no-store");
+                    exchange.getResponse().getHeaders().setContentType(MediaType.APPLICATION_JSON);
                     exchange.getResponse().getHeaders().set("X-Schema-Version", "1.0.0"); exchange.getResponse().getHeaders().set("X-Request-Id", requestId);
                     return exchange.getResponse().writeWith(Mono.just(exchange.getResponse().bufferFactory().wrap(body)));
                 }).build();
-                response.setHeader("Cache-Control", "no-store"); response.setHeader("X-Schema-Version", "1.0.0"); response.setHeader("X-Accel-Buffering", "no");
+                response.setHeader("Cache-Control", "no-store");
                 var adapter = new ServletHttpHandlerAdapter(handler); adapter.setBufferSize(8192);
                 adapter.init(java.util.Objects.requireNonNull(dispatcher.getServletConfig())); adapter.service(request, response);
             }

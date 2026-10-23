@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.medical.persistence.mapper.TaskCreationAgentDirectoryMapper">
+  <resultMap id="candidate" type="com.ruoyi.medical.persistence.mapper.TaskCreationAgentDirectoryMapper$Candidate">
+    <constructor>
+      <arg column="tenant_id" javaType="java.lang.String"/><arg column="project_id" javaType="java.lang.String"/>
+      <arg column="release_id" javaType="java.lang.String"/><arg column="agent_id" javaType="java.lang.String"/>
+      <arg column="agent_version_id" javaType="java.lang.String"/><arg column="name" javaType="java.lang.String"/>
+      <arg column="evaluation_id" javaType="java.lang.String"/><arg column="evaluation_project_id" javaType="java.lang.String"/>
+      <arg column="artifact_id" javaType="java.lang.String"/><arg column="artifact_project_id" javaType="java.lang.String"/>
+      <arg column="revision" javaType="java.math.BigInteger"/><arg column="updated_at" javaType="java.time.LocalDateTime"/>
+    </constructor>
+  </resultMap>
+  <select id="candidates" resultMap="candidate" useCache="false" flushCache="true">
+    SELECT r.tenant_id,r.project_id,r.release_id,a.agent_id,a.agent_version_id,a.name,
+      a.evaluation_id,e.project_id AS evaluation_project_id,r.manifest_artifact_id AS artifact_id,
+      ar.project_id AS artifact_project_id,a.revision,a.updated_at
+    FROM release_record r
+    JOIN agent_version a ON a.tenant_id=r.tenant_id AND a.agent_version_id=r.agent_version_id
+    JOIN configuration_head h ON h.tenant_id=a.tenant_id AND h.config_id=a.agent_id
+      AND h.project_id &lt;=&gt; a.project_id AND h.kind='AGENT' AND h.current_version=a.agent_version_id
+    JOIN evaluation_batch e ON e.tenant_id=a.tenant_id AND e.evaluation_id=a.evaluation_id
+    JOIN artifact ar ON ar.tenant_id=r.tenant_id AND ar.artifact_id=r.manifest_artifact_id
+    WHERE a.status='PUBLISHED' AND (r.project_id IS NULL OR r.project_id=#{projectId})
+    <if test="after != null">AND r.release_id &gt; #{after}</if>
+    <if test="q != null">AND (LOCATE(#{q},a.name)&gt;0 OR LOCATE(#{q},CONVERT(r.release_id USING utf8mb4))&gt;0)</if>
+    ORDER BY r.release_id LIMIT #{limit} FOR UPDATE
+  </select>
+</mapper>

@@ -18,7 +18,7 @@ Run: `node --test web/tests/workbench-access/*.test.mjs`.
 
 Twenty-one focused tests cover SFC script/template compilation, bounded stable project source handling, bigint/null count semantics, current-assignee query and bounded task request structure, denial-page safe-recovery boundaries, and executable component-setup race tests using deferred API promises. Race cases include immediate session revocation, new-actor cursor rejection, duplicate next-page events, partial failure/retry, rapid project selection, hidden-page clearing, and cached off-route inactivity. These are compilation/helper/component-setup tests, not mounted browser interaction evidence.
 
-Browser preview remained unavailable (`ERR_CONNECTION_REFUSED`) at implementation time. The coordinating agent reported the complete medical frontend typecheck passing before this independent review. This review then fixed the return link to the actual `/index` route, added the separate `task.read` detail-link guard, blocked cached off-route reads, and bound queue cursors to their originating session and displayed page. The coordinator must rerun typecheck for these final changes; no production build is claimed here. Still requires browser acceptance against a running authorized backend for: switching session while reads are pending, partial failure and retry, next-page queue navigation, two quick project selections, access-denied recovery with and without a valid session, and enterprise selection while an earlier write is unresolved.
+当前首页、若依布局、超管权限、真实企业选择与项目读取、标签页导航、375/820/1440px和明暗主题验证见[HOME-ADMIN-RUOYI-20261021](../development/HOME-ADMIN-RUOYI-20261021.md)。该记录维护当前类型检查、生产构建和真实浏览器证据。本文的队列分页、竞态及访问恢复规则继续适用，其专门异常场景不能由首页正常流程验证替代。
 
 ## Waiting-item task association increment (2026-10-18)
 

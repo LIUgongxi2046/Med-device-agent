@@ -5,6 +5,7 @@ import com.ruoyi.medical.identity.ApplicationSessionIdentity;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.core.Authentication;
+import org.springframework.lang.Nullable;
 import org.springframework.web.bind.annotation.*;
 
 /** Ordinary authenticated session/CSRF routes. No worker, permission or approval exemption. */
@@ -15,7 +16,7 @@ public final class TaskFieldTargetController {
     private final TaskFieldTargetInputCapabilityService inputs;private final PermissionSchema json;
     public TaskFieldTargetController(ApplicationSessionIdentity identities,TaskFieldMappingService mappings,
             TaskFieldTargetService targets,TaskFieldTargetPreparationService preparation,
-            TaskFieldTargetInputCapabilityService inputs,PermissionSchema json){
+            @Nullable TaskFieldTargetInputCapabilityService inputs,PermissionSchema json){
         this.identities=identities;this.mappings=mappings;this.targets=targets;this.preparation=preparation;this.inputs=inputs;this.json=json;
     }
     @GetMapping("/api/tasks/{task}/field-target-preparation")
@@ -44,23 +45,27 @@ public final class TaskFieldTargetController {
     }
     @GetMapping("/api/tasks/{task}/field-target-input-capabilities")
     public JsonNode inputContext(@PathVariable String task,HttpServletRequest q,HttpServletResponse s,Authentication auth)throws Exception{
-        String context=headers(q,s,false,false);return envelope(inputs.context(identities.requireCurrent(q,auth),context,task),s);
+        String context=headers(q,s,false,false);return envelope(inputs().context(identities.requireCurrent(q,auth),context,task),s);
     }
     @PostMapping(value="/api/tasks/{task}/field-target-input-capabilities",consumes="application/json")
     public JsonNode authorInput(@PathVariable String task,HttpServletRequest q,HttpServletResponse s,Authentication auth)throws Exception{
-        String context=headers(q,s,true,true);var result=inputs.author(identities.requireCurrent(q,auth),context,task,FormalEvaluationContextHttp.key(q),body(q));s.setStatus(201);return envelope(result,s);
+        String context=headers(q,s,true,true);var result=inputs().author(identities.requireCurrent(q,auth),context,task,FormalEvaluationContextHttp.key(q),body(q));s.setStatus(201);return envelope(result,s);
     }
     @GetMapping("/api/tasks/{task}/field-target-input-capabilities/{capability}")
     public JsonNode input(@PathVariable String task,@PathVariable String capability,HttpServletRequest q,HttpServletResponse s,Authentication auth)throws Exception{
-        String context=headers(q,s,false,false);return envelope(inputs.read(identities.requireCurrent(q,auth),context,task,capability),s);
+        String context=headers(q,s,false,false);return envelope(inputs().read(identities.requireCurrent(q,auth),context,task,capability),s);
     }
     @PostMapping(value="/api/tasks/{task}/field-target-input-capabilities/{capability}/decisions",consumes="application/json")
     public JsonNode decide(@PathVariable String task,@PathVariable String capability,HttpServletRequest q,HttpServletResponse s,Authentication auth)throws Exception{
-        String context=headers(q,s,true,true);return envelope(inputs.decide(identities.requireCurrent(q,auth),context,task,capability,FormalEvaluationContextHttp.key(q),body(q)),s);
+        String context=headers(q,s,true,true);return envelope(inputs().decide(identities.requireCurrent(q,auth),context,task,capability,FormalEvaluationContextHttp.key(q),body(q)),s);
     }
     @PostMapping(value="/api/tasks/{task}/field-target-input-capabilities/recovery",consumes="application/json")
     public JsonNode recoverInput(@PathVariable String task,HttpServletRequest q,HttpServletResponse s,Authentication auth)throws Exception{
-        String context=headers(q,s,true,false);return envelope(inputs.recover(identities.requireCurrent(q,auth),context,task,body(q)),s);
+        String context=headers(q,s,true,false);return envelope(inputs().recover(identities.requireCurrent(q,auth),context,task,body(q)),s);
+    }
+    private TaskFieldTargetInputCapabilityService inputs(){
+        if(inputs==null)throw new TenantAccessException(com.ruoyi.medical.contracts.ErrorCode.DEPENDENCY_UNAVAILABLE);
+        return inputs;
     }
     private static String headers(HttpServletRequest q,HttpServletResponse s,boolean post,boolean write)throws Exception{return FormalEvaluationContextHttp.headers(q,s,post,write);}
     private static byte[] body(HttpServletRequest q)throws java.io.IOException{return FormalEvaluationContextHttp.body(q,8_388_608);}

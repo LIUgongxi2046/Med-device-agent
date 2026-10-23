@@ -40,21 +40,22 @@ const useUserStore = defineStore(
       medicalPendingProfile: null
     }),
     actions: {
-      invalidateMedical() {
+      invalidateMedical({ preserveNavigation = false } = {}) {
         this.medicalGeneration += 1
         if (medicalRead !== null) medicalRead.abort()
         medicalRead = null
         this.medicalSession = null
         this.frameworkNavigation = null
-        this.medicalOptions = null
+        if (!preserveNavigation) this.medicalOptions = null
         this.medicalLoading = false
-        this.name = ''; this.nickName = ''; this.id = ''; this.avatar = ''
+        if (!preserveNavigation) { this.name = ''; this.nickName = ''; this.id = ''; this.avatar = '' }
         this.roles = []; this.permissions = []
-        usePermissionStore().setMedicalRoutes(false)
+        if (preserveNavigation) usePermissionStore().suspendMedicalRoutes()
+        else usePermissionStore().setMedicalRoutes(false)
       },
-      async readMedical() {
+      async readMedical({ completeWrite = false } = {}) {
         this.medicalMode = true
-        this.invalidateMedical()
+        this.invalidateMedical({ preserveNavigation: true })
         this.medicalError = null
         this.medicalLoading = true
         const generation = this.medicalGeneration
@@ -71,6 +72,8 @@ const useUserStore = defineStore(
               || JSON.stringify(session.memberships) !== JSON.stringify(options.memberships)) {
             fail('CONTEXT_CHANGED', '会话与企业候选已经变化，请重新读取会话')
           }
+          // 已完成组织写入后，在发布新会话前解除写入状态，使各页面能够立即读取当前组织。
+          if (completeWrite) this.medicalWriting = false
           this.medicalSession = session
           this.frameworkNavigation = navigation
           this.medicalOptions = options
@@ -79,9 +82,12 @@ const useUserStore = defineStore(
           this.id = session.user.user_id
           this.name = session.user.username ?? session.user.display_name ?? session.user.user_id
           this.nickName = session.user.display_name ?? this.name
+          this.avatar = defAva
           this.roles = navigation?.roles ?? []
           this.permissions = navigation?.permissions ?? []
-          usePermissionStore().setMedicalRoutes(true, navigation?.routers ?? [])
+          const navigationIdentity = JSON.stringify({ actor: session.user.user_id, roles: this.roles,
+            permissions: this.permissions, routers: navigation?.routers ?? [] })
+          usePermissionStore().setMedicalRoutes(true, navigation?.routers ?? [], navigationIdentity)
           // 写入页面使用当前 Pinia 会话引用核查结果是否仍属于本次操作。
           return this.medicalSession
         } finally { if (generation === this.medicalGeneration) this.medicalLoading = false }
@@ -116,10 +122,10 @@ const useUserStore = defineStore(
           key: crypto.randomUUID(), revision: options.expected_context_revision }
         const pending = this.medicalPendingSelection
         this.medicalWriting = true
-        this.invalidateMedical()
+        this.invalidateMedical({ preserveNavigation: true })
         try {
           const selected = await selectEnterprise(session, options, pending.tenantId, pending.key, pending.revision)
-          const current = await this.readMedical()
+          const current = await this.readMedical({ completeWrite: true })
           if (current?.current_context === null || current === null
               || JSON.stringify(current.current_context) !== JSON.stringify(selected)) fail('CONTEXT_CHANGED', '企业选择已经提交，当前结果仍需核查')
           this.medicalPendingSelection = null

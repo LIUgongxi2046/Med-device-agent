@@ -71,9 +71,9 @@ class ActualBrowserSession:
 def provision_owner():
     path = RUNTIME / "owner-credentials.json"
     if path.exists():
+        if path.is_symlink() or path.stat().st_uid != os.getuid() or path.stat().st_mode & 0o777 != 0o600:
+            raise RuntimeError("LOCAL_OWNER_CREDENTIAL_PERMISSIONS_INVALID")
         values = json.loads(path.read_bytes())
-        if values["username"] != pwd.getpwuid(os.getuid()).pw_name:
-            raise RuntimeError("LOCAL_OWNER_IDENTITY_CHANGED")
         return values
     browser = ActualBrowserSession()
     status, headers, content = browser.request("GET", "/auth/setup")

@@ -1,0 +1,10 @@
+source_id,screen_id,name,source_type,status,artifact_path,required_states,notes
+Navbar,navbar,顶部全局组织选择,EXPLICIT,VERIFIED,../../web/src/layout/components/Navbar.vue,未选择/已选择/切换/移动端,全部菜单统一入口
+OrganizationSwitcher,organization,组织切换组件,EXPLICIT,VERIFIED,../../web/src/components/Medical/OrganizationSwitcher.vue,有效成员/确认/加载/原请求,真实组织切换与自动刷新通过
+Sidebar,sidebar,稳定业务导航,EXPLICIT,VERIFIED,../../web/src/layout/components/Sidebar/index.vue,导航/刷新/授权失效,侧栏DOM与注销撤权通过
+AppMain,content,响应式内容区域,EXPLICIT,VERIFIED,../../web/src/layout/components/AppMain.vue,桌面/移动端,内容没有被顶部导航覆盖
+SessionPanel,notice,共享会话状态,EXPLICIT,VERIFIED,../../web/src/views/medical/session-panel.vue,未选择/加载/错误/恢复,未选择提示与共享源码编译通过
+/index,home,工作台组织上下文,EXPLICIT,VERIFIED,../../web/src/views/index.vue,组织/真实项目/功能导航,顶部组织及47项入口通过
+/library,library,资料目录与组织权限,EXPLICIT,VERIFIED,../../web/src/views/medical/source-catalogue.vue,只读/维护范围/目录读取,当前实际只读范围通过
+/model-configurations,models,模型配置管理,EXPLICIT,VERIFIED,../../web/src/views/medical/model-configurations.vue,目录/权限/自动刷新,读取与禁用状态通过
+ModelConfigurationFields,model-fields,五个模型表单分区,EXPLICIT,OBSERVED,../../web/src/views/medical/model-configuration-fields.vue,字段/帮助/校验/禁用/主题,源码编译与结构通过；当前组织没有模型维护授权

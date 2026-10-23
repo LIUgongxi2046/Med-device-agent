@@ -30,11 +30,13 @@ public final class BusinessSessionController {
     private final TenantSelectionService selections;
     private final IdentityBindingSchema bindings;
     private final TenantSelectionOptionsSchema optionsSchema;
+    private final AccountWorkspaceSelection workspace;
     public BusinessSessionController(ApplicationSessionIdentity identities, BusinessSessionDirectory directory,
             BusinessSessionSchema schema, TenantSelectionService selections, IdentityBindingSchema bindings,
-            TenantSelectionOptionsSchema optionsSchema) {
+            TenantSelectionOptionsSchema optionsSchema, AccountWorkspaceSelection workspace) {
         this.identities = identities; this.directory = directory; this.schema = schema; this.selections = selections; this.bindings = bindings;
         this.optionsSchema = optionsSchema;
+        this.workspace = workspace;
     }
 
     @GetMapping("/api/session/tenant-selection-options")
@@ -93,9 +95,10 @@ public final class BusinessSessionController {
 
     @GetMapping("/api/session")
     public JsonNode session(HttpServletRequest request, HttpServletResponse response, Authentication authentication,
-            @RequestHeader(value = "X-Schema-Version", required = false) String version) {
+            @RequestHeader(value = "X-Schema-Version", required = false) String version) throws IOException {
         if (!"1.0.0".equals(version)) throw new SchemaRejection(ErrorCode.SCHEMA_UNSUPPORTED);
         var identity = identities.requireCurrent(request, authentication);
+        workspace.initialize(identity);
         var state = directory.read(identity);
         CsrfToken csrf = (CsrfToken) request.getAttribute(CsrfToken.class.getName());
         String requestId = UUID.randomUUID().toString();

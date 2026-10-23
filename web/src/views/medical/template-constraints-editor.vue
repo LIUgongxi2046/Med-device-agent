@@ -1,0 +1,22 @@
+<template>
+  <section class="template-constraints" aria-label="字段限制配置">
+    <el-row :gutter="20"><el-col :xs="24" :md="12"><el-form-item label="长度上限"><el-input-number :model-value="state.max_length" :min="1" :max="2147483647" :precision="0" :disabled="disabled" aria-label="长度上限" @update:model-value="(value:number|undefined) => change('max_length',value??null)" /></el-form-item></el-col><el-col :xs="24" :md="12"><el-form-item label="小数位数"><el-input-number :model-value="state.precision" :min="0" :max="2147483647" :precision="0" :disabled="disabled" aria-label="小数位数" @update:model-value="(value:number|undefined) => change('precision',value??null)" /></el-form-item></el-col></el-row>
+    <el-row :gutter="20"><el-col :xs="24" :md="8"><el-form-item label="最小数值"><el-input :model-value="state.minimum??''" :disabled="disabled" placeholder="未指定" @update:model-value="(value:string) => change('minimum',value||null)" /></el-form-item></el-col><el-col :xs="24" :md="8"><el-form-item label="最大数值"><el-input :model-value="state.maximum??''" :disabled="disabled" placeholder="未指定" @update:model-value="(value:string) => change('maximum',value||null)" /></el-form-item></el-col><el-col :xs="24" :md="8"><el-form-item label="计量单位"><el-input :model-value="state.unit??''" :disabled="disabled" placeholder="未指定" @update:model-value="(value:string) => change('unit',value||null)" /></el-form-item></el-col></el-row>
+    <p class="constraints-note">数值范围保留完整十进制字符串，限制需要对应依据。</p>
+    <rule-basis-editor :model-value="state.range_basis" label="字段范围依据" :disabled="disabled" @update:model-value="value => change('range_basis',value)" />
+    <header><h3>枚举选项</h3><el-button :disabled="disabled" @click="change('enum_options',[...state.enum_options,{value:'',label:'',basis_refs:[]}])">添加选项</el-button></header>
+    <div v-for="(option,index) in state.enum_options" :key="index" class="constraint-option"><el-row :gutter="16"><el-col :xs="24" :md="10"><el-form-item :label="'选项 '+(index+1)+' 键名'"><el-input :model-value="option.value" :disabled="disabled" @update:model-value="(value:string) => updateOption(index,'value',value)" /></el-form-item></el-col><el-col :xs="24" :md="10"><el-form-item :label="'选项 '+(index+1)+' 名称'"><el-input :model-value="option.label" :disabled="disabled" @update:model-value="(value:string) => updateOption(index,'label',value)" /></el-form-item></el-col><el-col :span="4"><el-button text type="danger" :disabled="disabled" @click="change('enum_options',state.enum_options.filter((_,position)=>position!==index))">移除选项</el-button></el-col></el-row><rule-basis-editor :model-value="option.basis_refs" :label="'选项 '+(index+1)+' 依据'" :disabled="disabled" @update:model-value="value => updateOption(index,'basis_refs',value)" /></div>
+    <el-form-item label="允许留空的理由代码"><el-select :model-value="state.nullable_reasons" multiple filterable allow-create default-first-option :disabled="disabled" placeholder="填写并确认已定义的 English 理由代码" @update:model-value="(value:string[]) => change('nullable_reasons',value)" /></el-form-item>
+  </section>
+</template>
+<script setup lang="ts">
+import { computed } from 'vue'
+import type { Basis } from '@/api/medical/protocol'
+import type { JsonObject, JsonValue } from '@/api/medical/template-approval'
+import RuleBasisEditor from './rule-basis-editor.vue'
+interface Constraints {max_length:number|null;precision:number|null;minimum:string|null;maximum:string|null;unit:string|null;range_basis:Basis[];enum_options:{value:string;label:string;basis_refs:Basis[]}[];nullable_reasons:string[]}
+const props=defineProps<{modelValue:JsonObject;disabled:boolean}>(),emit=defineEmits<{'update:modelValue':[value:JsonObject]}>(),state=computed(()=>props.modelValue as unknown as Constraints)
+function change(key:string,value:unknown){emit('update:modelValue',{...props.modelValue,[key]:JSON.parse(JSON.stringify(value)) as JsonValue})}
+function updateOption(index:number,key:string,value:unknown){change('enum_options',state.value.enum_options.map((item,position)=>position===index?{...item,[key]:value}:item))}
+</script>
+<style scoped>.template-constraints header{display:flex;align-items:center;justify-content:space-between;margin:20px 0 12px}.template-constraints h3{font-size:15px;margin:0}.template-constraints .el-select{width:100%}.constraints-note{font-size:12px;color:var(--el-text-color-secondary)}.constraint-option{padding:16px;border:1px solid var(--el-border-color);border-radius:8px;margin-bottom:12px}</style>

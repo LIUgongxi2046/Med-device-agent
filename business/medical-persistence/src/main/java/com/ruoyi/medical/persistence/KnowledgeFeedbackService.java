@@ -30,8 +30,7 @@ public final class KnowledgeFeedbackService {
             authorize(a,context,project,"feedback.create");var targetProof=proofs.version(a,project,kind,target);
             var origin=proofs.origin(a,project,request);String hash=requestHash("CREATE",null,request);
             var replay=replay(a,key,hash);if(replay!=null)return replay;
-            var projectRow=one(db.queryForList("SELECT classification FROM project WHERE tenant_id=? AND project_id=?",tenant(a),project));
-            String classification=max(str(projectRow,"classification"),targetProof.classification());
+            String classification=max(proofs.projectClassification(a,project),targetProof.classification());
             for(var value:origin)classification=max(classification,value.required("classification").asText());
             String feedback=UUID.randomUUID().toString();var now=now();
             var original=json.object().put("schema_version","1.0.0").put("feedback_id",feedback).put("project_id",project)
@@ -101,6 +100,16 @@ public final class KnowledgeFeedbackService {
             if(previous==null||!str(f,"revision").equals(text(previous,"revision"))||!str(f,"status").equals(text(previous,"state")))mismatch();
             var result=json.object().put("schema_version","1.0.0").put("feedback_id",feedback).put("history_only",true).put("revision",str(f,"revision"));
             result.set("original",original(f));result.set("events",events);return result;
+        });
+    }
+    JsonNode lookup(ApplicationSessionIdentity.Verified subject,String context,String key){
+        json.headers(context,key);return tx(subject,a->{
+            StrictComparisonAuthority.human(a,context);
+            var rows=db.queryForList("SELECT * FROM knowledge_feedback_event WHERE tenant_id=? AND created_by=? AND idempotency_key=?",tenant(a),a.actorId(),key);
+            var result=json.object().put("schema_version","1.0.0").put("lookup_status",rows.isEmpty()?"NOT_FOUND":"FOUND");
+            if(rows.isEmpty()){result.putNull("receipt");result.putNull("request_sha256");return result;}
+            var row=one(rows);var value=receipt(row);var f=load(a,text(value,"feedback_id"));authorize(a,context,str(f,"project_id"),"feedback.read");authorizeOriginal(a,f);authorizeReferences(a,f,value);result.put("request_sha256",str(row,"request_sha256"));
+            result.set("receipt",value);return result;
         });
     }
     JsonNode list(ApplicationSessionIdentity.Verified subject,String context,String project,String after){

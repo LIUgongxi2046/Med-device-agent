@@ -1,7 +1,7 @@
 <template>
   <main class="medical-page">
     <h1>创建模板草稿</h1>
-    <session-panel />
+    <router-link to="/templates">返回模板中心</router-link>
     <el-alert v-if="errors.import" :title="errors.import" type="error" :closable="false" role="alert" />
     <p v-if="!permitted">创建模板需要当前企业的明确维护权限</p>
     <el-alert v-if="pending" title="原模板创建请求待核查" type="warning" :closable="false" data-template-create-pending>
@@ -51,17 +51,21 @@
         <el-radio-group v-model="form.base_mode" :disabled="disabled" @change="invalidatePreview"><el-radio value="NEW">独立建立模板</el-radio><el-radio value="REVISION">根据原模板建立新版本</el-radio></el-radio-group>
       </el-form-item>
       <template v-if="form.base_mode === 'REVISION'">
-        <el-form-item label="原模板版本" :error="errors.base_version"><el-input v-model="form.base_id" :disabled="disabled" @input="invalidatePreview" /></el-form-item>
-        <el-form-item label="原模板内容摘要（SHA-256）" :error="errors.base_version"><el-input v-model="form.base_hash" :disabled="disabled" @input="invalidatePreview" /></el-form-item>
+        <el-form-item label="原模板版本" :error="errors.base_version"><el-select :model-value="form.base_id" :disabled="disabled" filterable :loading="baseDirectoryLoading" placeholder="选择原模板，带入完整定义" @visible-change="(value:boolean) => value && loadDirectory()" @update:model-value="loadBase"><el-option v-for="item in baseTemplates" :key="item.template_version" :value="item.template_version" :label="documentLabels[item.document_type] + ' · ' + item.reason" /><template #footer><el-button v-if="baseAfter" text :loading="baseDirectoryLoading" @click="loadDirectory(baseAfter)">加载更多原模板</el-button></template></el-select></el-form-item>
+        <el-collapse><el-collapse-item title="原模板固定版本信息"><el-descriptions :column="1" border><el-descriptions-item label="版本">{{ form.base_id }}</el-descriptions-item><el-descriptions-item label="内容摘要">{{ form.base_hash }}</el-descriptions-item></el-descriptions></el-collapse-item></el-collapse>
       </template>
-      <section v-for="section in sections" :key="section.key" :aria-label="section.label">
-        <h2>{{ section.label }}</h2>
-        <p>{{ section.description }}</p>
-        <template-definition-editor v-if="definitionKinds[section.key]" :kind="definitionKinds[section.key]!" :value="form.sections[section.key]" :disabled="disabled" @changed="form.sections[section.key] = $event; invalidatePreview()" />
+      <el-tabs v-model="editTab" class="template-create-tabs"><el-tab-pane v-for="section in sections" :key="section.key" :label="section.label" :name="section.key"><section :aria-label="section.label">
+        <template-chapter-workspace v-if="section.key === 'nodes'" :value="form.sections.nodes" :disabled="disabled" @changed="form.sections.nodes = $event; invalidatePreview()" />
+        <template-condition-schema-editor v-else-if="section.key === 'condition_schema'" :value="form.sections.condition_schema" :disabled="disabled" @changed="form.sections.condition_schema = $event; invalidatePreview()" />
+        <template-basis-manifest-editor v-else-if="section.key === 'basis_manifest'" :value="form.sections.basis_manifest" :disabled="disabled" :names="basisNames" @changed="form.sections.basis_manifest = $event; invalidatePreview()" />
+        <template-format-profile-editor v-else-if="section.key === 'format_profile' && businessCatalogue" :value="form.sections.format_profile" :disabled="disabled" :catalogue="businessCatalogue" @changed="form.sections.format_profile = $event; invalidatePreview()" />
+        <template v-else><h2>{{ section.label }}</h2><p>{{ section.description }}</p><template-definition-editor v-if="definitionKinds[section.key] && businessCatalogue" :kind="definitionKinds[section.key]!" :catalogue="businessCatalogue" :value="form.sections[section.key]" :disabled="disabled" @changed="form.sections[section.key] = $event; invalidatePreview()" /><el-alert v-else-if="definitionKinds[section.key]" title="章节、字段、表格或附件的完整定义尚未通过检查，请在完整定义区域修正后继续配置。" type="error" :closable="false" /></template>
+        <el-collapse><el-collapse-item :title="'高级：' + section.label + '完整定义'">
         <el-form-item :label="section.label + '完整定义（JSON）'" :error="errors[section.key]">
           <el-input v-model="form.sections[section.key]" type="textarea" :autosize="{ minRows: 5, maxRows: 18 }" :disabled="disabled" @input="invalidatePreview" />
         </el-form-item>
-      </section>
+        </el-collapse-item></el-collapse>
+      </section></el-tab-pane></el-tabs>
       <el-form-item label="创建或修订理由" :error="errors.reason"><el-input v-model="form.reason" type="textarea" maxlength="2000" :disabled="disabled" @input="invalidatePreview" /></el-form-item>
       <el-form-item label="完整定义确认" :error="errors.attested"><el-checkbox v-model="attested" :disabled="disabled">已经核查全部目录、字段、附件、条件、依据及版式；本次只保存草稿</el-checkbox></el-form-item>
       <el-alert v-if="errors.schema" :title="errors.schema" type="error" :closable="false" />
@@ -91,6 +95,9 @@ import type { FormInstance, UploadFile } from 'element-plus'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import SessionPanel from './session-panel.vue'
 import TemplateDefinitionEditor from './template-definition-editor.vue'
+import TemplateConditionSchemaEditor from './template-condition-schema-editor.vue'
+import TemplateBasisManifestEditor from './template-basis-manifest-editor.vue'
+import TemplateFormatProfileEditor from './template-format-profile-editor.vue'
 import useUserStore from '@/store/modules/user'
 import { fail, schemaIssues } from '@/api/medical/protocol'
 import type { MedicalSession } from '@/api/medical/protocol'
@@ -99,6 +106,11 @@ import { draftJsonIssue, templateCreateInputIssue } from './template-collection-
 import { projectTextIssue } from '@/api/medical/project-write'
 import { canonicalTemplateValue, templateApprovalAllowed } from '@/api/medical/template-approval'
 import { confirmTemplateCreate, prepareTemplateCreate, readPendingTemplateCreate, submitTemplateCreate, templateCreateAllowed, validateTemplateCreate } from '@/api/medical/template-create'
+import { readTemplateDefinition } from '@/api/medical/template-approval'
+import { readTemplateDirectory } from '@/api/medical/template-directory'
+import type { TemplateSummary } from '@/api/medical/template-directory'
+import TemplateChapterWorkspace from './template-chapter-workspace.vue'
+import { definitionCatalogue, templateBasisNames } from './template-business-controls'
 import type { PendingTemplateCreate, TemplateCreateBody, TemplateCreated } from '@/api/medical/template-create'
 import { lookupOperation } from '@/api/medical/operations'
 import type { OperationLookup } from '@/api/medical/operations'
@@ -129,6 +141,11 @@ const form = reactive({ document_type: '', application_path: '', ivd: '', direct
 const errors = reactive<Record<string, string>>({}); const attested = ref(false); const candidate = ref<TemplateCreateBody | null>(null)
 const pending = ref<PendingTemplateCreate | null>(null); const created = ref<TemplateCreated | null>(null); const lookupResult = ref<OperationLookup | null>(null)
 const checking = ref(false); const discardDialog = ref(false); const permitted = computed(() => templateCreateAllowed(user.medicalSession))
+const editTab=ref('nodes'),baseTemplates=ref<TemplateSummary[]>([])
+const baseAfter=ref<string|null>(null),baseDirectoryLoading=ref(false);let baseDirectoryLoaded=false,lastDirectoryVersion:string|null=null,baseDirectoryController:AbortController|null=null
+const businessCatalogue=computed(()=>definitionCatalogue(form.sections))
+const basisNames=computed(()=>templateBasisNames(form.sections,businessCatalogue.value))
+let baseController:AbortController|null=null
 const mayReplay = computed(() => pending.value === null || user.medicalSession?.current_context
   && canonicalTemplateValue(user.medicalSession.current_context) === canonicalTemplateValue(pending.value.context)
   && lookupResult.value?.lookup_status !== 'EXPIRED' && lookupResult.value?.operation?.status !== 'PROCESSING' && lookupResult.value?.operation?.status !== 'FAILED')
@@ -143,9 +160,17 @@ function clearForm(): void {
   attested.value = false; candidate.value = null
 }
 function read(): void {
-  generation += 1; clearForm(); pending.value = null; created.value = null; lookupResult.value = null; checking.value = false; discardDialog.value = false
+  generation += 1;baseController?.abort();baseDirectoryController?.abort();baseDirectoryLoading.value=false;baseDirectoryLoaded=false;lastDirectoryVersion=null;baseAfter.value=null;clearForm();baseTemplates.value=[];pending.value = null; created.value = null; lookupResult.value = null; checking.value = false; discardDialog.value = false
   const session: MedicalSession | null = user.medicalSession
-  if (session?.current_context && !document.hidden) pending.value = readPendingTemplateCreate(session)
+  if (session?.current_context && !document.hidden) {pending.value = readPendingTemplateCreate(session);if(!pending.value&&typeof route.query.from==='string')void loadBase(route.query.from)}
+}
+async function loadDirectory(after:string|null=null){const session=user.medicalSession;if(!session||baseDirectoryLoading.value||!after&&baseDirectoryLoaded||after&&after!==baseAfter.value)return;const current=generation,reading=new AbortController();baseDirectoryController=reading;baseDirectoryLoading.value=true;try{const page=await readTemplateDirectory(session,{limit:25,...(after?{after}:{})},reading.signal);if(current!==generation||user.medicalSession!==session)return;if(after&&lastDirectoryVersion&&page.items.some(item=>item.template_version<=lastDirectoryVersion!))fail('CONTENT_MISMATCH','原模板目录分页没有保持固定顺序');baseTemplates.value=[...new Map([...baseTemplates.value,...page.items].map(item=>[item.template_version,item])).values()];baseAfter.value=page.next_after;baseDirectoryLoaded=true;if(page.items.length)lastDirectoryVersion=page.items.at(-1)!.template_version}finally{if(current===generation)baseDirectoryLoading.value=false}}
+async function loadBase(id:string){
+ const session=user.medicalSession;if(!session||pending.value||user.medicalWriting)return
+ const current=generation,reading=new AbortController();baseController?.abort();baseController=reading;checking.value=true;errors.import=''
+ try{const result=await readTemplateDefinition(session,id,reading.signal);if(current!==generation||user.medicalSession!==session||baseController!==reading)return;const value=result.template;clearForm();form.document_type=value.content.document_type;form.application_path=value.content.application_path;form.ivd=value.content.ivd?'IVD':'NON_IVD';form.directory_profile=value.content.directory_profile??'TYPE_SPECIFIC';form.base_mode='REVISION';form.base_id=value.template_version;form.base_hash=value.content_sha256;for(const section of sections)form.sections[section.key]=full(value.content[section.key]);const summary={tenant_id:value.tenant_id,template_version:value.template_version,document_type:value.content.document_type,application_path:value.content.application_path,ivd:value.content.ivd,status:value.status,revision:value.revision,reason:value.reason,created_by:value.created_by,created_at:value.created_at,content_sha256:value.content_sha256};baseTemplates.value=[...new Map([...baseTemplates.value,summary].map(item=>[item.template_version,item])).values()];editTab.value='nodes'}
+ catch(failure){if(current===generation&&!reading.signal.aborted)errors.import=failure instanceof Error?failure.message:'原模板读取失败'}
+ finally{if(current===generation)checking.value=false}
 }
 async function focusError(): Promise<void> {
   await nextTick(); const element = (formElement.value?.$el as HTMLElement | undefined)?.querySelector<HTMLElement>('.el-form-item.is-error input,.el-form-item.is-error textarea,.el-form-item.is-error [tabindex]')
@@ -242,9 +267,10 @@ onBeforeRouteLeave(to => {
 })
 watch(() => user.medicalSession, read, { immediate: true, flush: 'sync' })
 window.addEventListener('beforeunload', beforeUnload)
-onBeforeUnmount(() => { window.removeEventListener('beforeunload', beforeUnload); generation += 1; clearForm(); created.value = null; pending.value = null; lookupResult.value = null })
+onBeforeUnmount(() => { window.removeEventListener('beforeunload', beforeUnload);baseController?.abort();baseDirectoryController?.abort();generation += 1; clearForm(); created.value = null; pending.value = null; lookupResult.value = null })
 </script>
 
 <style scoped>
 pre { white-space: pre-wrap; overflow-wrap: anywhere; margin: 16px; }
+.medical-page{max-width:1480px;padding:28px;margin:auto}.medical-page>h1{font-size:24px;margin:0 0 12px}.medical-page>form{margin-top:24px;padding:24px;background:white;border:1px solid var(--el-border-color-light);border-radius:8px}.template-create-tabs{margin:28px 0}.template-create-tabs h2{font-size:17px}.template-create-tabs .el-collapse{margin-top:20px}.template-create-tabs section>p{color:var(--el-text-color-secondary);line-height:1.8}@media(max-width:650px){.medical-page{padding:16px}.medical-page>form{padding:16px}}
 </style>

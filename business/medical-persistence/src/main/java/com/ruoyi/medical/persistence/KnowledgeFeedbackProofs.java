@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
 
 /** Consumes originals produced by source/rule governance and TP06. Does not grant or publish anything. */
 @Component
+@org.springframework.boot.context.properties.EnableConfigurationProperties(BusinessOperationsClassificationPolicy.class)
 public final class KnowledgeFeedbackProofs {
     private final JdbcTemplate db;
     private final SourceReadMapper sourceRows;
@@ -27,14 +28,16 @@ public final class KnowledgeFeedbackProofs {
     private final PermissionSchema json;
     private final KnowledgeFeedbackSchema codec;
     private final String impactManifest;
+    private final BusinessOperationsClassificationPolicy classifications;
+    private final RuleBusinessDefinitionStore businessRules;
     public KnowledgeFeedbackProofs(DataSource data,SourceReadMapper sourceRows,SourceReadAuthority sources,
             DocumentUploadPolicy storage,RuleVersionStore rules,RuleVersionSchema ruleSchema,SourceGovernanceSchema sourceSchema,
             DocumentReadService documents,ResourceReadAuthority resources,PermissionMapper permissions,
             PermissionAuthority grants,com.ruoyi.medical.identity.PlatformMemberIdentityStatus identities,
-            PermissionSchema json,KnowledgeFeedbackSchema codec)throws Exception {
+            PermissionSchema json,KnowledgeFeedbackSchema codec,BusinessOperationsClassificationPolicy classifications,RuleBusinessDefinitionStore businessRules)throws Exception {
         db=new JdbcTemplate(data);db.setQueryTimeout(5);this.sourceRows=sourceRows;this.sources=sources;this.storage=storage;
         this.rules=rules;this.ruleSchema=ruleSchema;this.sourceSchema=sourceSchema;this.documents=documents;
-        this.resources=resources;this.permissions=permissions;this.grants=grants;this.identities=identities;this.json=json;this.codec=codec;
+        this.resources=resources;this.permissions=permissions;this.grants=grants;this.identities=identities;this.json=json;this.codec=codec;this.classifications=classifications;this.businessRules=businessRules;
         try(var in=Objects.requireNonNull(getClass().getResourceAsStream("/version-change-impact.schema.json"))){impactManifest=WireValues.sha256(in.readAllBytes());}
     }
     record Version(String id,String hash,String classification,LocalDateTime createdAt,String sourceId,
@@ -53,7 +56,8 @@ public final class KnowledgeFeedbackProofs {
             if(!"SOURCE_VERSION".equals(str(registry,"entity_kind"))||!source.originalSha256().equals(str(registry,"content_sha256"))
                     ||!Objects.equals(source.ownerProjectId(),registry.get("owner_project_id")))mismatch();
             var row=one(db.queryForList("SELECT created_by,created_at FROM source_version WHERE tenant_id=? AND source_version=?",tenant(a),id));
-            String classification=max(source.classification(),proof.rights().classification());
+            String classification=max(classifications.resolve(tenant(a),"SOURCE",id,source.originalSha256(),source.classification()),
+                classifications.resolve(tenant(a),"RIGHTS",proof.rights().rightsRevision(),proof.rights().contentSha256(),proof.rights().classification()));
             var snapshot=json.object().put("version_id",id).put("content_sha256",source.originalSha256()).put("kind",kind)
                 .put("source_id",source.sourceId()).put("rights_revision",proof.rights().rightsRevision())
                 .put("rights_sha256",proof.rights().contentSha256()).put("classification",classification)
@@ -64,12 +68,19 @@ public final class KnowledgeFeedbackProofs {
         var rule=rules.read(a,id);
         if(!"RULE_VERSION".equals(str(registry,"entity_kind"))||registry.get("owner_project_id")!=null||!rule.content_sha256().equals(str(registry,"content_sha256")))mismatch();
         var row=one(db.queryForList("SELECT classification,created_at FROM rule_version WHERE tenant_id=? AND rule_version=?",tenant(a),id));
+        var business=businessRules.read(a,rule);
+        String classification=business==null?classifications.resolve(tenant(a),"RULE",id,rule.content_sha256(),str(row,"classification")):business.required("definition").required("classification").asText();
         var snapshot=json.object().put("version_id",id).put("content_sha256",rule.content_sha256()).put("kind",kind)
-            .put("classification",str(row,"classification")).put("created_by",rule.created_by()).put("created_at",instant(time(row.get("created_at"))));
+            .put("classification",classification).put("created_by",rule.created_by()).put("created_at",instant(time(row.get("created_at"))));
         snapshot.set("base_version",json.tree(rule.base_version()));
-        return new Version(id,rule.content_sha256(),str(row,"classification"),time(row.get("created_at")),null,
+        return new Version(id,rule.content_sha256(),classification,time(row.get("created_at")),null,
             rule.base_version()==null?null:rule.base_version().version_id(),snapshot);
     }
+    String projectClassification(EnterpriseAccess.Admission admission,String project){
+        var row=projectMetadata(db,tenant(admission),project);
+        return classifications.resolve(tenant(admission),"PROJECT",str(row,"current_profile_revision"),str(row,"content_sha256"),str(row,"classification"));
+    }
+    static Map<String,Object> projectMetadata(JdbcTemplate data,String tenant,String project){return one(data.queryForList("SELECT r.classification,r.current_profile_revision,p.content_sha256 FROM project_record r JOIN project_profile_revision p ON p.tenant_id=r.tenant_id AND p.project_id=r.project_id AND p.profile_revision=r.current_profile_revision WHERE r.tenant_id=? AND r.project_id=?",tenant,project));}
     JsonNode origin(EnterpriseAccess.Admission a,String project,JsonNode request)throws Exception {
         var result=json.object();
         String original=KnowledgeFeedbackSchema.nullable(request,"document_revision"),revised=KnowledgeFeedbackSchema.nullable(request,"revised_document_revision");

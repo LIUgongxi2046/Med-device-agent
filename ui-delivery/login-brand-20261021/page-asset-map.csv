@@ -1,0 +1,5 @@
+screen_id,asset_id,usage,required,notes
+login,brandmark,48px桌面及42px窄视口标识,true,等比显示
+home,brandmark,56px首页标识,true,等比显示
+sidebar,brandmark,32px导航标识,true,展开与收起共用
+browser,brandmark,浏览器页签与Apple Touch,true,使用同一图片
